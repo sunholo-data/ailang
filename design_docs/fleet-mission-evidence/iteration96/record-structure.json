@@ -1,0 +1,18 @@
+{
+  "before_lines": 408,
+  "after_lines": 407,
+  "added_status_lines": 4,
+  "archived_exact_lines": 6,
+  "added_ledger_lines": 1,
+  "stamps": [
+    96,
+    95,
+    94
+  ],
+  "archived93_exact": true,
+  "archive92_control": true,
+  "all42_old_ledger_rows_unchanged": true,
+  "goal_queue_footer_reversible_comparison": true,
+  "final_frozen_sha256": "df93fee6c072bbdc19850126963049a50ff7df7cd3db13cc573a08e4fd859998",
+  "archive_boundary_separator_added": true
+}

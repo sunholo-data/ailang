@@ -1,0 +1,1056 @@
+diff --git a/.agents/skills/benchmark-runner/SKILL.md b/.agents/skills/benchmark-runner/SKILL.md
+index a1ec2967c..7caa8a57e 100644
+--- a/.agents/skills/benchmark-runner/SKILL.md
++++ b/.agents/skills/benchmark-runner/SKILL.md
+@@ -33,17 +33,17 @@ Invoke this skill when:
+ **Fork repo**: https://github.com/sunholo-data/ai-coding-lang-bench
+ **Local path**: `/Users/mark/dev/sunholo/ai-coding-lang-bench/`
+ 
+-The benchmark has Codex implement "MiniGit" (a minimal git clone) in AILANG. It tests:
++The benchmark has Claude Code implement "MiniGit" (a minimal git clone) in AILANG. It tests:
+ - v1: init, add, commit, log (11 tests)
+ - v2: extends v1 with status, diff, checkout, reset (30 tests)
+ 
+-Each trial invokes `Codex -p` with a prompt + language-specific `extra_prompt`.
++Each trial invokes `claude -p` with a prompt + language-specific `extra_prompt`.
+ 
+ ## Prompt Strategy Variants
+ 
+ AILANG has 5 variants in `benchmark.rb` to measure information value of different documentation layers:
+ 
+-| Variant | What Codex Gets | Measures |
++| Variant | What Claude Gets | Measures |
+ |---------|-----------------|----------|
+ | `ailang/zero-shot` | "Use AILANG (.ail files)" | Baseline — hallucination rate |
+ | `ailang/cli` | "Run `ailang devtools-prompt`" | CLI self-documentation value |
+@@ -74,39 +74,39 @@ Run benchmark trials for a specific AILANG variant.
+ 
+ ```bash
+ # Run 5 trials of ailang/spec starting from trial 1
+-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5 1
++.claude/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5 1
+ 
+ # Run 3 trials of ailang (guided) starting from trial 6
+-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang 3 6
++.claude/skills/benchmark-runner/scripts/run_trials.sh ailang 3 6
+ ```
+ 
+ ### `scripts/analyze_results.sh`
+ Parse results.json and logs to produce a metrics summary table.
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/analyze_results.sh
++.claude/skills/benchmark-runner/scripts/analyze_results.sh
+ ```
+ 
+ ### `scripts/compare_strategies.sh`
+ Side-by-side comparison of different prompt strategy variants.
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/compare_strategies.sh
++.claude/skills/benchmark-runner/scripts/compare_strategies.sh
+ ```
+ 
+ ### `scripts/find_gaps.sh`
+-Parse Codex session JSONL files to identify repeated failed searches — these indicate AILANG language gaps.
++Parse Claude session JSONL files to identify repeated failed searches — these indicate AILANG language gaps.
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/find_gaps.sh
++.claude/skills/benchmark-runner/scripts/find_gaps.sh
+ ```
+ 
+ ### `scripts/monitor_session.sh`
+ Live monitoring of active benchmark sessions (wrapper around monitor.sh in fork repo).
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/monitor_session.sh        # One-shot
+-.Codex/skills/benchmark-runner/scripts/monitor_session.sh --watch # Auto-refresh
++.claude/skills/benchmark-runner/scripts/monitor_session.sh        # One-shot
++.claude/skills/benchmark-runner/scripts/monitor_session.sh --watch # Auto-refresh
+ ```
+ 
+ ## Workflow
+@@ -118,7 +118,7 @@ Live monitoring of active benchmark sessions (wrapper around monitor.sh in fork
+ ruby benchmark.rb --lang ailang/spec --trials 1 --start 1
+ 
+ # Then run batch of 5
+-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5
++.claude/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5
+ ```
+ 
+ ### 2. Monitor Progress
+@@ -132,13 +132,13 @@ cd /Users/mark/dev/sunholo/ai-coding-lang-bench
+ ### 3. Analyze Results
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/analyze_results.sh
++.claude/skills/benchmark-runner/scripts/analyze_results.sh
+ ```
+ 
+ ### 4. Identify Gaps
+ 
+ ```bash
+-.Codex/skills/benchmark-runner/scripts/find_gaps.sh
++.claude/skills/benchmark-runner/scripts/find_gaps.sh
+ ```
+ 
+ Output shows repeated failed searches grouped by topic:
+@@ -158,7 +158,7 @@ exit/exitCode (14 searches across 3 trials)
+ For each identified gap, create a design doc:
+ ```bash
+ # Use design-doc-creator skill
+-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh m-gap-name v0_10_0
++.claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-gap-name v0_10_0
+ ```
+ 
+ ### 6. Implement Fixes and Re-benchmark
+@@ -178,7 +178,7 @@ After implementing a gap fix:
+     meta.json            # Environment metadata
+     report.md            # Upstream report for other languages
+   logs/
+-    minigit-*.json       # Codex cost/tokens per trial
++    minigit-*.json       # Claude cost/tokens per trial
+     session-*.jsonl      # Full chat history (thinking, tool calls, errors)
+   generated/
+     minigit-*/           # Generated AILANG source code + shell wrappers
+@@ -198,14 +198,14 @@ Key comparisons:
+ 
+ ## Known Issues
+ 
+-1. **Trial isolation**: `generated/` directory from prior trials is visible — Codex may read previous solutions. Clean `generated/` between strategy comparisons.
+-2. **Cache warming**: Trial 2+ benefits from Codex prompt caching. First trial of a session is always slower.
++1. **Trial isolation**: `generated/` directory from prior trials is visible — Claude may read previous solutions. Clean `generated/` between strategy comparisons.
++2. **Cache warming**: Trial 2+ benefits from Claude prompt caching. First trial of a session is always slower.
+ 3. **Exit code gap**: AILANG has no `exit(code)` builtin. Design doc at `design_docs/planned/v0_10_0/m-exit-code.md`.
+ 4. **Cons expression gap**: `::` only works in patterns, not expressions. Design doc at `design_docs/planned/v0_10_0/m-cons-expression.md`.
+ 
+ ## Notes
+ 
+ - Regenerate `AILANG-SYNTAX.md` after language changes: `ailang prompt > /path/to/fork/AILANG-SYNTAX.md`
+-- The benchmark uses `Codex -p --dangerously-skip-permissions --output-format json`
++- The benchmark uses `claude -p --dangerously-skip-permissions --output-format json`
+ - Each trial costs ~$0.50-$2.00 depending on discovery overhead
+ - v2 is always faster than v1 because it extends existing code from v1
+diff --git a/.agents/skills/builtin-developer/SKILL.md b/.agents/skills/builtin-developer/SKILL.md
+index 94fb4bedd..875283927 100644
+--- a/.agents/skills/builtin-developer/SKILL.md
++++ b/.agents/skills/builtin-developer/SKILL.md
+@@ -50,7 +50,7 @@ Validate all builtins in the registry.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/builtin-developer/scripts/validate_builtins.sh
++.claude/skills/builtin-developer/scripts/validate_builtins.sh
+ ```
+ 
+ **What it checks:**
+@@ -64,7 +64,7 @@ Run ailang doctor and list commands.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/builtin-developer/scripts/check_builtin_health.sh
++.claude/skills/builtin-developer/scripts/check_builtin_health.sh
+ ```
+ 
+ ## Workflow
+diff --git a/.agents/skills/cloud-cascade-debug/SKILL.md b/.agents/skills/cloud-cascade-debug/SKILL.md
+index ffd25b626..9aaf2d334 100644
+--- a/.agents/skills/cloud-cascade-debug/SKILL.md
++++ b/.agents/skills/cloud-cascade-debug/SKILL.md
+@@ -220,7 +220,7 @@ gcloud run jobs executions list --project "$PROJECT" \
+ ## One-shot triage script
+ 
+ ```bash
+-.Codex/skills/cloud-cascade-debug/scripts/triage_cascade.sh \
++.claude/skills/cloud-cascade-debug/scripts/triage_cascade.sh \
+   <vendor/name>@<version> [time-window-hours]
+ ```
+ 
+diff --git a/.agents/skills/coordinator-helper/SKILL.md b/.agents/skills/coordinator-helper/SKILL.md
+index 1945fa3f5..ad84fb8da 100644
+--- a/.agents/skills/coordinator-helper/SKILL.md
++++ b/.agents/skills/coordinator-helper/SKILL.md
+@@ -68,7 +68,7 @@ make services-stop
+ ```bash
+ # Send a task
+ ailang messages send coordinator "Fix the null pointer bug in parser.go" \
+-  --title "Bug: Parser NPE" --from "Codex" --type bug
++  --title "Bug: Parser NPE" --from "claude-code" --type bug
+ ```
+ 
+ ### Monitoring & Approving
+@@ -93,7 +93,7 @@ pending → queued → running → pending_approval → completed
+                           ↘ rejected → [feedback] → pending (iteration 2) → running → ...
+ ```
+ 
+-**Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Codex uses `--resume` to continue with full conversation context.
++**Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Claude uses `--resume` to continue with full conversation context.
+ 
+ ## Unified Approvals (v0.6.5+)
+ 
+@@ -196,8 +196,8 @@ ailang coordinator pending
+ 
+ | Type | Executor | Use Case |
+ |------|----------|----------|
+-| bug-fix | Codex | Code fixes |
+-| feature | Codex | New functionality |
++| bug-fix | Claude Code | Code fixes |
++| feature | Claude Code | New functionality |
+ | docs | Gemini | Documentation |
+ | research | Gemini | Investigation |
+ | script | Shell | Deterministic workflows (v0.6.4+) |
+diff --git a/.agents/skills/design-doc-creator/scripts/create_planned_doc.sh b/.agents/skills/design-doc-creator/scripts/create_planned_doc.sh
+index fa0d669db..dc7778410 100755
+--- a/.agents/skills/design-doc-creator/scripts/create_planned_doc.sh
++++ b/.agents/skills/design-doc-creator/scripts/create_planned_doc.sh
+@@ -122,7 +122,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # SimHash first (instant feedback)
+     echo -e "  ${CYAN}[SimHash - instant]${NC}"
+-    IMPL_SIMHASH=$("$AILANG_CMD" docs search --stream implemented --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    IMPL_SIMHASH=$("$AILANG_CMD" docs search --stream implemented --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$IMPL_SIMHASH" ]; then
+         echo "$IMPL_SIMHASH" | head -3 | sed 's/^/  /'
+     else
+@@ -131,7 +131,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # Neural search (better quality)
+     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+-    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$IMPL_NEURAL" ]; then
+         echo "$IMPL_NEURAL" | head -3 | sed 's/^/  /'
+     else
+@@ -150,7 +150,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # SimHash first (instant feedback)
+     echo -e "  ${CYAN}[SimHash - instant]${NC}"
+-    PLAN_SIMHASH=$("$AILANG_CMD" docs search --stream planned --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    PLAN_SIMHASH=$("$AILANG_CMD" docs search --stream planned --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$PLAN_SIMHASH" ]; then
+         echo "$PLAN_SIMHASH" | head -3 | sed 's/^/  /'
+     else
+@@ -159,7 +159,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # Neural search (better quality)
+     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+-    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$PLAN_NEURAL" ]; then
+         echo "$PLAN_NEURAL" | head -3 | sed 's/^/  /'
+     else
+diff --git a/.agents/skills/eval-analyzer/SKILL.md b/.agents/skills/eval-analyzer/SKILL.md
+index c2630afdd..193578fbb 100644
+--- a/.agents/skills/eval-analyzer/SKILL.md
++++ b/.agents/skills/eval-analyzer/SKILL.md
+@@ -14,7 +14,7 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
+ **Language gap analysis** (most valuable):
+ ```bash
+ # Find what stdlib/prompt improvements would help agents
+-.Codex/skills/eval-analyzer/scripts/find_language_gaps.sh eval_results/baselines/v0.6.2
++.claude/skills/eval-analyzer/scripts/find_language_gaps.sh eval_results/baselines/v0.6.2
+ 
+ # Output shows:
+ # - Functions agents searched for but couldn't find
+@@ -38,10 +38,10 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
+ **For agent evaluation analysis** (NEW - optimization focus):
+ ```bash
+ # Step 1: Get efficiency metrics (turns, tokens, cost)
+-.Codex/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/v0.3.24
++.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/v0.3.24
+ 
+ # Step 2: Investigate expensive benchmarks
+-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/v0.3.24 simple_print
++.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/v0.3.24 simple_print
+ 
+ # Step 3: Compare Python vs AILANG
+ ./tools/compare_agents.sh eval_results/baselines/v0.3.24
+@@ -52,10 +52,10 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
+ **Tier- and tag-aware analysis (v0.14.0+):**
+ ```bash
+ # Per-tier pass rates + per-tag deltas + AILANG-only wins (one shot)
+-.Codex/skills/eval-analyzer/scripts/category_analysis.sh eval_results/baselines/v0.13.0
++.claude/skills/eval-analyzer/scripts/category_analysis.sh eval_results/baselines/v0.13.0
+ 
+ # Saturation + refusal detection + tier-promotion signal
+-.Codex/skills/eval-analyzer/scripts/benchmark_health.sh eval_results/baselines/v0.13.0
++.claude/skills/eval-analyzer/scripts/benchmark_health.sh eval_results/baselines/v0.13.0
+ 
+ # The primitives above wrap these CLI flags (added in M-EVAL-SUITE-PREP):
+ ailang eval-matrix <dir> <ver> --by-tags         # per-tag AILANG vs Python delta
+@@ -224,12 +224,12 @@ ailang eval-compare eval_results/baselines/v0.3.15 eval_results/baselines/v0.3.1
+ **Use this for accurate version comparisons!** The `eval-compare` command may include duplicates or different model sets. This script normalizes data for apple-to-apples comparison.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/fair_comparison.py
++.claude/skills/eval-analyzer/scripts/fair_comparison.py
+ ```
+ 
+ **What it does:**
+ - Deduplicates runs (keeps last run per benchmark+model)
+-- Filters to dev models only (gpt5-mini, Codex-haiku-4-5, gemini-2-5-flash)
++- Filters to dev models only (gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
+ - AILANG only (ignores Python results)
+ - Shows net fixes vs regressions
+ - Per-model breakdown
+@@ -298,7 +298,7 @@ Agent eval captures full tool/chat data per executor:
+ 
+ | Executor | Query | Data |
+ |----------|-------|------|
+-| **Codex** | `ailang chains view <id> --spans` | Full conversation via JSONL import (tool inputs, thinking, tool results) |
++| **Claude** | `ailang chains view <id> --spans` | Full conversation via JSONL import (tool inputs, thinking, tool results) |
+ | **Gemini** | `ailang chains view <id> --spans` | Streaming tool capture (tool names, inputs, outputs) |
+ 
+ ### Legacy File-Based Agent Analysis
+@@ -310,7 +310,7 @@ For older agent eval results stored as JSON files (pre-v0.8.0):
+ Shows efficiency metrics for agent runs - **key for optimizing language and prompts**.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
++.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
+ ```
+ 
+ **Goal**: Minimize agent turns and tokens → indicates clearer prompts and simpler language.
+@@ -318,9 +318,9 @@ Shows efficiency metrics for agent runs - **key for optimizing language and prom
+ ### 2. Agent Transcripts - View AILANG Conversations
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
+-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
+-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
++.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
++.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
++.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
+ ```
+ 
+ ### 3. Python vs AILANG Comparison
+@@ -373,7 +373,7 @@ jq -s 'map(select(.lang == "ailang")) |
+ 
+ # Dev models only (useful for prompt testing)
+ # Dev models are sourced from internal/eval_harness/models.yml — DO NOT hardcode.
+-DEV_MODELS_JQ=$(. .Codex/skills/_shared/scripts/eval_lib.sh && \
++DEV_MODELS_JQ=$(. .claude/skills/_shared/scripts/eval_lib.sh && \
+   dev_models_csv | awk -F, '{for(i=1;i<=NF;i++) printf "\"%s\"%s", $i, (i<NF?",":"")}')
+ jq -s --argjson devs "[$DEV_MODELS_JQ]" \
+   'map(select(.lang == "ailang" and (.model as $m | $devs | index($m)))) |
+@@ -412,13 +412,13 @@ Use the provided helper scripts for detailed code inspection:
+ 
+ ```bash
+ # Failure analysis with error categorization
+-.Codex/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16
++.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16
+ 
+ # Model performance comparison
+-.Codex/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
++.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
+ 
+ # Examine specific benchmark failures
+-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
++.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
+ ```
+ 
+ ### Step 4: Compare with Previous Version
+@@ -518,7 +518,7 @@ The skill includes helper scripts in `scripts/` directory:
+ Fast overview using eval-matrix.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/quick_summary.sh eval_results/baselines/v0.3.16
++.claude/skills/eval-analyzer/scripts/quick_summary.sh eval_results/baselines/v0.3.16
+ ```
+ 
+ **Output**: Overall stats, model performance, language breakdown, top error codes.
+@@ -528,7 +528,7 @@ Fast overview using eval-matrix.
+ Detailed failure analysis with error categorization.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16 ailang
++.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16 ailang
+ ```
+ 
+ **Output**: Overall statistics, error categories, top failing benchmarks, model performance, error codes.
+@@ -538,7 +538,7 @@ Detailed failure analysis with error categorization.
+ Model-by-model performance comparison.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
++.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
+ ```
+ 
+ **Output**: Success rates, first-attempt vs final, cost analysis, token usage, best model per benchmark.
+@@ -548,8 +548,8 @@ Model-by-model performance comparison.
+ Inspect generated code from specific benchmarks.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
+-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json gpt5
++.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
++.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json gpt5
+ ```
+ 
+ **Output**: Generated code, compiler errors, success status, error codes for each model run.
+@@ -559,7 +559,7 @@ Inspect generated code from specific benchmarks.
+ View prompts used for specific benchmarks.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/examine_prompts.sh eval_results/baselines/v0.3.16 api_call_json
++.claude/skills/eval-analyzer/scripts/examine_prompts.sh eval_results/baselines/v0.3.16 api_call_json
+ ```
+ 
+ **Output**: System prompt, user prompt, success status for benchmark runs.
+@@ -569,7 +569,7 @@ View prompts used for specific benchmarks.
+ Check if prompt documentation matches actual implementation.
+ 
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.16
++.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.16
+ ```
+ 
+ **Output**: Reports false limitations, undocumented features, and prompt-code mismatches.
+diff --git a/.agents/skills/eval-gap-finder/SKILL.md b/.agents/skills/eval-gap-finder/SKILL.md
+index ccdf2f673..026bf9ffc 100644
+--- a/.agents/skills/eval-gap-finder/SKILL.md
++++ b/.agents/skills/eval-gap-finder/SKILL.md
+@@ -41,31 +41,31 @@ eval via `dev_models_csv` when no eval_dir is supplied.
+ 
+ ```bash
+ # Analyse an existing baseline
+-.Codex/skills/eval-gap-finder/scripts/run_gap_analysis.sh eval_results/baselines/v0.14.0
++.claude/skills/eval-gap-finder/scripts/run_gap_analysis.sh eval_results/baselines/v0.14.0
+ 
+ # Or run a fresh core-tier eval against dev models resolved from models.yml
+-.Codex/skills/eval-gap-finder/scripts/run_gap_analysis.sh --tier core
++.claude/skills/eval-gap-finder/scripts/run_gap_analysis.sh --tier core
+ ```
+ 
+ ### `scripts/identify_python_only.sh <eval_dir>`
+ List benchmarks where Python passes but AILANG fails.
+ 
+ ```bash
+-.Codex/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/baselines/v0.14.0
++.claude/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/baselines/v0.14.0
+ ```
+ 
+ ### `scripts/categorize_errors.sh <eval_dir>`
+ Categorize AILANG failures by error type.
+ 
+ ```bash
+-.Codex/skills/eval-gap-finder/scripts/categorize_errors.sh eval_results/baselines/v0.14.0
++.claude/skills/eval-gap-finder/scripts/categorize_errors.sh eval_results/baselines/v0.14.0
+ ```
+ 
+ ### `scripts/test_example.sh <code>`
+ Test if an AILANG code example compiles and runs correctly.
+ 
+ ```bash
+-.Codex/skills/eval-gap-finder/scripts/test_example.sh /tmp/test.ail
++.claude/skills/eval-gap-finder/scripts/test_example.sh /tmp/test.ail
+ ```
+ 
+ ## Workflow
+@@ -76,7 +76,7 @@ Dev models are resolved from `internal/eval_harness/models.yml` — never hardco
+ 
+ ```bash
+ # Source the shared helper to resolve dev models dynamically
+-. .Codex/skills/_shared/scripts/eval_lib.sh
++. .claude/skills/_shared/scripts/eval_lib.sh
+ 
+ # Core tier is the headline metric; run it first
+ ailang eval-suite --models "$(dev_models_csv)" --tier core --output eval_results/gap-analysis
+@@ -90,7 +90,7 @@ have mixed results and shouldn't drive prompt changes.
+ 
+ ```bash
+ ailang eval-summary eval_results/gap-analysis
+-.Codex/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/gap-analysis
++.claude/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/gap-analysis
+ ```
+ 
+ Key Core-tier metrics (from `latest.json` aggregates or `ailang eval-matrix`):
+@@ -157,7 +157,7 @@ After updates, re-run evals at the same tier used for analysis. Dev models come
+ `models.yml`, so the command stays stable as the roster evolves:
+ 
+ ```bash
+-(. .Codex/skills/_shared/scripts/eval_lib.sh && \
++(. .claude/skills/_shared/scripts/eval_lib.sh && \
+   ailang eval-suite --models "$(dev_models_csv)" --tier core --output eval_results/gap-analysis-v2)
+ ```
+ 
+@@ -250,5 +250,5 @@ This skill loads information progressively:
+ - Create design docs for language limitations
+ - Update prompt hash in versions.json after changes
+ - Dev models come from `internal/eval_harness/models.yml` via
+-  `.Codex/skills/_shared/scripts/eval_lib.sh` — never hardcode model IDs
++  `.claude/skills/_shared/scripts/eval_lib.sh` — never hardcode model IDs
+ - The eval suite is curated, not accumulated — see Benchmark Rotation Philosophy above
+diff --git a/.agents/skills/gemini-cli-helper/SKILL.md b/.agents/skills/gemini-cli-helper/SKILL.md
+index 31a38ebe8..729ec0839 100644
+--- a/.agents/skills/gemini-cli-helper/SKILL.md
++++ b/.agents/skills/gemini-cli-helper/SKILL.md
+@@ -1,6 +1,6 @@
+ ---
+ name: gemini-cli-helper
+-description: Run Gemini CLI commands from Codex with correct Node version. Use when user asks to run Gemini CLI, test Gemini traces, or debug Gemini telemetry.
++description: Run Gemini CLI commands from Claude with correct Node version. Use when user asks to run Gemini CLI, test Gemini traces, or debug Gemini telemetry.
+ ---
+ 
+ # Gemini CLI Helper
+@@ -11,12 +11,12 @@ Run Gemini CLI commands with the correct Node.js version and configuration.
+ 
+ **Run a Gemini prompt:**
+ ```bash
+-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt here"
++.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt here"
+ ```
+ 
+ **Check Gemini CLI status:**
+ ```bash
+-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
++.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
+ ```
+ 
+ ## When to Use This Skill
+@@ -36,13 +36,13 @@ Run a Gemini CLI prompt with correct Node version.
+ **Usage:**
+ ```bash
+ # Simple prompt
+-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello"
++.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello"
+ 
+ # With JSON output
+-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello" --json
++.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello" --json
+ 
+ # Complex prompt with quotes
+-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "List 3 things about AILANG"
++.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "List 3 things about AILANG"
+ ```
+ 
+ ### `scripts/gemini_status.sh`
+@@ -50,7 +50,7 @@ Check Gemini CLI installation and configuration status.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
++.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
+ ```
+ 
+ **Output:**
+@@ -163,12 +163,12 @@ Traces appear in:
+ 
+ ### 1. Check Status First
+ ```bash
+-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
++.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
+ ```
+ 
+ ### 2. Run Prompt
+ ```bash
+-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt"
++.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt"
+ ```
+ 
+ ### 3. Verify Traces (Optional)
+diff --git a/.agents/skills/github-issue-triage/SKILL.md b/.agents/skills/github-issue-triage/SKILL.md
+index 421375400..d1068e9f2 100644
+--- a/.agents/skills/github-issue-triage/SKILL.md
++++ b/.agents/skills/github-issue-triage/SKILL.md
+@@ -27,7 +27,7 @@ This repo is worked as **`sunholo-voight-kampff`**, the bot account; `check_auth
+ ### 2. Starting-point report
+ 
+ ```bash
+-.Codex/skills/github-issue-triage/scripts/triage_report.sh --output <scratchpad>/triage.md
++.claude/skills/github-issue-triage/scripts/triage_report.sh --output <scratchpad>/triage.md
+ ```
+ 
+ It gives counts, **close candidates (unverified)**, issues missing a priority label, `needs-decision`, doc references and stale issues. All of it is read from `origin/dev`, never the working tree, because a worktree may sit on an old branch.
+diff --git a/.agents/skills/local-model-onboarding/SKILL.md b/.agents/skills/local-model-onboarding/SKILL.md
+index 1298e0672..3ef640175 100644
+--- a/.agents/skills/local-model-onboarding/SKILL.md
++++ b/.agents/skills/local-model-onboarding/SKILL.md
+@@ -95,7 +95,7 @@ those stay as **OpenRouter** ceiling references; they don't fit on-device.
+ 
+ ```bash
+ # Fit/shape verdict BEFORE spending rig time (estimate from the published size):
+-.Codex/skills/local-model-onboarding/scripts/check_model_fit.sh --disk 24 --active 3
++.claude/skills/local-model-onboarding/scripts/check_model_fit.sh --disk 24 --active 3
+ ```
+ 
+ ### 2. Quality pre-screen via OpenRouter (cheap, zero rig time)
+@@ -104,8 +104,8 @@ pull winners. Use `model-manager` to add a temporary `or-<model>` entry and run
+ small standard+agent pass on AILANG + the 4-lang set, then compare to incumbents.
+ 
+ ```bash
+-.Codex/skills/model-manager/scripts/test_model_access.sh <openrouter-id>     # access + pricing
+-.Codex/skills/model-manager/scripts/find_model_info.sh  <openrouter-id>
++.claude/skills/model-manager/scripts/test_model_access.sh <openrouter-id>     # access + pricing
++.claude/skills/model-manager/scripts/find_model_info.sh  <openrouter-id>
+ # add or-<model> to models.yml (model-manager), then:
+ ailang eval-suite --models or-<model> --benchmarks <smoke set> --langs ailang,python --trials 3 --output /tmp/screen_<model>
+ ```
+@@ -114,8 +114,8 @@ If it doesn't clear the bar vs your current local models, stop here — no pull.
+ ### 3. Pull to the rig + confirm it fits for real
+ ```bash
+ ollama pull <ollama-tag>
+-.Codex/skills/local-ollama-eval/scripts/check_ollama_model.sh <ollama-tag>     # loads + sanity
+-.Codex/skills/local-model-onboarding/scripts/check_model_fit.sh <ollama-tag>   # REAL resident VRAM verdict
++.claude/skills/local-ollama-eval/scripts/check_ollama_model.sh <ollama-tag>     # loads + sanity
++.claude/skills/local-model-onboarding/scripts/check_model_fit.sh <ollama-tag>   # REAL resident VRAM verdict
+ ```
+ Must come back GREEN/YELLOW. RED → pick a smaller quant (mxfp8 → nvfp4/Q4) or a
+ lower-active variant.
+diff --git a/.agents/skills/local-ollama-eval/SKILL.md b/.agents/skills/local-ollama-eval/SKILL.md
+index a14c46ddb..af27d2d39 100644
+--- a/.agents/skills/local-ollama-eval/SKILL.md
++++ b/.agents/skills/local-ollama-eval/SKILL.md
+@@ -7,7 +7,7 @@ description: Run AILANG agent-mode evaluations against local Ollama models on a
+ 
+ Run AILANG agent-mode evals against **local Ollama models** (typically `gemma4:26b`) on a dedicated Apple Silicon rig with 64+ GB unified memory. This is the canonical workflow for cost-free continuous OS-model evaluation, replacing pay-per-token OpenRouter routing.
+ 
+-Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The user guide at [docs/docs/guides/evaluation/local-ollama.md](../../../docs/docs/guides/evaluation/local-ollama.md) is the human-facing reference; this skill is the Codex-facing operational checklist.
++Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The user guide at [docs/docs/guides/evaluation/local-ollama.md](../../../docs/docs/guides/evaluation/local-ollama.md) is the human-facing reference; this skill is the Claude-facing operational checklist.
+ 
+ ## Current State
+ 
+@@ -29,16 +29,16 @@ Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22
+ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
+ 
+ # Verify rig is ready
+-.Codex/skills/local-ollama-eval/scripts/verify_setup.sh
++.claude/skills/local-ollama-eval/scripts/verify_setup.sh
+ 
+ # Pre-warm the rig (saves 40-90s on the first benchmark trial — see "Warmup" below)
+-.Codex/skills/local-ollama-eval/scripts/warmup_rig.sh
++.claude/skills/local-ollama-eval/scripts/warmup_rig.sh
+ 
+ # Run smoke tier on gemma4:26b
+-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
++.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
+ 
+ # Watch progress in another terminal/turn
+-.Codex/skills/local-ollama-eval/scripts/watch_active.sh
++.claude/skills/local-ollama-eval/scripts/watch_active.sh
+ ```
+ 
+ ### Warmup (avoiding the 40-90s first-call tax)
+@@ -79,7 +79,7 @@ Invoke when the user says any of:
+ - "Add Qwen3 to the local rotation"
+ - Anything mentioning `ollama-*` or `opencode-gemma4-*` model names
+ 
+-Do NOT use this skill when the user is talking about cloud OS models (those route via OpenRouter — see [model-manager](../model-manager/SKILL.md)) or about cloud-only Codex/GPT/Gemini evaluation.
++Do NOT use this skill when the user is talking about cloud OS models (those route via OpenRouter — see [model-manager](../model-manager/SKILL.md)) or about cloud-only Claude/GPT/Gemini evaluation.
+ 
+ ## Setup Checklist (one-time, per rig)
+ 
+@@ -147,7 +147,7 @@ In `~/.config/opencode/opencode.jsonc`, add a `permission.bash` block that denie
+ ### Smoke tier (17 benchmarks)
+ 
+ ```bash
+-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
++.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
+ ```
+ 
+ Expected: ~80 minutes wall clock at `-parallel 2`, 12–14/17 pass rate (was 7/17 before the timeout bumps; was thrashing-prone at `-parallel 4`).
+@@ -155,7 +155,7 @@ Expected: ~80 minutes wall clock at `-parallel 2`, 12–14/17 pass rate (was 7/1
+ ### Single benchmark (~1–10 min)
+ 
+ ```bash
+-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b fizzbuzz
++.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b fizzbuzz
+ ```
+ 
+ Use for: quick sanity check, debugging a specific benchmark, validating env setup.
+@@ -268,7 +268,7 @@ The 109k-token prefill cost looks like it should be addressable by progressive c
+ |---|---|---|
+ | μRAG `PreToolUse` injection on `.ail` files | **DISABLED** ([ADR-002](../../../design_docs/decisions/ADR-002-pretooluse-microrag-disabled.md), 2026-04-27) | Embedding cosine averages over tokens — generic words like `import`/`module`/`! {IO}` dominate the vector, and a 1-char anti-pattern can't surface a relevant chunk |
+ | `ailang prompt` / `ailang docs` self-discovery | Encouraged in agent prompt | **Not used in practice** — the [v0.8.2 prompt notes](../../../cmd/ailang/prompts/agent/versions.json) record "0/63 agents use runtime discovery". The 13KB prompt embeds the stdlib reference directly because that observation was overwhelming |
+-| AILANG MCP server (`mcp.ailang.sunholo.com`) | Active for [Codex / Cursor / Continue](../../../docs/docs/guides/agent-mcp.md) | **Not used by opencode** — opencode doesn't run our MCP server as a tool source. The eval rig's agent path goes through opencode subprocess, never touches the MCP |
++| AILANG MCP server (`mcp.ailang.sunholo.com`) | Active for [Claude Code / Cursor / Continue](../../../docs/docs/guides/agent-mcp.md) | **Not used by opencode** — opencode doesn't run our MCP server as a tool source. The eval rig's agent path goes through opencode subprocess, never touches the MCP |
+ | PostToolUse `micro-rag lint-builtin` | Active | Surface "first use of a builtin" reminders. Tight scope, works fine |
+ 
+ The honest reading: the bulk of the 109k tokens are **opencode's own framework prompt**, not ours (we contribute ~3k). Shrinking our 3k buys little. The leverage is in:
+@@ -296,7 +296,7 @@ If progressive disclosure becomes worth revisiting, the best fit per ADR-002 is
+ 
+ ```bash
+ # 1. Check Ollama library has the model
+-.Codex/skills/local-ollama-eval/scripts/check_ollama_model.sh <tag>
++.claude/skills/local-ollama-eval/scripts/check_ollama_model.sh <tag>
+ 
+ # 2. Pull it (warning: multi-GB download)
+ ollama pull <tag>
+@@ -309,10 +309,10 @@ ollama pull <tag>
+ #    Use the recommended timeouts above (ttft 900, gen 1200, budget 2400).
+ 
+ # 5. Smoke test the new model
+-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model> fizzbuzz
++.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model> fizzbuzz
+ 
+ # 6. If it passes, run full smoke tier
+-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model>
++.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model>
+ ```
+ 
+ See [`resources/candidate_models.md`](resources/candidate_models.md) for the curated rotation candidate list (verified from Ollama library).
+diff --git a/.agents/skills/parser-developer/SKILL.md b/.agents/skills/parser-developer/SKILL.md
+index efe2024ca..ff25f0171 100644
+--- a/.agents/skills/parser-developer/SKILL.md
++++ b/.agents/skills/parser-developer/SKILL.md
+@@ -65,7 +65,7 @@ Run parser with DEBUG_PARSER=1 to trace token positions.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/parser-developer/scripts/trace_parser.sh test.ail
++.claude/skills/parser-developer/scripts/trace_parser.sh test.ail
+ ```
+ 
+ **Output:**
+@@ -79,7 +79,7 @@ List all AST node types in the codebase.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/parser-developer/scripts/check_ast_types.sh
++.claude/skills/parser-developer/scripts/check_ast_types.sh
+ ```
+ 
+ ### `scripts/find_api.sh <package> <symbol>`
+@@ -87,7 +87,7 @@ Quick API discovery using make doc.
+ 
+ **Usage:**
+ ```bash
+-.Codex/skills/parser-developer/scripts/find_api.sh internal/parser New
++.claude/skills/parser-developer/scripts/find_api.sh internal/parser New
+ ```
+ 
+ ## Common AST Types
+diff --git a/.agents/skills/pr-monitor/SKILL.md b/.agents/skills/pr-monitor/SKILL.md
+index d4f96c6cf..7e81fcbcd 100644
+--- a/.agents/skills/pr-monitor/SKILL.md
++++ b/.agents/skills/pr-monitor/SKILL.md
+@@ -41,7 +41,7 @@ GitHub puts PR activity in **three** endpoints. **Each event lives in only one.*
+ ### 1. Audit — "what's the current state of PR N?"
+ 
+ ```bash
+-.Codex/skills/pr-monitor/scripts/audit_pr.sh <owner>/<repo> <pr-number>
++.claude/skills/pr-monitor/scripts/audit_pr.sh <owner>/<repo> <pr-number>
+ ```
+ 
+ Outputs: latest activity on all 3 endpoints, unresolved thread count, CI check status, merge state, review decision. Use this BEFORE asking the user "anything new?" or before posting a closeout reply.
+@@ -49,7 +49,7 @@ Outputs: latest activity on all 3 endpoints, unresolved thread count, CI check s
+ ### 2. Monitor — "watch the PR(s) and notify me on changes"
+ 
+ ```bash
+-.Codex/skills/pr-monitor/scripts/monitor_pr.sh <owner>/<repo> <pr-number> [<pr-number>...]
++.claude/skills/pr-monitor/scripts/monitor_pr.sh <owner>/<repo> <pr-number> [<pr-number>...]
+ ```
+ 
+ Long-running. Polls `/notifications?all=true` every 60s. Emits one line per new event, drilling into the `subject.latest_comment_url` to surface the actual content. Exits when **all** monitored PRs reach a terminal state (`MERGED` or `CLOSED`). Designed to be wrapped with the `Monitor` tool.
+@@ -57,7 +57,7 @@ Long-running. Polls `/notifications?all=true` every 60s. Emits one line per new
+ ### 3. Reply to a CR thread (triggers auto-resolve)
+ 
+ ```bash
+-.Codex/skills/pr-monitor/scripts/reply_to_thread.sh <owner>/<repo> <pr-number> <thread-comment-id> <commit-sha> "<reply body>"
++.claude/skills/pr-monitor/scripts/reply_to_thread.sh <owner>/<repo> <pr-number> <thread-comment-id> <commit-sha> "<reply body>"
+ ```
+ 
+ Posts an inline reply with the structure CodeRabbit's auto-resolution detector looks for:
+@@ -69,7 +69,7 @@ This is **the only way** to get CR threads to auto-close after a fix. Commit mes
+ ### 4. Budget check — "should I keep iterating on this PR?"
+ 
+ ```bash
+-.Codex/skills/pr-monitor/scripts/pr_budget.sh <owner>/<repo> <pr-number>
++.claude/skills/pr-monitor/scripts/pr_budget.sh <owner>/<repo> <pr-number>
+ ```
+ 
+ Reports total iteration cost (commits, review waves, our replies), severity histogram of CR findings (🔴 / 🟠 / 🟡 / 🔵), and a verdict heuristic flagging when wave count ≥ 3 indicates diminishing returns. **Run before responding to a new CR wave on a PR that's already had 2+ cycles** — the cost-benefit may have flipped.
+diff --git a/.agents/skills/prompt-manager/SKILL.md b/.agents/skills/prompt-manager/SKILL.md
+index 4b5a4a07c..b3b88ad93 100644
+--- a/.agents/skills/prompt-manager/SKILL.md
++++ b/.agents/skills/prompt-manager/SKILL.md
+@@ -30,7 +30,7 @@ Invoke when user mentions:
+ |---------|---------|----------|----------|------|
+ | `ailang prompt` | Language **syntax** (how to write .ail files) | 0-shot code generation | `prompts/versions.json` | ~1600 lines |
+ | `ailang devtools-prompt` | **Toolchain** (how to debug, test, trace, monitor) | Developers & agents using CLI tools | `prompts/devtools/versions.json` | ~600 lines |
+-| `ailang agent-prompt` | **Agent coding guide** (minimal syntax + iterative workflow) | Iterative agentic coders (Codex, Gemini CLI) | `prompts/agent/versions.json` | ~180 lines |
++| `ailang agent-prompt` | **Agent coding guide** (minimal syntax + iterative workflow) | Iterative agentic coders (Claude Code, Gemini CLI) | `prompts/agent/versions.json` | ~180 lines |
+ 
+ ### When to Use Which Prompt
+ 
+@@ -108,7 +108,7 @@ ailang prompt | grep -A 20 "Quick Reference"
+ vim prompts/v0.4.2.md
+ 
+ # 2. Update the hash in versions.json (REQUIRED!)
+-.Codex/skills/prompt-manager/scripts/update_hash.sh v0.4.2
++.claude/skills/prompt-manager/scripts/update_hash.sh v0.4.2
+ 
+ # 3. Verify downstream users see the change
+ ailang prompt --version v0.4.2 | head -20
+@@ -134,37 +134,37 @@ ailang prompt | head -20
+ 
+ ### Create New Version
+ ```bash
+-.Codex/skills/prompt-manager/scripts/create_prompt_version.sh <new_version> <base_version> "<description>"
++.claude/skills/prompt-manager/scripts/create_prompt_version.sh <new_version> <base_version> "<description>"
+ ```
+ Creates versioned prompt file, computes hash, updates versions.json
+ 
+ ### Update Hash
+ ```bash
+-.Codex/skills/prompt-manager/scripts/update_hash.sh <version>
++.claude/skills/prompt-manager/scripts/update_hash.sh <version>
+ ```
+ Recomputes SHA256 after edits
+ 
+ ### Verify Accuracy
+ ```bash
+-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh <version>
++.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh <version>
+ ```
+ Catches prompt-code mismatches, false limitations
+ 
+ ### Check Examples Coverage
+ ```bash
+-.Codex/skills/prompt-manager/scripts/check_examples_coverage.sh <version>
++.claude/skills/prompt-manager/scripts/check_examples_coverage.sh <version>
+ ```
+ Verifies that features used in working examples are documented in prompt
+ 
+ ### Analyze Size & Optimization Opportunities
+ ```bash
+-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
++.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
+ ```
+ Shows: word count, section sizes, code blocks, tables, optimization opportunities
+ 
+ ### Test Prompt Effectiveness
+ ```bash
+-.Codex/skills/prompt-manager/scripts/test_prompt.sh v0.3.18
++.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.18
+ ```
+ Runs AILANG-only eval (no Python) with dev models to test prompt effectiveness
+ 
+@@ -172,7 +172,7 @@ Runs AILANG-only eval (no Python) with dev models to test prompt effectiveness
+ 
+ ### 1. Analyze Current Prompt
+ ```bash
+-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.16.md
++.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.16.md
+ ```
+ 
+ **Sample output:**
+@@ -197,7 +197,7 @@ Top sections by size:
+ 
+ ### 2. Create Optimized Version
+ ```bash
+-.Codex/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Optimize for conciseness (-50% tokens)"
++.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Optimize for conciseness (-50% tokens)"
+ ```
+ 
+ ### 3. Apply Optimization Strategies
+@@ -223,23 +223,23 @@ Top sections by size:
+ # 1. CHECK ALL CODE EXAMPLES (NEW REQUIREMENT!)
+ # Extract and test every AILANG code block in the prompt
+ # This catches syntax errors that cause regressions
+-.Codex/skills/prompt-manager/scripts/validate_all_code.sh prompts/v0.3.17.md
++.claude/skills/prompt-manager/scripts/validate_all_code.sh prompts/v0.3.17.md
+ 
+ # 2. Check new size
+-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
++.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
+ 
+ # 3. Verify accuracy (no false limitations)
+-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
++.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
+ 
+ # 4. Check examples coverage (NEW - v0.4.1+)
+-.Codex/skills/prompt-manager/scripts/check_examples_coverage.sh v0.3.17
++.claude/skills/prompt-manager/scripts/check_examples_coverage.sh v0.3.17
+ # Ensures working examples are documented in prompt
+ 
+ # 5. Update hash
+-.Codex/skills/prompt-manager/scripts/update_hash.sh v0.3.17
++.claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
+ 
+ # 6. TEST PROMPT EFFECTIVENESS (CRITICAL!)
+-.Codex/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
++.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
+ # This runs AILANG-only eval (no Python baseline) with dev models
+ # Target: >40% AILANG success rate
+ ```
+diff --git a/.agents/skills/use-ailang/SKILL.md b/.agents/skills/use-ailang/SKILL.md
+index 71f9a396a..a40be9d40 100644
+--- a/.agents/skills/use-ailang/SKILL.md
++++ b/.agents/skills/use-ailang/SKILL.md
+@@ -26,7 +26,7 @@ ailang verify solution.ail                        # Prove contracts with Z3
+ 
+ **`mcp.ailang.sunholo.com`** is the canonical, live, version-locked source of truth for AILANG syntax, stdlib, examples, and limitations. Prefer it over any embedded reference in this file.
+ 
+-**If the user's harness supports remote MCP** (Codex Desktop, Cursor, Cline, Continue, Codex), have them add it once:
++**If the user's harness supports remote MCP** (Claude Desktop, Cursor, Cline, Continue, Claude Code), have them add it once:
+ 
+ ```json
+ {
+@@ -137,14 +137,14 @@ When the user asks for AILANG code:
+ Print the active AILANG prompt version (uses `prompts/versions.json`).
+ 
+ ```bash
+-.Codex/skills/use-ailang/scripts/check_version.sh
++.claude/skills/use-ailang/scripts/check_version.sh
+ ```
+ 
+ ### `scripts/validate_code.sh <file.ail>`
+ Type-check an AILANG file via `ailang check`.
+ 
+ ```bash
+-.Codex/skills/use-ailang/scripts/validate_code.sh solution.ail
++.claude/skills/use-ailang/scripts/validate_code.sh solution.ail
+ ```
+ 
+ ## Migration Note (M-AGENT-MCP)
+diff --git a/.claude/skills/design-doc-creator/scripts/create_planned_doc.sh b/.claude/skills/design-doc-creator/scripts/create_planned_doc.sh
+index 44b2d5041..3c8704dc7 100755
+--- a/.claude/skills/design-doc-creator/scripts/create_planned_doc.sh
++++ b/.claude/skills/design-doc-creator/scripts/create_planned_doc.sh
+@@ -125,7 +125,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # SimHash first (instant feedback)
+     echo -e "  ${CYAN}[SimHash - instant]${NC}"
+-    IMPL_SIMHASH=$("$AILANG_CMD" docs search --stream implemented --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    IMPL_SIMHASH=$("$AILANG_CMD" docs search --stream implemented --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$IMPL_SIMHASH" ]; then
+         echo "$IMPL_SIMHASH" | head -3 | sed 's/^/  /'
+     else
+@@ -134,7 +134,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # Neural search (better quality)
+     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+-    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$IMPL_NEURAL" ]; then
+         echo "$IMPL_NEURAL" | head -3 | sed 's/^/  /'
+     else
+@@ -151,7 +151,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # SimHash first (instant feedback)
+     echo -e "  ${CYAN}[SimHash - instant]${NC}"
+-    PLAN_SIMHASH=$("$AILANG_CMD" docs search --stream planned --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    PLAN_SIMHASH=$("$AILANG_CMD" docs search --stream planned --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$PLAN_SIMHASH" ]; then
+         echo "$PLAN_SIMHASH" | head -3 | sed 's/^/  /'
+     else
+@@ -160,7 +160,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+ 
+     # Neural search (better quality)
+     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+-    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
++    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^[0-9]+\." || echo "")
+     if [ -n "$PLAN_NEURAL" ]; then
+         echo "$PLAN_NEURAL" | head -3 | sed 's/^/  /'
+     else
+diff --git a/changelogs/unreleased/2026-11-18-fleet-dfleet36-38-grep-and-agents-sync.md b/changelogs/unreleased/2026-11-18-fleet-dfleet36-38-grep-and-agents-sync.md
+new file mode 100644
+index 000000000..7a6d09eb6
+--- /dev/null
++++ b/changelogs/unreleased/2026-11-18-fleet-dfleet36-38-grep-and-agents-sync.md
+@@ -0,0 +1,24 @@
++### Fixed — design-doc-creator duplicate-doc searches use `[0-9]`, not `\d` (D-FLEET-36, ruled A 2026-11-16)
++
++`create_planned_doc.sh` filtered `ailang docs search` output with `grep -E "^\d+\."` at four sites in
++each copy (`.claude/skills/design-doc-creator/scripts/create_planned_doc.sh` and its `.agents`
++mirror, which differ and were edited in place). BSD grep, on the rig, reads `\d` as a digit; GNU grep
++documents it as a literal `d`, so on Linux the duplicate-doc check was expected to come back silently
++empty (each site ends in `|| echo ""`). All eight are now `grep -E "^[0-9]+\."`; on this Mac's BSD grep
++the output is byte-identical before and after. `tools/launchd/test_agents_skills_sync.sh` now fails if
++`\d` returns to either copy, or if either stops carrying its four `[0-9]` search sites.
++
++### Changed — `sync-agents-skills.sh` mirrors 16 more `.agents` skills (D-FLEET-38, ruled A 2026-11-16)
++
++`tools/launchd/sync-agents-skills.sh` now also copies benchmark-runner, builtin-developer,
++cloud-cascade-debug, collaboration-hub, coordinator-helper, eval-analyzer, eval-gap-finder,
++gemini-cli-helper, github-issue-triage, local-model-onboarding, local-ollama-eval, parser-developer,
++pr-monitor, prompt-manager, trace-debugger and use-ailang from `.claude/skills` to `.agents/skills`.
++Re-measured before the copy: 14 of the `.agents` copies differed only by the 2026-07-28
++claude-to-Codex rename (which pointed codex and pi at `.Codex/skills/...` paths that do not exist), two
++were already identical, and none held an `.agents`-only file, so the `rsync --delete` lost nothing. The
++14 regenerated `SKILL.md` files now read the `.claude` wording. `test_agents_skills_sync.sh` pins the
++synced list to exactly these 23 named skills (read from the list the script actually iterates), with
++no wildcard. Ten paired skills still differ and stay off the list: design-doc-creator (D-FLEET-36)
++and agent-inbox, ailang-packages, benchmark-manager, cli-doc-maintainer, docs-sync, microrag,
++model-manager, motoko-analyzer and post-release, which are outside the ruling.
+diff --git a/tools/launchd/sync-agents-skills.sh b/tools/launchd/sync-agents-skills.sh
+index ec4fc3671..db1797bb0 100755
+--- a/tools/launchd/sync-agents-skills.sh
++++ b/tools/launchd/sync-agents-skills.sh
+@@ -12,15 +12,20 @@
+ #
+ # Scope is the fleet's (ticket skills:agents-copies-stale): mission-* and sprint-*,
+ # plus release-manager (2026-11-12: its .agents copy carried no .agents-only edits,
+-# only the stale ".Codex/skills" rename and old job counts). Other skills carry
+-# .agents-only edits (model-manager, design-doc-creator) and need a reconciliation,
+-# not an overwrite. test_agents_skills_sync.sh enforces this list.
++# only the stale ".Codex/skills" rename and old job counts), plus the 16 skills of
++# D-FLEET-38 A (ruled 2026-11-16): their .agents copies differed only by the 2026-07-28
++# claude->Codex rename, or not at all, with no .agents-only file, so rsync --delete
++# loses nothing. Other skills carry .agents-only edits (model-manager,
++# design-doc-creator) and need a reconciliation, not an overwrite.
++# test_agents_skills_sync.sh enforces this list.
+ #
+ #   tools/launchd/sync-agents-skills.sh           copy
+ #   tools/launchd/sync-agents-skills.sh --check   exit 1 if any copy differs
+ set -u
+ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ SKILLS="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager"
++SKILLS="$SKILLS benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper"
++SKILLS="$SKILLS github-issue-triage local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang"
+ rc=0
+ for s in $SKILLS; do
+   src="$ROOT/.claude/skills/$s"; dst="$ROOT/.agents/skills/$s"
+diff --git a/tools/launchd/test_agents_skills_sync.sh b/tools/launchd/test_agents_skills_sync.sh
+index 4643e0b1f..4d4102437 100644
+--- a/tools/launchd/test_agents_skills_sync.sh
++++ b/tools/launchd/test_agents_skills_sync.sh
+@@ -11,8 +11,36 @@ PASS=0; FAIL=0
+ ok() { PASS=$((PASS+1)); echo "  PASS: $1"; }
+ bad() { FAIL=$((FAIL+1)); echo "  FAIL: $1 ($2)"; }
+ 
++# The synced list, exactly: mission-*/sprint-*/release-manager plus the 16 of D-FLEET-38 A
++# (ruled 2026-11-16). Named one by one; a skill joins only once its .agents copy has no
++# .agents-only content, because the sync is rsync --delete.
++EXPECTED="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager
++benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper
++github-issue-triage local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang"
++
+ out=$(/bin/bash "$ROOT/tools/launchd/sync-agents-skills.sh" --check 2>&1)
+-if [ $? -eq 0 ]; then ok "mission-*/sprint-*/release-manager .agents copies equal .claude"; else bad "mission-*/sprint-*/release-manager .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
++if [ $? -eq 0 ]; then ok "synced .agents copies equal .claude"; else bad "synced .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
++
++# The list the script ITERATES (read from its own missing-source errors in an empty tree, so
++# however SKILLS is assembled), compared with EXPECTED as sorted sets.
++tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd"
++cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"
++got=$(/bin/bash "$tmp/tools/launchd/sync-agents-skills.sh" --check 2>&1 | sed -n 's|^sync-agents-skills: missing source .*/\.claude/skills/||p' | sort)
++want=$(for s in $EXPECTED; do echo "$s"; done | sort)
++rm -rf "$tmp"
++if [ -n "$got" ] && [ "$got" = "$want" ]; then ok "sync list is exactly the $(echo "$want" | wc -l | tr -d ' ') named skills"; else bad "sync list is exactly the named skills" "only in script: $(comm -23 <(echo "$got") <(echo "$want") | tr '\n' ' ')only expected: $(comm -13 <(echo "$got") <(echo "$want") | tr '\n' ' ')"; fi
++
++# D-FLEET-36 A: GNU grep -E reads \d as a literal d (BSD grep, on the rig, reads a digit), so
++# the duplicate-doc searches were silently empty on Linux. Both copies pin [0-9]; the count is
++# the control that the guard still sees the four search sites in each.
++ddc_bad=""
++printf '%s\n' 'grep -E "^\d+\."' | grep -qF '\d' || ddc_bad=" (control: grep -F cannot see a planted \d)"
++for f in .claude/skills/design-doc-creator/scripts/create_planned_doc.sh .agents/skills/design-doc-creator/scripts/create_planned_doc.sh; do
++  n=$(grep -cF 'grep -E "^[0-9]+\."' "$ROOT/$f" 2>/dev/null)
++  [ "${n:-0}" -ge 4 ] || ddc_bad="$ddc_bad $f(sites:${n:-0})"
++  grep -qF '\d' "$ROOT/$f" 2>/dev/null && ddc_bad="$ddc_bad $f:$(grep -nF '\d' "$ROOT/$f" | cut -d: -f1 | tr '\n' ',')"
++done
++if [ -z "$ddc_bad" ]; then ok "design-doc-creator searches use [0-9], not \\d"; else bad "design-doc-creator searches use [0-9], not \\d" "$ddc_bad"; fi
+ 
+ # Check canonical rule 3(c); the equality check above covers the generated mirror.
+ # Collect wrapped prose, then inspect only inline commands between (c) and (d).
+@@ -69,7 +97,7 @@ fi
+ # Negative control: the check must SEE a drifted copy.
+ tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd" "$tmp/.claude/skills" "$tmp/.agents/skills"
+ cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"
+-for s in mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager; do
++for s in $EXPECTED; do
+   mkdir -p "$tmp/.claude/skills/$s" "$tmp/.agents/skills/$s"; echo x > "$tmp/.claude/skills/$s/SKILL.md"; echo x > "$tmp/.agents/skills/$s/SKILL.md"
+ done
+ echo drifted > "$tmp/.agents/skills/sprint-planner/SKILL.md"

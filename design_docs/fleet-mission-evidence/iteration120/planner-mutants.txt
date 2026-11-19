@@ -1,0 +1,16 @@
+M1 delete one 38 arm (pr-monitor) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/pr-monitor/SKILL.md: got refuse want allow | all=1
+M2 delete one 38 arm (collaboration-hub, identical pair) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/collaboration-hub/SKILL.md: got refuse want allow | all=1
+M3 move design-doc-creator arm into _scope_is_harness | KILLED | FAIL verdict MISSION_NAME='v1' .claude/skills/design-doc-creator/scripts/create_planned_doc.sh: got refuse want allow | all=2
+M4 widen 38 arms to .agents/skills/* | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/design-doc-creator-x/SKILL.md: got allow want refuse | all=37
+M5 drop / boundary on use-ailang (use-ailang*) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/use-ailang-x/SKILL.md: got allow want refuse | all=2
+M6 delete .claude design-doc-creator side only | KILLED | FAIL verdict MISSION_NAME='fleet' .claude/skills/design-doc-creator/scripts/create_planned_doc.sh: got refuse want allow | all=1
+M7 delete .agents design-doc-creator side only | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/design-doc-creator/scripts/create_planned_doc.sh: got refuse want allow | all=1
+M8 design-doc-creator/* -> design-doc-creator* (both sides) | KILLED | FAIL verdict MISSION_NAME='fleet' .claude/skills/design-doc-creator-x/SKILL.md: got allow want refuse | all=2
+M9 move one 38 arm (trace-debugger) into _scope_is_harness | KILLED | FAIL verdict MISSION_NAME='v1' .agents/skills/trace-debugger/SKILL.md: got refuse want allow | all=1
+M10 widen design-doc-creator to .claude/skills/* | KILLED | FAIL verdict MISSION_NAME='fleet' .claude/skills/design-doc-creator-x/SKILL.md: got allow want refuse | all=3
+M11 also admit .claude/skills/use-ailang/* | KILLED | FAIL verdict MISSION_NAME='fleet' .claude/skills/use-ailang/SKILL.md: got allow want refuse | all=2
+M12 admit a 17th skill (agent-inbox) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/agent-inbox/SKILL.md: got allow want refuse | all=1
+M13 admit a 17th skill (model-manager) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/model-manager/SKILL.md: got allow want refuse | all=2
+M14 admit release-manager .agents (pre-existing sync gap) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/release-manager/SKILL.md: got allow want refuse | all=1
+M15 delete ALL 16 38 arms (revert D-FLEET-38) | KILLED | FAIL verdict MISSION_NAME='fleet' .agents/skills/benchmark-runner/SKILL.md: got refuse want allow | all=16
+M16 delete the whole D-FLEET-36 line | KILLED | FAIL verdict MISSION_NAME='fleet' .claude/skills/design-doc-creator/scripts/create_planned_doc.sh: got refuse want allow | all=2

@@ -1,0 +1,105 @@
+{
+  "role": "evaluator",
+  "iteration": 95,
+  "status": "transport_failure",
+  "judge_verdict": null,
+  "requested_scope": "Fresh idle screen of all open fleet decision rows and all 25 live tickets; no candidate preselected",
+  "resolved_lane": "claude:claude-sonnet-4-6",
+  "resolved_path": "recipe",
+  "resolved_reason": "declared:provider-pin",
+  "remaining_chain": "opus",
+  "fallback_history": [
+    {
+      "lane": "claude:claude-sonnet-4-6",
+      "rc": 1,
+      "elapsed": 6.7756435420014895,
+      "command": "claude-sub -p --model claude-sonnet-4-6 --output-format json reply with exactly: ok",
+      "api_error_status": 429,
+      "error": "usage_limit_reached",
+      "result": "You've hit your weekly limit \u00b7 resets Nov 9 at 6am (Europe/Copenhagen)",
+      "session_id": "bcc838dd-87eb-4870-822b-58141396c323",
+      "usage": {
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "reported_total_cost_usd": 0,
+      "stdout": "/tmp/fleet-i95-evaluator-3q3dt4gq/probe.stdout",
+      "stderr": "/tmp/fleet-i95-evaluator-3q3dt4gq/probe.stderr"
+    },
+    {
+      "lane": "opus",
+      "rc": 1,
+      "elapsed": 6.158179666032083,
+      "command": "claude-sub -p --model opus --output-format json reply with exactly: ok",
+      "api_error_status": 429,
+      "error": "usage_limit_reached",
+      "result": "You've hit your weekly limit \u00b7 resets Nov 9 at 6am (Europe/Copenhagen)",
+      "session_id": "eec2dc48-af6b-4652-889f-e28e5e894ba8",
+      "usage": {
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "reported_total_cost_usd": 0,
+      "stdout": "/tmp/fleet-i95-evaluator-3q3dt4gq/probe-opus.stdout",
+      "stderr": "/tmp/fleet-i95-evaluator-3q3dt4gq/probe-opus.stderr"
+    }
+  ],
+  "earlier_driver_dead_lane": "pi:openrouter/minimax/minimax-m3 (driver rc75, not re-probed)",
+  "judge_independence": "No substantive judge ran; generator codex:gpt-6.1-sol was not used as judge",
+  "worktree": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-i95-evaluator-20261107",
+  "reviewed_base": "252680e1beb4e6cf1709a010cc1c45838b91b9f8",
+  "report_path": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-i95-evaluator-20261107/idle-judge.md",
+  "report_copy": "/tmp/fleet-i95-evaluator-3q3dt4gq/idle-judge.md",
+  "metered_cost_usd": 0,
+  "quota_tokens": 0,
+  "billing_path": "claude-sub subscription-or-nothing, strips ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN",
+  "session_read_ack_audit": {
+    "bridge_read_complete": [
+      "CLAUDE.md",
+      ".claude/skills/mission-control/resources/gate-3-route.md",
+      ".claude/skills/mission-control/resources/verification-protocol.md",
+      ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      ".claude/skills/sprint-evaluator/SKILL.md"
+    ],
+    "judge_claude_read": false,
+    "judge_session_protocol_ack": null,
+    "reason": "Probe failure before judge prompt; no handshake or verdict claimed"
+  },
+  "timestamp_utc": "2026-11-07T19:48:21.480264+00:00"
+}

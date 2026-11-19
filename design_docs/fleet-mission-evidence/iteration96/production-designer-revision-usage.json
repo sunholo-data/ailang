@@ -1,0 +1,215 @@
+{
+  "role": "designer",
+  "purpose": "ONE protocol revision after first mandatory quorum blocked; quota-truncated partial",
+  "declared_lane": "pi:ollama/kimi-k3:cloud",
+  "resolver_command": [
+    "env",
+    "MISSION_DESIGNER_MODEL=pi:ollama/kimi-k3:cloud",
+    "tools/launchd/resolve-role-spawn.sh",
+    "designer"
+  ],
+  "resolver_output": "recipe pi:ollama/kimi-k3:cloud declared:provider-pin",
+  "probe": {
+    "role": "designer",
+    "lane": "pi:ollama/kimi-k3:cloud",
+    "phase": "revision-probe",
+    "rc": 0,
+    "elapsed_seconds": 1.56,
+    "out": "/tmp/fleet-i96-production-designer-r2-probe.ndjson",
+    "stderr": "/tmp/fleet-i96-production-designer-r2-probe.stderr",
+    "args": [
+      "pi",
+      "--mode",
+      "json",
+      "--no-session",
+      "--no-tools",
+      "--no-extensions",
+      "--model",
+      "ollama/kimi-k3:cloud",
+      "-p",
+      "reply with exactly: ok"
+    ]
+  },
+  "run_command": [
+    "bash",
+    "scripts/mission_pi_run.sh",
+    "--model",
+    "ollama/kimi-k3:cloud",
+    "--directive",
+    "/tmp/fleet-i96-production-designer-r2-directive.txt",
+    "--workdir",
+    "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+    "--out",
+    "/tmp/fleet-i96-production-designer-r2.ndjson",
+    "--verdict",
+    "/tmp/fleet-i96-production-designer-r2-verdict.json",
+    "--max-seconds",
+    "1800",
+    "--stall-seconds",
+    "600"
+  ],
+  "directive_bytes": 9903,
+  "verdict": {
+    "verdict": "provider_quota",
+    "rc": 19,
+    "fenced": true,
+    "model": "ollama/kimi-k3:cloud",
+    "pi_rc": 0,
+    "elapsed_seconds": 477,
+    "worktree_changed_files": 2,
+    "predirty_files": 2,
+    "worktree_changed_since_start": true,
+    "base_head": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "head_after": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "commits_since_start": 0,
+    "tool_executions": 67,
+    "hung_tool": "",
+    "provider_errors": 4,
+    "provider_error": "429: {\"message\":\"you (marked) have reached your session usage limit, upgrade for higher limits: https://ollama.com/upgrade or add usage credits: https://ollama.com/settings (ref: ac9bdaf1-7c03-4e97-b746-83da67f13a34)\",\"type\":\"api_error\",\"param\":null,\"code\":null}",
+    "agent_end_events": 4,
+    "ndjson_bytes_filtered": 2465798,
+    "ndjson": "/tmp/fleet-i96-production-designer-r2.ndjson",
+    "snapshot": "/tmp/fleet-i96-production-designer-r2.ndjson.snapshot.ndjson",
+    "stderr": "/tmp/fleet-i96-production-designer-r2.ndjson.stderr"
+  },
+  "phases": [
+    {
+      "phase": "revision-probe",
+      "out": "/tmp/fleet-i96-production-designer-r2-probe.ndjson",
+      "sha256": "4d9ee5b9f2810357f2ee80827d3732fcceb82dc26e10a85393b94bc3f0cda700",
+      "turns": 1,
+      "provider_usage": {
+        "input": 1,
+        "output": 139,
+        "cacheRead": 1951,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2091
+      },
+      "reported_metered_usd": 0,
+      "observed_response_metadata": [
+        {
+          "provider": "ollama",
+          "model": "kimi-k3:cloud",
+          "responseModel": "kimi-k3"
+        }
+      ],
+      "session_protocol_ack": [],
+      "write_edit_target_paths": []
+    },
+    {
+      "phase": "revision-author",
+      "out": "/tmp/fleet-i96-production-designer-r2.ndjson",
+      "sha256": "554995bc92d98dfc714f1c196295aae7d153c62b7244b23b1d1e50dcddaa7fff",
+      "turns": 67,
+      "provider_usage": {
+        "input": 104587,
+        "output": 54381,
+        "cacheRead": 4145347,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 4304315
+      },
+      "reported_metered_usd": 0,
+      "observed_response_metadata": [
+        {
+          "provider": "ollama",
+          "model": "kimi-k3:cloud",
+          "responseModel": "kimi-k3"
+        },
+        {
+          "provider": "ollama",
+          "model": "kimi-k3:cloud",
+          "responseModel": null
+        }
+      ],
+      "session_protocol_ack": [
+        {
+          "acked": true,
+          "at": "2026-11-08T02:30:31.739Z"
+        }
+      ],
+      "write_edit_target_paths": [
+        "/Users/voightkampff/.ailang-worktrees/fleet-i96/design_docs/planned/m-fleet-role-artifact-contract.md"
+      ]
+    }
+  ],
+  "quota_bucket": "ollama",
+  "quota_tokens": 4306406,
+  "metered_usd": 0,
+  "partial_design_sha256": "422bed66b4da5a128f253a2f98be327c954dd27c9ec588cbf3c9135e81a9c12d",
+  "partial_design_bytes": 23490,
+  "preserved_partial": "design_docs/fleet-mission-evidence/iteration96/production-designer-draft-r2-quota-partial.md",
+  "first_draft_preserved": "design_docs/fleet-mission-evidence/iteration96/production-designer-draft-r1.md",
+  "derive_observations": [
+    {
+      "command": "cd /Users/voightkampff/.ailang-worktrees/fleet-i96 && timeout 25 bash tools/launchd/derive-planner-lane.sh design_docs/planned/m-fleet-role-artifact-contract.md; echo \"rc=$?\"",
+      "returned_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "/bin/bash: timeout: command not found\nrc=127\n"
+          }
+        ]
+      }
+    },
+    {
+      "command": "cd /Users/voightkampff/.ailang-worktrees/fleet-i96 && bash tools/launchd/derive-planner-lane.sh design_docs/planned/m-fleet-role-artifact-contract.md; echo \"rc=$?\"",
+      "returned_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "codex:gpt-6.1-sol anthropic-fallback:declared:opus-required\nrc=0\n"
+          }
+        ]
+      }
+    },
+    {
+      "command": "cd /Users/voightkampff/.ailang-worktrees/fleet-i96 && wc -c design_docs/planned/m-fleet-role-artifact-contract.md && grep -n '^\\*\\*Planner-Lane\\*\\*:' design_docs/planned/m-fleet-role-artifact-contract.md && grep -c \"\u00abDERIVE_OBSERVED\u00bb\\|100 %\\|100%\\|test_gate3\" design_docs/planned/m-fleet-role-artifact-contract.md; echo \"grep-rc=$?\" && bash tools/launchd/derive-planner-lane.sh design_docs/planned/m-fleet-role-artifact-contract.md && echo \"derive-rc=$?\"",
+      "returned_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "   34408 design_docs/planned/m-fleet-role-artifact-contract.md\n8:**Planner-Lane**: opus-required\n2\ngrep-rc=0\ncodex:gpt-6.1-sol anthropic-fallback:declared:opus-required\nderive-rc=0\n"
+          }
+        ]
+      }
+    },
+    {
+      "command": "cd /Users/voightkampff/.ailang-worktrees/fleet-i96 && wc -c design_docs/planned/m-fleet-role-artifact-contract.md && echo \"--- derive (verbatim, inherited env) ---\" && bash tools/launchd/derive-planner-lane.sh design_docs/planned/m-fleet-role-artifact-contract.md; echo \"rc=$?\" && echo \"--- structural greps ---\" && grep -c \"^- \\[ \\]\" design_docs/planned/m-fleet-role-artifact-contract.md && grep -n \"Planner-Lane\\*\\*:\" design_docs/planned/m-fleet-role-artifact-contract.md && echo \"--- forbidden leftovers ---\" && grep -n \"\u00ab\\|test_gate3\\|make/test.mk.*+1\" design_docs/planned/m-fleet-role-artifact-contract.md; echo done",
+      "returned_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "   25076 design_docs/planned/m-fleet-role-artifact-contract.md\n--- derive (verbatim, inherited env) ---\ncodex:gpt-6.1-sol anthropic-fallback:declared:opus-required\nrc=0\n--- structural greps ---\n8\n8:**Planner-Lane**: opus-required\n--- forbidden leftovers ---\n109:No other paths; both inside the fleet Authority allowlist (R14). R1's scope (new ~150-line test, self-reconstruction fixtures, `make/test.mk` +1) is **removed entirely**.\ndone\n"
+          }
+        ]
+      }
+    },
+    {
+      "command": "cd /Users/voightkampff/.ailang-worktrees/fleet-i96 && wc -c design_docs/planned/m-fleet-role-artifact-contract.md && bash tools/launchd/derive-planner-lane.sh design_docs/planned/m-fleet-role-artifact-contract.md; echo \"derive-rc=$?\"",
+      "returned_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "   24059 design_docs/planned/m-fleet-role-artifact-contract.md\ncodex:gpt-6.1-sol anthropic-fallback:declared:opus-required\nderive-rc=0\n"
+          }
+        ]
+      }
+    }
+  ],
+  "lane_dead_record": {
+    "rc": 0,
+    "fire": "fleet-1794103446-52221",
+    "command": [
+      "env",
+      "MISSION_DESIGNER_MODEL=pi:ollama/kimi-k3:cloud",
+      "tools/launchd/mission-lane-dead.sh",
+      "designer",
+      "pi:ollama/kimi-k3:cloud",
+      "/tmp/fleet-i96-production-designer-r2-verdict.json: provider_quota rc19 after477s; 429 session usage limit"
+    ]
+  },
+  "fallback_state": "Next designer rotation entry after Kimi is claude:claude-opus-5-5. Driver Anthropic-unavailable context reported by controller. No substitute author or third protocol revision launched by delegate. Await controller gate disposition; partial cannot be reported successful.",
+  "status": "failed provider_quota; partial draft preserved; no completed revision verdict; no approval"
+}

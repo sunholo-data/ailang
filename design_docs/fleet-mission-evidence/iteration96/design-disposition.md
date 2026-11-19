@@ -1,0 +1,9 @@
+# Iteration96 design disposition
+
+Frozen proposal: `design_docs/planned/m-fleet-role-artifact-contract.md`, sha256 `df93fee6c072bbdc19850126963049a50ff7df7cd3db13cc573a08e4fd859998` (25,214bytes). Mixed Kimi+GLM authorship; Kimi's quota-interrupted revision is preserved as incomplete. GLM continuation completed the same revision. No source/recipe changes implemented.
+
+Quorum1 and exactly one re-quorum BLOCKED. Final external reviewers OpenAI REJECT, Google PASS; Anthropic absent/quota. Both author vendors excluded. The remaining OpenAI objection disputes the blanket standing-policy-gap premise: a recipe-only identity search cannot verify all applicable policy/discovery restrictions. Google additionally requests a verified pointer location. Raw findings in quorum-r2.json, not silently corrected in the frozen artifact.
+
+Strict duplicate/coverage gate remains UNRESOLVED: high planned-document scores on apparently unrelated scopes are captured, not self-waived. Explicit human design approval is absent. Planning and execution remain prohibited even if a technical reviewer passes the narrower proposal. Final independent MiniMax review returned FAIL / NEEDS REVISION, implementation score N/A; it independently upheld the scope-evidence objection before reading final quorum. Own-session protocol and complete required reads verified, fenced typedokrc0/355s/60tools, frozen hash unchanged. Raw report in design-judge.md; transport success is not design acceptance.
+
+D-FLEET-44 proposed human choice: A (recommended) request a corrected scope-limited standing-policy/conflict-surface design and reconcile the duplicate gate; later explicit design approval remains separate. B leave current behavior unchanged. Default B immediately if unanswered. No quota/capacity question is sent to the human; declared quota fallback already ran.

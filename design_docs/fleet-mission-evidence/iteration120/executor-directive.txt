@@ -1,0 +1,28 @@
+MISSION-ROLE: executor
+
+You are the sprint EXECUTOR for fleet mission iteration 120. This is an unattended run, so nobody can answer questions. Work ONLY inside the git worktree /Users/voightkampff/.ailang-driver-pin/fleet-i120-wt (branch fleet/i120-dfleet36-38-scope-arm, at origin/dev 022f68f1a). Begin every shell command with `cd /Users/voightkampff/.ailang-driver-pin/fleet-i120-wt &&`, because cwd does not persist between commands.
+
+TASK: apply the reviewed plan /tmp/fleet_i120/plan.md, using its patch /tmp/fleet_i120/final-022f68f1a.patch. This is the fleet scope-guard arm for D-FLEET-36 A and D-FLEET-38 A.
+
+STEPS
+1. `git apply /tmp/fleet_i120/final-022f68f1a.patch`, then `git status --porcelain`. Exactly 5 paths should change: the two changelog fragments, design_docs/fleet-mission.md, tools/launchd/githooks/pre-push and tools/launchd/test_mission_scope_guard.sh.
+2. Read the resulting diff. Confirm that _scope_is_fleet_support gains exactly 2 design-doc-creator patterns and exactly 16 `.agents/skills/<name>/*` arms, and that _scope_is_harness is unchanged.
+3. Run the gates. Record each rc WITHOUT a pipe: run the command redirected to a log file, then `echo rc=$?`.
+   G1 `bash tools/launchd/test_mission_scope_guard.sh > /tmp/fleet_i120/exec-g1.log 2>&1; echo rc=$?` (expect 0)
+   G2 `bash scripts/mission_decisions.sh --check --file design_docs/fleet-mission.md > /tmp/fleet_i120/exec-g2.log 2>&1; echo rc=$?` (expect 0)
+   G3 `bash tools/launchd/sync-agents-skills.sh --check > /tmp/fleet_i120/exec-g3.log 2>&1; echo rc=$?` (expect 0). If the script is at a different path, find it with `git ls-files | grep sync-agents-skills`.
+   G4 `git diff --check; echo rc=$?` (expect 0)
+4. Mutation spot-check, three mutants. For each: edit tools/launchd/githooks/pre-push, run G1, confirm it FAILS (rc != 0), then restore the file with `git diff` plus a manual revert (do NOT use git stash, and do NOT git checkout any other branch). Mutants:
+   (a) delete the `.agents/skills/pr-monitor/*) return 0 ;;` line;
+   (b) change the design-doc-creator arm `.claude/skills/design-doc-creator/*` to `.claude/skills/design-doc-creator*`;
+   (c) add a line `.agents/skills/agent-inbox/*) return 0 ;;` next to the use-ailang arm.
+   After all three, re-run G1 and confirm rc=0. Confirm with `git diff --stat` that the pre-push diff is identical to the patch's.
+5. Commit, without pushing: `git add` the 5 paths, then `git commit` with this message:
+   fix(fleet): scope guard admits design-doc-creator + the 16 rename-only .agents skill mirrors (D-FLEET-36 A, D-FLEET-38 A, ruled 2026-11-16)
+
+   Guard arm ships alone (iteration-16 rule); the 8 grep fixes and the sync-agents-skills.sh list extension follow once this is on the pinned guard. Supersedes draft #2108.
+
+   Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
+6. Write a report to /tmp/fleet_i120/executor-report.md listing each gate's rc, each mutant's G1 rc, the commit SHA (`git rev-parse HEAD`) and `git show --stat HEAD`.
+
+RULES: never push. Never touch any other directory or checkout. Never print environment variable values. Bound every wait; no command needs more than 10 minutes. Do not end your turn announcing a wait: finish the work, then end with the report path and the commit SHA.

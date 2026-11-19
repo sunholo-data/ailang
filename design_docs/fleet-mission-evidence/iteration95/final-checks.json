@@ -1,0 +1,72 @@
+[
+  {
+    "command": [
+      "go",
+      "test",
+      "./internal/mission/",
+      "-run",
+      "Canonical",
+      "-count=1"
+    ],
+    "rc": 0,
+    "stdout": "ok  \tgithub.com/sunholo-data/ailang/internal/mission\t0.385s\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "make",
+      "check-no-personal-email",
+      "check-context-docs",
+      "check-referenced-paths",
+      "check-changelog"
+    ],
+    "rc": 0,
+    "stdout": "\u001b[0;32m\u2713 check-no-personal-email: no personal addresses in the loop-written surface\u001b[0m\n\u001b[0;32m\u2713 context docs: 13 rules, 42 skills, CLAUDE.md \u2014 scoped, linked, within budget\u001b[0m\nreferenced-paths: enumerated 104 paths\nreferenced-paths: checked 104 paths\n\u001b[0;32m\u2713 9 changelog fragment(s) valid; changelogs/v0.32-current.md has '## [Unreleased]'\u001b[0m\n\u001b[0;32m\u2713 CHANGELOG.md is index-only and links changelogs/v0.32-current.md\u001b[0m\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "scripts/mission_decisions.sh",
+      "--check",
+      "--file",
+      "design_docs/fleet-mission.md"
+    ],
+    "rc": 0,
+    "stdout": "decision ledger valid: 42 rows\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/bin/bash",
+      "/Users/voightkampff/.ailang-driver-pin/fleet/scripts/mission_routing_models_check.sh",
+      "--file",
+      "design_docs/fleet-mission-log.md",
+      "--entry",
+      "95"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "rc": 2,
+    "stdout": "design_docs/fleet-mission-log.md:1581: new blank line at EOF.\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": "",
+    "note": "Removed controller-added extra blank line at EOF; earlier failure retained above."
+  }
+]

@@ -1,0 +1,15 @@
+# Iteration 102 — controller observations (2026-11-10, fire fleet-1794326793-8693)
+
+- Kill switch `mission-fleet.disabled` absent (armed). gh active account `sunholo-voight-kampff`. Billing tripwire CLEAN.
+- Skill: resolved symlink target `~/dev/sunholo-data/ailang/.claude/skills/mission-control`. SKILL.md and all 13 `resources/*.md` are byte-identical to `origin/dev` (per-file `cmp`, 14/14 SAME). Pin HEAD == origin/dev (`2a7cee7bf`), `AILANG_DRIVER_DRIFT=0`.
+- Gate 1 base `2a7cee7bf73695c3a1d832241983e8d000a8fa2a@2026-11-10T16:07:40Z`.
+- Newest record: iteration 101 on draft #2214 (`fleet/i101-record`), stacked on #2200 → #2198 → #2194 → #2173 → #2171 → #2169. origin/dev's log ends at 94. No `fleet/i102*` branch or worktree existed before this fire (`git branch -r` and `git worktree list` both empty for it).
+- Directives: `mission_directives.sh` on #2172 → 0 allowlisted of 6 comments (all `sunholo-voight-kampff`; watermark file absent, so it read every comment). #2039 → none.
+- Self-notice read, prescribed form (watermark files): **rc 2**, instrument failure, because neither watermark file exists (sixth consecutive fleet fire). `--since 2026-11-10T09:59:57Z` form (iteration 101's Gate 1 base): **rc 0**, control 852:10 ok, 0 crash notices, 0 in-window transcript notices (3 older #2039 transcript notices, all out of window).
+- Tickets: `ailang mission ticket open --json` → 27, byte-identical to iteration 101's capture (`cmp` silent).
+- Ledger: `mission_decisions.sh --check` → valid, 44 rows. `--open` → 28 OPEN, byte-identical to iteration 101's.
+- origin/dev `8dc92cb52..2a7cee7bf` is 64 commits (v0.59.0 release, release ci-gate, ollama local wire types, downstream-check, doc-sample gate, let-generalisation, hook installer and auto-push bound, connector docs). `git diff --name-only` filtered to `design_docs/fleet-|tools/launchd/|.claude/skills/mission-control/|scripts/mission_|internal/mission/` → 0 paths (control: 256 paths changed in total, 205 under scripts/tools/docs/internal/.claude).
+- Dev @ `2a7cee7bf`: CI, Build and Release and Docs deploy all success (27 check runs; the one non-green `deploy` is a failed Docs deploy run whose re-run on the same SHA succeeded). V1 owns `sunholo-data/ailang` reds in any case.
+- D-FLEET-17 premise: the judge flagged "required checks red since 10-13" as stale. Re-checked first-party: `devapi_workspace.go:237,259` use `gitexec.CommandContext` (fixed in `8e9dee07e`, 2026-10-15) and `test`/`docs-gate`/`docs-build` are green at `2a7cee7bf`. This is NOT new: the row's evidence cell already records causes (1) and (2) gone since iteration 55. No row edit.
+- Unread inbox (prod store, read without marking): nothing from Mark, no regression; sibling FYIs (stapledon 84, world 377), triage digest ("codex judge lane down"), ailang_parse completions, feedback-gate dry-run audits. Nothing is a `mission-fleet` ticket.
+- Driver routing note: planner and executor codex `gpt-6.1-sol` probe rc 75 (quota UNREADABLE) → opus / claude-haiku-5-5. Evaluator sonnet (Agent tool).

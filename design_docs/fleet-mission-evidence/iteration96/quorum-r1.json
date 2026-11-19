@@ -1,0 +1,80 @@
+{
+  "doc": "design_docs/planned/m-fleet-role-artifact-contract.md",
+  "iso_ts": "2026-11-08T02:25:28Z",
+  "reviewers": [
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "quota",
+      "error": "Anthropic bucket blocked by the mission ration: Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no \"Current session\" line in `claude -p /usage` output)",
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0.02631,
+      "tokens_in": 11695,
+      "tokens_out": 292,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The claimed success metric\u2014100% of pi role directives contain the contract elements\u2014is not established by the proposed tests. Arm 2 constructs synthetic directives inside the test rather than exercising the controller's actual directive-composition path. It can pass while every real directive omits the contract. This conflicts with the document's explicit deferral of linting real compositions and makes the central acceptance claim unsupported.",
+        "catch": "Distinguish recipe-text conformance and checker-fixture coverage from actual directive conformance. The negative control proves only that the test-local checker rejects its chosen counter-example; it does not prove that controllers incorporate the new recipe block.",
+        "proposed_fix": "Replace the 100% success metric with: \"The shared pi recipe contains the required artifact-contract guidance; string assertions pin its normative clauses, and synthetic positive/negative fixtures test the local checker's recognition of those clauses. These tests do not measure or guarantee conformance of actual controller-composed directives. Real-composition linting remains deferred.\" Rename Arm 2 to \"synthetic directive checker fixtures\" and remove claims that this suite verifies prevention or compliance of real directives. If retaining the 100% metric, identify and verify an existing production composition entry point and test directives produced through that entry point rather than a test-local reconstruction."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.058851999999999995,
+      "tokens_in": 12748,
+      "tokens_out": 393,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The primary success metric ('100 % of pi role directives composed under the recipe contain the four contract elements \u2014 checked by generated-directive arms in the new test suite, not by hoping') is vacuous: Arm 2 of the test suite only generates a hardcoded synthetic directive inside $SCRATCH and checks that synthetic string against itself. Because directives are composed dynamically by the LLM controller at runtime and no pre-spawn linter is wired into `scripts/mission_pi_run.sh` (explicitly deferred in Future Work), the test suite provides zero verification of actual directives composed in production, relying entirely on 'hoping' the controller LLM obeys the prose.",
+        "catch": "In Goals -> Success Metrics and Testing Strategy -> Arm 2, the doc claims the test suite verifies generated-directive conformance rather than 'hoping', when in reality Arm 2 is a tautological test where the bash script authors both the synthetic directive string and the regex that checks it.",
+        "proposed_fix": "Either (1) wire the directive-conformance checker into `scripts/mission_pi_run.sh` (which is inside the fleet Authority allowlist per V21: `scripts/mission_*`) so it lints the actual `--directive-file` before spawning `pi` and fails fast on missing contract markers, OR (2) revise 'Goals -> Success Metrics' and 'Examples -> Example 1' to remove the false claim that composed directives are mechanically checked, stating honestly: '100% of recipe copies contain the contract block and marker pins (checked by `test_gate3_artifact_contract.sh`); actual controller directive composition remains unlinted prose guidance until Future Work item 3 lands.'"
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.06572940000000001,
+      "tokens_in": 11671,
+      "tokens_out": 11225,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The primary Success Metric \u2014 \"100 % of pi role directives composed under the recipe contain the four contract elements \u2026 checked by generated-directive arms in the new test suite, not by hoping\" \u2014 is not instrumented by anything in this design and cannot be certified by its own acceptance run. Arm 2 checks only a synthetic directive the suite generates itself plus one counter-example; no mechanism anywhere in M1/M2 inspects a real controller-composed directive. The doc concedes this in Future Work (\"this design lints the recipe text and synthetic directives only; linting real compositions is a controller-workflow change, attended\"), so the Success Metrics section asserts a population-level prevention claim that the plan's own text admits is unmeasured. A done-gate built on this would certify an unmeasured claim, which is precisely the empty-but-successful-result shape the contract's own missing-input rule (and A11) forbids.",
+        "catch": "Three load-bearing items to verify or fix before approval: (1) The new block is inserted immediately after PI_EVALUATOR_SESSION_HANDSHAKE_END (gate-3-route.md:522), yet the doc never records what the handshake block (lines 494\u2013522, ~28 lines) currently prescribes about identity/session metadata \u2014 V18 only greps markers. If the handshake block already instructs evaluators on provider/model or session-state handling, the new identity-disposition norm could duplicate or contradict adjacent standing text, and Arms 1\u20134 would pin the conflict verbatim. (2) The Planner-Lane field asserts derive-planner-lane.sh \"would emit opus fail-closed:path-not-in-codex-allowlist\" from reading the script rather than running it (V23 is a read, not an execution), and the doc flags only gate-3-route.md as outside the mission-control.sh:1439 default when make/test.mk \u2014 a changed path \u2014 is outside that default too. (3) \"No overlap in files\" with m-fleet-slot-kill-reaps-descendants-sprint-plan.md is asserted, but if that sibling wires its suite via make/test.mk's LAUNCHD_SUITES (this doc's own wiring pattern), the two plans share a file and a merge-order surface that is nowhere addressed.",
+        "proposed_fix": "Three concrete edits: (a) Replace the first Success Metrics bullet with: \"Recipe-level pins hold: the contract block's four element names, the prohibition strings, the preserved rc18 retry wording, and the sanitized $HOME-literal example are present in both mirrors and pinned by the suite, and the suite's checker is shown to discriminate (flags the identity-research counter-example, passes the conformant synthetic). Conformance of real controller-composed directives is NOT measured by this design; a Gate-3 composition lint is Future Work (attended). The success claim is limited to: the standing instruction exists, is mirrored, and is regression-pinned.\" (b) Add Verification Log row V28: \"read gate-3-route.md:494\u2013522 (handshake block content) \u2192 record its current identity/session-metadata instructions \u2192 reconcile the identity-disposition wording with that block (or record non-overlap) before M1 drafting.\" (c) Add row V29: \"run tools/launchd/derive-planner-lane.sh against this doc's Files section (read-only, bounded) \u2192 record the observed emission string\" and amend the Planner-Lane paragraph to state that both .claude/skills/mission-control/resources/gate-3-route.md and make/test.mk fall outside the mission-control.sh:1439 default; add row V30 diffing the slot-kill sibling's changed paths against this doc's four paths, with a merge-order note if make/test.mk overlaps."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "reject",
+    "note": "P1 direction is a reviewable instruction proposal; approval is not granted. Reject current claims: synthetic directives do not prove 100% conformance of real composed directives; configured identity must be distinguished from observed metadata; checked human freeze boxes cannot imply human resolution; original directive already named inputs/outputs, so N=1 recovery is correlation rather than isolated causal proof. Preserve P2 deferral and normal approval gate."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt6-1-sol: The claimed success metric\u2014100% of pi role directives contain the contract elements\u2014is not established by the proposed tests. Arm 2 constructs synthetic directives inside the test rather than exercising the controller's actual directive-composition path. It can pass while every real directive omits the contract. This conflicts with the document's explicit deferral of linting real compositions and makes the central acceptance claim unsupported.",
+      "gemini-4-argon: The primary success metric ('100 % of pi role directives composed under the recipe contain the four contract elements \u2014 checked by generated-directive arms in the new test suite, not by hoping') is vacuous: Arm 2 of the test suite only generates a hardcoded synthetic directive inside $SCRATCH and checks that synthetic string against itself. Because directives are composed dynamically by the LLM controller at runtime and no pre-spawn linter is wired into `scripts/mission_pi_run.sh` (explicitly deferred in Future Work), the test suite provides zero verification of actual directives composed in production, relying entirely on 'hoping' the controller LLM obeys the prose.",
+      "oc-glm-5-3: The primary Success Metric \u2014 \"100 % of pi role directives composed under the recipe contain the four contract elements \u2026 checked by generated-directive arms in the new test suite, not by hoping\" \u2014 is not instrumented by anything in this design and cannot be certified by its own acceptance run. Arm 2 checks only a synthetic directive the suite generates itself plus one counter-example; no mechanism anywhere in M1/M2 inspects a real controller-composed directive. The doc concedes this in Future Work (\"this design lints the recipe text and synthetic directives only; linting real compositions is a controller-workflow change, attended\"), so the Success Metrics section asserts a population-level prevention claim that the plan's own text admits is unmeasured. A done-gate built on this would certify an unmeasured claim, which is precisely the empty-but-successful-result shape the contract's own missing-input rule (and A11) forbids.",
+      "controller (in-session): P1 direction is a reviewable instruction proposal; approval is not granted. Reject current claims: synthetic directives do not prove 100% conformance of real composed directives; configured identity must be distinguished from observed metadata; checked human freeze boxes cannot imply human resolution; original directive already named inputs/outputs, so N=1 recovery is correlation rather than isolated causal proof. Preserve P2 deferral and normal approval gate."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "reason": "quota"
+      }
+    ],
+    "total_cost_usd": 0.1508914,
+    "total_tokens_in": 36114,
+    "total_tokens_out": 11910
+  }
+}

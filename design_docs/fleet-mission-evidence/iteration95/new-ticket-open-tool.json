@@ -1,0 +1,8 @@
+{
+  "state": "open-tool-under-existing-runner-guard",
+  "observed_no_progress_seconds": 152,
+  "tool_call_id": "call-f048f89c-1666-46ad-8210-e6cd90c6e66c",
+  "tool_name": "bash",
+  "command_literal": "printf 'HOME=%s\\n' \"$HOME\"; ls -la \"$HOME/.pi\" 2>&1 | head -50; find \"$HOME\" -maxdepth 4 -type f \\( -name '*.jsonl' -o -name '*.json' \\) -mmin -120 -print 2>/dev/null | head -100",
+  "note": "Command preserves literal $HOME without expanding or capturing any path content. Existing 600s stall guard is unchanged."
+}

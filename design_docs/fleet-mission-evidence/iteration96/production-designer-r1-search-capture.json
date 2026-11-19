@@ -1,0 +1,57 @@
+{
+  "provenance": "Exact returned tool results from known /tmp/fleet-i96-production-designer.ndjson; no fresh search; omitted output remains omitted.",
+  "captures": [
+    {
+      "tool_call_id": "call_2qpcmc19",
+      "tool": "bash",
+      "command": "grep -rli \"role-artifact\\|artifact contract\\|artifact_contract\" design_docs/planned/ design_docs/implemented/ 2>/dev/null | head -5; echo \"---fleet docs in planned---\"; ls design_docs/planned/ | grep -iE \"fleet|mission-(control|loop)\" | head -10; echo \"---size of false-greens---\"; wc -l .claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "tool_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "design_docs/implemented/v0_33_3/m-remote-browser-session-providers.md\n---fleet docs in planned---\nm-fleet-slot-kill-reaps-descendants-sprint-plan.md\nm-harness-mission-loop-sprint-plan.md\nm-harness-mission-loop.md\nm-mission-loop-lifetime-audit.md\n---size of false-greens---\n     158 .claude/skills/mission-control/resources/codex-lane-false-greens.md\n"
+          }
+        ]
+      }
+    },
+    {
+      "tool_call_id": "call_rmltrmyj",
+      "tool": "bash",
+      "command": "grep -li \"role-artifact\" design_docs/implemented/v0_33_3/m-remote-browser-session-providers.md; grep -n \"artifact contract\\|artifact_contract\" design_docs/implemented/v0_33_3/m-remote-browser-session-providers.md | head -3; echo \"---planned fleet docs headers---\"; head -8 design_docs/planned/m-harness-mission-loop.md design_docs/planned/m-mission-loop-lifetime-audit.md",
+      "tool_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "56:- `internal/executor/` has a common agent executor contract and local/cloud deployment shape, but no browser-session provider or browser artifact contract (V1, V2).\n---planned fleet docs headers---\n==> design_docs/planned/m-harness-mission-loop.md <==\n# M-HARNESS-MISSION-LOOP: A Fleet Loop That Owns the Loop Harness, So Product Loops Don't\n\n**Status**: **HD-1..HD-6 RATIFIED \u2014 Mark, attended 2026-09-26** (*\"great sprint plan and execute\"*), delegated to the doc's recommendations rather than chosen option by option. Sprint 1 = Phases 1\u20132. Phase 3b stays gated on the 3a spike (P1\u2013P3). Quorum-blocked twice; all six objections were correct, five are fixed in-doc and unreviewed, and one needs the spike.\n**Created**: 2026-09-26 (attended, Mark: *\"would it be better instead to have a dedicated loop to its own harness?\"*)\n**Target**: v0.44.0\n**Priority**: P1\n**Estimated**: 6.5 days across three phases, each shippable on its own (P1 1.5d, P2 2d, P3a 0.5d + P3b 2.5d)\n**Dependencies**: None blocking. Reuses the driver pin (`tools/launchd/lib/pin-root.sh`), the mission\n\n==> design_docs/planned/m-mission-loop-lifetime-audit.md <==\n# M-MISSION-LOOP-LIFETIME-AUDIT\n\n**Status**: audit complete, remediation not started\n**Date**: 2026-09-08 (attended session, Mark)\n**Scope**: all four mission loops over their whole lifetime, plus the repository ground state\n**Why now**: the fleet is PAUSED until the binary mission control can take over. This audit\nestablishes what the shell-driven era actually produced, so the binary version inherits the\nlessons rather than the defects.\n"
+          }
+        ]
+      }
+    },
+    {
+      "tool_call_id": "call_uusk3g8h",
+      "tool": "bash",
+      "command": ".claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-fleet-role-artifact-contract 2>&1 | tail -30",
+      "tool_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "  1. design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-plan.md (1.00)\n  2. design_docs/planned/v1_1_0/m-entropy-budgets.md (0.95)\n  3. design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md (0.90)\n  \u001b[0;36m[Neural - semantic matching]\u001b[0m\n  1. design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-plan.md (1.00)\n  2. design_docs/planned/v1_1_0/m-entropy-budgets.md (0.95)\n  3. design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md (0.90)\n\n\u001b[0;36m\u2139 Related docs found above - review them after creation if needed.\u001b[0m\n\n\u001b[0;32m\u2713 Created design document:\u001b[0m\n  /Users/voightkampff/.ailang-worktrees/fleet-i96/design_docs/planned/m-fleet-role-artifact-contract.md\n\n\u001b[0;36mVersion context:\u001b[0m\n  Current AILANG: v0.57.4\n  Next version:   v0_57_5\n\n\u001b[0;32mNext steps:\u001b[0m\n  1. Edit /Users/voightkampff/.ailang-worktrees/fleet-i96/design_docs/planned/m-fleet-role-artifact-contract.md to fill in the template\n  2. Replace [placeholders] with actual content\n  3. Commit when ready: git add /Users/voightkampff/.ailang-worktrees/fleet-i96/design_docs/planned/m-fleet-role-artifact-contract.md\n\n\u001b[1;33mKey sections to fill:\u001b[0m\n  - High-Impact Decisions: name the actual choices, who decides, change cost\n  - Design Freeze: check off decisions before sprint-executor starts\n  - Deferred Decisions: grant agent latitude (separate from Non-Goals)\n  - Axiom Compliance: score all 12, net \u2265 +2, no -1 on A1/A3/A4/A7\n\n---\nDESIGN_DOC_PATH: design_docs/planned/m-fleet-role-artifact-contract.md\n"
+          }
+        ]
+      }
+    },
+    {
+      "tool_call_id": "call_jgud0f8a",
+      "tool": "bash",
+      "command": "awk '{line=tolower($0); if (line ~ /^#{2,4}[[:space:]]+files([^[:alnum:]_]|$)/) print NR\": \"$0}' design_docs/planned/m-fleet-role-artifact-contract.md; echo \"---required sections---\"; grep -c \"Planner-Lane\\|Design Freeze\\|Deferred Decisions\\|Non-Goals\\|Verification Log\\|Axiom Scoring\\|Hard Violation\\|Success Criteria\\|Testing Strategy\\|Related Documents\" design_docs/planned/m-fleet-role-artifact-contract.md; grep -n \"^**Net Score\" design_docs/planned/m-fleet-role-artifact-contract.md",
+      "tool_result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "128: ### Files to Modify/Create\n---required sections---\n17\n33:**Net Score: +5** \u2192 **Decision: Move forward** (\u2265 +2)\n"
+          }
+        ]
+      }
+    }
+  ]
+}

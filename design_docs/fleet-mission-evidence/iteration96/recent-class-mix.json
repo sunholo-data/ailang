@@ -1,0 +1,102 @@
+{
+  "source": "full canonical log/archive headings, sorted numeric; current96 to append as HARNESS",
+  "last19": [
+    {
+      "iteration": 77,
+      "date": "2026-11-02",
+      "title": "`agent-tool:workspace-routing-discovery-timeout` folds into D-FLEET-24 (one codex-internal transport error, recovered by `followup_task`; none in 652 later sessions); the fold gives option B's premise one reading; no other ticket routable; weekly sweep 0 items; independent sonnet PASS-WITH-EDITS 84 [HARNESS]"
+    },
+    {
+      "iteration": 78,
+      "date": "2026-11-02",
+      "title": "D-FLEET-24 option A LANDED (#2053 \u2192 `3d9112bb9`), built as a proposed diff before an attended ruling arrived mid-fire; 7 `agent-tool` tickets resolved; independent sonnet PASS 94 then PASS 96 [HARNESS]"
+    },
+    {
+      "iteration": 79,
+      "date": "2026-11-03",
+      "title": "D-FLEET-26 option A built as a proposed diff (draft PR #2065, `edb099371`), unmerged pending a ruling; independent sonnet PASS-WITH-EDITS 88 then PASS 94 [HARNESS]"
+    },
+    {
+      "iteration": 80,
+      "date": "2026-11-03",
+      "title": "D-FLEET-21 option A built as a proposed diff (draft PR #2067, `bdaad2825`), unmerged pending a ruling; fresh CI re-measure; independent sonnet PASS 90 [HARNESS]"
+    },
+    {
+      "iteration": 81,
+      "date": "2026-11-03",
+      "title": "D-FLEET-25's shared mechanical sub-item built as a proposed diff (draft PR #2082, `399cf799b`), unmerged pending a ruling; the \"World is a fork\" claims are corrected and the mission-loop-change reach check (which read NO for every mission) is repaired; an independent sonnet judge refuted the controller's idle verdict, then PASS-WITH-EDITS 90 and PASS 94 [HARNESS]"
+    },
+    {
+      "iteration": 82,
+      "date": "2026-11-03",
+      "title": "D-FLEET-36 A and D-FLEET-38 A's shared first step, the fleet scope-guard arm, built as a proposed diff (draft PR #2108, two independent commits `bcf7f97ac` and `261fb3b64`), unmerged pending rulings; independent sonnet judge PASS-WITH-EDITS 84 then PASS 92 [HARNESS]"
+    },
+    {
+      "iteration": 83,
+      "date": "2026-11-04",
+      "title": "D-FLEET-18 A's guard step, the fleet scope-guard arm for the two motoko probe files, built as a proposed diff (draft PR #2110, `875581f46`), unmerged pending a ruling; an independent sonnet judge refuted the controller's idle verdict, then PASS 93 [HARNESS]"
+    },
+    {
+      "iteration": 84,
+      "date": "2026-11-04",
+      "title": "dev's required-check red repaired: the `.agents` mission-control mirror of `gate-3-triage.md` re-synced via #2116 \u2192 `981028c46`; ticket `ci:skill-mirror-not-synced-after-gate3-triage-edit` resolved in ~3 h; independent sonnet judge PASS 91 [HARNESS]"
+    },
+    {
+      "iteration": 85,
+      "date": "2026-11-04",
+      "title": "the transcript secret detector LANDED (#2122 \u2192 `26b35b081`): every legacy controller fire scans the session files it wrote for `secrets.env` values and reports key names privately; ticket `security:loop-env-inspection-prints-secrets-into-transcripts` resolved in ~11 h; the env-strip half parks as D-FLEET-42; independent sonnet judge PASS [HARNESS]"
+    },
+    {
+      "iteration": 86,
+      "date": "2026-11-05",
+      "title": "the transcript scan now matches only bytes written in the fire window (#2127 \u2192 `9ea8adcf4`): a byte-size baseline taken before the controller spawns stops a long-lived attended session from re-reporting a 17-day-old hit on every fire; ticket `transcript-scan:mtime-window-reattributes-old-hits-to-fire` resolved ~3 h after filing; independent sonnet judge PASS 92 [HARNESS]"
+    },
+    {
+      "iteration": 87,
+      "date": "2026-11-05",
+      "title": "Gate 0's self-notice read now reports the driver's transcript-scan notices (#2132 \u2192 `7e9e9192b`): both public wordings are recognised, rows carry only metadata, exit codes unchanged; ticket `gate0:self-notices-skip-transcript-scan-notice` resolved ~6 h after filing; independent sonnet judge PASS 92 [HARNESS]"
+    },
+    {
+      "iteration": 88,
+      "date": "2026-11-05",
+      "title": "D-FLEET-42 A's first step built as a proposed diff (draft #2141, `4ea46f05e`), unmerged pending a ruling: a per-lane `secrets.env` scope library, a marker bridge and the tested `~/.zshenv` host line; measured that claude and codex zsh tool shells re-source `secrets.env`, so a spawn-time strip alone protects only pi; independent sonnet judge PASS 86 [HARNESS]"
+    },
+    {
+      "iteration": 89,
+      "date": "2026-11-06",
+      "title": "D-FLEET-42 A's M2 wiring built as a proposed diff (draft #2143, `7f1e13d5f`, stacked on #2141), unmerged pending a ruling: controller children, a role entry point, the exact codex marker exception and pi `BASH_ENV` clearing; the controller caught a `$!`-is-a-subshell regression the fixtures could not see; independent sonnet judge PASS 92 [HARNESS]"
+    },
+    {
+      "iteration": 90,
+      "date": "2026-11-06",
+      "title": "D-FLEET-42 A's M3 built as a proposed diff (draft #2150, `26b713887`, stacked on #2143), unmerged pending a ruling: a pinned dry-run probes the controller inside its lane scope, and all six live healthy/degraded dry-runs passed; a bash 3.2 background-stdin trap was found and fixed on the way; independent sonnet judge PASS 90, then PASS 93 [HARNESS]"
+    },
+    {
+      "iteration": 91,
+      "date": "2026-11-06",
+      "title": "`driver:idle-fire-writes-full-block-report` LANDED and resolved (#2160 \u2192 `d08031597`, dev CI + Build and Release green): product missions skip an unchanged no-pick fire before any probe; the driver snapshots a fire's inputs before the controller starts and a human-gated no-pick fire promotes that snapshot; the controller caught a messaging-store seam defect; independent sonnet judge PASS 81, then PASS 86 after the controller fixed its strongest objection [HARNESS]"
+    },
+    {
+      "iteration": 92,
+      "date": "2026-11-06",
+      "title": "idle: no buildable step; all 25 open tickets ruling-gated, independent sonnet idle-screen judge ruled NONE; nothing built or merged; new ask D-FLEET-43 (should an unchanged all-gated fleet fire skip itself) [ADMIN]"
+    },
+    {
+      "iteration": 93,
+      "date": "2026-11-07",
+      "title": "D-FLEET-25's remaining mechanism drafted; independent MiniMax pick judge overturned NONE; proposal parked for design approval, no implementation or ticket resolution [HARNESS]"
+    },
+    {
+      "iteration": 94,
+      "date": "2026-11-07",
+      "title": "idle: no authorized buildable step; all 25 open tickets ruling-gated, fresh independent MiniMax judge NONE; nine drafts preserved, no implementation or ruling resolved [ADMIN]"
+    },
+    {
+      "iteration": 95,
+      "date": "2026-11-07",
+      "title": "new triage command-hang ticket captured; independent evaluator exhausted; PARKED-ON-LANE, no judge verdict or substantive landing [HARNESS]"
+    }
+  ],
+  "harness_count_before96": 17,
+  "current_class": "HARNESS"
+}

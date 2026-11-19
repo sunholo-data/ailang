@@ -1,0 +1,23 @@
+{
+  "original": {
+    "sha256": "90536f336e334b0f65e84b693361dd0e5bde69947c75e6539a202ab865326dd7",
+    "relevant_lines": [
+      "You are the ACTUAL independent MiniMax-vendor judge for unattended triage iteration 33. The native evaluator Agent that launched you is transport only and cannot author conclusions. You must independently adjudicate all input verdicts and proposed actions. OpenAI/Luna verifiers and OpenAI controller are a different vendor from you. Return actual provider/model from your session metadata if available, not a guessed identity.",
+      "Read /tmp/triage-i33/judge-worktree/judge-input/manifest.json, proposed-items.json, auxiliary-compact.json and charter.md first, then targeted underlying verifier-a/b artifacts/raw metadata/diffs and immutable source to check the evidence independently. The manifest fixes exactly FIVE items and SIX auxiliary groups. Inspect directory listings to resolve filenames. Avoid unbounded full checks/snapshots dumps; compact inputs first, targeted raw fields second. You can use read, rg, git show, gh read-only, bash read-only. No builds or lengthy tests are required. If live GitHub authentication is unavailable inside the sandbox, explicitly record this limitation and use supplied timestamped raw metadata. The controller will separately re-read live head guards immediately before any PR comment/attestation.",
+      "Evaluate each proposed controller action too, not only the verifier label. Never approve, reject, merge, close coordinator PRs, send messages, post comments, label anything, edit source, push or perform any external write. The ONLY write you may make is a brand-new JSON report /tmp/triage-i33/judge-worktree/JUDGE_REPORT.json. Do not modify any existing file, including judge-input. The report itself is the new worktree artifact required by the guarded runner. Do not bypass sandbox/extensions or protocol gates.",
+      "  \"actual_judge_provider\": \"...\",",
+      "  \"actual_judge_model\": \"...\","
+    ]
+  },
+  "retry": {
+    "sha256": "07f7021320e4b12e0bb2002811b717eb19058b6e76c5f95e8063508afe65bbd4",
+    "relevant_lines": [
+      "You are the ACTUAL independent MiniMax-vendor judge for unattended triage iteration 33. The native evaluator Agent that launched you is transport only and cannot author conclusions. You must independently adjudicate all input verdicts and proposed actions. OpenAI/Luna verifiers and OpenAI controller are a different vendor from you. The transport has independently verified your actual message metadata as provider=ollama and model=minimax-m3:cloud. Record those identity values as transport-provided metadata and do not research your identity.",
+      "THIS IS THE ONE ALLOWED SAME-LANE RETRY after the first attempt had a tool hang. Do NOT repeat the hung command or anything equivalent. Absolutely no HOME scans, hidden-store/session lookup, environment inspection, global file discovery, or access outside this isolated worktree. The first attempt hung on a broad HOME find while researching model identity; your model identity is already supplied above. Do not read previous attempt artifacts or its intermediate reasoning/conclusions. Perform your own fresh independent check from the supplied immutable inputs and source, then write the terminal report.",
+      "Read /tmp/triage-i33/judge-retry-worktree/judge-input/manifest.json, proposed-items.json, auxiliary-compact.json and charter.md first, then targeted underlying verifier-a/b artifacts/raw metadata/diffs and immutable source to check the evidence independently. The manifest fixes exactly FIVE items and SIX auxiliary groups. Inspect directory listings to resolve filenames. Avoid unbounded full checks/snapshots dumps; compact inputs first, targeted raw fields second. You can use read, rg, git show, gh read-only, bash read-only. No builds or lengthy tests are required. If live GitHub authentication is unavailable inside the sandbox, explicitly record this limitation and use supplied timestamped raw metadata. The controller will separately re-read live head guards immediately before any PR comment/attestation.",
+      "Evaluate each proposed controller action too, not only the verifier label. Never approve, reject, merge, close coordinator PRs, send messages, post comments, label anything, edit source, push or perform any external write. The ONLY write you may make is a brand-new JSON report /tmp/triage-i33/judge-retry-worktree/JUDGE_REPORT.json. Do not modify any existing file, including judge-input. The report itself is the new worktree artifact required by the guarded runner. Do not bypass sandbox/extensions or protocol gates.",
+      "  \"actual_judge_provider\": \"...\",",
+      "  \"actual_judge_model\": \"...\","
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "source": "mission:fleet/iter-95",
+  "stages": [
+    {
+      "role": "controller",
+      "provider": "codex",
+      "model": "controller-session-unreported",
+      "quota_bucket": "codex",
+      "status": "completed"
+    },
+    {
+      "role": "designer",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 3655508,
+      "status": "completed"
+    },
+    {
+      "role": "planner",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 170952,
+      "status": "completed"
+    },
+    {
+      "role": "executor",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 1914815,
+      "status": "completed"
+    },
+    {
+      "role": "evaluator",
+      "provider": "claude",
+      "model": "claude-sonnet-4-6",
+      "quota_bucket": "sonnet",
+      "quota_tokens": 0,
+      "status": "failed"
+    },
+    {
+      "role": "evaluator-fallback",
+      "provider": "claude",
+      "model": "opus",
+      "quota_bucket": "opus",
+      "quota_tokens": 0,
+      "status": "failed"
+    }
+  ]
+}

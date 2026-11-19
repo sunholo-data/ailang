@@ -1,0 +1,142 @@
+{
+  "source": "mission:fleet/iter-96",
+  "stages": [
+    {
+      "role": "designer-screen",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 245545,
+      "status": "completed"
+    },
+    {
+      "role": "planner-readiness",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 160396,
+      "status": "completed"
+    },
+    {
+      "role": "executor-readiness",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 855621,
+      "status": "completed"
+    },
+    {
+      "role": "designer-author",
+      "provider": "ollama",
+      "model": "kimi-k3:cloud",
+      "quota_bucket": "ollama",
+      "quota_tokens": 4283665,
+      "status": "completed"
+    },
+    {
+      "role": "designer-revision-quota-interrupted",
+      "provider": "ollama",
+      "model": "kimi-k3:cloud",
+      "quota_bucket": "ollama",
+      "quota_tokens": 4306406,
+      "status": "failed"
+    },
+    {
+      "role": "designer-same-revision-continuation",
+      "provider": "openrouter",
+      "model": "z-ai/glm-5.3",
+      "tokens_in": 374237,
+      "tokens_out": 5453,
+      "cost_usd": 0.14416052,
+      "status": "completed"
+    },
+    {
+      "role": "evaluator-pick",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "tokens_in": 6103861,
+      "tokens_out": 85936,
+      "cost_usd": 0.50175222,
+      "status": "completed"
+    },
+    {
+      "role": "evaluator-final-design",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "tokens_in": 2328915,
+      "tokens_out": 27196,
+      "cost_usd": 0.19312602,
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r1/claude-sonnet-5@claude-p",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5@claude-p",
+      "quota_bucket": "sonnet",
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r1/gpt6-1-sol",
+      "provider": "quorum",
+      "model": "gpt6-1-sol",
+      "tokens_in": 11695,
+      "tokens_out": 292,
+      "cost_usd": 0.02631,
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r1/gemini-4-argon",
+      "provider": "quorum",
+      "model": "gemini-4-argon",
+      "tokens_in": 12748,
+      "tokens_out": 393,
+      "cost_usd": 0.058851999999999995,
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r1/oc-glm-5-3",
+      "provider": "quorum",
+      "model": "oc-glm-5-3",
+      "tokens_in": 11671,
+      "tokens_out": 11225,
+      "cost_usd": 0.06572940000000001,
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r2/gpt6-1-sol",
+      "provider": "quorum",
+      "model": "gpt6-1-sol",
+      "tokens_in": 6664,
+      "tokens_out": 275,
+      "cost_usd": 0.016078,
+      "status": "failed"
+    },
+    {
+      "role": "quorum-r2/gemini-4-argon",
+      "provider": "quorum",
+      "model": "gemini-4-argon",
+      "tokens_in": 7224,
+      "tokens_out": 247,
+      "cost_usd": 0.033836000000000005,
+      "status": "completed"
+    },
+    {
+      "role": "quorum-r2/claude-sonnet-5@claude-p",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5@claude-p",
+      "quota_bucket": "sonnet",
+      "status": "failed"
+    },
+    {
+      "role": "design-direction-D-FLEET-44",
+      "status": "awaiting_approval"
+    },
+    {
+      "role": "controller-record",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "status": "completed"
+    }
+  ]
+}

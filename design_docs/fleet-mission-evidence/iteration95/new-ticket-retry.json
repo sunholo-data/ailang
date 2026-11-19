@@ -1,0 +1,23 @@
+{
+  "verdict": "ok",
+  "rc": 0,
+  "fenced": true,
+  "model": "ollama/minimax-m3:cloud",
+  "pi_rc": 0,
+  "elapsed_seconds": 274,
+  "worktree_changed_files": 2,
+  "predirty_files": 1,
+  "worktree_changed_since_start": true,
+  "base_head": "8fa7e8ab1eddee99a84b447b8eaaa4ee12308051",
+  "head_after": "8fa7e8ab1eddee99a84b447b8eaaa4ee12308051",
+  "commits_since_start": 0,
+  "tool_executions": 75,
+  "hung_tool": "",
+  "provider_errors": 0,
+  "provider_error": "",
+  "agent_end_events": 1,
+  "ndjson_bytes_filtered": 2298462,
+  "ndjson": "/tmp/triage-i33/judge-retry/run.ndjson",
+  "snapshot": "/tmp/triage-i33/judge-retry/run.ndjson.snapshot.ndjson",
+  "stderr": "/tmp/triage-i33/judge-retry/run.ndjson.stderr"
+}
