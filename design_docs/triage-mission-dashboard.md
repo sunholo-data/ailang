@@ -1,23 +1,14 @@
-# Triage dashboard — iteration 34 (2026-11-08)
+# Triage dashboard — iteration 49 (2026-11-19)
 
-- Level 1: unsigned informational attestations; no approvals/rejections/merges/handoffs.
-- Operational CLI v0.57.4; no release or semantic test claim.
-- Dev: 252680e1beb4e6cf1709a010cc1c45838b91b9f8; CI 42376604102 and 18 checks green.
-- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6715423460
-- Snapshot: 52 cards (46 core), 71 PRs, 65 issues; 114 core queue surfaces.
-- Selection: 1 changed + 4 auxiliary; 0 held/stale, 113 fresh skipped.
-- Attested #2129/#2136/#2138; #2155 NEEDS-DECISION after actual judge DISSENT, allowed label only.
-- Ready report-only cards: task-f8b3a191/task-60555d10/task-10d76ed7; no declared handoff.
-- Human holds: 44 OPEN of 81 rows unchanged; 0 MOOT/new decomposition; no answer=HOLD.
-- Freshness 114/114; latest independently judged 96/114; 18 fresh unjudged reports unactioned.
-- 16 aged green metadata stalls; #1916 BLOCKED; design/execution holds retained.
-- Orphans #1759/#1894/#1934/#1939; six joins outside core; stale approved d86f403b untouched.
-- Shadow: 693 rows, 6/9 limited correlation; disagreements #1926/#1997/#2064.
-- Actual Z-AI GLM verifier / MiniMax judge; native OpenAI Agent transports model-unreported.
-- Luna probe 60s/rc124; premature dependent run stopped; declared GLM fallback typed ok.
-- Metered $0; Codex/Ollama quota buckets; native usage not reported.
-- Limits: rig counters unmeasured; GitHub snapshots plus live controller guards; judge omitted exact pipeline path.
-- Changed-queue cadence; morning fire before 18 UTC, no packet/urgent.
-- Isolated triage/i34-record preserves prior unmerged history; unrelated main edits parked.
-- Next: Mark answers 44 holds; #2155 author names population provenance; refresh changed/held/stale.
-- Delivery: [compact digest](https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6715507123); [draft record PR2170](https://github.com/sunholo-data/ailang/pull/2170); canonical normal/user receipts verified.
+- Level 1. Evidence, labels and unsigned attestations.
+- Dev cb83f9d8a, CI 44565789363, 18 checks with acceptable conclusions.
+- Snapshot 37 cards, 36 PRs, 90 issues. 128 joined queue items with fresh verdicts and 57 recent independent judgments.
+- 41 selected. OpenAI Luna verifier, independent OpenRouter MiniMax judge. 38 concurrences and three dissents.
+- Nine attestations. PRs #2129, #2135, #2136, #2138, #2139, #2140, #2148, #2149 and #2159.
+- Six gated planner artifacts. PRs #2073, #2097, #2103, #2104, #2105, #2126.
+- D-TRIAGE-82 parks the #1862/#2097 persistent-store overlap for attended disposition.
+- Six PR-less cards, one coordinator PR without a pending card, one orphaned approval record.
+- Shadow ledger 1,115 rows. 7/8 agreement across observed scorable outcomes.
+- Metered $0.0037023. Ollama evidence review timed out. OpenRouter delivered complete judgments.
+- Record awaits attended landing. The fleet receipt stays unread until it lands.
+- [Evidence and verdict table](https://github.com/sunholo-data/ailang/issues/2069#issuecomment-7019310174).
