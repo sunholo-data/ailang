@@ -1606,15 +1606,17 @@ Each replied to its filer.
 - Re-creating the watermark at read time in `mission_directives.sh`: that is the pre-#981 order whose loss of two answers #981 fixed. Widening the self-notice read changes no directive semantics.
 - A separate World copy of the script (raised by planner and executor): step 6a calls `$MISSION_DRIVER_ROOT/scripts/mission_gate0_self_notices.sh`, so World runs this same file through the shared driver (D-FR-1). No second fix is needed.
 - Row 65 this fire: outside fleet scope and one item per iteration.
-- The attended set's open tickets (rows 21, 50, 54–56: PRs #2343/#2347/#2348/#2349 MERGED 11-16, tickets still open): iteration 115 recorded them as the attended session's claim, and the fleet touched none. That still stands; it is listed for Mark below.
+- The attended set's seven open tickets (rows 21, 50, 54–56: PRs #2343/#2347/#2348/#2349 MERGED 11-16, tickets still open): iteration 115 recorded them as the attended session's claim, and the fleet touched none. That still stands; it is asked as D-FLEET-46.
 
 **Observations (not ticketed; the fleet does not self-source)**:
 - (a) **Stapledon's `-prev` issue #410 carries a 2026-11-13 crash notice nobody saw.** It was hidden by this floor. Stapledon's next Gate 0 will report rc 1 and run its died-mid-flight traces. The resolve reply tells it so.
-- (b) **Five tickets whose attended fixes merged on 11-16 are still open:** `quorum:gpt6-1-sol-openai-api-credits-exhausted` (#2347), `pi:openrouter:uncapped-max-tokens-402` (#2349), the two codex-credential tickets plus `coordinator:job-retry-success-dropped-after-failed-completion` (#2348), and both executor-timeout tickets (#2343). They hold clause 2's median open while their fixes sit on dev. They were the attended session's claim, so the fleet has left them alone.
+- (b) **Seven tickets whose attended fixes merged on 11-16 are still open:** `quorum:gpt6-1-sol-openai-api-credits-exhausted` (#2347), `pi:openrouter:uncapped-max-tokens-402` (#2349), the two codex-credential tickets plus `coordinator:job-retry-success-dropped-after-failed-completion` (#2348), and both executor-timeout tickets (#2343). They hold clause 2's median open while their fixes sit on dev. They were the attended session's claim, so the fleet left them alone and filed **D-FLEET-46** (recommendation A: the fleet resolves them after a HEAD re-check; default B: no change).
 - (c) Every `codex:gpt-6.2-sol` probe still fails, as in iteration 122's observation (a).
 - (d) `scripts/mission_routing_models_check.sh` flags `gpt-6.2-sol` (rc 1) on this entry's verbatim driver routing note. It flags entry 122 identically. Its `ALLOWED_OPENAI` (`gpt-6.1-sol gpt-6-luna`) predates the 11-17 default upgrade (`8e04a29c5`). Under D-FLEET-12 the finding is a report flag, not a record blocker. Iteration 122's Validation listed this check without its rc.
 
 **Retro lane**: no skill edit. The only friction was a judge whose report was thinner than its claims. It was re-measured in-turn, and the skill already prescribes that (rule 3b, "a judge's finding may be under-stated").
+
+**Decisions**: new **D-FLEET-46** (above). D-FLEET-44 and D-FLEET-45 unchanged and OPEN. Ledger 45 rows.
 
 **Progress**: 19 → 18 open tickets. Clause 2 moved: one ticket resolved within about 14 h of filing. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (done-gate run).
 
