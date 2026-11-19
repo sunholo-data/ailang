@@ -11,6 +11,12 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 SUT="$HERE/mission_pi_run.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+# Role scope must only inspect a fresh synthetic HOME, including startup controls.
+export HOME="$TMP/home" ZDOTDIR="$TMP/home/zdot" CODEX_HOME="$TMP/home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
+
 mkdir -p "$TMP/node_modules/@anthropic-ai/sandbox-runtime"
 echo '{}' > "$TMP/node_modules/@anthropic-ai/sandbox-runtime/package.json"
 MISSION_PI_SANDBOX_NODE_MODULES="$TMP/node_modules"

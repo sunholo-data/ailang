@@ -31,21 +31,39 @@ _mc_codex_env_add() {
 }
 
 # mc_codex_env_args → fills the GLOBAL array MC_CODEX_ENV_ARGS and writes ONE summary line to
-# stderr (names only, never values). Returns 0 even when nothing is forwarded.
+# stderr (names only, never values). Returns nonzero for an invalid marker or unsafe scoped policy.
 mc_codex_env_args() {
   MC_CODEX_ENV_ARGS=()
+  # The exact marker is the only secret-pattern exception. Empty exported markers are invalid.
+  if [ "${AILANG_SECRETS_LANE+x}" = x ]; then
+    case "$AILANG_SECRETS_LANE" in
+      claude-controller|codex-controller|pi-controller|claude-role|codex-role|pi-role) : ;;
+      *) echo 'codex-env: refused invalid scope marker' >&2; return 64 ;;
+    esac
+  fi
   local n fwd=0 denied="" skipped="" warn="" cnt i k hk="" hv="" have_hk=0 cfg
   while IFS= read -r n; do
     case "$n" in
-      CODEX_HOME|AILANG_CODEX_RUNTIME|MISSION_*|AILANG_DRIVER_*|AILANG_STORAGE_MESSAGING|AILANG_MESSAGES_PROJECT|AILANG_MISSION_REGISTRY|AILANG_STATE_DIR|CONTROLLER_PROVIDER|CONTROLLER_ID) ;;
+      AILANG_SECRETS_LANE|CODEX_HOME|AILANG_CODEX_RUNTIME|MISSION_*|AILANG_DRIVER_*|AILANG_STORAGE_MESSAGING|AILANG_MESSAGES_PROJECT|AILANG_MISSION_REGISTRY|AILANG_STATE_DIR|CONTROLLER_PROVIDER|CONTROLLER_ID) ;;
       *) continue ;;
     esac
     case "$n" in
+      AILANG_SECRETS_LANE) : ;; # Validated above; no other name bypasses the deny rule.
       *KEY*|*TOKEN*|*SECRET*|*PASSWORD*|*PASSWD*|*CREDENTIAL*|*AUTH*|*COOKIE*|*PRIVATE*)
         denied="$denied $n"; continue ;;
     esac
     case "$n" in *[!A-Za-z0-9_]*) skipped="$skipped $n"; continue ;; esac
-    if _mc_codex_env_add "$n" "${!n}"; then fwd=$((fwd + 1)); else skipped="$skipped $n"; fi
+    if _mc_codex_env_add "$n" "${!n}"; then fwd=$((fwd + 1)); else
+      case "$n" in
+        AILANG_SECRETS_LANE|MISSION_DRIVER_ROOT)
+          if [ "${AILANG_SECRETS_LANE+x}" = x ]; then
+            MC_CODEX_ENV_ARGS=()
+            echo 'codex-env: refused unencodable scope control' >&2; return 78
+          fi
+          ;;
+      esac
+      skipped="$skipped $n"
+    fi
   done < <(compgen -e)
 
   # HD-4 scope guard: forward ONLY the core.hooksPath entry, renumbered to index 0. Other
@@ -71,9 +89,13 @@ mc_codex_env_args() {
     fi
   fi
 
-  # include_only is applied AFTER .set, so it would strip everything forwarded. Warn, never rewrite.
+  # include_only is applied AFTER .set. Marked calls must refuse; unmarked calls still warn.
   cfg="${CODEX_HOME:-$HOME/.codex}/config.toml"
   if [ -r "$cfg" ] && grep -q '^[[:space:]]*include_only' "$cfg" 2>/dev/null; then
+    if [ "${AILANG_SECRETS_LANE+x}" = x ]; then
+      MC_CODEX_ENV_ARGS=()
+      echo 'codex-env: refused scoped include_only policy' >&2; return 78
+    fi
     warn=" WARNING include_only-present: forwarded vars may be stripped"
   fi
   echo "codex-env: forwarded=$fwd denied=${denied# } skipped=${skipped# }$warn" >&2

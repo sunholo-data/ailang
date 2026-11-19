@@ -132,12 +132,12 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
 `MODEL=${VAL#*:}`) and route:
 
 - **`PROVIDER=codex`** (executor role — the landed M1b lane; codex CLI at `/opt/homebrew/bin/codex`,
-  `OPENAI_API_KEY` set):
+  subscription authentication; `codex-role` retains no secrets.env credentials):
   1. **Pre-flight probe (token-cheap, ~1 reply-token, do this BEFORE the real directive):** run the
      probe with a bounded deadline (Standing rule 6 — never unbounded), and only proceed if it exits 0:
      ```bash
      deadline=$(( $(date +%s) + 120 ))
-     out=$( codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false 'reply with exactly: ok' < /dev/null 2>&1 & pid=$!
+     out=$( /bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" codex-role -- codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false 'reply with exactly: ok' < /dev/null 2>&1 & pid=$!
             while kill -0 "$pid" 2>/dev/null; do
               [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; break; }
               sleep 2; done
@@ -172,7 +172,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      PROMPT="$(cat "$DIRECTIVE")"; [ -n "$PROMPT" ] || { echo "FATAL: empty prompt" >&2; exit 64; }
      deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
      GOCACHE=$(go env GOCACHE); GOMODCACHE=$(go env GOMODCACHE)
-     ( exec codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false \
+     ( exec /bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" codex-role -- codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false \
          --sandbox workspace-write \
          --add-dir "$GOCACHE" --add-dir "$GOMODCACHE" \
          -C "$WT" -o /tmp/codex_last.txt \
@@ -227,6 +227,8 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      probe, bounded-background-run, directive-delivery, stdin, sandbox, output-capture, hygiene,
      timeout, and fallback guard above by reference (including the executor recipe's `exit 64`,
      `< /dev/null`, and `run_in_background` guards). There are exactly four planner deltas:
+     Both planner probe and run use the same `scripts/mission_scoped_run.sh codex-role --`
+     entry point shown above.
      - **Working directory:** first assert
        `git status --porcelain -- <design-doc>` is empty. From local `HEAD`, create an ephemeral
        detached worktree with `git worktree add --detach`, then pass its path with `-C`. The path
@@ -301,12 +303,13 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   (the 2026-07-16 "Fable quota-exhausted until 2026-08-01" finding was exactly this — OAuth Fable
   was fine the whole time; OAuth buckets reset weekly Mon 07:00, so ANY until-the-1st reset date
   = you are on the API key). Invoke via the wrapper — NEVER bare `claude`:
-  `claude-sub -p … --model claude-fable-5 …`
+  `/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" claude-role -- claude-sub -p … --model claude-fable-5 …`
   (`~/.local/bin/claude-sub` = `exec env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude "$@"`
   — subscription-or-nothing by construction; guard the CALL-SITE, not just the helper. The ambient
   leak itself is also closed: `~/.zshenv` now unsets the Anthropic keys after sourcing secrets.env,
   so tool shells don't carry them — the wrapper is the belt on top.)
-  Same discipline as codex: 1-token probe first (with the same `env -u` strip), run backgrounded
+  Native Agent-tool subagents inherit their controller scope; provider-pinned Claude roles use `claude-role`.
+  Same discipline as codex: 1-token probe through this scoped wrapper first, run backgrounded
   from the role's working dir with a bounded ≤30-min `date +%s` deadline,
   `--permission-mode bypassPermissions`, fall back to `$MODEL` + FLAG on probe-fail/cap. Primary
   use: the DESIGNER role (deep spec synthesis on Fable — quota-bounded, fires only when a doc is
@@ -365,8 +368,9 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
          --model "$MODEL" -p "$PROMPT" \
          > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr
        ```
-       `scripts/mission_pi_run.sh` already supplies these arguments and remains the preferred route.
-       `--mode json` is MANDATORY: the NDJSON is both the transcript and the billing record;
+       `scripts/mission_pi_run.sh` already supplies these arguments and remains the preferred route;
+       under the D-FLEET-42 draft it also applies `pi-role` and clears `BASH_ENV`, which this raw
+       form does not. `--mode json` is MANDATORY: the NDJSON is both the transcript and the billing record;
        plain print mode loses both. `$REPO` is the mission's checkout — pass an ABSOLUTE path,
        since `-e` resolves relative to the process cwd, which is `$WT`, not the repo.
      - **SANDBOXED (2026-08-11).** pi has no `--sandbox` flag, but it is extensible, and
@@ -403,7 +407,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      - **`rc=0` FROM pi IS NOT A CLAIM THAT ANY WORK HAPPENED — AND NEITHER IS `stopReason`.
        RUN THE LANE THROUGH `scripts/mission_pi_run.sh` AND READ ITS TYPED VERDICT.**
        ```bash
-       scripts/mission_pi_run.sh \
+       /bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_pi_run.sh" \
          --model "openrouter/deepseek/deepseek-v4-flash-0731" \
          --directive /tmp/pi_directive_iter<N>.txt \
          --workdir "$WT" \

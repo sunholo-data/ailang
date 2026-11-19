@@ -296,7 +296,7 @@ else
     cp "$ROOT/tools/launchd/lib/secrets-scope.sh" "$ROOT/tools/launchd/lib/secrets-scope-zshenv.sh" "$scratch/tools/launchd/lib/"
     cp "$T/host.sh" "$scratch/host.sh"
     if ! python3 - "$scratch" "$arm" <<'PYMUT'
-import pathlib, sys
+import difflib, json, pathlib, sys
 root, arm = pathlib.Path(sys.argv[1]), sys.argv[2]
 lib = root/'tools/launchd/lib/secrets-scope.sh'
 bridge = root/'tools/launchd/lib/secrets-scope-zshenv.sh'
@@ -368,6 +368,7 @@ else:
     assert any(b[:i]+b[i+1:] == a for i in range(len(b)))
 p.write_text(new)
 print('    mutant='+arm+' target='+p.name)
+print('    MUTATION-DIFF arm='+arm+' '+json.dumps(''.join(difflib.unified_diff(s.splitlines(True), new.splitlines(True), fromfile=p.name, tofile=p.name, n=0))))
 PYMUT
     then
       bad "$arm mutation construction"
@@ -389,6 +390,12 @@ PYMUT
       fi
     done
   done
+fi
+# M2 integration arms execute real production blocks and have their own killing mutants.
+if /bin/bash "$HERE/test_secrets_scope_spawn.sh" "${1-}" "${2-}"; then
+  ok 'M2 actual spawn arms'
+else
+  bad 'M2 actual spawn arms'
 fi
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

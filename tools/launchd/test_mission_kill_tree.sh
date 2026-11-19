@@ -5,6 +5,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 DRIVER="${MC_KILL_TREE_DRIVER:-$HERE/mission-control.sh}"
 ARM="${MC_KILL_TREE_ARM:-all}"
 TMP="$(mktemp -d)" || exit 1
+MC_DRIVER_ROOT="$(cd "$HERE/../.." && pwd)"
+export MC_DRIVER_ROOT
 PIDS="$TMP/pids"
 : > "$PIDS"
 
@@ -39,6 +41,15 @@ cleanup() {
   rm -rf "$TMP"
 }
 trap cleanup EXIT
+
+# Scope helper must only inspect a synthetic inventory, including extracted spawns.
+export HOME="$TMP/scope-home" ZDOTDIR="$TMP/scope-home/zdot" CODEX_HOME="$TMP/scope-home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
+# shellcheck source=/dev/null
+. "$(cd "$HERE/../.." && pwd)/tools/launchd/lib/secrets-scope.sh"
+
 
 awk '/^_mc_descendants\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/descendants.sh"
 awk '/^_mc_kill_tree\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/kill_tree.sh"
@@ -186,11 +197,16 @@ if selected triggered || [ "$ARM" = all ]; then
   # Keep the long idle stall watchdog in-shell, so cancelling it leaves no
   # orphan sleep process in the fixture.
   sleep() { case "$1" in 10) while :; do :; done ;; *) /bin/sleep "$1" ;; esac; }
-  claude() {
-    sh "$TMP/grand.sh" "$TMP" trigger-child &
-    echo "$!" > "$TMP/trigger-child-start.pid"
-    while :; do sleep 1; done
-  }
+  # The driver execs the controller (so $! is its PID); exec needs a PATH binary, not a function.
+  mkdir -p "$TMP/stub-trigger"
+  cat > "$TMP/stub-trigger/claude" <<'STUB'
+#!/bin/sh
+sh "$KT_TMP/grand.sh" "$KT_TMP" trigger-child &
+echo "$!" > "$KT_TMP/trigger-child-start.pid"
+while :; do /bin/sleep 1; done
+STUB
+  chmod +x "$TMP/stub-trigger/claude"
+  export KT_TMP="$TMP" PATH="$TMP/stub-trigger:$PATH"
   _mc_slot_state="$TMP/state"; MISSION_NAME=test; attempt=1
   CONTROLLER_PROVIDER=claude; MODEL=test; PROMPT=test
   LOG="$TMP/controller.log"; PIDFILE="$TMP/controller.pid"
@@ -199,6 +215,11 @@ if selected triggered || [ "$ARM" = all ]; then
   _mc_run_once & run_job=$!
   if ! wait_file "$TMP/trigger-child.pid"; then bad "trigger fixture started"; exit 1; fi
   cat "$TMP/trigger-child.pid" >> "$PIDS"
+  # The pidfile the watchdogs and overlap guard read must name the controller itself, not a wrapper subshell.
+  case "$(ps -o command= -p "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null)" in
+    *stub-trigger/claude*) ok "controller pid is the controller process" ;;
+    *) bad "controller pid is the controller process" ;;
+  esac
   if wait_job "$run_job" && wait_dead "$(cat "$TMP/trigger-child.pid")"; then
     ok "triggered watchdog finishes reap before return"
   else bad "triggered watchdog finishes reap before return"; fi
@@ -206,7 +227,9 @@ fi
 
 if selected normal || [ "$ARM" = all ]; then
   # A finished controller must not wait for either watchdog's sleep interval.
-  claude() { return 0; }
+  mkdir -p "$TMP/stub-normal"
+  printf '#!/bin/sh\nexit 0\n' > "$TMP/stub-normal/claude"; chmod +x "$TMP/stub-normal/claude"
+  export PATH="$TMP/stub-normal:$PATH"
   sleep() { case "$1" in 10) while :; do :; done ;; *) /bin/sleep "$1" ;; esac; }
   _mc_slot_state="$TMP/normal-state"; MISSION_NAME=test; attempt=2
   CONTROLLER_PROVIDER=claude; MODEL=test; PROMPT=test

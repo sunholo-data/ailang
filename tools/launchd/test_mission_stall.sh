@@ -26,6 +26,15 @@ TMP="${TMPDIR:-/tmp}/mc-stall-$$"
 mkdir -p "$TMP"
 trap 'rm -rf "$TMP"' EXIT
 
+# Scope helper must only inspect a synthetic inventory, including extracted spawns.
+export HOME="$TMP/scope-home" ZDOTDIR="$TMP/scope-home/zdot" CODEX_HOME="$TMP/scope-home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
+# shellcheck source=/dev/null
+. "$(cd "$HERE/../.." && pwd)/tools/launchd/lib/secrets-scope.sh"
+
+
 awk '/^_mc_progress_bytes\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_prog.sh"
 awk '/^_mc_stalled\(\) \{/,/^\}$/'        "$DRIVER" > "$TMP/fn_stalled.sh"
 # _mc_etime_secs is extracted, not stubbed: the age arm is only as good as the
@@ -106,7 +115,7 @@ STALL_CPU_PCT=2
 CONTROLLER_PROVIDER=claude
 
 # Own-session fixtures under a fake HOME; inherited state roots cannot escape TMP.
-export HOME="$TMP/home"
+export HOME="$TMP/scope-home"
 export AILANG_STATE_DIR="$TMP/state" PI_CODING_AGENT_DIR="$TMP/home/.pi/agent"
 MC_CLAUDE_SESSION_ID="F0EF90F8-18DF-459C-8561-06D7B1040255"
 MC_PI_SESSION_ID="01a0d1e3"
@@ -453,9 +462,9 @@ else
   bad "a7c unavailable generators: empty id/args expand to zero words under set -u"
 fi
 # Limit to Claude's continued command, so pi's session flag cannot pass.
-sed -n '/^    claude -p /,/^  fi/p' "$TMP/fn_run_once.sh" > "$TMP/claude_launch.sh"
+sed -n '/^    exec claude -p /,/^  fi/p' "$TMP/fn_run_once.sh" > "$TMP/claude_launch.sh"
 prepare_line=$(grep -n '^[[:space:]]*_mc_claude_session_prepare[[:space:]]*$' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
-launch_line=$(grep -n '^    claude -p ' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
+launch_line=$(grep -n '^    exec claude -p ' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
 if [ -n "$prepare_line" ] && [ -n "$launch_line" ] && [ "$prepare_line" -lt "$launch_line" ] &&
    grep -Fq '${MC_CLAUDE_SESSION_ARGS[@]+' "$TMP/claude_launch.sh"; then
   ok "a7c launch wiring: prepare precedes Claude launch with guarded args"

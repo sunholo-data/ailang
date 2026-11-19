@@ -202,6 +202,11 @@ driver_export_before_both_launches() {
   [ ! -e "$HOME/launches" ] || fail launched
 }
 codex_actual_forwarding() {
+  mkdir -p "$HOME/.config/ailang"
+  : > "$HOME/.config/ailang/secrets.env"
+  # shellcheck source=/dev/null
+  . "$ROOT/tools/launchd/lib/secrets-scope.sh"
+  MC_DRIVER_ROOT="$ROOT"
   . "$ROOT/tools/launchd/lib/codex-env-args.sh"
   export MISSION_QUORUM_ARTIFACT_DIR="$HOME/path with spaces" AILANG_AGENT_POLICY=' '
   [ -n "${AILANG_AGENT_POLICY:-}" ] || fail marker-presence

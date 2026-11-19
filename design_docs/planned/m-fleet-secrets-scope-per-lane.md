@@ -4,17 +4,19 @@ Status: **Proposed — draft for D-FLEET-42 option A; not merged; gated on Mark'
 
 This draft reduces accidental exposure through inherited mission environments.
 D-FLEET-42 remains open; unanswered still means option B. M1 supplies function
-definitions, a startup bridge, tested host-line text and synthetic tests. It does
-not install a host hook, wire launches, rotate credentials or redact transcripts.
+definitions, a startup bridge, tested host-line text and synthetic tests. M2 is
+built in the proposed draft: controller child scopes, provider-pinned role entry
+points, Codex forwarding and pi startup clearing. It does not install a host hook,
+rotate credentials or redact transcripts.
 The planner and executor inspected no host configuration or credential file;
 the controller took the startup measurement below by key name only (iteration 88).
 
 The controller's startup measurement (labelled M3 in the iteration-88 plan,
 not milestone M3) found that Claude and Codex zsh tool shells re-source
 `secrets.env` from `~/.zshenv:14`. Without Mark's host line those shells are
-unchanged. Pi's `bash -c` tool path does not read `.zshenv`; the planned spawn
-strip benefits that path only with `BASH_ENV` cleared (M2). M1 alone changes no
-production lane. These are environment exposure controls, not a credential-file
+unchanged. Pi's `bash -c` tool path does not read `.zshenv`; M2 clears `BASH_ENV`
+and applies scope before pi controller and role spawns. This draft changes no
+installed production lane. These are environment exposure controls, not a credential-file
 sandbox. Retained credentials, deliberate re-sourcing, credential files and
 native Agent-tool subagents inheriting controller scope remain exposed.
 
@@ -113,30 +115,55 @@ failure triggers emergency clearing of the measured seven and every parsed
 inventory name, prints a FAIL-CLOSED message and exits 78 before the body.
 Refusing the shell is intentional. Failed emergency unsets still refuse launch.
 
-## Follow-ups — NOT YET BUILT
+## M2 built — proposed draft only
 
-M2 wires the driver children and adds provider-pinned role wrappers through
-`scripts/mission_scoped_run.sh`. Scope applies within each child so the parent
-retains quota/detector credentials through retries and provider changes.
-Codex forwarding must carry `MISSION_DRIVER_ROOT` and the exact validated
-`AILANG_SECRETS_LANE` marker before argument construction. That marker contains
-`SECRET`: exempt only that exact six-lane name/value from the current deny
-rule, never all names containing `SECRETS`. Scoped `include_only` must refuse
-launch rather than drop the marker. Pi controller and role paths clear
-`BASH_ENV`. Existing harness extraction fixtures get synthetic HOME/startup
-isolation; provider arguments, billing unset and detector access remain intact.
-Role recipes and their generated mirror are M2 work as well.
+Each controller applies scope in its child, preserving parent credentials and
+controls through retries and provider switches. Codex constructs its forwarded
+arguments after marker export and scope application. Its exact six-lane marker
+exception does not exempt any other secret-like name; invalid markers and scoped
+`include_only` policies refuse forwarding. `MISSION_DRIVER_ROOT` uses the existing
+TOML encoder, including paths with spaces. Existing provider arguments, billing
+unsets, session/watchdog behavior and detector invocations remain in place.
 
-M3 performs healthy/degraded dry-runs per controller lane, actual fake-provider
-spawn observations, mutation testing of the complete wiring, full gates and
-independent evaluation. M1's mutation bank covers only the library, bridge and
-host line. Any draft PR remains unmerged pending Mark's ruling; successful
-local checks establish neither fleet reach nor real host installation.
+Provider-pinned Codex and Claude roles enter through:
+
+```bash
+/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" codex-role -- codex exec ...
+/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" claude-role -- claude-sub ...
+```
+
+The wrapper derives its root from its own path and refuses on scope/forwarding
+failure. The pi runner applies `pi-role` inside its child using its own root.
+Both pi child paths clear `BASH_ENV`. Native Agent-tool subagents inherit their
+controller's scope. The role recipes and generated mirror describe these routes.
+
+The claude and pi controller children `exec` their binary after applying scope, so the
+driver's `$!` (pidfile, `_mc_stalled`, `_mc_rusage_snapshot`, `_mc_kill_tree`) stays the
+controller process rather than a wrapper subshell; `test_mission_kill_tree.sh` asserts it.
+The raw pi sandbox launch snippet in `gate-3-route.md` is kept, because
+`test_pi_ext_args.sh` pins it; the recipe names the guarded runner as the preferred route.
+
+Synthetic tests extract real production spawn blocks, execute the role wrapper
+and real pi runner with fake providers, and kill a mutant for each M2 arm. The
+runner scope arms use read-only fake Git metadata; existing runner fixtures
+remain the separate integration gate for real repository/commit behavior. All
+fixture inventories and startup controls use synthetic homes. No real-provider
+inference, quorum parity or host installation is established by these tests.
+
+## M3 remaining — NOT YET BUILT
+
+M3 adds the scoped dry-run preview/probe path, then banks six healthy/degraded
+controller dry-runs, complete out-of-sandbox gates and independent evaluation.
+The M1/M2 mutation bank covers the library, bridge, host line and actual spawn
+wiring; dry-run mutations remain M3 work. Existing suites that need process
+inspection or nested sandbox access require the controller's rerun outside the
+sandbox. Any draft PR remains unmerged pending Mark's ruling; local checks
+establish neither fleet reach nor real host installation.
 
 ## Risks
 
 A removed consumer key can break authentication or quota observation; controller
-probes and explicit quorum/extension observations are still needed in M2/M3.
+probes and explicit quorum/extension observations are still needed in M3.
 Missing pinned checkouts deliberately refuse marked shells. The host hook must
 follow the secrets source and precede billing unsets; later re-sourcing bypasses
 this control. Allowed keys and credential files remain accessible. Native
