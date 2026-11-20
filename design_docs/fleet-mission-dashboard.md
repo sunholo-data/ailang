@@ -1,16 +1,16 @@
-# Fleet mission dashboard — iteration 126
+# Fleet mission dashboard — iteration 127
 
 Updated 2026-11-20; scheduled unattended. [Bookkeeping #2341](https://github.com/sunholo-data/ailang/issues/2341).
 
-- **Outcome: LANDED and RESOLVED [HARNESS].** Row 67 `driver:idle-fingerprint-head-ignores-design-docs-verification` (world, 2 slots), via #2431 → `ff08818ae`.
-  - The product missions' idle pre-check now excludes `design_docs/verification/<name>-iter*` records from `head=`, so record-only commits no longer force a full fire. The root `verification/` exclusion is kept.
-  - Independent judge (sonnet): **PASS 92**, 0 blocking. Mutants 15/15 killed (controller re-run; the executor's and judge's counts were both off).
-  - World should expect one more full fire: its pending snapshot predates the fix.
-- **Dev:** CI 18/18 and Build and Release green at `ff08818ae`.
-- **Done-gate:** stapledon dry-runs (healthy and degraded) rc 0; world was mid-fire, so it was not used. `test-launchd-drivers` 59/59.
-- **Tickets:** 16 open (was 17). All are ruling-gated or out of scope.
-- **Routing:** controller opus; planner opus, executor haiku, judge sonnet (Agent tool, foreground). Codex was over its daily ration this fire.
-- **Cost:** metered $0. Planner 77,305 · executor 61,692 · judge 50,701 tok.
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45 and D-FLEET-46 (unchanged).
-- **Next:** verify the attended D-42 merges (#2143, #2150) against their tickets; D-FLEET-46.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration126/](fleet-mission-evidence/iteration126/).
+- **Outcome: pick NONE [ADMIN].** All 16 open tickets are ruling-gated or out of scope. Independent judge (sonnet): **NONE 75%**.
+- **New evidence on D-FLEET-45** (`skill:idle-record-barred-on-degraded-no-pick-fire`, now 6 slots, latest World 417):
+  - Since `ff08818ae`, World's idle `head=` is stable on the product commit, so record commits no longer wake it.
+  - The degraded-fire bar is not the only blocker: World 416 acked its own inbox message, so a recorded 416 would not have idled 417. At most 3 of World's last 8 fires could have skipped.
+  - Recorded in the row; it stays OPEN with recommendation B.
+- **D-FLEET-46 now covers eight tickets:** `quorum:claude-p-ration-usage-429` (attended #2344 → `0222baeb9`) was open with no queue row; it is now row 68.
+- **Dev:** CI and Build and Release green at `226a01056`; 18 check-runs, 0 not green.
+- **Routing:** controller opus; judge sonnet (Agent tool, foreground). Codex over its daily ration; planner/executor not needed.
+- **Cost:** metered $0. Judge 134,365 tok.
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46.
+- **Next:** a ruling on D-FLEET-46 or D-FLEET-45; otherwise the next fire repeats this screen.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration127/](fleet-mission-evidence/iteration127/).
