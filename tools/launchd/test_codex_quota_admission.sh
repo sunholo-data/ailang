@@ -96,3 +96,23 @@ first_call=$(grep -n '^[[:space:]]*log "' "$DRIVER" | head -1 | cut -d: -f1)
 [ -n "$first_def" ] && [ -n "$first_call" ] && [ "$first_def" -lt "$first_call" ] \
   || { echo "FAIL log() defined at line $first_def but first called at line $first_call"; exit 1; }
 echo 'PASS log() is defined before its first caller'
+
+# Exercise the log and routing together on both sides of the pacing threshold.
+(
+  . "$HERE/lib/lane-probe.sh"
+  ailang() { :; }
+  log() { printf '%s\n' "$*"; }
+  _mc_bounded() { MC_BOUNDED_OUT="$sample"; }
+  for state in ok over; do
+    allowed=20.0; [ "$state" = ok ] || allowed=14.2
+    reading="Codex quota window: state=$state window=10080m used=15.0% allowed=${allowed}% start_margin=2.0pp"
+    sample="$reading"
+    [ "$state" = ok ] || sample="$sample"$'\ncodex'
+    MC_OVER_RATION_READ=0
+    out=$(_mc_load_ration && echo "blocked=$MC_OVER_RATION")
+    printf '%s\n' "$out" | grep -Fxq "$reading" || exit 1
+    expected='blocked='
+    [ "$state" = ok ] || expected='blocked=codex '
+    printf '%s\n' "$out" | grep -Fxq "$expected" || exit 1
+  done
+) || { echo 'FAIL quota window log or block list'; exit 1; }

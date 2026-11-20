@@ -191,6 +191,10 @@ _mc_load_ration() {
   # HTTP reads; it runs once per fire.
   _mc_bounded "${MISSION_QUOTA_TIMEOUT:-60}" ailang mission quota --over; _rc=$?
   _raw="$MC_BOUNDED_OUT"
+  # Preserve the measurements from this admission check in the iteration log.
+  printf '%s\n' "$_raw" | while IFS= read -r line; do
+    case "$line" in "Codex quota window: "*) log "$line" ;; esac
+  done
   MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter)$/' | tr '\n' ' ')
   # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
   # machine-readable block list and a `quota: <bucket> <state>: …` line as the human

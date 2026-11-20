@@ -245,6 +245,12 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 // Preserve provider admission independently of the optional token journal.
 func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation, openrouter *mission.OpenRouterQuotaObservation) bool {
 	blocked := false
+	if codex != nil {
+		for _, w := range codex.Windows {
+			fmt.Fprintf(os.Stderr, "Codex quota window: state=%s window=%dm used=%.1f%% allowed=%.1f%% start_margin=%.1fpp observed=%s\n",
+				codex.State, w.WindowMinutes, w.UsedPercent, w.AllowancePercent, mission.StartMargin("codex"), codex.ObservedAt.Format(time.RFC3339))
+		}
+	}
 	if codex != nil && codex.Blocked() {
 		fmt.Println("codex")
 		fmt.Fprintf(os.Stderr, "quota: codex %s: %s\n", codex.State, codex.Reason)
