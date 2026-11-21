@@ -1,0 +1,157 @@
+{
+  "sprint_id": "M-AI-CROSS-PROVIDER-ROUTING",
+  "status": "not_started",
+  "created": "2026-11-03T15:42:52.182344+00:00",
+  "design_doc": "design_docs/planned/v0_57_1/m-ai-cross-provider-routing.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-ai-cross-provider-routing-sprint-plan.md",
+  "github_issues": [
+    1496
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ai and routing; inspected sunholo/gemini_live@0.5.1 and sunholo/decisions@0.4.0 via info/docs. Protocol and Net/Env client packages cannot replace host AI dispatch, credential factories, std exports or AI-effect integration coverage."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 232,
+    "estimated_total_loc": 1160,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Shared effects router",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Fake handlers prove all three step variants select alternate; nil router retains existing behavior.",
+        "Existing ModelNotAllowed resolver tests pass unmodified; lazy initialization retains routing.",
+        "Alternate metadata is returned immediately after success; bound/default calls and failures cannot expose stale alternate metadata."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Credential lanes and model resolution",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Table tests pin precedence, friendly/api names, prefixes, unknown passthrough and same-provider routing.",
+        "Missing credential returns typed ModelNotAllowed with provider-specific actionable hint.",
+        "Fake factory tests cover API keys, unauthenticated OPENAI_BASE_URL, ADC/no-ADC, key-file isolation and zero CheckConnection calls."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "CLI setup and lazy integration",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Tests exercise direct/config setup and lazy run initialization using fakes without credentials or network.",
+        "Mutating environment after initialization does not change routing; no duplicate startup line on repeated calls.",
+        "Bound key-file/no-ADC semantics and provider policy gates remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Shared image dispatch",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Two fake handlers prove options-model routing across all four existing image variants.",
+        "Empty model and no-router resolver behavior remain compatible; unsupported alternate capability fails explicitly.",
+        "Reference arguments, output path and serving-handler metadata are preserved; speech remains bound."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Result image operation and std export",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M3",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Ok contains image JSON; typed provider errors preserve codes/retryability; 5xx becomes retryable Err and evaluation continues.",
+        "Arg validation, malformed options and all three precedence cases are tested; new builtin enforces AI budget/capability.",
+        "Stub and strict fixture paths work; evaluator and strict VM agree through host-op registry; trace names new op and serving route."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Consumer example and focused release checks",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "New example type-checks and runs offline under stub; deterministic error fixture proves continuation after Err.",
+        "Conflict-surface examples type-check and run with appropriate caps/entrypoints and fixtures; preserve speech and AI mode gate behavior.",
+        "Focused validation below passes; optional live two-key trace check is recorded separately and never required for offline completion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
