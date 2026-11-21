@@ -2125,3 +2125,58 @@ Each replied to its filer.
 - Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (52,651 tok). Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
 - Driver routing note verbatim: (empty — no lane degraded).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 131 — 2026-11-21 — pick NONE: all 16 tickets ruling-gated, byte-identical to 130 (independent sonnet judge NONE 85%); World 422 recorded its idle fingerprint undegraded and World 423 idled at the pre-check, the first product-mission idle skip on record, measured into D-FLEET-45 (still OPEN, B unchanged); dev CI red on this mission's own record merge was a 416 s package-timeout flake, green on rerun [ADMIN]
+
+**Pick**: NONE. The 16 open tickets match [iteration 130's snapshot](fleet-mission-evidence/iteration130/tickets.json) exactly: none new, gone or changed ([snapshot](fleet-mission-evidence/iteration131/tickets.json)). OPEN rows are still D-FLEET-44, 45 and 46 ([tsv](fleet-mission-evidence/iteration131/open-decisions.tsv)); no commit touched the charter since `8e28921dc`.
+- 0 allowlisted directives on #2341 (19 comments; no watermark file, whole issue read). Self-notices: 0 crash notices, control 852:10, 1 transcript-exposure notice for fire `fleet-1795100889-10927` (iteration 125, already reported by 125–130).
+- Saturday fire, not the first after a Monday rotation, so no weekly issue sweep. #2341 created 2026-11-16T07:02Z (08:02 CET, after the boundary), 19 comments: no rotation.
+- `MISSION_OVER_RATION` empty; planner and executor resolved to `codex:gpt-6.2-sol`. Neither was spawned.
+
+**Preflight / observe**:
+- Armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: resolved symlink copy and pin CWD copy both match origin/dev on SKILL.md and all 13 resource files, checked per file. Pin HEAD = origin/dev = `0090b48a6`.
+- Gate 1 base `0090b48a69027fc89279da785009fc91e8d9166d@2026-11-21T07:40:17Z`. No open `fleet/*` PRs; no orphan worktree for 130 or 131.
+- **dev CI red at Gate 1**: `CI` run 44851261722 on `0090b48a6` (the merge of this mission's own record PR #2439; 9 `design_docs/` files) failed in job `test`, step 12 (`Run tests with timeout (M-DX11)`), 7 steps skipped behind it. The job log (job-logs API, 152,670 B, ANSI stripped) shows `panic: test timed out after 6m56s` and `FAIL github.com/sunholo-data/ailang/internal/pipeline 416.065s`; the test running at the alarm had run 0 s, so the package wall clock ran out and nothing hung. The same package on the four prior green dev runs: 403.149 s (44708657713), 357.607 s (44799939962), 289.633 s (44804128253), 269.275 s (44738679988). The controller re-ran the failed job on the byte-identical tree (ci-health control (c)): attempt 2 **success**, `internal/pipeline` **222.249 s**, 18 check-runs, 0 not green. Verdict: runner variance against a thin budget (222 → 416+ s on one tree, ≥1.87x), not the commit.
+
+**Did** (generator ≠ judge):
+- **Controller first-party**: World's driver log shows World 421 (22:39 local, degraded: planner=opus) and World 422 (02:39, undegraded: planner=codex) taking the same idle snapshot `c3c1a8b1…` (`head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0`). 422's report says it ran `idle-fingerprint.sh --record`, and World 423 at 06:38:19 logged `nothing changed since the last no-pick fire (c3c1a8b1… ) — idle, nothing spent` ([excerpt](fleet-mission-evidence/iteration131/world-idle-snapshots.txt)).
+- **Judge** sonnet (`tools/launchd/resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin`; Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only; 51,584 tok, 4 tool uses, 51 s). The brief asked it to refute NONE and to check five claims. Verdict **NONE 85%**. [Report](fleet-mission-evidence/iteration131/idle-judge.md).
+  - Claims 1, 2, 3, 4c and 4d confirmed. On claim 3, "first" survives: the phrase appears once across every `/tmp/ailang-mission-*.log` on disk (triage's 11-17 digest skip is not a product mission). Caveat: `/tmp` logs can rotate.
+  - 4b (fix surfaces outside Authority) was not re-read by the judge. The controller confirmed it: the charter refuses "CI workflows", and `internal/pipeline/**` is language core.
+  - The judge marked the 290 s reading UNMEASURED because it grepped `gh run view --log`. The controller's reading came from the job-logs API on that run's `test` job.
+  - Strongest argument against NONE: a red on the fleet's own merge commit is an obligation. Rejected: the commit did not cause it, both fix surfaces are out of scope, and V1 already queues the budget as `[NEXT] m-headroom-blocking-threshold-calibration` (`v1-mission.md:617`).
+  - Screen by step: no OPEN row begins with an in-scope step without a diff (44 A asks for a design; 45 A is a design revision plus re-quorum; 46 A is an act needing the ruling). Same as 127–130.
+- **Recorded**: the D-FLEET-45 row gains the 422 → 423 measurement (row stays OPEN, B unchanged; the opening premise "no product mission has ever promoted an idle fingerprint" is now out of date). Row 62 notes it. No ledger row changed status.
+
+**Ruled out**:
+- Fixing or filing the timeout: out of Authority; V1 owns the row; filing it would be self-sourcing and a duplicate.
+- Reverting or re-recording iteration 130: the red was not the commit's (identical tree green on rerun).
+- Changing D-FLEET-45's recommendation: 422 → 423 shows the existing rule engaging on an undegraded fire, which supports B.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) The V1 loop's last slot verdict is 2026-09-14, so `m-headroom-blocking-threshold-calibration` has no live owner. Gate 1's owning-mission rule ("hand it to the owner") assumes the owner runs. One instance; no skill edit.
+- (b) Fifth consecutive NONE fire (127–131).
+
+**Retro lane**: no skill edit. One new friction (owner dormant, observation (a)); the ≥2-friction bar is not met.
+
+**Progress**: 16 open tickets, unchanged. Goal unmoved.
+- Clause 2 unmoved. Clause 1 UNMEASURED; clause 3 MET; clause 4 met by its letter; clause 5 preserved (no harness change).
+- Harness share, last 20 log headlines: 13/20 (20 tagged).
+- Last 3 landings (123, 125, 126) moved clause 2 (ticket resolutions).
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 46 rows valid.
+- STATUS rotation: charter 433 → 433 lines (+4 stamp, −4 moved). Three stamps remain. The archive gained ITERATION 128 (grep 1; control ITERATION 127 = 1). Queue row 68 present (1); `decision-ledger:end` present (1).
+- No code changed, so Gate 3b does not apply. The record ships as a PR.
+
+**Next**: no routable ticket is expected. A ruling on D-FLEET-46 (eight tickets) is the highest-yield ask. D-FLEET-45 now has evidence that World idles on its own when its codex lane is within ration.
+
+**Routing evidence**: base=`0090b48a69027fc89279da785009fc91e8d9166d`@2026-11-21T07:53:22Z (Gate 4).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned**: no pick. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: resolver `recipe codex:gpt-6.2-sol`. **Not spawned**: no pick.
+- Executor: resolver `recipe codex:gpt-6.2-sol`. **Not spawned**: no pick.
+- Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (51,584 tok). Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
+- Driver routing note verbatim: (empty — no lane degraded).
+- Cost: metered $0 (Anthropic subscription only).

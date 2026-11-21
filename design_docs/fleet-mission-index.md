@@ -12,7 +12,9 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 129 | 2026-11-20 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 78%); World 420's idle snapshot is byte-identical to 419's, a second identical p... |
+| 131 | 2026-11-21 | pick NONE: all 16 tickets ruling-gated, byte-identical to 130 (independent sonnet judge NONE 85%); World 422 recorded its idle fingerprint undegrad... |
+| 130 | 2026-11-21 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 82%); World 421 adds a 10th slot to D-FLEET-45's ticket but no identical pair... |
+| 129 | 2026-11-20 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 78%); World 420's idle snapshot is byte-identical to 419's, a second identica... |
 | 128 | 2026-11-20 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 75%); World 418's idle snapshot is byte-identical to 417's, the first World s... |
 | 127 | 2026-11-20 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 75%); World 416/417 occurrences of `skill:idle-record-barred-on-degraded-no-p... |
 | 126 | 2026-11-20 | `driver:idle-fingerprint-head-ignores-design-docs-verification` LANDED and RESOLVED: #2431 → `ff08818ae` (idle pre-check excludes `design_docs/veri... |

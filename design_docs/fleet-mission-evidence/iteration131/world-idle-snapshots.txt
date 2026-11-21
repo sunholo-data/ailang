@@ -1,0 +1,8 @@
+134095:[2026-11-20 20:06:36] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=7 last_age_s=12 elapsed_s=5299 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+134121:[2026-11-20 22:39:30] world: idle snapshot taken for world-1795210768-54059 (c3c1a8b1458bb8805ec188fc1e4c2194c7143da419a9da1a90c2ddf7365ec5c0 head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0)
+134122:[2026-11-20 22:39:30] === mission iteration starting (controller=claude:claude-opus-5-5 via probe ok, timeout=21600s | bg-wait-ceiling=0ms | roles: designer=claude:claude-opus-5-5 planner=opus executor=claude:claude-haiku-5-5 evaluator=sonnet) ===
+134149:[2026-11-20 23:15:52] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=9 last_age_s=13 elapsed_s=2255 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+134166:[2026-11-21 02:39:30] world: idle snapshot taken for world-1795225168-98846 (c3c1a8b1458bb8805ec188fc1e4c2194c7143da419a9da1a90c2ddf7365ec5c0 head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0)
+134167:[2026-11-21 02:39:30] === mission iteration starting (controller=claude:claude-opus-5-5 via probe ok, timeout=21600s | bg-wait-ceiling=0ms | roles: designer=claude:claude-opus-5-5 planner=codex:gpt-6.2-sol executor=codex:gpt-6.2-sol evaluator=sonnet) ===
+134194:[2026-11-21 03:11:40] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=9 last_age_s=26 elapsed_s=2003 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+134204:[2026-11-21 06:38:19] world: nothing changed since the last no-pick fire (c3c1a8b1458bb8805ec188fc1e4c2194c7143da419a9da1a90c2ddf7365ec5c0 head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0) — idle, nothing spent
