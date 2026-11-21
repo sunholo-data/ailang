@@ -1,0 +1,150 @@
+{
+  "sprint_id": "M-PROCESS-RESULT-SEMANTICS",
+  "status": "not_started",
+  "created": "2026-10-17T21:38:00.638104+00:00",
+  "design_doc": "design_docs/planned/ailang-core-triage/m-process-result-semantics.md",
+  "sprint_plan": "design_docs/planned/ailang-core-triage/m-process-result-semantics-sprint-plan.md",
+  "github_issues": [
+    1878,
+    1879,
+    1880
+  ],
+  "execution_authorized": false,
+  "execution_gate": {
+    "satisfied": false,
+    "required": [
+      "Record HD-1, HD-2, HD-4, HD-6 decisions",
+      "Record V7 scope and timeout/cap/completion precedence",
+      "Resolve Result-polarity and spawnProcessResult guarantee contradictions",
+      "Freeze representation for unknown post-start failures",
+      "Approve sprint and explicitly authorize execution"
+    ]
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both wrap std/process and cannot repair host result loss."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both wrap std/process and cannot repair host result loss."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both wrap std/process and cannot repair host result loss."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both wrap std/process and cannot repair host result loss."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both wrap std/process and cannot repair host result loss."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 140,
+    "estimated_total_loc": 560,
+    "estimated_days": 4,
+    "estimated_hours": 10,
+    "basis": "Conservative capacity estimate; shallow history provides no empirical velocity"
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Separate startup from waiting",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Missing executable and non-executable file return pre-start errors; no wait error becomes SpawnFailed.",
+        "Timeout process-group, confinement and spawnProcessResult regression tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Classify NotFound, PermissionDenied and SpawnFailed only from Start errors using errors.Is; retain containment, CommandContext cancellation and WaitDelay."
+    },
+    {
+      "id": "M2",
+      "description": "Install the frozen result schema",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Timeout and signal outcomes retain both captured byte buffers and distinguish termination from normal completion.",
+        "Known nonzero exits retain their real status; unknown post-start wait failures preserve output and never claim execution did not start.",
+        "Tests evaluate exact constructors, arities and fields; type-checking alone is insufficient because of V8."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Implement only the operator-selected HD-2 representation atomically across declarations, builtin metadata and value builders; preserve raw bytes and represent unavailable exit status explicitly."
+    },
+    {
+      "id": "M3",
+      "description": "Report pipe closure accurately",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Held-pipe exit-0 and exit-nonzero fixtures preserve output and real foreground exit code.",
+        "Uncapped normally drained output has truncated false; forced pipe closure has truncated true.",
+        "Fixtures bound waits and clean up descendants even on assertion failure."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Map ErrWaitDelay with observed successful foreground exit to completed output with exit 0 and truncated true; retain nonzero-exit symmetry."
+    },
+    {
+      "id": "M4",
+      "description": "Apply the frozen output budget policy",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Tests cover stdout-only, stderr-only, interleaved streams, exact cap and cap+1; assert the approved combined-budget rule.",
+        "Natural completion versus cap-triggered termination follows the frozen policy and preserves observed exit status when available.",
+        "Timeout plus cap and pipe closure precedence are specified and tested; no fabricated exit 1 or lost captured prefix.",
+        "Any concurrent budget/cancellation state passes focused race tests and does not double-kill or leak children."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Implement HD-4, shared-budget V7 handling if approved, and the frozen ordering of deadline, cap and observed completion; use existing containment for any approved kill."
+    },
+    {
+      "id": "M5",
+      "description": "Publish contract and migration fixtures",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Example demonstrates completed output plus timeout/cap semantics under explicit capabilities, and existing process_subcmd_allowlist example passes.",
+        "Guarantee table agrees with selected shape: option A allows post-start Err; option B reserves Err for pre-start exec failures.",
+        "Breaking-change fragment starts with ### and includes old/new consumer matches and migration guidance; no patch-release claim.",
+        "Review the intended process interface diff before updating its golden with existing freeze tooling; unrelated golden changes are excluded.",
+        "Focused validation gates below pass and remaining operator or consumer release dependencies are recorded."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Document the selected per-arm guarantees, breaking release boundary and motoko/package migration; add a runnable showcase with assertions against real returned values."
+    }
+  ]
+}
