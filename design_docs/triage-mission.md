@@ -43,11 +43,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-21 — ITERATION 52: cross-vendor queue review and aged card holds [ADMIN]
+
+## STATUS 2026-11-20 — ITERATION 51: historical digest recovered, two PR findings recorded [ADMIN]
+
 ## STATUS 2026-11-20 — ITERATION 50: 16 independent reviews, one fix confirmed, nine issue labels, fixture soak held [ADMIN]
-
-## STATUS 2026-11-19 — ITERATION 49: 41 cross-vendor reviews, nine unsigned attestations, 16 aged green cards surfaced, one new scope decision; shadow agreement 7/8. [ADMIN]
-
-## STATUS 2026-11-12 — ITERATION 41: 40 items verified; eight judge-concurred unsigned attestations (#2135 #2126 #2105 #2104 #2097 #2139 #2148 #2149); two dissents downgraded (#2265, #1914); 0 OPEN decisions; shadow 899 rows, score 8 agree/2 disagree; no approvals or merges. [ADMIN]
 
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
@@ -232,7 +232,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed, held and stale queue items. Iteration 50 refreshed the last 16 items in the 119-item snapshot and reached 62 recent independent judgments. Carry the six planner dispatch prerequisites forward, keep PR #2430 held for its ten-leg macOS soak, and surface the attended D-TRIAGE-82 record in PR #2429 until it reaches dev.
+4. [NEXT] Refresh changed, held and stale queue items. Iteration 52 independently reviewed the aged cards and existing holds. Carry the six dispatch prerequisites forward, keep PR #2430 held for the ten-leg macOS soak and reaping-host evidence, and surface the attended D-TRIAGE-82 record in PR #2429 until it reaches dev.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified. Iteration26 recurrence inbox_1793741284696_503247dd: direct send refused rc1; existing normal/one new-decision urgent controlplane fallback and user summary exact-peek verified.

@@ -950,3 +950,49 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Retro**: The full judge packet spent its time budget on tool-driven exploration. The declared fallback completed a compact evidence packet using the same session checks. Since vendor independence and the declared routes held, no policy or harness change was made. The shared scratch name `select.py` shadowed Python's standard-library module during transport startup. Isolated launcher execution worked, and the scratch file was renamed. This iteration leaves unrelated local work parked.
 
 **Next**: Retain the existing dispatch holds, confirm publication of the attended scope ruling, and refresh the fixture evidence after normal macOS Build runs.
+
+## 51 — 2026-11-20 — prior digest recovered, two PR findings recorded [ADMIN]
+
+**Picked**: PR #2435 and attended PR #2429. The prior digest also reported the fleet bookkeeping issue as excluded.
+
+**Reality check**: The pinned dev SHA was `c64dad240e445caadb123e606465825e7243fa1b`. [The prior digest](https://github.com/sunholo-data/ailang/issues/2428#issuecomment-7048900612) reports green dev and the external history confirms iteration 50's record, PR #2434, at `5fd11a779517427f4baf9251b8f34f74dede8ef2`.
+
+**Shipped**: Historical evidence comments on PRs #2435 and #2429 and corresponding shadow rows. The prior digest and shadow rows predate this recovery. This entry records those historical facts and takes no action on them.
+
+**Routing evidence**: The earlier digest records a Haiku verifier and Sonnet judge, both Anthropic. Role token counts and the base read time are unavailable in that digest. Iteration 52 uses different vendors for its own review.
+
+**Decisions**: D-TRIAGE-82 remained open on dev with attended option A awaiting publication via PR #2429.
+
+**Progress**: The earlier digest records 30 pending cards and zero attestations. The current base has no iteration 51 log or open iteration 51 record PR.
+
+**Ruled out**: The digest and shadow rows establish that the prior fire reported. They do not establish a landed iteration 51 log entry.
+
+**Retro**: Recovered the missing log entry from the issue comment and local append-only shadow ledger.
+
+**Next**: Keep the attended publication and planner dispatch prerequisites visible.
+
+## 52 — 2026-11-21 — cross-vendor review and seven aged green cards held [ADMIN]
+
+**Picked**: The changed-head, held-action and seven-day freshness filters selected zero groups. The only open issue updated since the prior digest was the sibling fleet bookkeeping thread. To refresh Clause 2 and the orphan queue, two read-only verifier batches covered 32 groups: 24 joined card-and-PR items, six cards without an open PR, one orphan coordinator PR and one docs PR. The remaining 87 of 119 joined items were fresh and skipped. The initial snapshot contained 30 cards, 28 PRs and 89 issues.
+
+**Reality check**: Reviewed pinned dev `0090b48a69027fc89279da785009fc91e8d9166d`. [CI run 44851261722](https://github.com/sunholo-data/ailang/actions/runs/44851261722) was pending at observation and completed successfully during review. The pin and resolved shared skill copies both matched origin. No allowlisted directives or self-notices on the current or predecessor issue. The landed-card dry run found zero eligible cards. The shared main checkout contains unrelated edits.
+
+**Shipped**: Published one [same-head fixture evidence comment](https://github.com/sunholo-data/ailang/pull/2430#issuecomment-7059539974) after judgment and head readback. Existing comments cover the eight other same-head proposals. Zero attestations, closes, labels, approvals, rejections, merges or handoffs. The [bookkeeping thread](https://github.com/sunholo-data/ailang/issues/2428) carries the full verdict table. The log also recovers iteration 51 from its prior digest and shadow rows.
+
+**Judge**: MiniMax M3 concurred on all 32 groups. Eight NEEDS-FIX, four NEEDS-REBASE, two SUPERSEDED and 18 NEEDS-DECISION verdicts. It concurred on the distinction between the fixture validation artifact's report-time count and two live, same-head jobs. The substantive hold is the remaining macOS soak and independent reaping-host evidence. No runtime reproductions were run.
+
+**Routing evidence**:
+- base=0090b48a69027fc89279da785009fc91e8d9166d@2026-11-21T07:52:33Z. Controller `codex:gpt-6.2-sol`, in-session token count unavailable. Native Codex Agent has no vendor or model selector. The executor and evaluator Agents transported the resolver-selected lanes.
+- Verifier A/B: `recipe codex:gpt-6-luna declared:provider-pin`. Both scoped probes exited 0 at 14,216 tokens each. Both actual OpenAI runs exited 0, at 64,252 and 75,667 tokens. GitHub evidence was prefetched. One diff required terminal-escape sanitization, and truncated diffs were used only with live check and mergeability evidence.
+- Evaluator: `reroute pi:ollama/minimax-m3:cloud anthropic-unavailable`. The first probe wrapper returned rc 64 because it accepts only Codex and Claude role lanes. The canonical pi secrets-scope probe passed rc 0 at 2,060 tokens. The canonical evaluator acknowledged its session protocol and completed rc 0, typed ok, in 194 seconds at 215,718 tokens. No fallback model was used. Metered cost USD 0.
+- After writing its report the judge attempted an out-of-scope temporary write, which the sandbox denied, then created and removed two temporary files inside its detached worktree. Readback showed the report was the only remaining change. Report completeness and vendor identity were independently checked.
+
+**Decisions**: D-TRIAGE-82 option A is already recorded attended in PR #2429. That PR remains open with a failing test and awaits publication. Preserve #1862 as reference and #2097 as the sole future candidate, with separate execution authorization. #2073, #2103, #2104, #2105 and #2126 also await execution authorization. #2103 additionally overlaps #1789. #2155 needs clear ordinary-versus-lean eval populations. #2430 remains held for the ten-leg soak and reaping-host evidence.
+
+**Progress**: 119/119 joined groups fresh on the pre-action snapshot. All seven green, mergeable, diff-available cards older than 48 hours appear in the digest. Shadow agreement 28/29 across comparable fourteen-day outcomes. PR #2197 merged on the reviewed head after a NEEDS-FIX verdict. The ledger captures 32 current verdicts and 90 first-observed historical outcomes.
+
+**Ruled out**: Green CI does not meet the fixture's acceptance criteria or confer execution authorization on a planner result. A docs-only diff and a failed check alone cannot attribute causality.
+
+**Retro**: The queue fingerprint can change when a sibling bookkeeping thread updates even though the included item selection stays fixed. Current and prior reports separate evidence-only refreshes from approvals. Harness escalation share is 8/20 tagged records. No harness or routing changes.
+
+**Next**: Recheck the fixture after normal macOS builds, confirm publication of the attended ruling and carry forward the six dispatch prerequisites.
