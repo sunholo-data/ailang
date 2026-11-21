@@ -1,0 +1,33 @@
+module count
+
+import std/fs (listDir, walk, isDir)
+import std/string (endsWith, substring, length as strLength)
+import std/list (filter, map, length)
+import std/io (println)
+
+pure func trimSlash(s: string) -> string =
+  if endsWith(s, "/") then substring(s, 0, strLength(s) - 1) else s
+
+func directCount(dir: string) -> int ! {FS} =
+  length(filter(\e. endsWith(e, ".ail"), listDir(dir)))
+
+func recursiveCount(dir: string) -> int ! {FS} =
+  length(filter(\p. endsWith(p, ".ail"), walk(dir)))
+
+func reportDirs(root: string, dirs: [string]) -> () ! {IO, FS} =
+  match dirs {
+    [] => (),
+    d :: rest => {
+      let sub = "${root}/${d}";
+      println("${d}|${show(directCount(sub))}|${show(recursiveCount(sub))}");
+      reportDirs(root, rest)
+    }
+  }
+
+export func main() -> () ! {IO, FS} {
+  let root = "std";
+  let entries = map(trimSlash, listDir(root));
+  let dirs = filter(\e. isDir("${root}/${e}"), entries);
+  println("ROOT|${show(directCount(root))}|${show(recursiveCount(root))}");
+  reportDirs(root, dirs)
+}

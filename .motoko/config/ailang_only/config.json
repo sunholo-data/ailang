@@ -1,0 +1,51 @@
+{
+  "agent": {
+    "context_limit": 262144,
+    "model": "openrouter/deepseek/deepseek-v4-flash",
+    "workdir": ".",
+    "max_steps": 300,
+    "max_cost_usd_cents": 200,
+    "step_delay_ms": 0,
+    "max_retries": 3,
+    "retry_base_ms": 1000,
+    "retry_cap_ms": 30000,
+    "semi_formal_verifier_mode": false,
+    "system_prompt": "",
+    "openai_base_url": "",
+    "ai_options_json": ""
+  },
+  "backend": {
+    "mode": "external_http",
+    "url": "http://127.0.0.1:8080",
+    "port": 8080,
+    "auto_start": true,
+    "command": "bun",
+    "args": [
+      "src/tui/src/env-server-main.ts"
+    ],
+    "startup_timeout_ms": 5000
+  },
+  "tools": {
+    "hybrid": false,
+    "ohmy_pi": false,
+    "snippet_caps": [
+      "IO",
+      "FS",
+      "Process"
+    ],
+    "delegated_timeout_ms": 30000,
+    "delegated_poll_ms": 100,
+    "delegated_timeout_slack_ms": 5000,
+    "edit_mode": "hashline"
+  },
+  "extensions": {
+    "order": [
+      "ailang_policy",
+      "repetition_guard",
+      "empty_stop_guard",
+      "compaction_ai"
+    ],
+    "strict": true
+  },
+  "verification": {}
+}
