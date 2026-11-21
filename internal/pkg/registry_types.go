@@ -66,6 +66,10 @@ const (
 
 // ValidationResult records what the validator checked.
 type ValidationResult struct {
+	// CheckPeakRSS is the 100 ms sampled child VmRSS peak in bytes (zero when unavailable).
+	CheckPeakRSS uint64 `json:"check_peak_rss,omitempty"`
+	// CheckWallMS excludes dependency preparation and contract verification.
+	CheckWallMS       int64  `json:"check_wall_ms,omitempty"`
 	Compiles          bool   `json:"compiles"`
 	EffectsValid      bool   `json:"effects_valid"`
 	ContractsVerified int    `json:"contracts_verified"`
