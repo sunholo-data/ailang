@@ -1,0 +1,6 @@
+[2026-11-20 02:39:30] world: idle snapshot taken for world-1795138767-78662 (01aae1662f614b44fa9bcc23c7d0588538aa4d65bbab985465b946cc3bab20b4 head=0e9e8d3 ledger=107 open=2 directives=0 inbox=1 red=0)
+[2026-11-20 06:39:02] world: idle snapshot taken for world-1795153140-39810 (0355e1e27457a8d866647f30f4c831a2de38416194843062384ce5af5e2c9454 head=0e9e8d3 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-20 10:39:38] world: idle snapshot taken for world-1795167576-8056 (0355e1e27457a8d866647f30f4c831a2de38416194843062384ce5af5e2c9454 head=0e9e8d3 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-20 14:39:42] world: idle snapshot taken for world-1795181980-58527 (dae8092b025c9639d6637ead60b69a51ac094f0756708da2df0ce39ba0782fde head=301131e ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-20 18:39:02] world: idle snapshot taken for world-1795196340-95987 (dae8092b025c9639d6637ead60b69a51ac094f0756708da2df0ce39ba0782fde head=301131e ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-20 22:39:30] world: idle snapshot taken for world-1795210768-54059 (c3c1a8b1458bb8805ec188fc1e4c2194c7143da419a9da1a90c2ddf7365ec5c0 head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0)

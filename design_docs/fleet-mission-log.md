@@ -2070,3 +2070,58 @@ Each replied to its filer.
 - Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (62,507 tok). Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
 - Cost: metered $0 (Anthropic subscription only).
+
+## 130 — 2026-11-21 — pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 82%); World 421 adds a 10th slot to D-FLEET-45's ticket but no identical pair (World PR #629 moved head); codex within ration this fire, which changes nothing [ADMIN]
+
+**Pick**: NONE. The 16 open tickets are the same signatures iteration 129 left (diffed against [iteration 129's snapshot](fleet-mission-evidence/iteration129/tickets.json): one ticket changed). The change is one more World occurrence (World 421 at 21:41Z) of row 62's ticket, now 10 slots. That ticket is parked on D-FLEET-45, which is OPEN.
+- 0 allowlisted directives on #2341 (18 comments; no watermark file, so the whole issue was read). Self-notices rc 0: 0 crash notices, control 852:10, and 1 transcript-exposure notice, for fire `fleet-1795100889-10927` (iteration 125, already reported by 125–129).
+- Saturday fire, not the first after a Monday rotation, so no weekly issue sweep.
+- `MISSION_OVER_RATION` empty this fire: the planner and executor resolved to `codex:gpt-6.2-sol` (127–129 were degraded to opus/haiku). Neither was spawned.
+
+**Preflight / observe**:
+- Armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink copy matches origin/dev on SKILL.md and all 13 resource files, checked per file; the pin CWD copy is byte-identical to the resolved copy on all 13 resource files. Pin HEAD = origin/dev.
+- Gate 1 base `5fd11a779517427f4baf9251b8f34f74dede8ef2@2026-11-21T01:14:43Z`. `CI` success there; 18 check-runs, 0 not green. No open `fleet/*` PRs.
+- Traces: no orphan worktree or open PR for iteration 129 or 130. Ledger: the only commit to `fleet-mission.md` since `429eaf806` is iteration 129's own record (`39be1b3ad`); 46 rows valid.
+
+**Did** (generator ≠ judge):
+- The controller captured [tickets](fleet-mission-evidence/iteration130/tickets.json), [OPEN rows](fleet-mission-evidence/iteration130/open-decisions.tsv), [World idle snapshots](fleet-mission-evidence/iteration130/world-idle-snapshots.txt) and [World slot verdicts](fleet-mission-evidence/iteration130/world-slot-verdicts.txt).
+- **Controller first-party**: World's driver log carries `c3c1a8b1458bb880…` for `world-1795210768-54059` (421, 22:39 local, `head=a51307d ledger=107 open=2 directives=0 inbox=0 red=0`) against 420's `dae8092b…` (`head=301131e`). World PR #629 (`854747c5`, Heads/Timeline UI under `host/`) landed between them.
+- **Judge** sonnet (`tools/launchd/resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin`; Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only; 52,651 tok, 4 tool uses, 26 s). The brief carried inputs and four claims to re-verify, gave iteration 129's judge report as something to re-check rather than copy, and told it to argue against idling. Verdict **NONE 82%**. [Report](fleet-mission-evidence/iteration130/idle-judge.md).
+  - Claims 1–3 confirmed first-party (one changed ticket; 420 → 421 not skippable; no ledger commit). Claim 4 (codex within ration) not re-read by the judge; the controller read it from the driver env and records it in the report.
+  - 16/16 tickets mapped: 8 await D-FLEET-46, 5 out of scope, 1 with no covering row (`eval:motoko-connection-probe-orphaned`, folded into ruled D-FLEET-18), 2 parked on OPEN D-FLEET-44/45. Counts add to 16.
+  - Lane availability does not matter: no ticket is routable and starved of a lane.
+  - Strongest argument against NONE: resolve `eval:motoko-connection-probe-orphaned` as bookkeeping. Rejected: it is the act D-FLEET-46 asks permission for on eight others, its landing SHA was not verified, and it moves nothing.
+  - D-FLEET-45: keep B. 421 adds no identical pair (still 2 in World's last 13 fires).
+- **Recorded**: the measurement went into D-FLEET-45 (row stays OPEN, recommendation unchanged) and row 62. No ledger row changed status.
+
+**Ruled out**:
+- Resolving `eval:motoko-connection-probe-orphaned` alone ahead of a D-FLEET-46 ruling (judge Q2).
+- Treating codex's return as a reason to pick: every ticket is gated by a ruling or by scope, not by a lane.
+- Changing D-FLEET-45's recommendation: 421 is not an identical pair.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) This is the fourth consecutive fleet fire (127–130) spending a controller slot on the same NONE screen. Clause 4 is met by its letter only because the queue is non-empty; every remaining ticket waits on Mark or is out of scope.
+- (b) The judge returned after 4 tool calls in 26 s. The controller re-checked its load-bearing claims first-party (the ticket diff, the 420/421 hashes, the ledger log) and they held.
+
+**Retro lane**: no skill edit. No friction recurred.
+
+**Progress**: 16 open tickets, unchanged. Goal unmoved.
+- Clause 2 unmoved this fire.
+- Clause 1 UNMEASURED; clause 3 MET (16 open); clause 4 met by its letter; clause 5 preserved (no harness change).
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 46 rows valid.
+- STATUS rotation: charter 433 → 433 lines (+4 stamp, −4 moved). Three stamps remain. The archive gained ITERATION 127 (grep 1; control ITERATION 126 = 1). Queue row 68 still present (grep 1); `decision-ledger:end` present (1).
+- No code changed, so Gate 3b does not apply. The record ships as a PR.
+
+**Next**: no routable ticket is expected. A ruling on D-FLEET-46 (eight tickets) or D-FLEET-45 is the highest-yield ask; without one, the next fire repeats this screen.
+
+**Routing evidence**: base=`5fd11a779517427f4baf9251b8f34f74dede8ef2`@2026-11-21T01:14:43Z (Gate 1).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned**: no pick. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: resolver `recipe codex:gpt-6.2-sol`. **Not spawned**: no pick.
+- Executor: resolver `recipe codex:gpt-6.2-sol`. **Not spawned**: no pick.
+- Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (52,651 tok). Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
+- Driver routing note verbatim: (empty — no lane degraded).
+- Cost: metered $0 (Anthropic subscription only).
