@@ -1,0 +1,32 @@
+# Rig "(compile_error, no error line)" rows: agent runs banked as compile failures with empty or unmatchable stderr
+
+- **Date**: 2026-11-20
+- **Class**: bug (eval-harness measurement taxonomy — rows banked as AILANG compile failures that measured no compile)
+- **Recommend**: design-doc
+- **Searched**: `no error line` (only hit: `tools/rig-friction-digest.sh`, the tool that emitted the signal), `compile_error` across `design_docs/planned/ailang-core-triage/`, `eval-agent-no-solution-written`, `m-eval-failure-attribution`. Related, not duplicate: [eval-agent-no-solution-written](eval-agent-no-solution-written.md) covers the placeholder-template case (compiles clean → `runtime_error`); this report covers the **empty/unmatchable-stderr → `compile_error`** case, a different mechanism needing its own decision.
+- **Transcript status**: the row files (`eval_results/rotation/os-rolling/v0.60.5/agent/cp_60149_trial2_*`, `cp_60166_*`) do not exist in this checkout and `ailang chains list` shows no benchmark-agent stages, so the exact banked stderr could not be read here. Every mechanism below is verified in code; the design doc should re-confirm which of the three paths each row took from the rig-side rows (the `stderr` field discriminates them immediately).
+
+## Why
+
+The digest's `err_line` (`tools/rig-friction-digest.sh`) scans the row's `stderr` for a line matching `(API )?Error:|error:|panic:|Missing effects|execution timed out` — **start-anchored** (`re.match`). I verified that every genuine `ailang run` compile-class failure prints its first line starting with `Error:` (parse: `Error: module loading error: … parse errors in …`; type: `Error: type error in … (decl 0): …`; effect: `Error: effect checking failed in …`; entrypoint: `Error: module … exports no functions …`). So a row categorized `compile_error` whose stderr has no such line was **never a model compile failure** — the stderr was empty or harness-written. Three code paths bank exactly that signature:
+
+1. **pi clean-exit edge (empty stderr, the literal case).** `internal/executor/pi/pi.go` clean-exit branch: `success = output != "" || toolCallCount > 0`. A run with empty transcript, 0 tool calls, 0 retries leaves `Error: ""` but `FinishReason: "stop"`. In `agent_runner_multi.go` it slips past the executor-failure gate (`!result.Success && result.Error != ""` — Error is empty) and the non-agentic gate (`NumTurns <= 1 && ToolCallCount == 0` — a multi-event session has NumTurns ≥ 2). `validateOnce` then returns `CompileOk:false, Stderr: result.Error` (**empty**), `CategorizeRunError(false,false,false,"")` → `compile_error` (`internal/eval_harness/memlimit.go:237`), and the `FinishReason == "stop"` promotion in `cmd/ailang/eval_benchmark_agent.go:263` declines (CategorizeAgentError(nil, "stop") returns the api_error catch-all, so no override). Row banked: compile_error, stderr empty — a run that measured nothing, reading as "the model's code didn't compile".
+2. **Empty solution file.** `validateOnce` (`internal/eval_harness/agent_validation.go:96`): solution file exists but is 0 bytes → `Stderr: "Solution file not found or empty: …"` → `compile_error`. The stderr text is present but can never match the digest regex (not start-anchored on "Error:"), and it is also not the placeholder case of the related triage (template ≈160 bytes compiles clean → runtime_error; an *emptied* file does not).
+3. **Runner Go error.** `runAILANGSolution` (`agent_validation.go:207`): `runner.Run` returns err (workspace mkdir/write failure, guarded-start failure in `runGuarded`) → `Stderr: "validation runner error: …"` → `CompileOk:false` → `compile_error`, again unmatchable by the start-anchored regex. Harness-caused, reads as model failure.
+
+The signal recurrence (3 rows, 2 benchmarks, 1 harness, one retried trial) is consistent with a harness edge rather than an AILANG language friction: had qwen3-8b actually produced uncompilable AILANG, the digest would show a real error signature (e.g. the `PAR_*`/type-unification lines it shows for other rows). Side observation while verifying: an effect-check failure (`Error: effect checking failed …`) contains neither "type error" nor "parse error", so `AILANGRunner.Run`'s compile detection (`runner.go:334`) banks it `runtime_ok=false, compile_ok=true` — arguably mis-binned, worth a line in the same design.
+
+## Why design-doc, not direct-fix
+
+- **More than one acceptable remedy** (row 3): promote "Success=false with empty Error" to a typed category at the pi/harness boundary; detect the empty-solution-file case pre-grade (sibling of the `no_solution_written` proposal); leave categories alone and only widen the digest's `err_line` extraction (un-anchor, or add `validation runner error:`/`Solution file not found` prefixes) so rows self-describe; reclassify historical rows or not.
+- **It touches the `error_category` contract** (row 4): adding a value to that namespace is explicitly frozen by m-eval-failure-attribution's freeze decision and consumed by dashboards/ELO/curation — needs a written decision, same as the related triage concluded.
+- **Spans more than one file** (row 5): `internal/executor/pi/pi.go` or `agent_runner_multi.go` (empty-Error gate), `internal/eval_harness/agent_validation.go` (empty-file + runner-error attribution), `tools/rig-friction-digest.sh` (extraction), plus surfacing in eval-summary/eval-elo mixes.
+
+## Suggested scope for the design doc
+
+1. Rig-side confirmation first: read the three rows' `stderr` (empty vs "Solution file not found…" vs "validation runner error:") and the pi session transcripts (`ailang chains chat` on the rig) to pin which path(s) fired; decide scope accordingly.
+2. Close the pi empty-Error edge: a run with `Success=false`, `Error==""` must not reach grading — either treat as executor failure (non-agentic/cost-aware) or bank a typed category; never `compile_error`.
+3. Give "solution file empty/unreadable" and "validation runner error" their own attribution (model vs harness), composing with the `no_solution_written` decision from the related triage rather than duplicating it.
+4. Un-anchor / extend the digest's `err_line` regex so harness-written stderr produces a routable signature instead of "(compile_error, no error line)" — the digest is the only sensor that caught this, and it currently cannot name what it caught.
+5. Decide the effect-check-failure bin (`compile_ok` vs `runtime_ok`) in `AILANGRunner.Run`.
+6. Decide reclassification of existing rows (annotate-in-place precedent).
