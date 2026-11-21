@@ -1,6 +1,6 @@
 # M-TRIAGE29-NESTED-STOP-NIL-JOIN: macOS `TestRuntimeNestedStopUsesRemainingDeadline` nil-Join recurrence — diagnosis and fix design
 
-**Status**: Planned (investigation complete; fix is test-only and awaits human design approval — no implementation, sprint planning, executor dispatch, merge or deployment is authorized by this document)
+**Status**: Planned. PR #2135 approved the fixture sprint. The two-marker gate is ready for review, with evidence and outstanding criteria tracked in the [validation report](m-triage29-nested-stop-nil-join-validation.md).
 **Target**: v0.57.4
 **Priority**: P2 (non-required CI lane, rare flake; but it is the standing AC fixture for ownership/remaining-deadline semantics and its failures pollute release gates)
 **Estimated**: ~0.5 day (≈10 LOC in one test file + CI soak)

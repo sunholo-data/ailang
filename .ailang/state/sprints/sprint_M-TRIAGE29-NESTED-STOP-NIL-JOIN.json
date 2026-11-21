@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TRIAGE29-NESTED-STOP-NIL-JOIN",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-05T11:07:52.930345+00:00",
   "design_doc": "design_docs/planned/v0_57_4/m-triage29-nested-stop-nil-join.md",
   "sprint_plan": "design_docs/planned/v0_57_4/m-triage29-nested-stop-nil-join-sprint-plan.md",
@@ -8,7 +8,7 @@
     2069
   ],
   "issue_link_policy": "Reference bookkeeping issue 2069 only; do not auto-close. Issue 2034 excluded.",
-  "execution_authorized": false,
+  "execution_authorized": true,
   "executor_dispatched": false,
   "registry_reuse": [
     {
@@ -40,10 +40,10 @@
         "Deadline, receipt, teardown assertions and production code unchanged",
         "Focused smoke outcome and changelog recorded"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-19T20:44:00Z",
+      "completed": "2026-11-19T20:48:41Z",
+      "notes": "Implemented variant A1 in the fixture readiness poll. Gofmt and diff review passed. Ordinary-container focused smoke passed in 0.38 s."
     },
     {
       "id": "M2",
@@ -60,9 +60,9 @@
         "Validation report and existing design reconciled before completion"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-11-19T20:44:00Z",
       "completed": null,
-      "notes": null
+      "notes": "Focused 50/50, effects package, and test-changed passed with a reaping PID namespace. Boundary, size, changelog and effects lint passed. Repository-wide lint timed out. Independent reaping-host confirmation and ten normal macOS Build legs remain pending; see validation report."
     }
   ]
 }
