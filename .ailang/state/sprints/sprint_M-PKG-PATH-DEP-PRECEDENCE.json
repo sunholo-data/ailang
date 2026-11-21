@@ -1,0 +1,109 @@
+{
+  "sprint_id": "M-PKG-PATH-DEP-PRECEDENCE",
+  "status": "not_started",
+  "created": "2026-11-21T14:23:07Z",
+  "design_doc": "design_docs/planned/v0_60_7/m-pkg-path-dep-precedence.md",
+  "sprint_plan": "design_docs/planned/v0_60_7/sprint-plan-pkg-path-dep-precedence.md",
+  "github_issues": [
+    2442
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Go resolver behavior. Reuse the manifest loader, git resolver, and mock registry harness."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Go error and CLI behavior. Reuse the conflict type, resolver entry point, and lock tests."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Go regression tests. Reuse lock, confinement, publish staging, and validator fixtures."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Documentation and rollout audit. Use the packages guide and committed manifests and locks."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 153,
+    "estimated_total_loc": 460,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Local claim resolution",
+      "estimated_loc": 155,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`TestResolve_DirectPathDepWinsOverTransitiveRegistryPin` proves the local hash and portable path are used in both sibling sort orders and the registry copy is never fetched.",
+        "`TestResolve_PathClaimSurvivesSiblingSubtree` covers two path siblings and a transitive registry pin from the earlier subtree.",
+        "Equal local claims produce one owner entry, unequal claims return a structured conflict, and cycles through pending claims are detected. All claimed owners are materialized on success."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Conflict attribution and resolver invariant",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "`TestResolve_PathDepMismatch_AttributedConflict` checks the root clone at 0.4.1 against a carrier pin at 0.4.0, correctly attributed fields and source text, and both remediation suggestions.",
+        "Invariant unit checks reject missing and wrong-source entries for root path and git dependencies. Command integration checks failure exits nonzero, creates no new lock, and preserves existing lock bytes.",
+        "A successful equal-version path lock reports the path source without the old warning."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Lock and caller regression checks",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "A direct git dep wins against an equal transitive registry pin, with the expected hash and revision. Confinement and package-root carry-forward tests pass.",
+        "A previously shadowed lock reports source drift with `ailang lock --check` and stays byte-identical. `ailang lock` rewrites it to the path source, and the next check succeeds.",
+        "Ten repeated resolutions produce identical results and lock bytes. Existing legacy conversion, registry-only exact conflicts and deduplication, relative-path portability, publish staging, and validator checks pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Documentation and rollout audit",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "The packages guide and changelog explain precedence, exact-version conflicts, and refreshing affected locks.",
+        "The audit report provides reproducible counts or explicitly records missing evidence and is available for the D6 ruling.",
+        "Run and record the focused validation in the sprint plan before the D6 sign-off gate."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
