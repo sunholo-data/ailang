@@ -472,6 +472,38 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		done <- cmd.Wait()
 	}()
 
+	// timeoutResult builds the banked row of a run this harness killed at a
+	// time bound (hard / prefill / idle) or saw cancelled. Every spend field
+	// already known at kill time is carried: before 2026-11-03 these paths
+	// returned DurationMS=0 and dropped the turn/tool tally, so every timeout
+	// row banked duration_ms=0, 0 turns and $0 — the rig's most expensive runs
+	// were invisible to wall-time and cost accounting (the 2026-10-20..11-03
+	// os-rolling rotation: cp_60166/cp_60159 banked mostly-zero timeout rows).
+	// Spend, not a grade: Success stays false.
+	timeoutResult := func(errMsg, finishReason string) *executor.Result {
+		costUSD, costProvenance := piRunCost(task, e.getModel(task), inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens)
+		return &executor.Result{
+			Success:                  false,
+			Error:                    errMsg,
+			FinishReason:             finishReason,
+			DurationMS:               int(time.Since(startTime).Milliseconds()),
+			InputTokens:              inputTokens,
+			OutputTokens:             outputTokens,
+			ReasonTokens:             reasonTokens,
+			CacheReadInputTokens:     cacheReadTokens,
+			CacheCreationInputTokens: cacheWriteTokens,
+			CostUSD:                  costUSD,
+			CostProvenance:           costProvenance,
+			NumTurns:                 numTurns,
+			ToolCallCount:            toolCallCount,
+			ToolCalls:                toolCalls,
+			SessionID:                sessionID,
+			CostKilledAt:             task.Budget.KilledAt(),
+			FirstAttemptMs:           firstAttemptMs,
+			SuccessAtMs:              -1,
+		}
+	}
+
 	for {
 		select {
 		case err := <-done:
@@ -598,59 +630,26 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		case <-hardTimer.C:
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "hard timeout")
-			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("pi exceeded hard timeout (%v)", timeout),
-				FinishReason:   executor.FinishTimeout,
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
-			}, nil
+			return timeoutResult(fmt.Sprintf("pi exceeded hard timeout (%v)", timeout), executor.FinishTimeout), nil
 
 		case <-ttftTimer.C:
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "ttft timeout")
-			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("pi produced no output within %v (prefill timeout)", ttftTimeout),
-				FinishReason:   executor.FinishTimeout,
-				FirstAttemptMs: -1,
-				SuccessAtMs:    -1,
-			}, nil
+			return timeoutResult(fmt.Sprintf("pi produced no output within %v (prefill timeout)", ttftTimeout), executor.FinishTimeout), nil
 
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
 				proctree.Kill(cmd)
 				span.SetStatus(codes.Error, "generation idle timeout")
-				return &executor.Result{
-					Success:        false,
-					Error:          fmt.Sprintf("pi idle for %v mid-generation (no output)", since),
-					FinishReason:   executor.FinishTimeout,
-					InputTokens:    inputTokens,
-					OutputTokens:   outputTokens,
-					CostKilledAt:   task.Budget.KilledAt(),
-					FirstAttemptMs: firstAttemptMs,
-					SuccessAtMs:    -1,
-				}, nil
+				return timeoutResult(fmt.Sprintf("pi idle for %v mid-generation (no output)", since), executor.FinishTimeout), nil
 			}
 			idleCheck.Reset(idleTimeout - since)
 
 		case <-ctx.Done():
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, ctx.Err().Error())
-			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("pi cancelled: %v", ctx.Err()),
-				FinishReason:   piCancelFinishReason(ctx.Err()),
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
-			}, nil
+			return timeoutResult(fmt.Sprintf("pi cancelled: %v", ctx.Err()), piCancelFinishReason(ctx.Err())), nil
 		}
 	}
 }
