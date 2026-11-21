@@ -1,0 +1,161 @@
+{
+  "sprint_id": "M-UNBOUND-TYPE-NAMES",
+  "status": "not_started",
+  "created": "2026-11-03T15:46:58.998239+00:00",
+  "design_doc": "design_docs/planned/v0_57_1/m-unbound-type-names.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-unbound-type-names-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'type validation' returned no candidates; Go compiler-internal scope checks/tests/docs require repository implementation."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 900,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Constructor scope and pipeline integration",
+      "estimated_loc": 180,
+      "estimated_minutes": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Assemble builtin, local, imported alias/parameterized alias/ADT and captured-alias sets after shadowLocalTypeNames in pipeline_module_phases.go.",
+        "Reject unknown constructor names in signatures, alias bodies and ADT fields before elaboration with TC_UNBOUND_TYPE_001, source position and annotation context.",
+        "Keep local recursive names, renamed imports and captured-alias diagnostics working."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Complete annotation traversal and implicit modules",
+      "estimated_loc": 180,
+      "estimated_minutes": 90,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Walk nested expression bodies, lambda parameters/returns, let/letrec annotations, record fields, TypeApp heads/args and structural list/array/tuple/function types.",
+        "Cover V1\u2013V11 with nonzero check exit, unknown name and annotation position; inspect pipeline_single.go and wire implicit modules without a module-less bypass.",
+        "Skip effect and taint label namespaces; record whether REPL gets coverage incidentally, otherwise defer it under D7."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Deterministic suggestions and import hints",
+      "estimated_loc": 140,
+      "estimated_minutes": 75,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Add sorted close matches within edit distance 2, capped at 3; omit the section when none match.",
+        "Produce direct-dependency import hints and bound imported-name context for stale Row and missing Option; never scan the network or all registry packages during checking.",
+        "Golden tests pin Strng suggestions, stale-name import guidance, stable ordering and bounded diagnostics (first occurrence per name, at most 10)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Lexical type variables and blocking corpus decision",
+      "estimated_loc": 150,
+      "estimated_minutes": 90,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Inherit function/type-declaration type parameters into nested lambdas and scope record row variables; reject undeclared qq in candidate strict mode.",
+        "Scan std/, examples/, Go test fixtures and an explicitly located motoko_agent corpus; record commands, revisions, file counts, baseline failures and new failures in the sprint report.",
+        "Enable lowercase hard errors only after a clean reliance scan; if legitimate reliance exists or required corpus is unavailable, STOP with corpus findings for the D2 decision before claiming completion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Regression fixtures and command integration",
+      "estimated_loc": 170,
+      "estimated_minutes": 90,
+      "dependencies": [
+        "M3",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Pin std/array.ail, std/list.ail, std/json.ail, examples/deriving_eq.ail, examples/datetime_demo.ail and the renamed-import fixture as positive checks.",
+        "Existing renamed_type_import_test.go remains unchanged and green; local shadow/capture keeps TC_TYPE_SHADOW_001 precedence.",
+        "Add CLI/package and --args-json integration: stale type fails at check, corrected import checks and decodes successfully; verify --format agent retains name/code/location."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Documentation and focused release gates",
+      "estimated_loc": 80,
+      "estimated_minutes": 60,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Document TC_UNBOUND_TYPE_001 and migration by explicit type parameters; add a valid runnable example and unreleased changelog fragment.",
+        "Record std/examples individual and package-check results against baseline, verify stdlib interfaces and examples, run focused tests and lint with no new regressions.",
+        "Record D2 disposition, REPL coverage/defer decision and check-time-only engine parity rationale in the sprint report; evaluator/VM semantics remain untouched."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
