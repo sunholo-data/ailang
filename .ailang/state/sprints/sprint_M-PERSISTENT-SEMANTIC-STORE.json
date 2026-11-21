@@ -1,0 +1,424 @@
+{
+  "sprint_id": "M-PERSISTENT-SEMANTIC-STORE",
+  "status": "not_started",
+  "created": "2026-11-03T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_57_1/m-persistent-semantic-store.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-persistent-semantic-store-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    },
+    {
+      "milestone": "M10",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "semantic",
+        "embedding",
+        "sqlite"
+      ],
+      "reason": "Registry search found sunholo/email (DuckDB/Ollama email-domain query layer) and world/core (pure world graph), inspected with pkg info/docs; neither supplies host SQLite effect backends or provider embedding wiring. Reuse shipped Go opener/embedder/BrainCache seams; no package dependency. world/core docs reports no AGENT.md."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 432,
+    "estimated_total_loc": 2160,
+    "estimated_days": 5,
+    "estimated_hours": 20,
+    "basis": "Provisional estimate; sparse checkout has no measured implementation velocity"
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Persistent index opener and storage",
+      "estimated_loc": 280,
+      "implementation_loc": 180,
+      "test_loc": 100,
+      "dependencies": [],
+      "files": [
+        "internal/effects/sharedindex_backend.go",
+        "internal/platform/sharedmem/sqlite_index.go",
+        "sqlite_index_test.go"
+      ],
+      "tasks": [
+        "Register the opener at platform startup; use sqliteopen WAL/busy-timeout recipe and a separate sharedindex_entries table. Implement mutation, count and namespace methods, preserving signed simhash bits and atomic upserts."
+      ],
+      "acceptance_criteria": [
+        "Reopen preserves entries and namespace isolation; delete/count/namespaces match memory backend",
+        "Existing brain_frames data remains readable; missing opener and failed open produce explicit errors"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Persistent similarity queries",
+      "estimated_loc": 290,
+      "implementation_loc": 140,
+      "test_loc": 150,
+      "dependencies": [
+        "M1"
+      ],
+      "files": [
+        "internal/platform/sharedmem/sqlite_index_search.go",
+        "sqlite_index_search_test.go"
+      ],
+      "tasks": [
+        "Implement both query methods with lexicographic maxScan prefix and score DESC/key ASC sorting; reuse simhash.Cosine and existing encoders."
+      ],
+      "acceptance_criteria": [
+        "Differential fixtures match memory backend for ties, empty data, topK/maxScan boundaries and dimension mismatch",
+        "Two independently opened connections share committed writes without namespace collisions"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Runner store options and resource ownership",
+      "estimated_loc": 210,
+      "implementation_loc": 110,
+      "test_loc": 100,
+      "dependencies": [
+        "M2"
+      ],
+      "files": [
+        "internal/runner/handlers_persistent.go",
+        "handlers_persistent_test.go",
+        "internal/runner/run.go",
+        "batch.go",
+        "cmd/ailang/serve_api.go"
+      ],
+      "tasks": [
+        "Add DB options and setup error propagation; track ownership and close opened handles on normal exit, setup failure and execution failure; update every setup callsite."
+      ],
+      "acceptance_criteria": [
+        "No-path options keep existing in-memory behavior",
+        "Two Run invocations share frames and index entries; same-file and separate-file modes work",
+        "Batch/API contexts do not leak handles or close caller-owned resources"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Persistence CLI and environment surface",
+      "estimated_loc": 180,
+      "implementation_loc": 90,
+      "test_loc": 90,
+      "dependencies": [
+        "M3"
+      ],
+      "files": [
+        "cmd/ailang/main_run.go",
+        "main_run_persistence_test.go",
+        "internal/config/shared_store.go",
+        "cmd/ailang/run_policy.go"
+      ],
+      "tasks": [
+        "Add sharedmem-db/sharedindex-db with flag-over-env precedence and capability validation; apply reviewed policy ruling."
+      ],
+      "acceptance_criteria": [
+        "Each path without its corresponding cap fails before execution; bad paths fail loudly",
+        "Explicit flags override environment; policy flag inventory/hardening tests cover new flags"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Provider-configured embedder setup",
+      "estimated_loc": 210,
+      "implementation_loc": 110,
+      "test_loc": 100,
+      "dependencies": [
+        "M4"
+      ],
+      "files": [
+        "internal/runner/handlers_embed.go",
+        "handlers_embed_test.go",
+        "internal/effects/context.go",
+        "cmd/ailang/main_run.go"
+      ],
+      "tasks": [
+        "Add EffContext Embedder and clone propagation; embed-provider/embed-model flags; reuse messaging factory outside core effects. Distinguish explicit config from the factory default Ollama provider."
+      ],
+      "acceptance_criteria": [
+        "No explicit embedding config leaves nil embedder without network calls or warnings",
+        "Explicit unsupported provider/missing key fails startup; flag/env/YAML precedence tested",
+        "Configured Gemini/OpenAI/Ollama select the requested model; reviewed OpenRouter ruling is reflected"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Typed AI embed operation",
+      "estimated_loc": 230,
+      "implementation_loc": 110,
+      "test_loc": 120,
+      "dependencies": [
+        "M5"
+      ],
+      "files": [
+        "internal/effects/ai_embed.go",
+        "ai_embed_test.go"
+      ],
+      "tasks": [
+        "Register AI/embed through effects.Call and RequireCapWithBudget; classify transport failures into existing AIError records."
+      ],
+      "acceptance_criteria": [
+        "Nil embedder returns ProviderNotFound with retryable=false; stub vector succeeds",
+        "Authentication, rate limit and timeout errors map correctly; capability and budget denial cannot call provider",
+        "Trace and budget behavior matches existing AI operation precedent"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "description": "Builtin and stdlib embedding export",
+      "estimated_loc": 190,
+      "implementation_loc": 90,
+      "test_loc": 100,
+      "dependencies": [
+        "M6"
+      ],
+      "files": [
+        "internal/builtins/ai_embed.go",
+        "ai_embed_test.go",
+        "std/ai.ail"
+      ],
+      "tasks": [
+        "Register _ai_embed with Result[[float], AIError] and export embed; convert float32 vectors to runtime float values without changing existing call APIs."
+      ],
+      "acceptance_criteria": [
+        "Import std/ai (embed) type-checks and returns Ok vector or typed Err with stub configuration",
+        "Evaluator and strict VM produce equal values/errors for stub cases",
+        "Legacy _ollama_embed and existing AI exports retain their behavior"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8",
+      "description": "Content-hash cache and expiry",
+      "estimated_loc": 260,
+      "implementation_loc": 140,
+      "test_loc": 120,
+      "dependencies": [
+        "M7"
+      ],
+      "files": [
+        "internal/effects/ai_embed_cache.go",
+        "ai_embed_cache_test.go",
+        "internal/runner/handlers_embed.go",
+        "cmd/ailang/main_run.go"
+      ],
+      "tasks": [
+        "Add embed-cache/embed-cache-ttl, Go-duration parsing and prerequisite validation. Cache in embed-cache namespace using sha256(resolved model identity + NUL + text); reuse BrainCache storage and existing expiration columns."
+      ],
+      "acceptance_criteria": [
+        "Repeated text and cross-run reuse call provider once; changed model misses cache",
+        "Hit returns identical vector and still follows AI cap/budget gate; failures are never cached",
+        "Expired rows are rejected at lookup as well as GC-on-open; enabled cache without persistent SharedMem and invalid TTL fail explicitly",
+        "Cache entries never overwrite unrelated namespaces; cache errors surface explicitly"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9",
+      "description": "Process integration and contention",
+      "estimated_loc": 180,
+      "implementation_loc": 30,
+      "test_loc": 150,
+      "dependencies": [
+        "M8"
+      ],
+      "files": [
+        "internal/runner/persistent_store_integration_test.go",
+        "internal/platform/sharedmem/sqlite_index_concurrency_test.go"
+      ],
+      "tasks": [
+        "Use subprocesses with stub embeddings to prove real restart/process sharing; cover startup cleanup, lock contention, failed provider and TTL."
+      ],
+      "acceptance_criteria": [
+        "Writer process exits, reader retrieves memory and both index query forms",
+        "Concurrent connections preserve committed state; WAL/busy-timeout and transaction behavior are exercised",
+        "No credentials or running Ollama required for automated integration tests"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M10",
+      "description": "Examples, guide and release fragment",
+      "estimated_loc": 130,
+      "implementation_loc": 110,
+      "test_loc": 20,
+      "dependencies": [
+        "M9"
+      ],
+      "files": [
+        "examples/reference/persistent_semantic_store.ail",
+        "examples/reference/persistent_semantic_query.ail",
+        "docs/docs/guides/semantic-caching-how-to.mdx",
+        "cmd/ailang/help.go",
+        "cmd/ailang/doctor_memory.go",
+        "changelogs/unreleased/2026-11-03-persistent-semantic-store.md"
+      ],
+      "tasks": [
+        "Correct persistence claims and document all six flags, two path env vars, existing embed config, TTL, caps, linear scans and two-run commands. Add changelog fragment opening with ### ."
+      ],
+      "acceptance_criteria": [
+        "Both new examples check and run through the stub integration harness against one DB",
+        "Help and guide match shipped flag defaults/prerequisites; ANN/read-only brain remain deferred",
+        "make test-changed, check-file-sizes, check-changelog, verify-stdlib, verify-examples and check-boundaries pass; simplicity audit regression is reviewed"
+      ],
+      "estimated_hours": 1.5,
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "human_decision_gates": [
+    {
+      "before": "M4",
+      "source": "Deferred Decisions: run_policy.go surface",
+      "status": "open",
+      "stop": "STOP: commit current work, report BLOCKED: persistence/embedding flag policy ruling required, and end the run"
+    },
+    {
+      "before": "M5",
+      "source": "Deferred Decisions: OpenRouter embeddings path",
+      "status": "open",
+      "stop": "STOP: commit current work, report BLOCKED: OpenRouter embedding scope ruling required, and end the run"
+    }
+  ]
+}
