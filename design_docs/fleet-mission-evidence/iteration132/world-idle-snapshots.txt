@@ -1,0 +1,22 @@
+[2026-11-21 16:17:02] world: idle snapshot taken for world-1795274220-79759 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-21 16:23:19] slot-verdict: PAUSED-NO-CAPACITY at=gate-2 rc=1 attempt=1/3 stamps=4 last_age_s=177 elapsed_s=443 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-21 20:16:38] world: idle snapshot taken for world-1795288596-89429 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-21 20:22:51] slot-verdict: PAUSED-NO-CAPACITY at=gate-2 rc=1 attempt=1/3 stamps=4 last_age_s=136 elapsed_s=423 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 00:17:50] world: idle snapshot taken for world-1795303068-23906 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 00:18:21] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=28 elapsed_s=153 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 04:17:58] world: idle snapshot taken for world-1795317474-14557 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 04:18:29] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=29 elapsed_s=160 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 08:17:53] world: idle snapshot taken for world-1795331871-12411 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 08:18:21] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=25 elapsed_s=151 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 12:17:43] world: idle snapshot taken for world-1795346261-8346 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 12:18:13] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=28 elapsed_s=143 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 16:18:20] world: idle snapshot taken for world-1795360696-94632 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 16:18:50] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=28 elapsed_s=179 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-22 20:17:50] world: idle snapshot taken for world-1795375068-87568 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-22 20:18:20] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=28 elapsed_s=149 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 00:17:53] world: idle snapshot taken for world-1795389471-77635 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 00:18:22] slot-verdict: PAUSED-NO-CAPACITY at=fired rc=1 attempt=1/3 stamps=1 last_age_s=27 elapsed_s=151 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 04:16:50] world: idle snapshot taken for world-1795403808-60098 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 04:27:19] slot-verdict: PAUSED-NO-CAPACITY at=gate-2 rc=1 attempt=1/3 stamps=4 last_age_s=269 elapsed_s=688 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 08:16:40] world: idle snapshot taken for world-1795418198-51109 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 09:10:10] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=6 last_age_s=13 elapsed_s=3258 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat

@@ -1,0 +1,37 @@
+# orphan fleet fire 2026-11-21 15:15 (crashed at gate-4) and 16:17 (paused at gate-3) — driver log excerpt
+[2026-11-21 15:15:40] LANE DEGRADED this fire: - `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus` - `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+[2026-11-21 15:15:43] === mission iteration starting (controller=claude:claude-opus-5-5 via probe ok, timeout=21600s | bg-wait-ceiling=0ms | roles: designer=claude:claude-opus-5-5 planner=opus executor=claude:claude-haiku-5-5 evaluator=sonnet) ===
+[2026-11-21 15:15:43] scope guard: git pre-push hooks from /Users/voightkampff/.ailang-driver-pin/fleet/tools/launchd/githooks (MISSION_NAME=fleet)
+[2026-11-21 15:15:45] Claude session id: 04901E8F-6AD1-4696-83D9-F1EF263843CE
+secrets-scope: lane=claude-controller kept=4[OPENROUTER_API_KEY,OPENAI_API_KEY,OLLAMA_API_KEY,CLAUDE_CODE_OAUTH_TOKEN] stripped=4[ANTHROPIC_API_KEY,GOOGLE_API_KEY,GEMINI_AGENTS_API_KEY,AILANG_DASHBOARD_TOKEN]
+You've hit your weekly limit · resets Nov 23 at 6am (Europe/Copenhagen)
+[2026-11-21 15:19:05] slot-verdict: CRASHED at=gate-4 rc=1 attempt=1/3 stamps=6 last_age_s=21 elapsed_s=301 mission=fleet hb=/Users/voightkampff/.ailang/state/mission-fleet-heartbeat
+[2026-11-21 15:19:12] transcript-secret-scan: verdict=clean files=9 keys=8 leaks=0 baseline=13668 since=/Users/voightkampff/.ailang/state/mission-fleet-transcript-scan-fleet-1795270542-92814.since
+[2026-11-21 15:19:12] iteration exited rc=1
+[2026-11-21 15:19:14] rc-fail notice already in the inbox (duplicate title) — not re-sent
+[2026-11-21 16:15:46] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum
+[2026-11-21 16:17:08] LANE DEGRADED this fire: - `designer`: **anthropic** lane `claude-opus-5-5` unusable (probe rc=`1` — quota-limited) → handed to `codex:gpt-6.2-sol` - `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`1` — quota-limited) → handed to `pi:openrouter/minimax/minimax-m3` - `designer`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) �
+[2026-11-21 16:17:10] lane-degradation notice already recorded for 2026-11-21 — suppressed by the inbox dedupe, not retried
+[2026-11-21 16:17:10] === mission iteration starting (controller=pi:ollama/glm-5.3:cloud via Anthropic+codex unavailable; pi fallback rung, timeout=21600s | bg-wait-ceiling=0ms | roles: designer=pi:ollama/glm-5.3:cloud planner=pi:ollama/kimi-k3:cloud executor=pi:ollama/deepseek-v4.1-flash:cloud evaluator=pi:openrouter/minimax/minimax-m3) ===
+[2026-11-21 16:17:10] scope guard: git pre-push hooks from /Users/voightkampff/.ailang-driver-pin/fleet/tools/launchd/githooks (MISSION_NAME=fleet)
+secrets-scope: lane=pi-controller kept=4[OPENROUTER_API_KEY,OPENAI_API_KEY,OLLAMA_API_KEY,CLAUDE_CODE_OAUTH_TOKEN] stripped=4[ANTHROPIC_API_KEY,GOOGLE_API_KEY,GEMINI_AGENTS_API_KEY,AILANG_DASHBOARD_TOKEN]
+Warning: No project session found with id 'mission-fleet-1795274230-79731'; creating a new session with that id.
+429: {"message":"you (marked) have reached your session usage limit, upgrade for higher limits: https://ollama.com/upgrade or add usage credits: https://ollama.com/settings (ref: 5d49940d-4a42-46d6-a20f-ef53cc3ba9df)","type":"api_error","param":null,"code":null}
+[2026-11-21 16:23:19] RUNTIME BUCKET LIMIT on pi:ollama/glm-5.3:cloud — probe passed but the real call did not; demoting for this fire
+[2026-11-21 16:23:19] anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-11-21 16:23:25] model claude-opus-5-5 quota-limited — falling through
+[2026-11-21 16:23:25] controller candidate codex:gpt-6.2-sol is OVER RATION (bucket codex) — skipping to a cheaper rung
+[2026-11-21 16:23:25] all Anthropic controller candidates unavailable — walking fallback chain (pi:ollama/glm-5.3:cloud)
+[2026-11-21 16:23:25] controller fallback rung pi:ollama/glm-5.3:cloud DEMOTED this fire (runtime bucket limit) — skipping
+[2026-11-21 16:23:25] PAUSE: every controller rung is unusable or spent (demoted: pi:ollama/glm-5.3:cloud) — not burning the slot on a doomed run
+[2026-11-21 16:23:29] slot-verdict: PAUSED-NO-CAPACITY at=gate-3 rc=1 attempt=1/3 stamps=5 last_age_s=84 elapsed_s=453 mission=fleet hb=/Users/voightkampff/.ailang/state/mission-fleet-heartbeat
+[2026-11-21 16:23:33] transcript-secret-scan: verdict=clean files=15 keys=8 leaks=0 baseline=13705 since=/Users/voightkampff/.ailang/state/mission-fleet-transcript-scan-fleet-1795274230-79731.since
+[2026-11-21 16:23:33] iteration paused for provider capacity (rc=1) — not a crash
+[2026-11-21 22:23:00] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum
+[2026-11-21 22:23:00] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+
+# orphan worktree .wt-fleet-iter132-judge (branch fleet/i132-judge @ 0e522fb4b, never pushed): untracked idle-judge.md head
+# Iteration 132 — Independent Judge Report
+
+**VERDICT: NONE (agree, no routable ticket)**
+**CONFIDENCE: 90%**
