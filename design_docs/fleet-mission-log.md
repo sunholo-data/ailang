@@ -2180,3 +2180,79 @@ Each replied to its filer.
 - Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (51,584 tok). Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
 - Driver routing note verbatim: (empty — no lane degraded).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 132 — 2026-11-23 — pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 88%); World 423/424 add two slots to D-FLEET-45's ticket (10 → 12) on an idle snapshot no fire could record; the 11-21 15:15 fire died on the Anthropic weekly limit and is credited here; weekly sweep 0 harness-scope orphans of 90; bookkeeping rotated #2341 → #2445 [ADMIN]
+
+**Pick**: NONE. The 16 open tickets match [iteration 131's snapshot](fleet-mission-evidence/iteration131/tickets.json) except one: `skill:idle-record-barred-on-degraded-no-pick-fire` gained two occurrences (`inbox_1795404296951_40d30714`, `inbox_1795418443750_1004eee2`), and its count went from 10 to 12 slots ([snapshot](fleet-mission-evidence/iteration132/tickets.json)). OPEN rows are still D-FLEET-44, 45 and 46 ([tsv](fleet-mission-evidence/iteration132/open-decisions.tsv)). No commit touched the charter since `21a39fb90`.
+- 0 allowlisted directives on #2341 (28 comments; no watermark file, so the whole issue was read). Self-notices returned rc 1. There is 1 crash notice (2026-11-21T14:19:15Z, url `…#issuecomment-7063993188`), credited below and not seen in any earlier log entry. The control is 852:10. There is 1 transcript-exposure notice, for fire `fleet-1795100889-10927` (iteration 125, already reported by 125–131).
+- This is the first fire after the Monday 07:00 boundary: #2341 was created 2026-11-16T07:02Z, before 2026-11-23 07:00 CET. Both the weekly sweep and the thread rotation were due.
+- `MISSION_OVER_RATION=codex`. The planner was handed to `opus` and the executor to `claude:claude-haiku-5-5`. Neither was spawned.
+
+**Orphaned fire (credited, not adopted)**: iteration 132's first attempt was the 2026-11-21 15:15 fire (controller opus).
+- It died after 301 s with "You've hit your weekly limit · resets Nov 23 at 6am". Slot verdict: `CRASHED at=gate-4 rc=1`.
+- The 16:17 fire (pi controller `glm-5.3:cloud`) paused at gate-3 on an Ollama session 429 (`PAUSED-NO-CAPACITY`).
+- They left the untracked `design_docs/fleet-mission-evidence/iteration132/` in the pin, plus the worktree `.wt-fleet-iter132-judge` (branch `fleet/i132-judge` at `0e522fb4b`, never pushed: `git ls-remote origin 'refs/heads/fleet/i132*'` is empty). That worktree holds an `idle-judge.md` reading NONE 90% ([excerpt](fleet-mission-evidence/iteration132/orphan-fire.txt)).
+- Its verdict was not adopted: it judged a two-day-old queue.
+- Between 11-21 22:25 and 11-23 04:36, all 6 fleet fires paused at `fired`: codex over ration, Ollama demoted, Anthropic quota-limited.
+
+**Preflight / observe**:
+- Armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink copy and the pin's CWD copy both match origin/dev on SKILL.md and all 13 resource files, checked per file. Pin HEAD = origin/dev = `ca4d738e1`.
+- Gate 1 base `ca4d738e1f654b5f9a9118603edbbdb602acdd98@2026-11-23T09:38:13Z`.
+  - `CI` and `Build and Release` success at `ca4d738e1`; Docs-Deploy success at `0e522fb4b` (path-filtered).
+  - 18 check-runs, 0 not green. No open `fleet/*` PRs.
+
+**Weekly sweep** ([issue-sweep.md](fleet-mission-evidence/iteration132/issue-sweep.md)): 0 harness-scope orphans of 90 enumerated.
+- `gh issue list` length and search total are both 90. The positive control (`#2341`) fired at 23; a fresh negative control fired at 0.
+- 79 issues have zero mentions. The 16 filed since the 11-16 sweep are language core, type checker, REPL/playground, CLI, stdlib or packages (#2442, which already has the design doc `m-pkg-path-dep-precedence`), plus triage's own bookkeeping thread #2428. Iteration 114 triaged the older ones the same way.
+- No queue row.
+
+**Did** (generator ≠ judge):
+- **Controller first-party**, from World's driver log ([excerpt](fleet-mission-evidence/iteration132/world-idle-snapshots.txt), [verdicts](fleet-mission-evidence/iteration132/world-slot-verdicts.txt)):
+  - World's head moved to `95a8775` between its 14:38 IDLE exit and its 16:17 fire on 11-21.
+  - All 11 World fires since then took the same snapshot `1ac80c01…` (`head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0`).
+  - 10 of them paused before Gate 5 (pi controller). World 424 (08:16 11-23, opus) COMPLETED in 3258 s but was degraded (codex 39.0% vs 32.9%), so it could not record.
+- **Judge** sonnet (`resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin`; Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only).
+  - Spawn attempts 1 and 2 ended in `API Error: 529 Overloaded` with no output. Attempt 3, identical brief, returned 70,479 tok, 9 tool uses, 58 s.
+  - The brief carried the inputs and asked it to refute NONE. Verdict **NONE 88%**. [Report](fleet-mission-evidence/iteration132/idle-judge.md).
+  - Claims 1–5 confirmed. The mapping re-derives to 8 awaiting D-FLEET-46, 5 out of scope, 1 folded into ruled D-FLEET-18, and 2 parked on D-FLEET-44/45, which sums to 16.
+  - Correction adopted: the first `1ac80c01` snapshot is 11-21 16:17, not 20:16 as briefed. The controller re-read it first-party.
+  - New point: World 423 wrote a full no-pick record before its 429 (World 424 landed it via World PR #634). So D-FLEET-45 A's retained unfinished-gate bar would have barred it as well.
+  - Strongest argument against NONE: D-FLEET-44 A could begin with an in-scope design revision. Rejected: its default is B, and the revision feeds an approval that is still required.
+- **Recorded**: the D-FLEET-45 row and queue row 62 gain the 423/424 measurement. The row stays OPEN and B is unchanged. No ledger row changed status.
+- **Rotated** the bookkeeping thread. Opened #2445 and posted the weekly report there. #2341 got "→ continues in #2445" (comment count 28 → 29) and was closed. State files now read 2445 (current) and 2341 (prev).
+
+**Ruled out**:
+- Adopting the orphan's NONE 90% verdict: it judged the queue as it stood on 11-21.
+- Counting World 424 as a slot the degraded bar cost: no fire had recorded `1ac80c01`, so 424 could not have skipped.
+- Spawning the evaluator on a fallback lane after two 529s. A 529 is a transient server overload, not a dead lane, and the third attempt on the pinned lane succeeded.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) The rig lost about two days of fleet slots (11-21 15:15 → 11-23 10:37) to the three buckets being spent at the same time. The fleet's PAUSE did its job: no doomed runs.
+- (b) Sixth consecutive NONE fire (127–132).
+
+**Retro lane**: no skill edit. The 529 retry is a single friction, so the ≥2-friction bar is not met.
+
+**Progress**: 16 open tickets, unchanged. Goal unmoved.
+- Clause 2 unmoved. Clause 1 UNMEASURED; clause 3 MET; clause 4 met by its letter; clause 5 preserved (no harness change).
+- Harness share, last 20 log headlines: 12/20 (20 tagged; the HARNESS rows are 115–126, the fleet's own ticket landings).
+- Last 3 landings (123, 125, 126) moved clause 2 (ticket resolutions).
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 46 rows valid.
+- STATUS rotation: charter 432 → 432 lines (+4 stamp, −4 moved). Three stamps remain. The archive gained ITERATION 129 (grep 1; control ITERATION 128 = 1). Queue row 68 present (1); `decision-ledger:end` present (1).
+- No code changed, so Gate 3b does not apply. The record ships as a PR.
+
+**Next**: no routable ticket is expected. A ruling on D-FLEET-46 (eight tickets) is the highest-yield ask. If the next identical World fire runs in full while codex is over ration, count it as D-FLEET-45's 13th slot. That would be the first slot the degraded bar cost on the `1ac80c01` snapshot.
+
+**Routing evidence**: base=`ca4d738e1f654b5f9a9118603edbbdb602acdd98`@2026-11-23T09:52:10Z (Gate 4).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned**: no pick. This is a routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: `opus` (codex over ration → opus, per driver). **Not spawned**: no pick.
+- Executor: `claude:claude-haiku-5-5` (codex over ration, per driver). **Not spawned**: no pick.
+- Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground.
+  - 3 spawn attempts: 2 × `529 Overloaded` (no output), then 1 success (70,479 tok).
+  - No fallback lane used.
+  - Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
+- Driver routing note verbatim: controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5 (probe ok); lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+- Cost: metered $0 (Anthropic subscription only).

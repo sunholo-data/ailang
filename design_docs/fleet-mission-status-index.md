@@ -12,6 +12,11 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 129 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 78%); World 420's idle snapshot is byte-identical to 419's (`dae8092b…`), a ... |
+| 128 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 75%); World 418's idle snapshot is byte-identical to 417's (`0355e1e2…`), th... |
+| 127 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 75%); World 416/417's new occurrences of `skill:idle-record-barred-on-degrad... |
+| 126 | 2026-11-20 | `driver:idle-fingerprint-head-ignores-design-docs-verification` LANDED and RESOLVED — #2431 → `ff08818ae` (idle pre-check now excludes `design_docs... |
+| 125 | 2026-11-19 | `pi:unowned-dirty-absolute-vs-relative-paths` LANDED and RESOLVED — #2411 → `224f1257f` (D-FLEET-33 A; the attended pi-assets sync `d2ee7dc03` clea... |
 | 124 | 2026-11-19 | `quorum:codex-gpt-6.2-sol-not-allowlisted` RESOLVED as a ghost of `8e04a29c5` (stale rig binary; existing guard `TestCodexReviewerID_IsAnAllowliste... |
 | 123 | 2026-11-19 | `gate0:self-notices-rc2-no-watermark-file` LANDED and RESOLVED — #2421 → `cf540337e` (PR CI 24/24, dev CI 18/18 green; independent judge sonnet PAS... |
 | 122 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A LANDED and RESOLVED — #2419 → `d2f2ec238` (PR CI 24/24, dev CI 18/18 green; fresh judge sonnet PASS 92, 0 blocking); do... |
