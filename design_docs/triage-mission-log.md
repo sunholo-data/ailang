@@ -996,3 +996,25 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Retro**: The queue fingerprint can change when a sibling bookkeeping thread updates even though the included item selection stays fixed. Current and prior reports separate evidence-only refreshes from approvals. Harness escalation share is 8/20 tagged records. No harness or routing changes.
 
 **Next**: Recheck the fixture after normal macOS builds, confirm publication of the attended ruling and carry forward the six dispatch prerequisites.
+
+## 53 — 2026-11-23 — new red dev routed; one real issue verified, judged and labelled [ADMIN]
+
+**Picked**: Selection filters (changed head, held action, 7-day freshness) chose three items from 32 cards, 29 PRs and 90 issues: issue #2442, card task-880118fa (no PR) and the sibling fleet thread #2445 (excluded, reported). Everything else was fresh and skipped.
+
+**Reality check**: Reviewed `origin/dev` 105a10537ca3df641d729cae49a07deab0c970e4. Resolved skill read from the symlink target. Landed-card dry run: 0 of 32. Dev CI red: first red commit 7e195ba84 (13:37Z), seven consecutive red runs; `test` and `test-windows` failed first, `test-windows` alone on 105a10537. Failing test name not extracted.
+
+**Shipped**: Merged iteration 52's record PR #2440 (82917eca8) under D-TRIAGE-81 after files-only and ledger checks. Labelled #2442 `priority:P2`, `area:pkg`. Evidence and table posted as [a comment on #2428](https://github.com/sunholo-data/ailang/issues/2428#issuecomment-7105754998). Routed the red to design-doc-creator (inbox_1795447998263_b0372c15). Zero attestations, closes, approvals, rejections or handoffs.
+
+**Judge**: claude:claude-sonnet-5-5 CONCUR on #2442 KEEP-PLANNED after an independent second-phrasing search.
+
+**Routing evidence**: Verifier `claude:claude-haiku-5-5` (resolver `recipe … declared:provider-pin`, spawned through the Agent tool), judge `sonnet` (`agent-tool sonnet declared:alias-pin`). Both Anthropic; models differ, which D-TRIAGE-10 allows, but this is not a cross-vendor judge. The first spawn was rejected by the fail-closed role-token hook and succeeded with `MISSION-ROLE:` as the first prompt line. Base 105a10537@2026-11-23T15:30:14Z. Token counts: verifier 60,716, judge 43,324.
+
+**Decisions**: D-TRIAGE-82 stays OPEN (attended option A awaits publication via #2429). Orphan card task-880118fa fresh, to be re-checked.
+
+**Progress**: 2 shadow rows written. Shadow score not recomputed (it52: 28/29).
+
+**Ruled out**: Treating the fresh orphan card as a stall; it is under 1h old.
+
+**Retro**: The triage Gate-3 text says to use the cross-provider recipe, but the resolver now returns Agent-tool lanes; the role-token hook is not mentioned in gate-3-triage.md. No skill edit made.
+
+**Next**: Re-check task-880118fa for a PR; confirm red-dev fix design; STATUS-stamp rotation not done this iteration.
