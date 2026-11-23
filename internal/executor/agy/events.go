@@ -54,6 +54,7 @@ type agyStep struct {
 type agyToolInfo struct {
 	Name       string         `json:"name"`
 	Parameters map[string]any `json:"parameters"`
+	Output     string         `json:"output"`
 	Error      *struct {
 		Type    string `json:"type"`
 		Message string `json:"message"`
@@ -74,6 +75,34 @@ func deniedCommand(raw json.RawMessage) string {
 		return c
 	}
 	return ti.Name
+}
+
+// sandboxConfigError returns the message of a tool step that failed because agy's
+// terminal sandbox could not be configured, or "". agy 1.5.15 reports it as a DONE
+// step whose tool_info.output reads "Command failed to run: sandbox configuration
+// error: ..." (testdata/sandbox_config_error.ndjson); the error field is checked too.
+func sandboxConfigError(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var ti agyToolInfo
+	if json.Unmarshal(raw, &ti) != nil {
+		return ""
+	}
+	for _, m := range []string{ti.Output, errMessage(ti)} {
+		if i := strings.Index(m, "sandbox configuration error"); i >= 0 {
+			line, _, _ := strings.Cut(m[i:], "\n")
+			return line
+		}
+	}
+	return ""
+}
+
+func errMessage(ti agyToolInfo) string {
+	if ti.Error == nil {
+		return ""
+	}
+	return ti.Error.Message
 }
 
 type agyDenied struct {

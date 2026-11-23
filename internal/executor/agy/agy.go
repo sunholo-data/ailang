@@ -104,7 +104,11 @@ func (e *AgyExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task,
 	res, err := e.executeStreaming(ctx, task, handler)
 	if res != nil {
 		res.ExecutorVersion = e.Version(ctx)
-		res.ToolPolicy = effectiveToolPolicy(task)
+		if res.ToolPolicy == nil {
+			// Set by executeStreaming once the toolchain is known; a run that failed
+			// before that point still banks the posture it would have used.
+			res.ToolPolicy = effectiveToolPolicy(task, nil)
+		}
 		res.PolicyDigest = executor.PolicyDigest(task.PolicyPath)
 	}
 	return res, err
@@ -115,6 +119,7 @@ func buildArgs(cliModel, directive string, printTimeout time.Duration) []string 
 	args := []string{
 		"--model", cliModel,
 		"--mode", "accept-edits",
+		"--sandbox",
 		"--output-format", "stream-json",
 		"--disable-slash-commands",
 	}
@@ -150,11 +155,15 @@ func (e *AgyExecutor) executeStreaming(ctx context.Context, task *executor.Task,
 	if err != nil {
 		return nil, err
 	}
-	allow, deny := permissionRules(task)
+	tc, err := toolchainFor(home)
+	if err != nil {
+		return nil, err
+	}
+	allow, deny := permissionRules(task, tc.writable())
 	if err := ensureSettings(home, route, allow, deny); err != nil {
 		return nil, err
 	}
-	routeVars, err := routeEnv(route, home)
+	routeVars, err := routeEnv(route, home, tc)
 	if err != nil {
 		return nil, err
 	}
@@ -257,6 +266,7 @@ func (e *AgyExecutor) executeStreaming(ctx context.Context, task *executor.Task,
 	finish := func(r *executor.Result) *executor.Result {
 		r.DurationMS = int(time.Since(start).Milliseconds())
 		r.EnvNamesDigest = envNames
+		r.ToolPolicy = effectiveToolPolicy(task, tc.writable())
 		r.SuccessAtMs = -1
 		r.FirstAttemptMs = st.firstAttemptMs(start)
 		r.CostKilledAt = task.Budget.KilledAt()

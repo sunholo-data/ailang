@@ -262,7 +262,12 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
   - Bucket `google` in `ailang mission quota`, observed through `agy -p /quota` (internal/mission/google_quota.go).
   - The Gemini weekly window is paced at `AILANG_GOOGLE_DAILY_PACE`=15 %/calendar day with a 2pp start margin. The 5h window blocks only when exhausted. An unreadable quota is blocked.
   - The weekly window began at first use, 2026-11-23T14:09Z. The smoke gate had spent 3% by then, so the loops admit google from about 8h into the window.
-- **Still open:** D3 ratification (Mark). D6 waits on core/frontier placement.
+- **D3 DECIDED (Mark, 2026-11-23, option B):**
+  - `--sandbox` plus `command(*)`, with denials for git writes, rm -rf, sudo, curl and wget.
+  - Absolute `write_file()` grants for GOCACHE, GOMODCACHE and a fixed per-route TMPDIR.
+  - Measured: outside writes and `~/.config` are blocked; Go build, `ailang run` and the workspace cwd are fine.
+  - Traps: relative rules break the sandbox while agy reports SUCCESS, so the executor fails such runs; `--add-dir` moves the shell cwd.
+- **D6:** see the mission env change that adds agy as an executor fallback rung.
 
 ## Deferred Decisions
 

@@ -66,32 +66,39 @@ func settingsPath(home string) string {
 	return filepath.Join(home, ".gemini", "antigravity-cli", "settings.json")
 }
 
-// Permission posture (D3, PROPOSED — awaiting Mark's ratification).
+// Permission posture (D3, option B — Mark, attended 2026-11-23: "yep go ahead").
 //
-// agy runs in --mode accept-edits: workspace file edits proceed, everything else
-// needs a rule. In -p mode an action without a rule is SOFT-DENIED: the run
-// exits 0 with status SUCCESS and lists it under denied_actions, which this
-// executor banks as a failure. Rules are word-by-word command prefixes
-// (antigravity.google/docs/permissions?tab=cli); deny beats allow.
+// agy runs with --sandbox (terminal sandbox) in --mode accept-edits, and the rules
+// allow EVERY command — the sandbox, not a command allowlist, is the boundary. The
+// narrow allowlist this replaced voided 2 of 23 smoke runs on the model's own
+// self-checks (an inline python3 assertion; `diff <(...) && rm -f`).
 //
-// --dangerously-skip-permissions is deliberately NOT used.
-var (
-	defaultAllowCommands = []string{
-		"ailang", "go", "git", "make", "gofmt",
-		"ls", "cat", "head", "tail", "grep", "rg", "find", "wc", "diff", "sort", "uniq",
-		"sed", "awk", "jq", "echo", "printf", "pwd", "mkdir", "touch", "cp", "mv", "test",
-	}
-	defaultDeny = []string{
-		"command(git push)", "command(git reset)", "command(git clean)", "command(git checkout)",
-		"command(git stash)", "command(git rebase)", "command(rm -rf)", "command(sudo)",
-		"command(curl)", "command(wget)", "write_file(.git/)",
-	}
-)
+// Measured on agy 1.5.15 (2026-11-23) with this posture:
+//   - writes outside the workspace: "operation not permitted"; ~/.config reads: blocked
+//   - the terminal starts in the task workspace; Go builds and `ailang run` work
+//   - writable outside the workspace ONLY where an absolute write_file() rule says:
+//     the Go build and module caches and a fixed per-route TMPDIR
+//
+// Two traps the rules must avoid:
+//   - A RELATIVE path rule (write_file(.git/)) makes the sandbox config invalid, so
+//     EVERY command fails to start while agy still reports status SUCCESS with no
+//     denials. Only absolute paths go in; TestPermissionRules_AllPathsAbsolute pins it,
+//     and stream.go fails a run whose tool steps report a sandbox configuration error.
+//   - --add-dir moves the shell's starting directory to the first added directory (the
+//     Go cache), not the workspace, so it is NOT used to grant the caches.
+//
+// Deny beats allow, so the git-write and network commands below stay refused. In -p mode
+// a refused action is SOFT-DENIED (exit 0, status SUCCESS, denied_actions), which this
+// executor banks as a failure. --dangerously-skip-permissions is never used.
+var defaultDenyCommands = []string{
+	"git push", "git reset", "git clean", "git checkout", "git stash", "git rebase",
+	"rm -rf", "sudo", "curl", "wget",
+}
 
-// permissionRules builds the allow/deny lists for a task. A nil AllowedTools
-// gets the default command allowlist; an explicit list grants shell commands
-// only when it names Bash (the canonical shell tool name).
-func permissionRules(task *executor.Task) (allow, deny []string) {
+// permissionRules builds the allow/deny lists. A nil AllowedTools allows all commands
+// (inside the sandbox); an explicit list grants commands only when it names Bash. The
+// writable paths are granted either way (file tools may need them).
+func permissionRules(task *executor.Task, writable []string) (allow, deny []string) {
 	shell := task == nil || task.AllowedTools == nil
 	if task != nil {
 		for _, t := range task.AllowedTools {
@@ -102,18 +109,24 @@ func permissionRules(task *executor.Task) (allow, deny []string) {
 	}
 	allow = []string{}
 	if shell {
-		for _, c := range defaultAllowCommands {
-			allow = append(allow, "command("+c+")")
+		allow = append(allow, "command(*)")
+	}
+	for _, w := range writable {
+		if filepath.IsAbs(w) {
+			allow = append(allow, "write_file("+w+")")
 		}
 	}
-	return allow, append([]string(nil), defaultDeny...)
+	for _, c := range defaultDenyCommands {
+		deny = append(deny, "command("+c+")")
+	}
+	return allow, deny
 }
 
 // effectiveToolPolicy is what Result.ToolPolicy banks: the rules agy ran under.
-func effectiveToolPolicy(task *executor.Task) []string {
-	allow, deny := permissionRules(task)
+func effectiveToolPolicy(task *executor.Task, writable []string) []string {
+	allow, deny := permissionRules(task, writable)
 	out := make([]string, 0, len(allow)+len(deny)+1)
-	out = append(out, "mode:accept-edits")
+	out = append(out, "mode:accept-edits+sandbox")
 	out = append(out, allow...)
 	for _, d := range deny {
 		out = append(out, "deny:"+d)
@@ -199,44 +212,81 @@ func normalize(m map[string]any) any {
 	return out
 }
 
+// toolchain is where the child's Go toolchain and temp files live. HOME moves to the
+// route HOME, so the operator's locations are passed explicitly (otherwise every run
+// re-downloads modules into the agy HOME and git loses the operator's global config),
+// and the sandbox must be told they are writable.
+type toolchain struct {
+	gopath, gomodcache, gocache, tmp, gitconfig string
+}
+
+// writable is what the sandbox must let the child write outside the workspace.
+func (t toolchain) writable() []string {
+	var out []string
+	for _, p := range []string{t.gocache, t.gomodcache, t.tmp} {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func toolchainFor(home string) (toolchain, error) {
+	realHome, err := os.UserHomeDir()
+	if err != nil {
+		return toolchain{}, fmt.Errorf("agy: cannot resolve the operator HOME: %w", err)
+	}
+	t := toolchain{gopath: config.Raw("GOPATH"), gomodcache: config.Raw("GOMODCACHE"), gocache: config.Raw("GOCACHE")}
+	if t.gopath == "" {
+		t.gopath = filepath.Join(realHome, "go")
+	}
+	if t.gomodcache == "" {
+		t.gomodcache = filepath.Join(strings.Split(t.gopath, string(os.PathListSeparator))[0], "pkg", "mod")
+	}
+	if t.gocache == "" {
+		if cd, err := os.UserCacheDir(); err == nil {
+			t.gocache = filepath.Join(cd, "go-build")
+		}
+	}
+	// A FIXED per-route TMPDIR, so the settings file (shared by concurrent runs) does
+	// not change per run.
+	t.tmp = filepath.Join(home, "tmp")
+	if err := os.MkdirAll(t.tmp, 0o700); err != nil {
+		return toolchain{}, fmt.Errorf("agy: create TMPDIR: %w", err)
+	}
+	if gc := filepath.Join(realHome, ".gitconfig"); fileExists(gc) {
+		t.gitconfig = gc
+	}
+	// The sandbox compares resolved paths (/var -> /private/var on macOS).
+	for _, p := range []*string{&t.gomodcache, &t.gocache, &t.tmp} {
+		if *p == "" {
+			continue
+		}
+		if r, err := filepath.EvalSymlinks(*p); err == nil {
+			*p = r
+		}
+	}
+	return t, nil
+}
+
 // routeEnv is the child's executor-owned environment for a route.
-//
-// HOME moves to the route HOME, so the operator's toolchain locations are
-// passed explicitly: without them every run would re-download Go modules into
-// the agy HOME, and git would lose the operator's global config.
-func routeEnv(route, home string) ([]string, error) {
+func routeEnv(route, home string, t toolchain) ([]string, error) {
 	env := []string{
 		"HOME=" + home,
 		// Any agy invocation may start the background self-updater, and an
 		// unpinned harness under a longitudinal series is the pi-pin lesson
 		// (D4). Measured 2026-11-23: plain runs moved 1.3.5 -> 1.5.15.
 		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
+		"GOPATH=" + t.gopath,
+		"GOMODCACHE=" + t.gomodcache,
+		"TMPDIR=" + t.tmp + "/",
 	}
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("agy: cannot resolve the operator HOME: %w", err)
+	if t.gocache != "" {
+		env = append(env, "GOCACHE="+t.gocache)
 	}
-	gopath := config.Raw("GOPATH")
-	if gopath == "" {
-		gopath = filepath.Join(realHome, "go")
+	if t.gitconfig != "" {
+		env = append(env, "GIT_CONFIG_GLOBAL="+t.gitconfig)
 	}
-	env = append(env, "GOPATH="+gopath)
-	if v := config.Raw("GOMODCACHE"); v != "" {
-		env = append(env, "GOMODCACHE="+v)
-	}
-	gocache := config.Raw("GOCACHE")
-	if gocache == "" {
-		if cd, err := os.UserCacheDir(); err == nil {
-			gocache = filepath.Join(cd, "go-build")
-		}
-	}
-	if gocache != "" {
-		env = append(env, "GOCACHE="+gocache)
-	}
-	if gc := filepath.Join(realHome, ".gitconfig"); fileExists(gc) {
-		env = append(env, "GIT_CONFIG_GLOBAL="+gc)
-	}
-
 	if route == routeAPIKey {
 		key := config.GeminiAgentsAPIKey()
 		if key == "" {

@@ -372,18 +372,93 @@ func TestEnsureSettings_KeepsForeignKeys_StripsBillingKeysOnSubscription(t *test
 }
 
 func TestPermissionRules(t *testing.T) {
-	allow, deny := permissionRules(&executor.Task{})
-	if len(allow) == 0 || !contains(allow, "command(ailang)") || !contains(allow, "command(git)") {
+	w := []string{"/abs/gocache", "/abs/gomod", "relative/tmp"}
+	allow, deny := permissionRules(&executor.Task{}, w)
+	if !contains(allow, "command(*)") || !contains(allow, "write_file(/abs/gocache)") || !contains(allow, "write_file(/abs/gomod)") {
 		t.Errorf("default allow = %v", allow)
 	}
-	if !contains(deny, "command(git push)") || !contains(deny, "write_file(.git/)") {
-		t.Errorf("deny = %v", deny)
+	for _, d := range []string{"command(git push)", "command(git checkout)", "command(rm -rf)", "command(curl)", "command(sudo)"} {
+		if !contains(deny, d) {
+			t.Errorf("deny lacks %s: %v", d, deny)
+		}
 	}
-	if a, _ := permissionRules(&executor.Task{AllowedTools: []string{"Read", "Write"}}); len(a) != 0 {
+	if a, _ := permissionRules(&executor.Task{AllowedTools: []string{"Read", "Write"}}, w); contains(a, "command(*)") {
 		t.Errorf("no Bash in AllowedTools must grant no commands, got %v", a)
 	}
-	if a, _ := permissionRules(&executor.Task{AllowedTools: []string{"bash"}}); len(a) == 0 {
-		t.Error("Bash in AllowedTools must grant the command allowlist")
+	if a, _ := permissionRules(&executor.Task{AllowedTools: []string{"bash"}}, w); !contains(a, "command(*)") {
+		t.Error("Bash in AllowedTools must grant commands")
+	}
+}
+
+// A relative path in ANY rule makes agy's sandbox config invalid: every command then
+// fails to start while the run reports SUCCESS (measured 2026-11-23, write_file(.git/)).
+func TestPermissionRules_AllPathsAbsolute(t *testing.T) {
+	tc, err := toolchainFor(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	allow, deny := permissionRules(&executor.Task{}, append(tc.writable(), "relative/x"))
+	for _, r := range append(allow, deny...) {
+		action, target, ok := strings.Cut(strings.TrimSuffix(r, ")"), "(")
+		if !ok {
+			t.Fatalf("malformed rule %q", r)
+		}
+		if action == "command" {
+			continue
+		}
+		if !filepath.IsAbs(target) {
+			t.Errorf("rule %q has a non-absolute path; the sandbox rejects it", r)
+		}
+	}
+	if len(tc.writable()) < 3 {
+		t.Errorf("writable = %v, want the Go build cache, the module cache and TMPDIR", tc.writable())
+	}
+}
+
+func TestFixture_SandboxConfigError_IsFailure(t *testing.T) {
+	setupHomes(t)
+	m := newMockAgy(t, ExpectedVersion, "sandbox_config_error", 0, "")
+	res := runTask(t, newExec(t, m), "gemini-4-neon-high", nil)
+	if res.Success {
+		t.Fatal("a run whose commands hit a sandbox configuration error must not bank as success (agy said SUCCESS)")
+	}
+	if !strings.Contains(res.Error, "sandbox configuration error") || !strings.Contains(res.Error, "non-absolute") {
+		t.Errorf("Error = %q", res.Error)
+	}
+}
+
+func TestArgsAndEnv_SandboxPosture(t *testing.T) {
+	root := setupHomes(t)
+	m := newMockAgy(t, ExpectedVersion, "edit", 0, "")
+	res := runTask(t, newExec(t, m), "gemini-4-neon-high", nil)
+	if !contains(m.args(t), "--sandbox") {
+		t.Errorf("argv must carry --sandbox: %v", m.args(t))
+	}
+	for _, a := range m.args(t) {
+		if a == "--add-dir" {
+			t.Error("--add-dir moves the shell's start directory off the workspace; never pass it")
+		}
+	}
+	env := m.env(t)
+	wantTmp := filepath.Join(root, routeSubscription, "tmp")
+	if r, err := filepath.EvalSymlinks(wantTmp); err == nil {
+		wantTmp = r
+	}
+	if env["TMPDIR"] != wantTmp+"/" {
+		t.Errorf("TMPDIR = %q, want the fixed per-route %q", env["TMPDIR"], wantTmp+"/")
+	}
+	if env["GOMODCACHE"] == "" || env["GOCACHE"] == "" {
+		t.Errorf("the child must get explicit Go caches: GOMODCACHE=%q GOCACHE=%q", env["GOMODCACHE"], env["GOCACHE"])
+	}
+	if !contains(res.ToolPolicy, "mode:accept-edits+sandbox") || !contains(res.ToolPolicy, "write_file("+wantTmp+")") {
+		t.Errorf("ToolPolicy = %v", res.ToolPolicy)
+	}
+	var settings map[string]any
+	b, _ := os.ReadFile(settingsPath(filepath.Join(root, routeSubscription)))
+	_ = json.Unmarshal(b, &settings)
+	perms, _ := settings["permissions"].(map[string]any)
+	if !strings.Contains(fmt.Sprint(perms["allow"]), "write_file("+wantTmp+")") {
+		t.Errorf("settings allow = %v", perms["allow"])
 	}
 }
 

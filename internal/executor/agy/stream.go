@@ -34,6 +34,7 @@ type streamState struct {
 	stepIn, stepOut, stepThink, stepCache int
 
 	deniedCmds    []string
+	sandboxErrs   []string
 	result        *agyResult
 	unknownEvents map[string]int
 	unparsed      int
@@ -109,6 +110,11 @@ func (s *streamState) observe(line []byte, task *executor.Task, handler executor
 				handler.OnToolUse(name, args)
 				if s.firstEditAt.IsZero() && isEditTool(name) {
 					s.firstEditAt = time.Now()
+				}
+			}
+			if st.State == "DONE" || st.State == "ERROR" {
+				if m := sandboxConfigError(st.ToolInfo); m != "" {
+					s.sandboxErrs = append(s.sandboxErrs, m)
 				}
 			}
 			if st.State == "DONE" {
@@ -187,6 +193,13 @@ func (s *streamState) verdict(waitErr error, route string) *executor.Result {
 			msg = signinHint(route) + " — agy said: " + msg
 		}
 		r.Error = "agy status " + s.result.Status + ": " + msg
+	case len(s.sandboxErrs) > 0:
+		// agy reports status SUCCESS with no denials when its sandbox configuration is
+		// invalid, yet every command fails to start (measured 2026-11-23: a relative
+		// write_file rule). The run did nothing; never bank it as success.
+		r.FinishReason = executor.FinishError
+		r.Error = fmt.Sprintf("agy sandbox configuration error on %d tool call(s): %s (permission rules: internal/executor/agy/route.go)",
+			len(s.sandboxErrs), tailOf(s.sandboxErrs[0], 300))
 	case len(s.result.DeniedActions) > 0:
 		// Soft denial: exit 0, status SUCCESS, but the agent was refused a tool
 		// it asked for. Banked as a failure so an under-permitted run is never

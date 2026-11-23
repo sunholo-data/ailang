@@ -52,3 +52,19 @@ pace value or unparseable output all block. `--over` prints `google`, and the mi
 it. A failed quota command now blocks `codex ollama google`, so an `agy:` subscription rung is
 refused unprobed when over. The metered `agy:api/` route has its own bucket (`gemini-api`) and is
 not paced by this.
+
+### Changed — agy runs in its terminal sandbox with all commands allowed (D3 option B)
+
+agy now runs with `--sandbox`, and its rules allow every command (`command(*)`). The sandbox is the
+boundary, not a command allowlist.
+
+- **Allowed and denied:** git-write commands, `rm -rf`, `sudo`, `curl` and `wget` stay denied.
+  Writes outside the workspace are allowed only through absolute `write_file()` grants, for the Go
+  build cache, the Go module cache and a fixed per-route `TMPDIR`.
+- **Measured:** writes outside the workspace and reads of `~/.config` are refused. Go builds and
+  `ailang run` work, and the shell starts in the workspace.
+- **Two traps avoided:**
+  - A relative path rule silently breaks the sandbox: every command fails while agy reports
+    SUCCESS. Such runs are now failed by the executor, and the rules carry absolute paths only.
+  - `--add-dir` moves the shell's starting directory away from the workspace, so it is not used.
+- **Why:** the narrow allowlist voided 2 of 23 agent smoke runs on the model's own self-checks.
