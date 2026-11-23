@@ -1,0 +1,46 @@
+[2026-11-23 16:48:17] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=7 last_age_s=12 elapsed_s=1943 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 16:48:31] transcript-secret-scan: verdict=clean files=46 keys=8 leaks=0 baseline=13672 since=/Users/voightkampff/.ailang/state/mission-world-transcript-scan-world-1795446993-95284.since
+[2026-11-23 16:48:31] iteration complete (rc=0)
+[2026-11-23 20:15:51] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-world
+[2026-11-23 20:15:51] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-11-23 20:15:54] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-world
+[2026-11-23 20:15:54] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-11-23 20:15:54] driver pin: running committed origin/dev @ 6c4ec9c4b with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-world (source clone /Users/voightkampff/dev/sunholo-data/ailang was 2 behind); pinned target 0 behind origin/dev (baseline 6c4ec9c4b72358324e6f84502c17a5ee95b7a789)
+[2026-11-23 20:15:54] driver pin drift: 2 below warning threshold 25; notice re-armed
+[2026-11-23 20:15:54] driver pin age: 0 below warning threshold 25; notice re-armed
+[2026-11-23 20:16:12] Codex quota window: state=ok window=10080m used=39.0% allowed=42.9% start_margin=2.0pp observed=2026-11-23T19:15:54Z
+[2026-11-23 20:16:12] ration gate: blocked buckets (over ration or unknown quota):anthropic google 
+[2026-11-23 20:16:12] anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-11-23 20:16:22] anthropic:sonnet quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-11-23 20:16:41] skill-sync=skip:ahead checkout has local commits
+[2026-11-23 20:16:41] memory gate: ok (avail=82209MB >= 16384MB, compressed=1091MB <= 49152MB)
+[2026-11-23 20:16:41] anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-11-23 20:16:50] world: idle snapshot taken for world-1795461408-73741 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 20:16:50] === mission iteration starting (controller=claude:claude-opus-5-5 via probe ok, timeout=21600s | bg-wait-ceiling=0ms | roles: designer=claude:claude-opus-5-5 planner=codex:gpt-6.2-sol executor=codex:gpt-6.2-sol evaluator=sonnet) ===
+[2026-11-23 20:16:50] scope guard: git pre-push hooks from /Users/voightkampff/.ailang-driver-pin/world/tools/launchd/githooks (MISSION_NAME=world)
+[2026-11-23 20:16:52] Claude session id: E6C591F4-7D0F-4141-8030-6E670B5A490D
+secrets-scope: lane=claude-controller kept=4[OPENROUTER_API_KEY,OPENAI_API_KEY,OLLAMA_API_KEY,CLAUDE_CODE_OAUTH_TOKEN] stripped=4[ANTHROPIC_API_KEY,GOOGLE_API_KEY,GEMINI_AGENTS_API_KEY,AILANG_DASHBOARD_TOKEN]
+Iteration 427 is done: nothing was picked, and the record landed through PR #638 (merge `35f5dc6b`, dev CI 3/3 green).
+
+**Why nothing was picked:** everything the loop could work on still waits on D-WORLD-119 and D-WORLD-120, which are open and unchanged since iteration 406. Since iteration 426, only 426's own record commits landed, and no decision-ledger rows changed. The driver's input snapshot (`1ac80c01…`) has been identical in every fire today. This is the 18th block report in a row.
+
+**What's different this time:** the codex lane was back within its allowance (39.0% used against 42.9% allowed, which is what 426 predicted), and every role ran on its configured model. Since nothing degraded, I recorded the idle fingerprint (rc 0). The next fire with unchanged inputs should exit at the idle pre-check instead of writing another full report, until the record expires after 24 h. Row 263's ticket stays at 14 because nothing failed this fire.
+
+**CI on the record PR:** the first attempt failed two test jobs on a change that only touched docs. Each failure was a known flaky test:
+- `TestFinishConfirmOnSurfaceDispatchesTheNamedDecision` failed in the race job. This is its 4th recorded failure (row 266).
+- `TestMarketingCaptureFakeChromeSixShots/scheme` hit its fixed 120 s timeout (row 247).
+
+Rerunning the failed jobs gave 3/3 green, as did the final head and the merge. I added both failures to their rows with an evidence file. Fixing either test needs your scope grant.
+
+**Judges:** the required independent evaluator was spawned twice as a Sonnet agent, so the model judging the record was not the one that wrote it.
+- **The record:** PASS 94/100, no blocking findings.
+- **The flaky-test notes:** PASS 86/100, no blocking findings. It caught a wrong detail I had written ("5 of 6 shots done"; both six-shot passes had actually finished). I checked it against the log and corrected it before merging.
+
+**Reports:** the digest is posted on issue #635 (comments went from 4 to 5) and sent to controlplane as `[fyi]`. I read the controlplane message back and the body arrived intact. There were no directives from you to act on. The main checkout was not touched.
+
+**Decisions for you (unchanged):**
+- **D-WORLD-119:** may the app launch a confined episode through the runner after a key approval? I recommend A. Every remaining V4 sprint waits on this.
+- **D-WORLD-120:** may finish run without a terminal? I recommend A. Sprints 9–11 also wait on this.
+[2026-11-23 21:17:58] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=9 last_age_s=12 elapsed_s=3724 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 21:18:11] transcript-secret-scan: verdict=clean files=58 keys=8 leaks=0 baseline=13704 since=/Users/voightkampff/.ailang/state/mission-world-transcript-scan-world-1795461408-73741.since
+[2026-11-23 21:18:11] iteration complete (rc=0)
