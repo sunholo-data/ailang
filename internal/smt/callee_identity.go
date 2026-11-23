@@ -146,14 +146,17 @@ func (w *identityWalker) walk(expr core.CoreExpr, current *core.Program) *misres
 	}
 	switch e := expr.(type) {
 	case *core.App:
+		// A specialised HOF's head is never looked up; its (eta-expanded)
+		// function argument is a call head inside the lambda body.
+		if call, isHOF := matchHOFCall(e); isHOF {
+			return w.walkAll(hofCallParts(call), current)
+		}
 		// Only a name in CALL position is looked up as a callee body by the
 		// bare-name pipeline (collectCalleeCallsInner inspects App.Func), so only
 		// those can be misbound. A bare Var elsewhere is a value — often a
 		// parameter that happens to share a top-level function's name.
-		if _, isHOF := matchHOFCall(e); !isHOF { // a specialised HOF head is never looked up
-			if m := w.checkCallHead(e.Func, current); m != nil {
-				return m
-			}
+		if m := w.checkCallHead(e.Func, current); m != nil {
+			return m
 		}
 		if m := w.walk(e.Func, current); m != nil {
 			return m

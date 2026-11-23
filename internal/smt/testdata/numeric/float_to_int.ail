@@ -1,0 +1,22 @@
+module float_to_int
+import std/math (floatToInt)
+
+-- The runtime truncates toward zero: floatToInt(-2.5) is -2.
+export func truncNeg(x: float) -> int ! {}
+requires { x == -2.5 }
+ensures { result == -2 } {
+  floatToInt(x)
+}
+
+-- Z3's to_int floors to -3; proving this was a false VERIFIED.
+export func floorNegBad(x: float) -> int ! {}
+requires { x == -2.5 }
+ensures { result == -3 } {
+  floatToInt(x)
+}
+
+export func truncPos(x: float) -> int ! {}
+requires { x == 2.5 }
+ensures { result == 2 } {
+  floatToInt(x)
+}

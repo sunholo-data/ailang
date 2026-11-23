@@ -1230,7 +1230,7 @@
     },
     "v0.16.17": {
       "file": "prompts/v0.16.17.md",
-      "hash": "93bf1f65377ebd8a3b69eeb3d26d13187c112fec754fef1d648f176d5ad8f160",
+      "hash": "f48bc650c5f043a1485af143151a8107e957396f25f7a811eef620c07e3a4a9c",
       "description": "Contracts: correct the Z3 fragment — floats verify as Real, recursion bounded/inconclusive, HOFs and bitwise skipped, requires unchecked at call sites, int overflow not modelled",
       "created": "2026-11-23",
       "tags": [

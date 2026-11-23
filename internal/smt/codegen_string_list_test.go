@@ -500,7 +500,7 @@ func TestEncodeApp_IntToFloat(t *testing.T) {
 }
 
 func TestEncodeApp_FloatToInt(t *testing.T) {
-	// floatToInt(x) → (to_int x)
+	// floatToInt(x) truncates toward zero like the runtime; Z3's to_int floors.
 	app := &core.App{
 		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "floatToInt"}},
 		Args: []core.CoreExpr{&core.Var{Name: "x"}},
@@ -509,8 +509,9 @@ func TestEncodeApp_FloatToInt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "(to_int x)" {
-		t.Errorf("got %q, want %q", got, "(to_int x)")
+	want := "(ite (>= x 0.0) (to_int x) (- (to_int (- x))))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

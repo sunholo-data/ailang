@@ -294,9 +294,9 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		// A literal-lambda map/filter/foldl/any/flatMap is specialised in place
 		// (InlineHOFCalls), never resolved as a callee body: walk its arguments
 		// (the lambda body's own calls still count) but not its head.
-		if _, ok := matchHOFCall(e); ok {
-			for _, arg := range e.Args {
-				collectCalleeCallsInner(arg, selfName, prog, imported, seen, xmodDepth)
+		if call, ok := matchHOFCall(e); ok {
+			for _, part := range hofCallParts(call) {
+				collectCalleeCallsInner(part, selfName, prog, imported, seen, xmodDepth)
 			}
 			return
 		}
@@ -459,9 +459,9 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 	}
 	switch e := expr.(type) {
 	case *core.App:
-		if _, ok := matchHOFCall(e); ok { // specialised in place, not a callee
-			for _, arg := range e.Args {
-				collectDirectCallsInner(arg, selfName, prog, imported, seen)
+		if call, ok := matchHOFCall(e); ok { // specialised in place, not a callee
+			for _, part := range hofCallParts(call) {
+				collectDirectCallsInner(part, selfName, prog, imported, seen)
 			}
 			return
 		}

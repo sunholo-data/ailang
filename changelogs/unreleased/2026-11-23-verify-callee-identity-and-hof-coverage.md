@@ -42,3 +42,23 @@ skip reasons no longer repeat their prefix.
 Two encoder limits used to surface as `! ERROR` (exit 1, `verifier_error`): a call with no SMT
 form ("unsupported application: …") and a cycle among inlined helpers ("circular function call
 detected"). They are now `unsupported_encoding` skips, like the other capability boundaries (#757).
+
+### Added — more of real code reaches a verdict (2026-11-23)
+
+- `map(double, xs)`, `filter(isTable, blocks)`, `foldl(step, 0, xs)`: a named top-level function
+  argument is eta-expanded and specialised like a lambda. A function-typed *parameter* is still
+  skipped.
+- A map/filter specialisation's frontier is now a length-preserving `seq.map` (map) or a list no
+  longer than its input (filter). So `length(result) == length(xs)` / `<= length(xs)` are proved
+  for lists of any length, not only within the unrolling depth. This is quantifier-free: a
+  quantified fact made Z3 time out on false contracts.
+- Encoded directly, as full proofs over any element sort:
+  - `std/list` `nthOr`/`nth_or`, `headOr`/`head_or`, `lastOr`/`last_or`;
+  - the Option-returning `head`/`nth`/`last`;
+  - `std/option` `getOrElse`/`isSome`/`isNone`. `Option` is declared on demand.
+
+### Fixed — `floatToInt` was verified as floor, but runs as truncation (2026-11-23)
+
+The verifier encoded `floatToInt` as Z3's `to_int`, which rounds toward −∞, while the runtime
+truncates toward zero. So `ensures { result == -3 }` for `floatToInt(-2.5)` was VERIFIED, and the
+program returns −2. It is now encoded as truncation toward zero.

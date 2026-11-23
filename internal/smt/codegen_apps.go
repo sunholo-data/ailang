@@ -25,7 +25,7 @@ func encodeApp(app *core.App) (string, error) {
 		if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeListBuiltin(spec, app.Args)
 		}
-		// Numeric conversion builtins (intToFloat → to_real, floatToInt → to_int)
+		// Numeric conversion builtins (intToFloat → to_real, floatToInt → truncation)
 		if spec, ok := NumericBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeNumericBuiltin(spec, app.Args)
 		}
@@ -39,6 +39,12 @@ func encodeApp(app *core.App) (string, error) {
 			}
 			if spec, ok := ListBuiltinSpecial[builtinName]; ok {
 				return encodeListBuiltin(spec, app.Args)
+			}
+			if enc, ok, err := encodeListDefaultedAccess(builtinName, app.Args); ok {
+				return enc, err
+			}
+			if enc, ok, err := encodeOptionAccess(builtinName, app); ok {
+				return enc, err
 			}
 		}
 	}
@@ -396,7 +402,8 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 	return fmt.Sprintf("(%s %s %s)", spec.Op, left, right), nil
 }
 
-// encodeNumericBuiltin encodes numeric conversion builtins (intToFloat → to_real, floatToInt → to_int).
+// encodeNumericBuiltin encodes numeric conversion builtins (intToFloat → to_real,
+// floatToInt → truncation toward zero).
 func encodeNumericBuiltin(spec NumericBuiltinSpec, args []core.CoreExpr) (string, error) {
 	if len(args) != 1 {
 		return "", fmt.Errorf("numeric builtin %q expects 1 arg, got %d", spec.Op, len(args))
@@ -405,5 +412,44 @@ func encodeNumericBuiltin(spec NumericBuiltinSpec, args []core.CoreExpr) (string
 	if err != nil {
 		return "", err
 	}
+	if spec.Op == smtTruncToInt {
+		return fmt.Sprintf("(ite (>= %[1]s 0.0) (to_int %[1]s) (- (to_int (- %[1]s))))", arg), nil
+	}
 	return fmt.Sprintf("(%s %s)", spec.Op, arg), nil
+}
+
+// encodeListDefaultedAccess encodes std/list's defaulted element accessors with
+// the runtime's semantics (std/list.ail nthOr/headOr/lastOr):
+//
+//	nthOr(xs, i, d)  = if 0 <= i < len(xs) then xs[i] else d
+//	headOr(xs, d)    = if len(xs) == 0 then d else xs[0]
+//	lastOr(xs, d)    = if len(xs) == 0 then d else xs[len(xs)-1]
+//
+// ok is false when name is not one of them.
+func encodeListDefaultedAccess(name string, args []core.CoreExpr) (string, bool, error) {
+	want := map[string]int{listNthOr: 3, listHeadOr: 2, listLastOr: 2}[name]
+	if want == 0 {
+		return "", false, nil
+	}
+	if len(args) != want {
+		return "", true, fmt.Errorf("%w: %s expects %d args, got %d", ErrUnsupportedConstruct, name, want, len(args))
+	}
+	enc := make([]string, len(args))
+	for i, a := range args {
+		e, err := EncodeExpr(a)
+		if err != nil {
+			return "", true, err
+		}
+		enc[i] = e
+	}
+	xs := enc[0]
+	switch name {
+	case listNthOr:
+		i, d := enc[1], enc[2]
+		return fmt.Sprintf("(ite (and (>= %[2]s 0) (< %[2]s (seq.len %[1]s))) (seq.nth %[1]s %[2]s) %[3]s)", xs, i, d), true, nil
+	case listHeadOr:
+		return fmt.Sprintf("(ite (= (seq.len %[1]s) 0) %[2]s (seq.nth %[1]s 0))", xs, enc[1]), true, nil
+	default: // listLastOr
+		return fmt.Sprintf("(ite (= (seq.len %[1]s) 0) %[2]s (seq.nth %[1]s (- (seq.len %[1]s) 1)))", xs, enc[1]), true, nil
+	}
 }

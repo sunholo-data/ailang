@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -175,9 +176,9 @@ func matchHOFCall(app *core.App) (InlinableHOFCall, bool) {
 		if len(app.Args) < 2 {
 			return InlinableHOFCall{}, false
 		}
-		lambda, ok := app.Args[0].(*core.Lambda)
+		lambda, ok := hofFunctionArg(app.Args[0], 1)
 		if !ok {
-			return InlinableHOFCall{}, false // Function arg is not a literal lambda
+			return InlinableHOFCall{}, false // neither a literal lambda nor a named function
 		}
 		return InlinableHOFCall{
 			Kind:     hofKind,
@@ -191,7 +192,7 @@ func matchHOFCall(app *core.App) (InlinableHOFCall, bool) {
 		if len(app.Args) < 3 {
 			return InlinableHOFCall{}, false
 		}
-		lambda, ok := app.Args[0].(*core.Lambda)
+		lambda, ok := hofFunctionArg(app.Args[0], 2)
 		if !ok {
 			return InlinableHOFCall{}, false
 		}
@@ -409,6 +410,7 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 			Body:       specBody,
 			ReturnSort: returnSort,
 			Depth:      depth,
+			Frontier:   hofFrontier(call.Kind),
 		})
 		if err != nil {
 			result.Unsupported = fmt.Sprintf("the specialised %s chain does not encode: %v", call.Kind, err)
@@ -647,4 +649,84 @@ func hofExprType(expr core.CoreExpr) types.Type {
 		return nil
 	}
 	return t
+}
+
+// hofFunctionArg returns the function argument of a HOF call as a lambda: a
+// literal lambda as written, or a named function (`map(f, xs)`, `foldl(step, 0, xs)`)
+// eta-expanded to `\$eta0 … . f($eta0 …)` so it is specialised the same way.
+// The named function is then an ordinary call head inside the lambda body,
+// resolved and admitted like any other callee.
+func hofFunctionArg(arg core.CoreExpr, arity int) (*core.Lambda, bool) {
+	switch f := arg.(type) {
+	case *core.Lambda:
+		return f, true
+	case *core.Var, *core.VarGlobal:
+		// Same-module top-level functions are plain Vars in Core, so both forms
+		// expand. A local function value (a parameter of function type) has no
+		// body: its application is refused at encoding (ErrUnsupportedConstruct,
+		// a skip), as before — only later than the fragment check.
+		params := make([]string, arity)
+		args := make([]core.CoreExpr, arity)
+		for i := range params {
+			params[i] = fmt.Sprintf("$eta%d", i)
+			args[i] = &core.Var{Name: params[i]}
+		}
+		return &core.Lambda{Params: params, Body: &core.App{Func: f, Args: args}}, true
+	}
+	return nil, false
+}
+
+// hofCallParts returns the expressions a specialised HOF call still evaluates:
+// the (possibly eta-expanded) lambda body, the list, and foldl's initial value.
+// Callee collection walks these instead of the raw arguments, so a named
+// function argument is seen in call position.
+func hofCallParts(call InlinableHOFCall) []core.CoreExpr {
+	parts := []core.CoreExpr{call.Lambda.Body, call.ListArg}
+	if call.InitVal != nil {
+		parts = append(parts, call.InitVal)
+	}
+	return parts
+}
+
+// hofFrontier shapes a specialisation's frontier stub (the unexplored tail) so
+// it has the length behaviour every real call has, without quantifiers:
+//
+//	map:    f_0(xs, …) = (seq.map g xs)                          ; len preserved
+//	filter: f_0(xs, …) = (seq.extract (u xs …) 0 (seq.len xs))    ; len never grows
+//
+// g and u are unconstrained, so the real map (g := the lambda) and the real
+// filter (u := the filtered list) are instances: sound. With it, contracts such
+// as `length(result) == length(xs)` (map) or `<=` (filter) are proved for lists
+// of any length, not only within the unrolling depth. The list is the first
+// parameter of a map/filter specialisation; captures follow it.
+func hofFrontier(kind HOFKind) func(string, []string, string) []string {
+	if kind != HOFMap && kind != HOFFilter {
+		return nil
+	}
+	return func(level0 string, sorts []string, returnSort string) []string {
+		binders := make([]string, len(sorts))
+		vars := make([]string, len(sorts))
+		for i, s := range sorts {
+			vars[i] = fmt.Sprintf("$fx%d", i)
+			binders[i] = fmt.Sprintf("(%s %s)", vars[i], s)
+		}
+		head := fmt.Sprintf("(define-fun %s (%s) %s", level0, strings.Join(binders, " "), returnSort)
+		if kind == HOFMap {
+			in, ok1 := seqElemSort(sorts[0])
+			out, ok2 := seqElemSort(returnSort)
+			if !ok1 || !ok2 {
+				return []string{fmt.Sprintf("(declare-fun %s (%s) %s)", level0, strings.Join(sorts, " "), returnSort)}
+			}
+			g := level0 + "$g"
+			return []string{
+				fmt.Sprintf("(declare-const %s (Array %s %s))", g, in, out),
+				fmt.Sprintf("%s (seq.map %s %s))", head, g, vars[0]),
+			}
+		}
+		u := level0 + "$u"
+		return []string{
+			fmt.Sprintf("(declare-fun %s (%s) %s)", u, strings.Join(sorts, " "), returnSort),
+			fmt.Sprintf("%s (seq.extract (%s %s) 0 (seq.len %s)))", head, u, strings.Join(vars, " "), vars[0]),
+		}
+	}
 }

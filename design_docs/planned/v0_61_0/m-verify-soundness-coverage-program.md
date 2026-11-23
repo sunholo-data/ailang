@@ -14,7 +14,16 @@
 |---|---|
 | M1 (S7 callee identity) | **Landed on dev.** Deterministic bare-name lookups, plus a gate refusing any call that would bind another module's function (`internal/smt/callee_identity.go`, tests in `callee_identity_test.go`). One false positive (a parameter sharing a function's name) was found by the corpus run and fixed. S4/S5/S6 are still open |
 | M2 (HOF callers) | **Landed on dev, extended.** map/filter/foldl/any/flatMap over any element sort, with captures, inside callees and inside contracts. Bounded (depth 3) and classified like recursion. Let and capture hygiene (`$l_`/`$c_`) fixes #215. See §M2 result below |
-| M0, M3–M6 | Not started |
+| M5 (partial) | **Landed on dev.** Named-function HOF arguments (eta-expanded). Quantifier-free map/filter frontiers, so length relations are proved for any list. Direct encodings for std/list `nthOr`/`headOr`/`lastOr`/`head`/`nth`/`last` and std/option `getOrElse`/`isSome`/`isNone`. Fixed `floatToInt` floor-vs-truncate (a false VERIFIED). Still open: generic *user* callees, Result-returning callees, math builtins |
+| M0, M3, M4, M6 | Not started |
+
+**Five-repo corpus, 2026-11-23 (1,840 obligations):**
+- Verified: 698 → **748**.
+- 25 functions that were skipped now reach the solver as inconclusive.
+- Errors: 12 → 6.
+- No verdict regressions, and no new errors or counterexamples.
+
+Inconclusive dominates what is left of the HOF gain: real contracts rarely bound list length in `requires`. Witness replay (M6) is now the lever for those.
 
 ## Why this program, and why not Lean
 

@@ -349,6 +349,11 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 		if e.Ref.Module == "$adt" || strings.HasPrefix(e.Ref.Name, "make_") {
 			sorts[stripConstructorPrefix(e.Ref.Name)] = true
 		}
+		// A stdlib call encoded over the Option datatype (encodeOptionAccess)
+		// needs Option declared even when no signature mentions it.
+		if name, ok := ResolveStdlibToBuiltin(e.Ref.Module, e.Ref.Name); ok && optionEncodedBuiltins[name] {
+			sorts["Option"] = true
+		}
 	case *core.DictApp:
 		collectSortsFromBody(e.Dict, sorts)
 		for _, arg := range e.Args {

@@ -595,13 +595,14 @@ func TestHasUnencodableTypes_StdlibStringUnmapped(t *testing.T) {
 }
 
 func TestHasUnencodableTypes_StdlibListUnmapped(t *testing.T) {
-	// std/list.map(f, xs) is NOT in mapping → unencodable
+	// std/list.zip(xs, ys) is NOT in the mapping and not a specialised HOF → unencodable.
+	// (map/filter/foldl/any/flatMap are specialised by InlineHOFCalls instead.)
 	body := &core.App{
-		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "map"}},
-		Args: []core.CoreExpr{&core.Var{Name: "f"}, &core.Var{Name: "xs"}},
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "zip"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "ys"}},
 	}
 	if !hasUnencodableTypes(body) {
-		t.Error("std/list.map should be unencodable (not in SMT mapping)")
+		t.Error("std/list.zip should be unencodable (not in SMT mapping)")
 	}
 }
 

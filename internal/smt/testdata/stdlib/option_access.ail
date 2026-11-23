@@ -1,0 +1,36 @@
+module option_access
+import std/list (length, head, nth, last)
+import std/option (getOrElse, isSome, isNone)
+
+export func firstOr(xs: [int]) -> int ! {}
+requires { forall k: 0..length(xs) => _list_nth(xs, k) > 0 }
+ensures { result > 0 || length(xs) == 0 } {
+  getOrElse(head(xs), 0)
+}
+
+export func firstOrBad(xs: [int]) -> int ! {}
+ensures { result > 0 } {
+  getOrElse(head(xs), 0)
+}
+
+export func hasThird(xs: [string]) -> bool ! {}
+requires { length(xs) >= 3 }
+ensures { result } {
+  isSome(nth(xs, 2))
+}
+
+export func noNeg(xs: [string]) -> bool ! {}
+ensures { result } {
+  isNone(nth(xs, -1))
+}
+
+export func lastOpt(xs: [int]) -> Option[int] ! {}
+requires { length(xs) > 0 }
+ensures { result != None } {
+  last(xs)
+}
+
+export func lastOptBad(xs: [int]) -> Option[int] ! {}
+ensures { result != None } {
+  last(xs)
+}

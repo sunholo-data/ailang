@@ -1,0 +1,32 @@
+module list_defaulted
+import std/list (length, nthOr, nth_or, headOr, lastOr)
+
+type P = { name: string, age: int }
+
+export func safeAt(xs: [int], i: int) -> int ! {}
+requires { forall k: 0..length(xs) => _list_nth(xs, k) >= 0 }
+ensures { result >= 0 } {
+  nthOr(xs, i, 0)
+}
+
+export func safeAtBad(xs: [int], i: int) -> int ! {}
+ensures { result >= 0 } {
+  nth_or(xs, i, 0)
+}
+
+export func firstName(ps: [P]) -> string ! {}
+ensures { length(ps) > 0 || result == "nobody" } {
+  headOr(ps, { name: "nobody", age: 0 }).name
+}
+
+export func lastWord(ws: [string]) -> string ! {}
+requires { length(ws) == 2, _list_nth(ws, 1) == "end" }
+ensures { result == "end" } {
+  lastOr(ws, "")
+}
+
+export func outOfRange(xs: [int]) -> int ! {}
+requires { length(xs) == 1 }
+ensures { result == 7 } {
+  nthOr(xs, -1, 7)
+}

@@ -389,13 +389,19 @@ var RecursiveListBuiltins = map[string]string{
 
 // NumericBuiltinSpecial maps AILANG numeric conversion builtins to SMT-LIB operators.
 // intToFloat → Z3 to_real (exact conversion, no semantic gap).
-// floatToInt → Z3 to_int (rounds toward -inf; Go truncates toward zero — document gap).
+// floatToInt → truncation toward zero, as the runtime does (Go int64(f)). Z3's
+// to_int is FLOOR: encoding it directly proved floatToInt(-2.5) == -3, which is
+// -2 at runtime.
 var NumericBuiltinSpecial = map[string]NumericBuiltinSpec{
 	"intToFloat":    {Op: "to_real", Unary: true},
 	"_int_to_float": {Op: "to_real", Unary: true},
-	"floatToInt":    {Op: "to_int", Unary: true},
-	"_float_to_int": {Op: "to_int", Unary: true},
+	"floatToInt":    {Op: smtTruncToInt, Unary: true},
+	"_float_to_int": {Op: smtTruncToInt, Unary: true},
 }
+
+// smtTruncToInt is not an SMT-LIB operator: encodeNumericBuiltin expands it to
+// truncation toward zero.
+const smtTruncToInt = "$ail.trunc_to_int"
 
 // NumericBuiltinSpec describes how to encode a numeric conversion builtin in SMT-LIB.
 type NumericBuiltinSpec struct {
@@ -424,7 +430,43 @@ var StdlibListToSMT = map[string]string{
 	"take":     "_list_take",
 	"drop":     "_list_drop",
 	"contains": "_list_contains",
+	// Defaulted element access (listDefaultedAccess): sort-polymorphic in Z3's
+	// sequence theory, so their generic signatures never need monomorphising.
+	"nthOr":   listNthOr,
+	"nth_or":  listNthOr,
+	"headOr":  listHeadOr,
+	"head_or": listHeadOr,
+	"lastOr":  listLastOr,
+	"last_or": listLastOr,
+	// Option-returning accessors: their result sort is read from the call's
+	// elaborated type (encodeOptionAccess).
+	"head": listHeadOpt,
+	"nth":  listNthOpt,
+	"last": listLastOpt,
 }
+
+// StdlibOptionToSMT maps std/option functions with a direct encoding over the
+// Option datatype (declare-datatype Option (par (a) ((Some (Some_0 a)) (None)))).
+var StdlibOptionToSMT = map[string]string{
+	"getOrElse": optGetOrElse,
+	"isSome":    optIsSome,
+	"isNone":    optIsNone,
+}
+
+// Encoder-internal names for std/list's defaulted accessors. They are not
+// runtime builtins: only ResolveStdlibToBuiltin produces them.
+const (
+	listNthOr  = "$ail.list_nth_or"
+	listHeadOr = "$ail.list_head_or"
+	listLastOr = "$ail.list_last_or"
+
+	listHeadOpt  = "$ail.list_head"
+	listNthOpt   = "$ail.list_nth"
+	listLastOpt  = "$ail.list_last"
+	optGetOrElse = "$ail.option_get_or_else"
+	optIsSome    = "$ail.option_is_some"
+	optIsNone    = "$ail.option_is_none"
+)
 
 // ResolveStdlibToBuiltin checks if a module/function pair refers to a stdlib
 // function with a known SMT mapping, and returns the equivalent builtin name.
@@ -436,6 +478,10 @@ func ResolveStdlibToBuiltin(module, name string) (string, bool) {
 		}
 	case "std/list":
 		if builtinName, ok := StdlibListToSMT[name]; ok {
+			return builtinName, true
+		}
+	case "std/option":
+		if builtinName, ok := StdlibOptionToSMT[name]; ok {
 			return builtinName, true
 		}
 	}

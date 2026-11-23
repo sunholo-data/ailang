@@ -27,9 +27,14 @@ func TestHOFCallersVerifyOverAnyElementSort(t *testing.T) {
 		"forSession": "verified", "allAbove": "verified", "shifted": "verified", "total": "verified",
 		"allAboveBad": "inconclusive",
 		// HOFs inside contracts: ensures (capturing result) and requires
-		"addOk": "verified", "firstOk": "verified", "dropAll": "inconclusive", "firstOkBad": "inconclusive",
-		// true but needs induction beyond the depth: not a violation
-		"sameLen": "inconclusive",
+		// named function arguments (eta-expanded)
+		"doubled": "verified", "pos": "verified", "sumNat": "verified",
+		"doubledBad": "inconclusive", "anyPosBad": "inconclusive",
+		"applyParam": "skipped",
+		"addOk":      "verified", "firstOk": "verified", "dropAll": "inconclusive", "firstOkBad": "inconclusive",
+		// true for lists of ANY length: proved through the frontier's shape
+		// (map's frontier is seq.map, so it preserves length by construction)
+		"sameLen": "verified", "filterNoLonger": "verified", "filterSameLenBad": "inconclusive",
 		// false: never verified
 		"badLen": "inconclusive", "badFilter": "inconclusive", "badSum": "inconclusive",
 		"strsBad": "inconclusive", "floatsBad": "inconclusive", "intToStrBad": "inconclusive",

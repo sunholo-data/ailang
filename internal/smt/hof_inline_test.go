@@ -44,8 +44,11 @@ func TestIsInlinableHOF_MapWithLambda(t *testing.T) {
 	}
 }
 
-func TestIsInlinableHOF_MapWithVar(t *testing.T) {
-	// map(f, xs) where f is a variable → NOT inlinable
+func TestIsInlinableHOF_MapWithNamedFunctionEtaExpands(t *testing.T) {
+	// map(f, xs) with a named function: eta-expanded to \$eta0. f($eta0), so f
+	// is an ordinary call head in the specialised body. Whether f has a body
+	// (a top-level function) or not (a parameter of function type) is decided
+	// at encoding; the latter is an unsupported-construct skip.
 	body := &core.App{
 		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "map_List"}},
 		Args: []core.CoreExpr{
@@ -55,8 +58,15 @@ func TestIsInlinableHOF_MapWithVar(t *testing.T) {
 	}
 
 	calls := IsInlinableHOF(body)
-	if len(calls) != 0 {
-		t.Errorf("expected 0 inlinable HOF calls for variable function arg, got %d", len(calls))
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 inlinable HOF call for a named function arg, got %d", len(calls))
+	}
+	app, ok := calls[0].Lambda.Body.(*core.App)
+	if !ok || len(calls[0].Lambda.Params) != 1 {
+		t.Fatalf("expected an eta-expanded one-parameter lambda, got %v", calls[0].Lambda)
+	}
+	if head, ok := app.Func.(*core.Var); !ok || head.Name != "f" {
+		t.Fatalf("expected the lambda body to apply f, got %v", app)
 	}
 }
 
@@ -601,31 +611,6 @@ func TestIsSMTEncodable_InlinableMapWithLambda(t *testing.T) {
 	}
 }
 
-func TestIsSMTEncodable_NonInlinableMapWithVar(t *testing.T) {
-	// map(f, xs) where f is a variable — still NOT encodable
-	// (hasHigherOrder returns false because Var is not Lambda in arg position,
-	// but it's unencodable because map_List is not in the SMT encoding maps)
-	meta := &core.DeclMeta{
-		Name:   "mapWithVar",
-		IsPure: true,
-		Contracts: []*core.Contract{
-			{Kind: core.EnsuresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
-		},
-	}
-	body := &core.App{
-		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "map_List"}},
-		Args: []core.CoreExpr{
-			&core.Var{Name: "f"},
-			&core.Var{Name: "xs"},
-		},
-	}
-
-	ok, _ := IsSMTEncodable("mapWithVar", meta, body)
-	if ok {
-		t.Fatal("expected not encodable — map_List with variable function arg should be rejected")
-	}
-}
-
 func TestInlineHOFCalls_NoHOF(t *testing.T) {
 	// No HOF calls → should return nil (nothing to inline)
 	body := &core.App{
@@ -703,9 +688,10 @@ func TestEncodeFunction_WithInlinableMap(t *testing.T) {
 		t.Error("expected specialized map function in SMT-LIB output")
 	}
 
-	// Should contain declare-fun for level 0
-	if !strings.Contains(result.SMTLib, "declare-fun _map_spec_incrementAll_0") {
-		t.Error("expected declare-fun for level 0 specialization")
+	// Level 0 (the frontier) is a length-preserving seq.map over an unknown
+	// element function, not a bare uninterpreted stub (hofFrontier).
+	if !strings.Contains(result.SMTLib, "(seq.map _map_spec_incrementAll_0$g") {
+		t.Error("expected the map frontier to be a seq.map over an unknown element function")
 	}
 
 	// Should contain define-fun chains

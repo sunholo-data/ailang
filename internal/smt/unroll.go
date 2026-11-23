@@ -14,6 +14,14 @@ type UnrollConfig struct {
 	Body       core.CoreExpr   // Original function body
 	ReturnSort string          // SMT-LIB return sort
 	Depth      int             // Unrolling depth (1-10)
+	// Frontier, when set, replaces the bare `(declare-fun f_0 …)` stub with
+	// declarations that define f_0 in a shape the REAL function has for every
+	// input — e.g. a map specialisation's frontier is (seq.map g xs) for an
+	// unknown g, so it preserves length by construction. The shape must contain
+	// the real function as an instance, or proofs become unsound. It is
+	// quantifier-free on purpose: a quantified fact made Z3 time out on every
+	// false contract instead of returning a model.
+	Frontier func(level0 string, paramSorts []string, returnSort string) []string
 }
 
 // UnrollResult holds the generated SMT-LIB declarations for a bounded unrolling.
@@ -50,9 +58,13 @@ func UnrollRecursiveFunction(cfg UnrollConfig) (*UnrollResult, error) {
 		}
 		paramSorts = append(paramSorts, sort)
 	}
-	declareFun := fmt.Sprintf("(declare-fun %s (%s) %s)",
-		level0Name, strings.Join(paramSorts, " "), cfg.ReturnSort)
-	result.Declarations = append(result.Declarations, declareFun)
+	if cfg.Frontier != nil {
+		result.Declarations = append(result.Declarations, cfg.Frontier(level0Name, paramSorts, cfg.ReturnSort)...)
+	} else {
+		declareFun := fmt.Sprintf("(declare-fun %s (%s) %s)",
+			level0Name, strings.Join(paramSorts, " "), cfg.ReturnSort)
+		result.Declarations = append(result.Declarations, declareFun)
+	}
 
 	// Levels 1..N: define-fun with self-calls replaced
 	for k := 1; k <= cfg.Depth; k++ {

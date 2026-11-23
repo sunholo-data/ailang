@@ -113,7 +113,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 - Have **effects** (`! {IO}`, `! {FS}`, etc.)
 - Prove **unbounded recursion** — there is no induction; an unbounded recursive function is INCONCLUSIVE
-- Pass a **named function** to `map`/`filter`/`foldl`/`any`/`flatMap` — only a literal lambda (`\x. …`) is specialised. With a literal lambda they are unrolled to depth 3: VERIFIED when `requires` bounds the list length, INCONCLUSIVE otherwise
+- Pass a **function-typed parameter** to `map`/`filter`/`foldl`/`any`/`flatMap` (a lambda or a named top-level function is fine). They are unrolled to depth 3: map/filter length relations are proved for any list; other properties VERIFY when `requires` bounds the list length and are INCONCLUSIVE otherwise
 - Use **bitwise** operators (`&`, `^`, `~`, `<<`, `>>`) — skipped as unencodable
 - Use an **unannotated generic parameter** (`func f(x)`) — reaches Z3 as an error (#2400); annotate `x: int`
 - Use **arrays** (use lists instead)

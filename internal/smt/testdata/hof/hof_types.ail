@@ -202,3 +202,58 @@ requires { length(rs) == 2, any(\r. r.ok, rs) }
 ensures { result == true } {
   _list_head(rs).ok
 }
+
+
+pure func double(x: int) -> int = x * 2
+pure func isPos(x: int) -> bool = x > 0
+pure func step(acc: int, x: int) -> int = acc + x
+
+export func doubled(xs: [int]) -> [int] ! {}
+requires { length(xs) <= 2 }
+ensures { length(result) == length(xs) } {
+  map(double, xs)
+}
+
+export func pos(xs: [int]) -> [int] ! {}
+requires { length(xs) <= 2 }
+ensures { length(result) <= length(xs) } {
+  filter(isPos, xs)
+}
+
+export func sumNat(xs: [int]) -> int ! {}
+requires { length(xs) <= 2, forall i: 0..length(xs) => _list_nth(xs, i) >= 0 }
+ensures { result >= 0 } {
+  foldl(step, 0, xs)
+}
+
+
+export func doubledBad(xs: [int]) -> [int] ! {}
+requires { length(xs) == 1 }
+ensures { _list_head(result) == _list_head(xs) } {
+  map(double, xs)
+}
+
+export func anyPosBad(xs: [int]) -> bool ! {}
+requires { length(xs) == 1 }
+ensures { result } {
+  any(isPos, xs)
+}
+
+-- a function-typed parameter has no body to specialise: skipped, never verified
+export func applyParam(f: int -> int, xs: [int]) -> [int] ! {}
+requires { length(xs) <= 2 }
+ensures { length(result) == length(xs) } {
+  map(f, xs)
+}
+
+-- unbounded: true through the frontier shape (filter never lengthens)
+export func filterNoLonger(xs: [int]) -> [int] ! {}
+ensures { length(result) <= length(xs) } {
+  filter(\x. x > 0, xs)
+}
+
+-- unbounded and FALSE (filter can drop elements): never verified
+export func filterSameLenBad(xs: [int]) -> [int] ! {}
+ensures { length(result) == length(xs) } {
+  filter(\x. x > 0, xs)
+}

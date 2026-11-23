@@ -312,9 +312,10 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
   There is no induction: a recursive function is proved only when `requires` bounds its depth
   within the unrolling limit.
 - **Higher-order list functions.** A caller of `map`/`filter`/`foldl`/`any`/`flatMap` with a
-  literal lambda is unrolled to depth 3 (dev, after v0.60.6; it was SKIPPED, #1375): like recursion
-  it is VERIFIED only when `requires` bounds the list, and INCONCLUSIVE otherwise. A named function
-  argument is still skipped.
+  lambda or a named top-level function is unrolled to depth 3 (dev, after v0.60.6; it was SKIPPED,
+  #1375). `map` and `filter` length relations are proved for any list. Other properties are VERIFIED
+  only when `requires` bounds the list, and INCONCLUSIVE otherwise. A function-typed parameter
+  (`map(f, xs)` where `f` is an argument) is still skipped.
 - **Bitwise operators.** `x & 255` reports `⚠ SKIPPED … unencodable builtin: bitwiseAnd_Int`.
 - **Two imported functions with the same name.** A module imports `a/good (clamp0 as goodClamp)`
   and `a/bad (clamp0)`; `usesBad(x) ensures { result >= 0 } { clamp0(x) }` calls the bad one
