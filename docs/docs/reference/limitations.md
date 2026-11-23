@@ -95,8 +95,9 @@ func factorial(n: int) -> int =
   if n <= 1 then 1 else n * factorial(n - 1)
 ```
 
-Named `func` recursion is also supported by `ailang verify` via bounded unrolling
-(`--verify-recursive-depth N`, v0.8.0+).
+Named `func` recursion is also handled by `ailang verify` via bounded unrolling
+(`--verify-recursive-depth N`, default 2): it is VERIFIED only when `requires` bounds the depth,
+and INCONCLUSIVE otherwise (see [Static verification](#static-verification-what-a-verified-result-does-not-cover)).
 
 ---
 
@@ -291,6 +292,38 @@ compares equivalent range inputs and includes a separate construction contrast.
 
 **Workaround**: check contracts on the evaluator (`run --verify-contracts`, no `--bytecode`), and
 assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-runtime-contract-parity.md).
+
+---
+
+### Static verification: what a `VERIFIED` result does not cover
+
+**Status**: Open
+**Verified at**: v0.60.6-128-g3fb62e616c, Z3 4.16.0 (2026-11-23), `ailang verify` on one probe file per row:
+- **Call-site preconditions.** `one(n)` declares `requires { n > 0 }`; `caller(n)` declares
+  `requires { n < 0 }` and returns `one(n)`. Both report `✓ VERIFIED`. A callee's `requires` is
+  assumed, never discharged where it is called.
+- **int64 overflow.** `inc(x) requires { x >= 0 } ensures { result > x } { x + 1 }` is `✓ VERIFIED`;
+  `ailang run` of `inc(9223372036854775807)` prints `-9223372036854775808`. `int` is proved as Z3's
+  unbounded `Int`. Every run says so on its `Scope:` line (`int=Int`, `runtime equivalence
+  not_established`).
+- **NaN.** `selfEq(x: float) ensures { result == true } { x == x }` is `✓ VERIFIED`; at runtime
+  `NaN == NaN` is false. `float` is Z3's `Real`.
+- **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1.
+  There is no induction: a recursive function is proved only when `requires` bounds its depth
+  within the unrolling limit.
+- **Higher-order list functions.** A caller of `map`/`filter` with a literal lambda reports
+  `⚠ SKIPPED … calls "map" whose signature uses an unencodable type` ([#1375](https://github.com/sunholo-data/ailang/issues/1375)).
+- **Bitwise operators.** `x & 255` reports `⚠ SKIPPED … unencodable builtin: bitwiseAnd_Int`.
+- **Unannotated generic parameters.** `pure func inc(x) requires {…} ensures {…}` reports
+  `! ERROR … unknown constant x` instead of a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)).
+
+**Affects**: `ailang verify`, `ailang check --verify`, `ailang ai-check`.
+
+**Workaround**: guard callee preconditions in code (or with `--verify-contracts` on the evaluator);
+bound ints explicitly in `requires` where overflow is possible; guard floats with `std/math.isNaN`;
+give recursive functions a depth-bounding `requires` or test them by running them; write a
+recursive helper instead of `map`/`filter`/`foldl`; annotate every parameter type. Guide:
+[Contracts & Verification](/docs/guides/contracts#reading-verification-evidence).
 
 ---
 

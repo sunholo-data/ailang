@@ -1,5 +1,7 @@
 # verify: VERIFIED not refutable when ensures calls a user function (asymmetric SMT gating)
 
+> **Re-checked 2026-11-23 at v0.60.6-128: the simple shape is FIXED.** An `ensures { isPos(result) }` with a pure `int -> bool` user helper now yields VERIFIED on the correct body and a VIOLATION (with counterexample) on a broken body — symmetric. The reporter's original `mayWriteTo` shape (string/list-typed helper) was not re-run; re-test it before closing.
+
 - **Date**: 2026-09-15
 - **Class**: bug
 - **Recommend**: design-doc

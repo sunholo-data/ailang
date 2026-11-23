@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.16) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.17) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.16.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.17.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.16.md -->
-<!-- Active Version: v0.16.16 -->
+<!-- Source: prompts/v0.16.17.md -->
+<!-- Active Version: v0.16.17 -->
 
-# AILANG v0.16.16 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.17 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -2380,7 +2380,7 @@ ensures { result == listLength(items) + 1 }
 ailang verify file.ail              # Prove contracts for all functions
 ailang verify --verbose file.ail    # Show generated SMT-LIB
 ailang verify --json file.ail       # Machine-readable output
-ailang verify --strict file.ail     # Exit 1 if any function can't be verified
+ailang verify --strict file.ail     # Also exit 1 on skipped or inconclusive contracts
 ```
 
 **Example output** — Z3 proves 5 functions and catches a bug in the 6th:
@@ -2404,16 +2404,19 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 ```
 
 **What can be verified** (decidable fragment):
-- Types: `int`, `bool`, `string`, enum ADT, record, `[int]` lists
-- Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`), bitwise (`&`, `^`, `~`, `<<`, `>>`)
-- `if`/`else`, `let` bindings, `match` on enums/ADTs
+- Types: `int`, `float`, `bool`, `string`, enum ADT, record, lists
+- Arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`)
+- `if`/`else`, `let` bindings, `match` on enums/ADTs/records (nested patterns OK)
 - String ops (use `std/string`): `length`, `startsWith`, `endsWith`, `find`, `substring`, `contains`; `concat` (list of strings); `"${expr}"` interpolation
 - List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
 - Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
 - Cross-function calls: Z3 inlines callees to reason about full call chains
-- Must be pure (`pure func` or `! {}`) or declare only `! {Declassify}`; non-recursive, non-higher-order
+- Recursion: unrolled to depth 2 — VERIFIED only when `requires` bounds the depth (`@verify(depth: N)` raises it); otherwise INCONCLUSIVE, which fails the run
+- Must be pure (`pure func` or `! {}`) or declare only `! {Declassify}`
 
-**What gets skipped:** Recursive functions, higher-order functions, effectful functions, float parameters.
+**What gets skipped:** effectful functions, callers of `map`/`filter`/`foldl`, bitwise operators, `toUpper`/`toLower`/`trim`. Annotate every parameter type (`x: int`) — an unannotated generic parameter is a solver error.
+
+**What VERIFIED does not cover:** `requires` is assumed, never checked where the function is called — guard inputs in the caller. `int` is proved as an unbounded integer (runtime wraps at 64 bits) and `float` as a real number (no NaN).
 
 **Rules:**
 - `requires { expr }` — precondition; `ensures { expr }` — postcondition
@@ -2448,8 +2451,8 @@ export func main() -> () ! {IO} {
 **Guidelines:**
 - **Split logic from effects** — Keep arithmetic, validation, and decision logic in pure `! {}` functions with contracts. Push IO/Net/FS to the outer layer.
 - **Prefer enums over strings for decisions** — `match bracket { STANDARD => ..., REDUCED => ... }` is fully decidable; string parsing is not.
-- **Use `int` over `float` where possible** — Integer arithmetic is fully decidable in Z3; floats are not verifiable.
-- **Keep verified functions non-recursive** — If you need recursion, have the recursive function call a pure verified helper for its core logic.
+- **Use `int` over `float` where possible** — float contracts are proved over real numbers, so they say nothing about rounding or NaN.
+- **Keep verified functions non-recursive** — an unbounded recursive function comes back INCONCLUSIVE. If you need recursion, have the recursive function call a pure verified helper for its core logic.
 - **Add contracts to ALL pure functions** — Even simple ones. `ensures { result >= 0 }` catches edge cases you won't think to test.
 - **Decompose complex logic into small verifiable pieces** — Instead of one 20-line function, write 3-4 small functions each with tight contracts. Z3 inlines across calls automatically.
 

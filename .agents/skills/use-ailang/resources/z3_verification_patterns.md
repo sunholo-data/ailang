@@ -103,25 +103,31 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 - Are **pure** (`! {}` effect annotation, no IO/FS/Net/Clock)
 - Use **encodable types**: `int`, `float`, `bool`, `string`, records, enum ADTs, lists
-- Have **shallow patterns** (match nesting depth ≤ 1)
+- Use `match` on enums, ADTs, records — nested patterns such as `Some(Some(x))` verify
 - Have `requires`/`ensures` contracts
 - Make **cross-function calls** to other pure functions (Z3 inlines them)
-- Are **non-recursive**, or recursive with `@verify(depth: N)`
-- Use **HOF with literal lambdas** (e.g., `map(func(x: int) -> int { x * 2 }, xs)`)
+- Are **non-recursive**, or recursive with a `requires` that bounds the depth within the unrolling limit (default 2; `@verify(depth: N)` or `--verify-recursive-depth N`). Otherwise the result is INCONCLUSIVE (exit 1)
 - Use **bounded quantifiers** (`forall i: 0..N => predicate`)
 
 ### Z3 CANNOT verify functions that:
 
 - Have **effects** (`! {IO}`, `! {FS}`, etc.)
-- Use **unbounded recursion** without `@verify(depth: N)`
-- Have **deeply nested patterns** (e.g., `Some(Some(x))`)
-- Pass **lambdas as variables** (not literal inline lambdas)
+- Prove **unbounded recursion** — there is no induction; an unbounded recursive function is INCONCLUSIVE
+- Call **`map`/`filter`/`foldl`** — skipped even with a literal lambda (#1375); use a recursive helper
+- Use **bitwise** operators (`&`, `^`, `~`, `<<`, `>>`) — skipped as unencodable
+- Use an **unannotated generic parameter** (`func f(x)`) — reaches Z3 as an error (#2400); annotate `x: int`
 - Use **arrays** (use lists instead)
-- Use unsupported string builtins: `_str_trim`, `_str_upper`, `_str_lower`
+- Use unsupported string builtins: `trim`, `toUpper`, `toLower`, `split`, `chars`; or datetime builtins (`addDays`, …)
+
+### What VERIFIED does NOT cover
+
+- **Call-site preconditions**: a callee's `requires` is assumed, never checked where it is called
+- **int64 overflow**: `int` is Z3's unbounded `Int`; runtime `int` wraps at 64 bits
+- **NaN / IEEE rounding**: `float` is Z3's `Real`
 
 ### Supported operations
 
-**Strings**: `length`, `substring`, `find`, `startsWith`, `endsWith`, `contains`, `++` (concat)
+**Strings**: `length`, `substring`, `find`, `startsWith`, `endsWith`, `contains`, `"${a}${b}"` / `concat([..])` (string `++` is a type error)
 
 **Lists**: `length`, `head`, `nth`, `contains`, `reverse`, `take`, `drop`, `::` (cons)
 
@@ -290,7 +296,8 @@ ailang verify file.ail                              # Basic verification
 ailang verify --verbose file.ail                    # Show generated SMT-LIB
 ailang verify --json file.ail                       # Machine-readable output
 ailang verify --verify-recursive-depth 5 file.ail   # Bounded recursion depth
-ailang verify --strict file.ail                     # Exit non-zero if any unverifiable
+ailang verify --strict file.ail                     # Also fail on skipped or inconclusive (partial → exit 1)
+ailang verify --allow-inconclusive file.ail         # Exit 0 on inconclusive (bounded recursion)
 ```
 
 ### Output interpretation
@@ -299,8 +306,11 @@ ailang verify --strict file.ail                     # Exit non-zero if any unver
 |--------|---------|
 | verified | Z3 proved the contract holds for ALL inputs |
 | counterexample | Z3 found specific inputs that violate the contract |
-| skipped | Function not in decidable fragment (reason shown) |
-| error | Z3 solver error |
+| inconclusive | Bounded recursion found a model that may be an unrolling artifact — not proved (exit 1) |
+| skipped | Function not in decidable fragment (reason shown); `requires`-only functions are skipped with `missing_postcondition` and never fail the run |
+| error | Z3 solver error, `unknown`, or timeout |
+
+Exit: 0 when the outcome is `verified`, `partial` (some proved, some skipped) or `no_obligations`; 1 for `unproved`, `inconclusive`, `counterexample`, `error`, or no Z3. Full table: `docs/docs/guides/contracts.mdx`.
 
 When Z3 finds a counterexample, it prints the specific input values that break the contract — making bugs immediately actionable.
 

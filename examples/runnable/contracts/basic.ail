@@ -16,15 +16,17 @@ ensures { result >= 0 } {
 }
 
 -- Function with multiple requires predicates
+-- (both are needed: a negative dividend or divisor would make the result negative)
 export func safeDivide(dividend: int, divisor: int) -> int ! {}
-requires { divisor != 0 }
+requires { dividend >= 0, divisor > 0 }
 ensures { result >= 0 } {
   dividend / divisor
 }
 
 -- Function with both requires and ensures
+-- (x < max is needed: with max <= x the clamp returns max, which is not > x)
 export func increment(x: int, max: int) -> int ! {}
-requires { x >= 0 }
+requires { x >= 0, x < max }
 ensures { result > x } {
   if x + 1 > max then max else x + 1
 }

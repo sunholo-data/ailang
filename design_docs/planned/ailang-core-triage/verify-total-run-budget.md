@@ -1,5 +1,7 @@
 # `verify` / `ai-check` have a per-function Z3 bound but no total-run budget (#513)
 
+> **Re-checked 2026-11-23 at v0.60.6-128: PARTLY ADDRESSED.** `verify --package` now has `--wall-cap` (whole-package cap; `pkg quality` passes 120s) with a module-scoped budget issue. Single-file `verify`/`ai-check` still have no total budget, and `smt.Verify` still iterates `coreProg.Meta` (a Go map) at `internal/smt/verify.go:337`.
+
 - **Date**: 2026-10-03
 - **Class**: feature
 - **Recommend**: design-doc

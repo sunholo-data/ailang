@@ -533,11 +533,11 @@ compile; it never drops a requirement to finish checking.
   hole is tracked in `design_docs/planned/m-ifc-cross-module-labels.md`.
 - **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
   positions; you cannot annotate a return type with a refinement.
-- **Cross-module function calls in Z3.** Imported function calls cannot
-  yet be encoded into the SMT context (the body lives in another Core
-  program). Use cross-module *types* for cross-module label flow today;
-  follow-up work tracked as
-  [M-SMT-CROSS-MODULE-FUNCTIONS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-smt-cross-module-functions.md).
+- **Cross-module function calls in Z3.** Imported pure functions are
+  encoded since v0.15.0 (M-SMT-CROSS-MODULE-FUNCTIONS): non-recursive callees
+  are inlined, recursive ones are represented by their `ensures` — see
+  `examples/runnable/contracts/cross_module_functions.ail`. The callee's
+  `requires` is assumed, not checked, at the call site.
 
 ## Further Reading
 

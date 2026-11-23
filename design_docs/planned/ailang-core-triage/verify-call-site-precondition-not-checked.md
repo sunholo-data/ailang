@@ -1,5 +1,7 @@
 # verify: callee `requires` never discharged at call sites (inlined-body verification is unsound)
 
+> **Re-verified 2026-11-23 at v0.60.6-128 (Z3 4.16.0): STILL OPEN.** `one(n) requires { n > 0 } ensures { result == 1 }` called from `caller(n) requires { n < 0 } ensures { result == 1 }` reports both VERIFIED. Now documented as a known gap in `docs/docs/reference/limitations.md` (Static verification entry) and the teaching prompt v0.16.17; the fix is still unrouted.
+
 - **Date**: 2026-09-29
 - **Class**: bug
 - **Recommend**: design-doc

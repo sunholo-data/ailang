@@ -79,7 +79,11 @@ stops a caller from passing an argument that breaks the `requires`.
 
 The verifier encodes floats as SMT `Real` and integers as `Int`. Its results do
 not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety or
-cross-architecture byte equality. Bounded recursion results carry their actual
+cross-architecture byte equality. Concretely: `ensures { result > x } { x + 1 }`
+is VERIFIED, yet `inc(9223372036854775807)` wraps to `-9223372036854775808` at
+runtime, because the runtime `int` is a wrapping 64-bit integer and Z3's `Int` is
+unbounded. Every `verify` run prints this model on its `Scope:` line and in the
+JSON `numeric_model` field. Bounded recursion results carry their actual
 `bounded_depth`; a missing depth is not an inductive proof.
 
 Int `/` and `%` use truncation toward zero for nonzero divisors, matching
@@ -220,7 +224,7 @@ The message includes:
 ## Static Verification with Z3
 
 :::tip Compile-Time Proofs
-`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all possible inputs**. No tests needed — Z3 checks every case.
+`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all inputs that satisfy `requires`**, under the encoded model (unbounded `Int`, real-valued `float`). That covers every case a test suite would sample, but not int64 overflow, NaN, or callers that break a callee's `requires` — see [Reading verification evidence](#reading-verification-evidence).
 :::
 
 ### Quick Start
@@ -292,7 +296,7 @@ imports B imports C: C is listed); the checked file itself is never listed. Veri
 1. **Fragment check**: Each function with contracts is checked for SMT-encodability
 2. **Encoding**: Pure functions in the decidable fragment are translated to SMT-LIB
 3. **Negation**: The postcondition is negated — if Z3 finds a satisfying assignment, that's a counterexample
-4. **Result**: `VERIFIED` (proven correct), `VIOLATION` (counterexample found), or `SKIPPED` (outside fragment)
+4. **Result**: `VERIFIED` (proven correct), `VIOLATION` (counterexample found), `INCONCLUSIVE` (recursive function whose bounded unrolling found a model that may be an artifact), `SKIPPED` (outside fragment), or `ERROR` (solver error, `unknown` or timeout). See [Verification Output States](#verification-output-states) and the exit table above.
 
 ### Real-World Example: Provably Correct Billing
 
@@ -455,7 +459,8 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 
 **Limitations:**
 - Callees must also be in the decidable fragment (pure, encodable types)
-- Recursive callees are supported via bounded unrolling when `--verify-recursive-depth N` is used (see [Bounded Recursion](#bounded-recursion-verification) above)
+- Recursive callees are unrolled to the bounded depth (default 2, `--verify-recursive-depth N`); see [Bounded Recursion](#bounded-recursion-verification) above
+- A callee's `requires` is **not** checked at the call site: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` still verifies (see [Reading verification evidence](#reading-verification-evidence))
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 
 ### Record Verification
@@ -487,7 +492,7 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 4. Functional update (`{p with x: 20}`) reconstructs with the constructor: `(mk_Record_x_y 20 (y p))`
 
 **Limitations:**
-- Record fields must use encodable types (int, bool, string, enum ADTs — not lists)
+- Record fields must use encodable types (int, float, bool, string, lists of those, enum ADTs, nested records)
 - Named record type declarations can be used via type aliases
 
 #### Record Type Discovery
@@ -547,7 +552,7 @@ Use `import std/string` to access these functions. The verifier resolves stdlib 
 
 | AILANG (stdlib) | Z3 SMT-LIB | Purpose |
 |--------|-----------|---------|
-| `a ++ b` | `str.++` | Concatenation |
+| `"${a}${b}"`, `concat([a, b])` | `str.++` | Concatenation (`++` is for lists only; on strings it is a type error) |
 | `a == b` | `=` | Equality |
 | `a != b` | `distinct` | Inequality |
 | `a < b` | `str.<` | Lexicographic less-than |
@@ -557,6 +562,7 @@ Use `import std/string` to access these functions. The verifier resolves stdlib 
 | `substring(s, i, j)` | `str.substr` | Substring extraction (`std/string`) |
 | `startsWith(s, p)` | `str.prefixof` | Prefix check (`std/string`) |
 | `endsWith(s, x)` | `str.suffixof` | Suffix check (`std/string`) |
+| `contains(s, t)` | `str.contains` | Substring membership (`std/string`) |
 
 **Not yet encodable:** `trim`, `toUpper`, `toLower` (no Z3 equivalent), `split`, `chars` (return lists).
 
@@ -597,7 +603,7 @@ Use `import std/list (length)` for list length. The raw builtins `_list_head` an
 | `xs ++ ys` | `seq.++` | List concatenation |
 | `[1, 2, 3]` | `(seq.++ (seq.unit 1) ...)` | List literal |
 
-**Not yet encodable:** Higher-order list operations (`map`, `filter`, `foldl`) — these require function arguments which are outside the decidable fragment.
+**Not yet encodable:** Higher-order list operations (`map`, `filter`, `foldl`) — a function calling them is currently SKIPPED, even with a literal lambda. See [Higher-Order Function Verification](#higher-order-function-verification).
 
 ### Bounded Recursion Verification
 
@@ -668,7 +674,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 |--------|--------|---------|
 | Verified | `✓` | Z3 proved the contract holds for ALL valid inputs |
 | Violation | `✗` | Z3 found concrete inputs that break the postcondition |
-| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation. Exit 0; `--strict` exits 1. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
+| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation. Exit 1 (not proved); `--allow-inconclusive` exits 0. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
 | Skipped | `⚠` | Function is outside the decidable fragment (with reason) |
 | Error | `!` | Encoding or solver error |
 
@@ -677,7 +683,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 `ailang verify` can verify functions that stay within a decidable subset of the language:
 
 **Currently supported:**
-- `int`, `bool`, `string`, list, and enum/ADT parameters and return types
+- `int`, `float` (as a mathematical real, not IEEE-754), `bool`, `string`, list, and enum/ADT parameters and return types
 - Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=` — a contract is type-checked like a function body, so `==`/`!=` on an enum or other ADT needs `deriving (Eq)` on the type (`type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)`); without it `check` reports TC_CONTRACT_001 naming the type to change
@@ -690,7 +696,6 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
 - Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
 - **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
-- **Higher-order functions**: `map`, `filter`, `foldl` with **known lambda arguments** are inlined and verified via bounded unrolling
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
 - Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → `to_int`
 - Must be pure (`pure func`, or an explicit `! {}`), or declare only `! {Declassify}` (a declassification gate). `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
@@ -699,7 +704,10 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 
 | Feature | Reason | Expandable? |
 |---------|--------|-------------|
-| Higher-order functions (unknown lambda) | `map(f, xs)` where `f` is a parameter | Requires whole-program analysis |
+| Higher-order functions (any lambda) | `map`/`filter`/`foldl` signatures use type variables, which the callee-sort gate rejects before the HOF inliner runs ([#1375](https://github.com/sunholo-data/ailang/issues/1375)) | Yes — planned |
+| Bitwise operators | `&`, `^`, `~`, `<<`, `>>` have no `Int` encoding | Needs a bit-vector encoding |
+| Unannotated generic parameters | `func inc(x) ensures {…}` currently reaches Z3 as an error, not a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
+| `toUpper`/`toLower`/`trim`, datetime builtins | No SMT encoding yet | Yes — planned |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 | Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
 | Open or unsupported ADT payloads | Unresolved type variables, unit and function-valued fields have no encoding here | Requires additional type encodings |
@@ -763,7 +771,11 @@ ensures { listLength(result) >= 0 }
 { map(\x -> x + 1, xs) }
 ```
 
-The lambda `\x -> x + 1` is specialized into a recursive `map_specialized` function, which is then unrolled and verified by Z3. If the lambda argument is a parameter (not a literal), the function is skipped with a clear message.
+The design specializes the lambda `\x -> x + 1` into a recursive `map_specialized` function, then unrolls it for Z3.
+
+:::warning Currently skipped
+As of v0.60.6 this does not run: the callee-sort gate sees the type variables in `map`'s signature and skips the function before the inliner is reached, so `incrementAll` above reports `SKIPPED` ([#1375](https://github.com/sunholo-data/ailang/issues/1375)). Until that lands, put the property on a recursive helper instead of `map`/`filter`/`foldl`.
+:::
 
 ### Bounded Quantifiers
 
@@ -875,7 +887,7 @@ In Go, you'd use interfaces with type switches (not exhaustive) or integer const
 
 ### No loops to reason about
 
-AILANG has no `for` or `while` loops. Non-recursive functions fall directly into the decidable fragment that SMT solvers handle well. Recursive functions are supported via **bounded unrolling** (`--verify-recursive-depth N`), which verifies contracts for inputs up to the unrolling depth — no loop invariants required.
+AILANG has no `for` or `while` loops. Non-recursive functions fall directly into the decidable fragment that SMT solvers handle well. Recursive functions are handled by **bounded unrolling** (`--verify-recursive-depth N`, default 2): a function is VERIFIED when its `requires` bounds the recursion within that depth, and is otherwise reported INCONCLUSIVE — no loop invariants required, but no inductive proof either.
 
 In Go or Python, verifying loops requires discovering **loop invariants** — statements that remain true before and after each iteration. Finding loop invariants automatically is one of the hardest problems in program verification, and is what makes tools like Dafny and SPARK so difficult to use. AILANG sidesteps this: non-recursive functions need no invariants, and recursive functions use bounded unrolling (sound by construction via an uninterpreted base case).
 
@@ -917,8 +929,17 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 **Phase 2 (v0.8.0)** — Expanding the decidable fragment:
 - ✅ Bounded recursion via Dafny-style unrolling (`--verify-recursive-depth`, default 2)
 
-**Future** — Further expansion:
-- Full induction proofs for recursive functions
+**v0.57.5 – v0.60** — Honest verdicts:
+- ✅ A bounded-unrolling model is INCONCLUSIVE, never a violation
+- ✅ One exit contract for `verify`, `check --verify` and `ai-check` (`unproved`, `inconclusive`, `--allow-inconclusive`)
+- ✅ Numeric model (`float=Real, int=Int`) disclosed on every run
+
+**Open gaps** (measured at v0.60.6, 2026-11-23):
+- A callee's `requires` is not checked at call sites
+- `int` is verified as unbounded `Int`, so int64 overflow is not caught; floats have no NaN
+- `map`/`filter`/`foldl` callers are skipped ([#1375](https://github.com/sunholo-data/ailang/issues/1375))
+- Recursive functions are inconclusive unless `requires` bounds their depth — full induction is future work
+- Counterexample `result` values print as unevaluated solver terms
 :::
 
 ## See Also

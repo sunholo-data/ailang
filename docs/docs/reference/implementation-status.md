@@ -48,7 +48,7 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 | **Contracts** | Complete | `requires`/`ensures` clauses |
 | **Policy Mode** | Complete | Redundant verification |
 | **SMT Backend** | Complete | Z3 integration, cross-function inlining |
-| **Bounded Recursion** | Complete | `--verify-recursive-depth N` (Dafny-style unrolling) |
+| **Bounded Recursion** | Complete | `--verify-recursive-depth N` (Dafny-style unrolling); unbounded recursion is `inconclusive` — no induction yet |
 
 ---
 

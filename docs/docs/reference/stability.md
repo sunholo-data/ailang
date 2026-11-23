@@ -362,7 +362,7 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `examples` | top | — | tooling convenience |
 | `fmt` | top | — | ⚠ close call — the flags (`--write`, `--check`) are settled, but the canonical layout can still change, which changes what `--check` reports |
 | `lsp` | top | — | the editor and agent protocol surface is still changing |
-| `verify` | top | — | ⚠ close call — verification coverage and known false counterexamples (bounded unrolling) are v1.1 work |
+| `verify` | top | — | ⚠ close call — the verdict and exit contract are settled (a bounded-unrolling model is `inconclusive`, not a violation, since v0.57.5), but coverage is still growing: call-site `requires`, int64 overflow, HOF callers and induction are open |
 | `pkg quality` | pkg | — | the quality ladder is still growing gates |
 | `pkg unpublish` | pkg | `unpublish` | the policy on immutable versions is still settling |
 | `pkg history` | pkg | — | the provenance timeline is new |
