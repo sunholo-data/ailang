@@ -139,10 +139,13 @@ func runExec() {
 		// Gemini Developer API managed agents: edits the local workspace
 		// (repo mount + patch export), unlike "gemini" → Vertex managed_agents.
 		"gemini_agents": true,
+		// Antigravity CLI: local-editing Google lane, subscription or API key
+		// (internal/executor/agy).
+		"agy": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, gemini_agents, openai, anthropic, ollama, openrouter, lyceum, zai\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, gemini_agents, agy, openai, anthropic, ollama, openrouter, lyceum, zai\n")
 		os.Exit(1)
 	}
 

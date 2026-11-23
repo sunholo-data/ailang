@@ -324,6 +324,18 @@ verify-model-pricing: bin/verify-model-pricing ## Drift-check models.yml openrou
 		exit $$rc; \
 	}
 
+## install-agy: Install the pinned, SHA512-verified Antigravity CLI (agy) to ~/.local/bin (no shell rc edits)
+install-agy:
+	@tools/agy/install.sh
+
+## agy-signin: Sign the agy executor's subscription route in (attended, once per machine), then verify it
+agy-signin:
+	@tools/agy/signin.sh
+
+## agy-check: Verify the agy pin and the subscription sign-in without prompting
+agy-check:
+	@tools/agy/install.sh --check && tools/agy/signin.sh --verify
+
 ## install-notify-daemon: Install the macOS notification daemon under launchd (env=ENV, default prod)
 install-notify-daemon: build
 	@echo "$(BOLD)Installing ailang notify daemon (env=$${ENV:-prod})...$(RESET)"

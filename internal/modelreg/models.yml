@@ -2504,6 +2504,92 @@ models:
 
       GATE: agent smoke tier PENDING. In NO suite, in NO role chain.
 
+  # ===== agy: Google Antigravity CLI, local-editing Google lane (M-AGY-EXECUTOR) =====
+  # Executor: internal/executor/agy (pinned agy 1.5.15; make install-agy). agent_model_name
+  # is agy's own model id; an "api/" prefix selects the metered API-key route, a bare id the
+  # Google AI Pro/Ultra SUBSCRIPTION route (cost banks as list-price-equivalent, not spend).
+  # agy model ids carry the thinking effort (-low/-medium/-high/-xhigh); rows use -high, agy's
+  # own default tier, so the row is the model as shipped.
+  agy-gemini-4-neon:
+    api_name: "gemini-4-neon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Neon via agy on the Google AI subscription (flat rate) — local workspace edits"
+    env_var: ""  # subscription OAuth cached by agy under its isolated HOME (make agy-signin)
+    agent_cli: "agy"
+    agent_model_name: "gemini-4-neon-high"
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      # gemini-4-neon list rates. On this route they are IMPUTED: the executor banks
+      # cost_provenance list-price-equivalent (comparable arithmetic, never spend).
+      input_per_1k: 0.003
+      output_per_1k: 0.015
+      cache_read_per_1k: 0.00015
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 1800
+    notes: |
+      SUBSCRIPTION ROUTE — NOT YET SIGNED IN (2026-11-23). Needs the dedicated personal
+      Google account on Google AI Pro/Ultra (Workspace accounts get no plan quota in agy),
+      signed in once per machine with `make agy-signin`; `make agy-check` verifies.
+      Pro lists Neon/Argon/Hydrogen; Ultra adds Carbon (antigravity.google/pricing).
+      Quota: one account-wide bucket refreshed every 5 h plus weekly caps, no published
+      numbers, not yet observable (design doc P4).
+      The same model on the API-key route was live-verified through this executor
+      2026-11-23: see agy-api-gemini-4-neon.
+      GATE: agent smoke tier PENDING (after sign-in). In NO suite, in NO role chain.
+
+  agy-gemini-4-carbon:
+    api_name: "gemini-4-carbon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Carbon via agy on the Google AI Ultra subscription (flat rate) — local workspace edits"
+    env_var: ""
+    agent_cli: "agy"
+    agent_model_name: "gemini-4-carbon-high"
+    # agy owns the output budget (the executor passes no token cap), so this is the
+    # fleet default rather than the Vertex non-streaming 32768 on gemini-4-carbon.
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      # gemini-4-carbon list rates, IMPUTED on this route (list-price-equivalent).
+      input_per_1k: 0.004
+      output_per_1k: 0.02
+      cache_read_per_1k: 0.0002
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 1800
+    notes: |
+      Ultra-only in agy (antigravity.google/pricing: Pro lists Neon/Argon/Hydrogen, not
+      Carbon). Same sign-in and gate status as agy-gemini-4-neon. In NO suite.
+
+  agy-api-gemini-4-neon:
+    api_name: "gemini-4-neon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Neon via agy on the locked Gemini API key (metered) — local workspace edits"
+    env_var: "GEMINI_AGENTS_API_KEY"  # child gets it as GEMINI_API_KEY, nothing else
+    agent_cli: "agy"
+    agent_model_name: "api/gemini-4-neon-high"
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      input_per_1k: 0.003          # $3.00 per 1M (gemini-4-neon list)
+      output_per_1k: 0.015         # $15.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.00015   # $0.15 per 1M
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 1800
+    notes: |
+      METERED fallback for the subscription row, against the $100-capped key on project
+      ailang-gemini-agents. agy 1.5.15 lists Gemini 4 Neon/Carbon/Hydrogen on this route
+      (1.3.4 listed only 3.x Flash and 3.1 Pro).
+      LIVE-VERIFIED 2026-11-23 through internal/executor/agy (TestLive_OneLineEdit,
+      api/gemini-4-neon-low): success, file written, 11,212 in / 329 out / 174 thinking.
+      Billing SKU for that run not yet checked.
+      GATE: agent smoke tier PENDING. In NO suite, in NO role chain.
+
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
     provider: "google"

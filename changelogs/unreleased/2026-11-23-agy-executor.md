@@ -1,0 +1,23 @@
+### Added — `agy` executor: Google's Antigravity CLI as a local-editing Google lane
+
+`internal/executor/agy` runs Google's Antigravity CLI (`agy`) as an executor, so Gemini 4 can edit the
+local workspace the way `claude` and `codex` do. It is the lane for the Google AI Pro/Ultra
+subscription (design: `design_docs/planned/m-agy-executor.md`).
+
+- **Two auth routes, picked by the model string.** A bare model id (`gemini-4-neon-high`) uses the
+  subscription and banks cost as `list-price-equivalent`. An `api/` prefix (`api/gemini-4-neon-high`)
+  uses the locked `GEMINI_AGENTS_API_KEY` and banks as `metered`. On the API-key route the child
+  receives only `GEMINI_API_KEY`. Each route runs under its own isolated HOME
+  (`AILANG_AGY_HOME_ROOT`, default `~/.ailang/state/agy`), never the operator's `~/.gemini`.
+- **Exit 0 is not trusted.** agy exits 0 with `status:"SUCCESS"` when it soft-denies a tool. The
+  executor banks that as a failure naming the denied action. A missing sign-in becomes an error that
+  points at `make agy-signin`. No result event banks as `wire_drift`, and a hang is killed with its
+  process group at `Task.Timeout`.
+- **Pinned and quiet.** `make install-agy` installs agy 1.5.15, verified against its SHA512, and
+  leaves shell rc files untouched. Every invocation sets `AGY_CLI_DISABLE_AUTO_UPDATE=true`, because
+  plain runs were self-updating the CLI. `HealthCheck` refuses any other version.
+- **Sign-in and rows.** `make agy-signin` signs the subscription route in, attended and once per
+  machine. `make agy-check` verifies it. New opt-in rows `agy-gemini-4-neon`, `agy-gemini-4-carbon`
+  and `agy-api-gemini-4-neon` are in no suite.
+- **Status.** Live-verified on the API-key route: `ailang exec agy --model api/gemini-4-neon-high`
+  edited the workspace, priced at $0.043. The subscription route waits on the sign-in.

@@ -18,6 +18,8 @@ const (
 	// children, and how a cloud job hands the child git credentials.
 	EnvExecutorEnvInherit  = "AILANG_EXECUTOR_ENV_INHERIT"
 	EnvChildGitCredentials = "AILANG_CHILD_GIT_CREDENTIALS"
+	// M-AGY-EXECUTOR: where the agy executor keeps one HOME per auth route.
+	EnvAgyHomeRoot = "AILANG_AGY_HOME_ROOT"
 )
 
 // Child git credential modes (AILANG_CHILD_GIT_CREDENTIALS).
@@ -34,6 +36,7 @@ var executorVars = []Var{
 	{EnvMotokoSystemRole, "1", AreaExecutor, "0 stops motoko receiving the teaching prompt in the system role (the default sends it there; reverting to gated is a known regression)."},
 	{EnvMotokoAgentSystemFile, "", AreaExecutor, "File whose content becomes motoko's system-role prompt for an A/B, keeping the teaching in the user message."},
 	{EnvExecutorEnvInherit, "", AreaExecutor, "Comma-separated variable names an agent child may inherit beyond its default-deny profile (M-EXECUTOR-ENV-HARDENING), credentials included; an operator grant, never read from a task. The rollback lever when a lane needs a variable the profile drops."},
+	{EnvAgyHomeRoot, "", AreaExecutor, "Directory holding the agy executor's isolated HOMEs, one per auth route (subscription/, apikey/); empty means ~/.ailang/state/agy. The subscription HOME is where `make agy-signin` signs the dedicated Google account in."},
 	{EnvChildGitCredentials, ChildGitCredentialsRepo, AreaExecutor, "How a cloud job gives the agent child git credentials: repo = a per-task 0600 credential file outside the workspace, scoped by URL to the task's repository (the parent still pushes); none = nothing (the child cannot authenticate git at all). The fleet token never enters the child's environment either way."},
 }
 
@@ -68,6 +71,10 @@ func ExecutorEnvInherit() []string {
 	sort.Strings(out)
 	return out
 }
+
+// AgyHomeRoot returns AILANG_AGY_HOME_ROOT, "" when unset (the executor
+// then uses ~/.ailang/state/agy).
+func AgyHomeRoot() string { return get(EnvAgyHomeRoot) }
 
 // ChildGitCredentials returns the AILANG_CHILD_GIT_CREDENTIALS mode, or an
 // error naming the variable for a value that is neither mode (no silent

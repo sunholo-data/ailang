@@ -45,6 +45,11 @@ type Config struct {
 	PiPath  string // Path to pi CLI binary
 	PiModel string // Default pi model (provider/model format)
 
+	// agy configuration (M-AGY-EXECUTOR). AgyModel is "<agy-model>" for the
+	// subscription route or "api/<agy-model>" for the API-key route.
+	AgyPath  string // Path to the agy CLI binary (default: PATH, then ~/.local/bin/agy)
+	AgyModel string
+
 	// motoko configuration (M-MOTOKO-EXECUTOR-ADAPTER)
 	MotokoPath    string // Path to motoko CLI binary (default: "motoko")
 	MotokoModel   string // Default motoko model (provider/model format, routes via OpenRouter)
@@ -65,6 +70,7 @@ func DefaultConfig() *Config {
 		CodexPath:        "codex",
 		OpenCodePath:     "opencode",
 		PiPath:           "pi",
+		AgyPath:          "agy",
 		MotokoPath:       "motoko",
 		MotokoProfile:    "dogfood",
 		// NO *Model DEFAULTS (M-MODEL-REGISTRY-SINGLE-SOURCE M6, D2(a)).

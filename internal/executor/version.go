@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -30,6 +31,10 @@ const VersionProbeTimeout = 3 * time.Second
 type VersionProbe struct {
 	CLI  string // identity prefix, e.g. "pi"
 	Path string // binary to run
+	// Env, when non-nil, is appended to the parent environment for the probe.
+	// agy needs AGY_CLI_DISABLE_AUTO_UPDATE=true here: any agy invocation can
+	// otherwise start its background self-updater (measured 2026-11-23).
+	Env []string
 
 	mu      sync.Mutex
 	version string
@@ -49,6 +54,9 @@ func (p *VersionProbe) Raw(ctx context.Context) (string, error) {
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, p.Path, "--version")
+	if p.Env != nil {
+		cmd.Env = append(os.Environ(), p.Env...)
+	}
 	proctree.Configure(cmd)
 	// Kill the whole tree on timeout: a probe that backgrounds a child would
 	// otherwise keep the stdout pipe open and Output() would wait on it.

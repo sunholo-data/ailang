@@ -1,6 +1,6 @@
 # M-AGY-EXECUTOR: Google Antigravity CLI (`agy`) as a local-editing executor
 
-**Status**: Planned. Phase 0 (discovery spike) gates everything after it.
+**Status**: Phase 1 BUILT (2026-11-23, attended): executor, pinned installer, sign-in tooling, registry rows. Waiting on the one human step, `make agy-signin` with the dedicated Google AI account. See "2026-11-23 build log" below.
 **Target**: v0.55.x
 **Priority**: P1
 **Estimated**: Phase 0 ½ day (needs Mark for sign-in); Phases 1–2 ~2 days; Phase 3 is a decision, not work
@@ -80,7 +80,7 @@ on subscription billing if Mark's account allows it.
 
 ### Design Freeze
 
-- [ ] D1: Mark signs in once (Phase 0) and says which route is the default
+- [x] D1: **subscription**, on a dedicated personal (@gmail.com) Google AI account (Mark, 2026-11-23: "we will use agy for gemini subscriptions"). The API-key route stays as the metered fallback
 - [ ] D2: launchd credential strategy chosen (or "agy is attended/coordinator-only, never a launchd loop rung")
 - [ ] D3: permission posture ratified from the Phase 0 tool-denial measurements
 
@@ -225,6 +225,22 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
 - OUTCOME: Mark is cancelling auto-renew on the `mark-gemini` Code Assist subscription (unusable by agy). Gemini Enterprise `sunholo-dev` is kept (the GE executor MCP uses it). Open question for Google support: does GE Standard include Antigravity CLI? If agy is wanted before then, the only sanctioned route is the API key on locked `ailang-gemini-agents` ($100 cap).
 - 2026-10-15: billing export confirms the 10-14 agy runs were METERED Vertex in sunholo-gemini-enterprise, not a licence: Gemini 4 Argon input 11,907 tokens + output 34, Gemini 3.8 Flash input 10,904 + output 18, Flash Lite trivial = $0.065 gross, about half offset by credits (~$0.03 net). No licence SKU moved. The Code Assist subscription still accrues ~$0.74/day until its term ends (auto-renew off). Mark's 10-15 sign-in retry still found no licence. Stop retrying without a Google support answer on whether agy honours a Gemini Enterprise Standard or Code Assist seat for a Workspace account.
 - Previously unresolved: whether the `mark-gemini` Code Assist seat is assigned to m@sunholo.com, and whether agy accepts a legacy Code Assist seat or only a Gemini Enterprise entitlement. Fallback: API-key route on the locked `ailang-gemini-agents` key (metered, $100 cap).
+
+**2026-11-23 build log (attended):**
+- **D1 decided:** subscription on a dedicated personal account. Workspace accounts (m@sunholo.com) cannot hold a Google AI plan: antigravity.google/docs/workspace says a personal account "is the only option that works with" Pro/Ultra.
+- **V1 superseded:** agy is now **1.5.15**, pinned in `tools/agy/install.sh`, which installs it SHA512-verified with no rc edits.
+- **P5 CLOSED:** yes, agy self-updates in the background on ordinary runs. Plain probe runs moved this machine from 1.3.5 to 1.5.15 mid-session. `AGY_CLI_DISABLE_AUTO_UPDATE=true` stops it (docs/cli/troubleshooting), and the executor, the version probe and both scripts set it.
+- **V4 superseded:** on 1.5.15 the API-key route lists Gemini 4 Neon, Carbon and Hydrogen (`agy models`), not only 3.x. Neon was live-verified through the executor via `ailang exec agy --model api/gemini-4-neon-high`: success, $0.043.
+- **Soft denial, measured:** exit 0, `status:"SUCCESS"`, and the denial appears only in `result.denied_actions`. This corrects the doc's earlier guess of `status:"ERROR"`. The executor banks it as a failure.
+- **D3 proposed, not ratified:**
+  - `--mode accept-edits` plus `permissions.allow` / `permissions.deny` in the route HOME's settings.json (`route.go`). `command(git)` was verified to let `git status` run.
+  - `--dangerously-skip-permissions` is never used.
+  - `--mode auto` is "not available for this account" on the API key. It may exist on the subscription, which would put a Google reviewer agent in charge of command approval instead.
+- **Symlinked cwd trap:** agy judges workspace writes against the RESOLVED cwd. A `/var/...` PWD over a `/private/var/...` cwd soft-denied `write_file(Edit)` intermittently. The executor resolves the workspace and sets `PWD` to the resolved path.
+- **P6 partly answered:** the docs say the sign-in lives in the OS keyring (macOS item `Antigravity CLI`), with a file fallback added in 1.4.7/1.5.9. Under the isolated HOME, `agy models` says "Please sign in", so the cached credential is HOME-scoped or absent. Re-check after `make agy-signin`, including from a launchd-spawned run (P3).
+- **Not built yet:**
+  - The mission-driver lane. `agy:` pins currently fall through to the anthropic bucket in `lane-probe.sh` and `resolve-role-spawn.sh`, so this is a separate change under the mission-loop-change skill.
+  - Cloud (Pillar 2), which waits on the Linux keyring question.
 
 ## Deferred Decisions
 

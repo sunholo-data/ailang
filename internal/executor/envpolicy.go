@@ -49,6 +49,7 @@ const (
 	envExecPi       = "pi"
 	envExecOpenCode = "opencode"
 	envExecMotoko   = "motoko"
+	envExecAgy      = "agy"
 )
 
 // inheritExact are inherited by (case-insensitive) exact name.
@@ -194,6 +195,14 @@ func executorCredentialGrants(executorName, model string) []string {
 		return []string{config.EnvOpenAIAPIKey, "CODEX_API_KEY"}
 	case envExecPi, envExecOpenCode:
 		return modelProviderCredentialVars(model)
+	case envExecAgy:
+		// No inherited credential, on either route (M-AGY-EXECUTOR). The
+		// subscription route authenticates from agy's own cached sign-in under
+		// its isolated HOME, and a GEMINI_API_KEY there would be ignored at best.
+		// The API-key route gets GEMINI_API_KEY from the executor itself
+		// (ExecutorEnv, child only), sourced from the locked
+		// GEMINI_AGENTS_API_KEY rather than whatever the parent exports.
+		return nil
 	case envExecMotoko:
 		// The ratified motoko set (motoko.go, EXECUTOR_SHAPE.md §8): never
 		// ANTHROPIC_API_KEY — Claude routes via OpenRouter.
