@@ -1,7 +1,8 @@
 ---
 title: AI Token Streaming
 sidebar_position: 10
-reviewBy: 2026-11-30
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # AI Token Streaming
@@ -15,15 +16,16 @@ Stream LLM token-by-token responses through the AI effect with full budget track
 If you only need the accumulated final string (the most common case for non-UI agents), use [`callStream`](https://github.com/sunholo-data/ailang/blob/dev/std/ai/streaming.ail). It opens the connection, drives the event loop in Go, accumulates content deltas, and returns `Result[string, AIError]` — no caller-side event handler, no `runEventLoop`, no manual JSON extraction.
 
 ```ailang
+module examples/ai_call_stream_demo
+
 import std/ai/streaming (callStream, AIError)
 import std/io (println)
-import std/result (Result, Ok, Err)
 
 export func main() -> () ! {AI, Stream, Net, IO} {
-  let body = "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]" in
+  let body = "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]";
   match callStream("my-openai", "gpt-4o-mini", body) {
     Ok(text) => println(text),
-    Err(e) => println("stream failed: " ++ e.code ++ " (retryable=" ++ (if e.retryable then "true" else "false") ++ ")")
+    Err(e) => println("stream failed: ${e.code} (retryable=${show(e.retryable)})")
   }
 }
 ```
@@ -51,32 +53,13 @@ For per-token UI updates, drop down to `openaiCompatStream` + the manual event l
 
 `std/ai/streaming` exports the synchronous accumulator (`callStream`), two stream-opening primitives, and the `AIError` record:
 
-```ailang
--- Accumulator wrapper (v0.15.1+) — opens, drives the loop, returns the joined string.
-export func callStream(
-  provider: string,
-  model: string,
-  messagesJson: string
-) -> Result[string, AIError] ! {AI, Stream, Net}
-
--- Stream-opening primitives — return a StreamConn the caller drives.
-export func openaiCompatStream(
-  provider: string,
-  model: string,
-  messagesJson: string
-) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
-
-export func anthropicStream(
-  provider: string,
-  model: string,
-  messagesJson: string
-) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
-
-export type AIError = { code: string, message: string, retryable: bool }
-
--- v1.1 reserved
-export type TokenDelta = { text: string, reasoning: string, done: bool }
-```
+| Symbol | Signature |
+|--------|-----------|
+| `callStream` | `(provider: string, model: string, messagesJson: string) -> Result[string, AIError] ! {AI, Stream, Net}` |
+| `openaiCompatStream` | `(provider: string, model: string, messagesJson: string) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}` |
+| `anthropicStream` | `(provider: string, model: string, messagesJson: string) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}` |
+| `AIError` | `{ code: string, message: string, retryable: bool }` |
+| `TokenDelta` | `{ text: string, reasoning: string, done: bool }` *(v1.1 reserved)* |
 
 All three streaming functions take a registered provider name + model + a pre-serialised messages JSON array. The Go layer injects `"stream": true` into the request body for `openai_chat`/`simple_completion` request shapes; Anthropic streaming is selected via the `anthropic_messages` request shape and SSE event types in the response (no body flag needed).
 
@@ -87,14 +70,15 @@ Reasoning fields (`reasoning_content`, `thinking`) emitted by reasoning models a
 When you need each delta as it arrives (chat UI, progress indication, early-stop on a sentinel), use the underlying primitive `openaiCompatStream` (or `anthropicStream`) and drive the event loop yourself. `std/ai/streaming` re-exports `onEvent`, `runEventLoop`, and `disconnect` from `std/stream` so a typical streaming program needs only one import for the streaming code path. Pattern-match constructors (`SSEData`, `Closed`, etc.) still come from `std/stream`.
 
 ```ailang
-import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
-import std/stream (SSEData, Closed, StreamError)   -- pattern-match constructors
-import std/io (println)
-import std/result (Result, Ok, Err)
+module examples/ai_stream_manual
 
-export func handler(event: StreamEvent) -> bool {
+import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+import std/stream (StreamEvent, SSEData, Closed, StreamError)
+import std/io (print, println)
+
+export func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
-    SSEData(_, data) => if data == "[DONE]" then false else { _io_print(data); true },
+    SSEData(_, data) => if data == "[DONE]" then false else { print(data); true },
     Closed(_, _) => false,
     StreamError(_) => false,
     _ => true
@@ -102,7 +86,7 @@ export func handler(event: StreamEvent) -> bool {
 }
 
 export func main() -> () ! {AI, Stream, Net, IO} {
-  let body = "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]" in
+  let body = "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]";
   match openaiCompatStream("my-openai", "gpt-4o-mini", body) {
     Ok(conn) => {
       onEvent(conn, handler);
@@ -140,21 +124,32 @@ done_sentinel = "[DONE]"
 Usage in AILANG:
 
 ```ailang
-let body = "[{\"role\":\"user\",\"content\":\"Hello!\"}]" in
-openaiCompatStream("openai-stream", "gpt-4o-mini", body)
+import std/ai/streaming (openaiCompatStream)
+import std/stream (StreamConn, StreamErrorKind)
+
+func openOpenAI() -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net} {
+  let body = "[{\"role\":\"user\",\"content\":\"Hello!\"}]";
+  openaiCompatStream("openai-stream", "gpt-4o-mini", body)
+}
 ```
 
 Each `SSEData(eventType, data)` event's `data` is a JSON string like `{"choices":[{"delta":{"content":"Hello"}}]}`. The recipe-level extraction pattern is:
 
 ```ailang
-match event {
-  SSEData(_, raw) =>
-    if raw == "[DONE]" then false
-    else {
-      -- parse raw via std/json.decode and extract delta.content
-      _io_print(raw); true
-    },
-  ...
+import std/io (print)
+import std/stream (StreamEvent, SSEData)
+
+func onDelta(event: StreamEvent) -> bool ! {IO} {
+  match event {
+    SSEData(_, raw) =>
+      if raw == "[DONE]" then false
+      else {
+        -- parse raw via std/json.decode and extract delta.content
+        print(raw);
+        true
+      },
+    _ => false
+  }
 }
 ```
 
@@ -180,7 +175,11 @@ done_sentinel = "[DONE]"
 ```
 
 ```ailang
-openaiCompatStream("openrouter-stream", "anthropic/claude-sonnet-4-5", body)
+import std/ai/streaming (openaiCompatStream)
+import std/stream (StreamConn, StreamErrorKind)
+
+func openOpenRouter(body: string) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net} =
+  openaiCompatStream("openrouter-stream", "anthropic/claude-sonnet-4-5", body)
 ```
 
 OpenRouter routes to the underlying provider per the model identifier; the AILANG-side surface is identical.
@@ -199,49 +198,31 @@ reasoning_path = "$.choices[0].delta.reasoning_content"
 Then in AILANG, decode each `SSEData` `data` field with `std/json.decode` and read both fields — render the visible text as it streams, surface reasoning in a "thinking" pane. The v1 extraction pattern (working code; v1.1 will wrap this behind `parseDelta`):
 
 ```ailang
-import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+import std/io (print, println)
 import std/stream (StreamEvent, SSEData)
-import std/json (decode, getString, asString)
-import std/option (Option, Some, None)
-import std/result (Result, Ok, Err)
+import std/json (Json, decode)
 
--- Extract a (text, reasoning) pair from one SSE data line. Returns
--- (content_delta, reasoning_delta) — empty strings when the field is
--- absent in this particular delta event.
 export func extractDelta(raw: string) -> {text: string, reasoning: string} {
   if raw == "[DONE]" then {text: "", reasoning: ""}
   else match decode(raw) {
     Ok(json) => {
-      -- choices[0].delta is the OpenAI-shape envelope; reach in via
-      -- nested getString lookups. For deeply-nested paths, std/json's
-      -- helper API is the v1 alternative to JSONPath.
-      let content = getNestedString(json, ["choices", "0", "delta", "content"]) in
-      let reasoning = getNestedString(json, ["choices", "0", "delta", "reasoning_content"]) in
+      let content = getNestedString(json, ["choices", "0", "delta", "content"]);
+      let reasoning = getNestedString(json, ["choices", "0", "delta", "reasoning_content"]);
       {text: content, reasoning: reasoning}
     },
     Err(_) => {text: "", reasoning: ""}
   }
 }
 
--- Walk a path of (key | index) strings into a Json value, returning
--- the leaf string or "" if any step misses or yields a non-string.
--- Real production code can use the path-walking helpers in std/json
--- when they land in v1.1; this is the inline equivalent for v1.
 func getNestedString(j: Json, path: [string]) -> string {
-  -- Implementation: walk the path with std/json.getString for object
-  -- keys; for array indices the v1 std/json doesn't yet have a
-  -- getIndex helper, so reasoning models with array-typed deltas
-  -- need either pattern-matching on JArray + std/list.head or
-  -- waiting for v1.1's parseDelta. See std/json source for the
-  -- full set of accessors available in v1.
   ""  -- replace with std/json walker for your path shape
 }
 
-export func handler(event: StreamEvent) -> bool {
+export func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
     SSEData(_, raw) => {
-      let delta = extractDelta(raw) in
-      if delta.text != "" then _io_print(delta.text) else ();
+      let delta = extractDelta(raw);
+      if delta.text != "" then print(delta.text) else ();
       if delta.reasoning != "" then renderReasoning(delta.reasoning) else ();
       true
     },
@@ -250,8 +231,8 @@ export func handler(event: StreamEvent) -> bool {
 }
 
 func renderReasoning(text: string) -> () ! {IO} {
-  _io_print("[thinking] ");
-  _io_println(text)
+  print("[thinking] ");
+  println(text)
 }
 ```
 
@@ -278,16 +259,25 @@ delta_path = "$.delta.text"
 ```
 
 ```ailang
-anthropicStream("anthropic-stream", "claude-sonnet-4-5", body)
+import std/ai/streaming (anthropicStream)
+import std/stream (StreamConn, StreamErrorKind)
+
+func openAnthropic(body: string) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net} =
+  anthropicStream("anthropic-stream", "claude-sonnet-4-5", body)
 ```
 
 Each `SSEData(eventType, data)` carries the event type as `eventType` (e.g. `"content_block_delta"`) and the JSON payload as `data`. Filter by `eventType` to extract only deltas:
 
 ```ailang
-match event {
-  SSEData("content_block_delta", raw) => { _io_print(raw); true },
-  SSEData("message_stop", _) => false,
-  _ => true
+import std/io (print)
+import std/stream (StreamEvent, SSEData)
+
+func handleAnthropic(event: StreamEvent) -> bool ! {IO} {
+  match event {
+    SSEData("content_block_delta", raw) => { print(raw); true },
+    SSEData("message_stop", _) => false,
+    _ => true
+  }
 }
 ```
 

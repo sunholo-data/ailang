@@ -2,7 +2,8 @@
 sidebar_position: 1
 title: AI API Integration Examples
 description: HTTP headers, JSON encoding, and structured error handling for AI APIs
-reviewBy: 2026-12-21
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -99,74 +100,65 @@ type Json =
 ```ailang
 import std/json (jn, jb, jnum, jint, js, ja, jo, kv, encode)
 
--- Primitives
-jn()            -- JNull
-jb(true)        -- JBool(true)
-jnum(42.5)      -- JNumber(42.5)
-jint(42)        -- JInt(42)
-js("hello")     -- JString("hello")
-
--- Collections
-ja([jnum(1.0), jnum(2.0)])  -- JArray([JNumber(1.0), JNumber(2.0)])
-jo([kv("x", jnum(1.0))])    -- JObject([{key: "x", value: JNumber(1.0)}])
-
--- Encoding
-encode(jo([kv("name", js("Alice"))]))  -- {"name":"Alice"}
+func jsonPrimitivesDemo() -> string {
+  let _n = jn();            -- JNull
+  let _b = jb(true);        -- JBool(true)
+  let _f = jnum(42.5);      -- JNumber(42.5)
+  let _i = jint(42);        -- JInt(42)
+  let _s = js("hello");     -- JString("hello")
+  let _arr = ja([jnum(1.0), jnum(2.0)]);
+  let _obj = jo([kv("x", jnum(1.0))]);
+  encode(jo([kv("name", js("Alice"))]))  -- "{\"name\":\"Alice\"}"
+}
 ```
 
 ### Complex Example
 
 ```ailang
--- Build a complex API request
-let request = jo([
-  kv("model", js("gpt-4")),
-  kv("temperature", jnum(0.7)),
-  kv("messages", ja([
-    jo([
-      kv("role", js("system")),
-      kv("content", js("You are a helpful assistant"))
-    ]),
-    jo([
-      kv("role", js("user")),
-      kv("content", js("Hello!"))
-    ])
-  ])),
-  kv("functions", ja([
-    jo([
-      kv("name", js("get_weather")),
-      kv("parameters", jo([
-        kv("type", js("object")),
-        kv("properties", jo([
-          kv("location", jo([kv("type", js("string"))]))
-        ]))
-      ]))
-    ])
-  ]))
-]);
+import std/json (jnum, js, ja, jo, kv, encode)
 
-let json = encode(request);
--- Result: {"model":"gpt-4","temperature":0.7,"messages":[...],...}
+func buildApiRequest() -> string {
+  let request = jo([
+    kv("model", js("gpt-4")),
+    kv("temperature", jnum(0.7)),
+    kv("messages", ja([
+      jo([
+        kv("role", js("system")),
+        kv("content", js("You are a helpful assistant"))
+      ]),
+      jo([
+        kv("role", js("user")),
+        kv("content", js("Hello!"))
+      ])
+    ])),
+    kv("functions", ja([
+      jo([
+        kv("name", js("get_weather")),
+        kv("parameters", jo([
+          kv("type", js("object")),
+          kv("properties", jo([
+            kv("location", jo([kv("type", js("string"))]))
+          ]))
+        ]))
+      ])
+    ]))
+  ]);
+  encode(request)
+}
 ```
 
 ## HTTP Request Function
 
 ### Signature
 
-```ailang
-httpRequest(
-  method: string,
-  url: string,
-  headers: List[{name: string, value: string}],
-  body: string
-) -> Result[HttpResponse, NetError] ! {Net}
-```
+`std/net.httpRequest` has type `(string, string, [{name: string, value: string}], string) -> Result[HttpResponse, NetError] ! {Net}`.
 
 ### Types
 
 ```ailang
 type HttpResponse = {
   status: int,
-  headers: List[{name: string, value: string}],
+  headers: [{name: string, value: string}],
   body: string,
   ok: bool  -- true if status 200-299
 }
@@ -181,31 +173,23 @@ type NetError =
 ### Error Handling
 
 ```ailang
-match httpRequest("POST", url, headers, body) {
-  Ok(resp) =>
-    if resp.ok then {
-      -- Success: status 200-299
-      processResponse(resp.body)
-    } else {
-      -- HTTP error: 4xx or 5xx
-      handleHTTPError(resp.status)
-    }
-  Err(err) => match err {
-    Transport(msg) => {
-      -- Network error: DNS, timeout, TLS, etc.
-      logError(concat_String("Network: ", msg))
-    }
-    DisallowedHost(host) => {
-      -- Security: domain not in allowlist
-      logError(concat_String("Blocked: ", host))
-    }
-    InvalidHeader(name) => {
-      -- Security: dangerous header blocked
-      logError(concat_String("Invalid header: ", name))
-    }
-    BodyTooLarge(size) => {
-      -- Response exceeded 5MB limit
-      logError(concat_String("Too large: ", size))
+import std/io (println)
+import std/net (httpRequest, Transport, DisallowedHost, InvalidHeader, BodyTooLarge)
+
+func sendRequest(url: string, headers: [{name: string, value: string}], body: string) -> string ! {Net, IO} {
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) =>
+      if resp.ok then resp.body
+      else {
+        println("HTTP error: ${show(resp.status)}");
+        ""
+      },
+    Err(err) => match err {
+      Transport(msg) => { println("Network: ${msg}"); "" },
+      DisallowedHost(host) => { println("Blocked: ${host}"); "" },
+      InvalidHeader(name) => { println("Invalid header: ${name}"); "" },
+      BodyTooLarge(size) => { println("Too large: ${show(size)}"); "" },
+      _ => { println("Request error"); "" }
     }
   }
 }
@@ -228,33 +212,31 @@ let headers = [
   {name: "Authorization", value: "Bearer token"},
   {name: "Content-Type", value: "application/json"},
   {name: "User-Agent", value: "MyApp/1.0"}
-];
+]
 
--- ❌ Blocked (returns InvalidHeader error)
+-- ❌ Blocked at runtime (returns Err(InvalidHeader(...)))
 let badHeaders = [
-  {name: "Connection", value: "close"},  -- Blocked!
-  {name: "Host", value: "evil.com"}      -- Blocked!
-];
+  {name: "Connection", value: "close"},
+  {name: "Host", value: "evil.com"}
+]
 ```
 
 ### 2. Cross-Origin Authorization Stripping
 
-Authorization headers are automatically removed on cross-origin redirects:
-
-```ailang
--- Initial request to api.example.com with Authorization header
--- Redirect to cdn.example.com
--- → Authorization header automatically stripped
-```
+Authorization headers are automatically removed on cross-origin redirects (e.g., an initial request to `api.example.com` redirecting to `cdn.example.com`).
 
 ### 3. Method Whitelist
 
-Only `GET` and `POST` are allowed in v0.3.9:
+`httpRequest` accepts standard HTTP methods (`GET`, `POST`, etc.) and validates headers and URLs:
 
 ```ailang
-httpRequest("GET", url, headers, body)   -- ✅ Allowed
-httpRequest("POST", url, headers, body)  -- ✅ Allowed
-httpRequest("PUT", url, headers, body)   -- ❌ Returns InvalidMethod error
+import std/net (httpRequest, HttpResponse, NetError)
+
+func fetchGet(url: string, headers: [{name: string, value: string}]) -> Result[HttpResponse, NetError] ! {Net} =
+  httpRequest("GET", url, headers, "")
+
+func fetchPost(url: string, headers: [{name: string, value: string}], body: string) -> Result[HttpResponse, NetError] ! {Net} =
+  httpRequest("POST", url, headers, body)
 ```
 
 ### 4. Other Security Features
@@ -271,16 +253,17 @@ httpRequest("PUT", url, headers, body)   -- ❌ Returns InvalidMethod error
 ### 1. Retry on Failure
 
 ```ailang
-func callWithRetry(prompt: string, apiKey: string, retries: int) -> string ! {Net, IO} {
-  match chatClaude(prompt, apiKey) {
-    Ok(resp) => resp
+import std/io (println)
+import std/net (httpRequest, Transport)
+
+func callWithRetry(url: string, body: string, retries: int) -> string ! {Net, IO} {
+  match httpRequest("POST", url, [], body) {
+    Ok(resp) => resp.body,
     Err(Transport(msg)) =>
       if retries > 0 then {
         println("Retrying...");
-        callWithRetry(prompt, apiKey, retries - 1)
-      } else {
-        concat_String("Failed after retries: ", msg)
-      }
+        callWithRetry(url, body, retries - 1)
+      } else "Failed after retries: ${msg}",
     Err(other) => show(other)  -- Don't retry non-transient errors
   }
 }
@@ -289,29 +272,15 @@ func callWithRetry(prompt: string, apiKey: string, retries: int) -> string ! {Ne
 ### 2. Response Parsing
 
 ```ailang
--- Note: JSON decoding is available via the stdlib: import std/json (decode, encode).
--- The manual parsing below is illustrative; prefer std/json in real code.
-
+-- JSON decoding is available via std/json: import std/json (decode, encode).
 func extractContent(jsonBody: string) -> string ! {} {
-  -- Manual parsing (simplified)
-  -- In practice, you'd use a proper JSON parser
   jsonBody
 }
 ```
 
 ### 3. Streaming Responses
 
-Streaming is not yet supported in v0.3.9. The entire response is buffered:
-
-```ailang
--- ❌ Not yet supported
--- func streamChat(prompt: string) -> Stream[string] ! {Net}
-
--- ✅ Current approach (full response)
-func chat(prompt: string) -> string ! {Net} {
-  -- Returns complete response after request finishes
-}
-```
+For token-by-token streaming responses, see the [AI Token Streaming recipe](/docs/recipes/ai-token-streaming) (`std/ai/streaming` and `std/stream`).
 
 ## Troubleshooting
 
@@ -356,11 +325,11 @@ HTTP error: 401
 ### Google Gemini
 
 ```ailang
-func chatGemini(prompt: string, apiKey: string) -> string ! {Net, IO} {
-  let url = concat_String(
-    "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=",
-    apiKey
-  );
+import std/json (js, ja, jo, kv, encode)
+import std/net (httpRequest)
+
+func chatGemini(prompt: string, apiKey: string) -> string ! {Net} {
+  let url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}";
   let headers = [{name: "Content-Type", value: "application/json"}];
   let body = encode(
     jo([
@@ -371,7 +340,7 @@ func chatGemini(prompt: string, apiKey: string) -> string ! {Net, IO} {
   );
 
   match httpRequest("POST", url, headers, body) {
-    Ok(resp) => resp.body
+    Ok(resp) => resp.body,
     Err(err) => show(err)
   }
 }
@@ -380,30 +349,24 @@ func chatGemini(prompt: string, apiKey: string) -> string ! {Net, IO} {
 ### Generic REST API
 
 ```ailang
-func callAPI(endpoint: string, payload: Json, apiKey: string) -> string ! {Net, IO} {
+import std/json (Json, encode)
+import std/net (httpRequest)
+
+func callAPI(endpoint: string, payload: Json, apiKey: string) -> string ! {Net} {
   let headers = [
-    {name: "Authorization", value: concat_String("Bearer ", apiKey)},
+    {name: "Authorization", value: "Bearer ${apiKey}"},
     {name: "Content-Type", value: "application/json"}
   ];
 
   match httpRequest("POST", endpoint, headers, encode(payload)) {
-    Ok(resp) => resp.body
+    Ok(resp) => resp.body,
     Err(err) => show(err)
   }
 }
 ```
 
-## Next Steps
-
-- **JSON Decoding** (planned v0.4.0): Parse JSON responses into AILANG values
-- **Streaming** (planned v0.4.0): Stream API responses for real-time output
-- **Environment Variables** (planned): `getEnv("API_KEY")` for safer key management
-- **More HTTP Methods** (planned): PUT, DELETE, PATCH support
-- **Custom Timeout** (planned): Per-request timeout configuration
-
 ## Related Documentation
 
-See the AILANG repository for more examples and documentation:
-- `/examples/` - Complete example files
-- `/stdlib/` - Standard library implementations
-- `/docs/LIMITATIONS.md` - Known limitations and workarounds
+- [AI Effect Guide](/docs/guides/ai-effect) — Typed `std/ai` calls (`call`, `callJson`)
+- [AI Token Streaming](/docs/recipes/ai-token-streaming) — Streaming LLM responses
+- [Known Limitations](/docs/reference/limitations) — Current limitations and workarounds

@@ -2,7 +2,8 @@
 sidebar_position: 7
 title: Semantic Search
 description: Two-tier semantic search with SimHash and neural embeddings for AI agents
-reviewBy: 2026-11-16
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Semantic Search in AILANG
@@ -23,17 +24,19 @@ SimHash provides immediate semantic search without any external dependencies:
 ```ailang
 module examples/simhash_search
 
-func main() -> string ! {IO, SharedIndex} {
+import std/list (length)
+
+export func main() -> string ! {IO, SharedIndex} {
   -- Store beliefs with SimHash
-  let _ = _sharedindex_upsert("beliefs", "b1", _simhash("The sky is blue"), 1, 1000)
-  in let _ = _sharedindex_upsert("beliefs", "b2", _simhash("Stars shine at night"), 1, 2000)
-  in let _ = _sharedindex_upsert("beliefs", "b3", _simhash("Clouds contain water"), 1, 3000)
+  let _ = _sharedindex_upsert("beliefs", "b1", _simhash("The sky is blue"), 1, 1000);
+  let _ = _sharedindex_upsert("beliefs", "b2", _simhash("Stars shine at night"), 1, 2000);
+  let _ = _sharedindex_upsert("beliefs", "b3", _simhash("Clouds contain water"), 1, 3000);
 
   -- Find similar to "What color is the sky?"
-  in let query_hash = _simhash("What color is the sky?")
-  in let results = _sharedindex_find_simhash("beliefs", query_hash, 3, 100, true)
+  let query_hash = _simhash("What color is the sky?");
+  let results = _sharedindex_find_simhash("beliefs", query_hash, 3, 100, true);
 
-  in "Found ${intToStr(_array_length(results))} results"
+  "Found ${show(length(results))} results"
 }
 ```
 
@@ -133,9 +136,11 @@ Or test with AILANG:
 ```ailang
 module test_embedding
 
-func main() -> string ! {IO} {
-  let emb = _ollama_embed("embeddinggemma", "Hello world")
-  in "Got ${intToStr(_array_length(emb))}-dimensional embedding"
+import std/list (length)
+
+export func main() -> string ! {IO} {
+  let emb = _ollama_embed("embeddinggemma", "Hello world");
+  "Got ${show(length(emb))}-dimensional embedding"
 }
 ```
 
@@ -292,9 +297,11 @@ Generate embeddings once at insert time, not at query time:
 
 ```ailang
 -- GOOD: Store embedding with data
-func store_item(text: string) -> unit ! {IO, SharedIndex} {
-  let emb = _ollama_embed("embeddinggemma", text)
-  in _sharedindex_upsert_emb("items", key, _simhash(text), emb, 1, now())
+import std/clock (now)
+
+func store_item(key: string, text: string) -> () ! {IO, Clock, SharedIndex} {
+  let emb = _ollama_embed("embeddinggemma", text);
+  _sharedindex_upsert_emb("items", key, _simhash(text), emb, 1, now())
 }
 ```
 
@@ -304,10 +311,8 @@ For large datasets, use SimHash as a fast first-pass filter:
 
 ```ailang
 -- 1. Fast SimHash pre-filter (no Ollama call)
-let candidates = _sharedindex_find_simhash("items", _simhash(query), 100, 1000, true)
-
--- 2. Re-rank top candidates with embeddings (few Ollama calls)
--- ... load full items and compute embedding similarity
+func prefilter(query: string) -> [{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} =
+  _sharedindex_find_simhash("items", _simhash(query), 100, 1000, true)
 ```
 
 ### 3. Keep Ollama Running
@@ -325,7 +330,8 @@ ollama serve &
 
 ```ailang
 -- Limit to scanning 500 entries max
-let results = _sharedindex_find_by_embedding("items", query_emb, 10, 500, true)
+func boundedSearch(query_emb: [float]) -> [{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} =
+  _sharedindex_find_by_embedding("items", query_emb, 10, 500, true)
 ```
 
 ---
@@ -361,17 +367,15 @@ let results = _sharedindex_find_by_embedding("items", query_emb, 10, 500, true)
 Combine both tiers for best results:
 
 ```ailang
-import std/sem (search_result)
+type SearchResult = {key: string, score: float, version: int, timestamp: int}
 
-func hybrid_search(ns: string, query: string, top_k: int) -> list[search_result] ! {IO, SharedIndex} {
+func hybrid_search(ns: string, query: string, top_k: int) -> [SearchResult] ! {IO, SharedIndex} {
   -- Tier 1: Fast SimHash pre-filter (get top 100 candidates)
-  let simhash_results = _sharedindex_find_simhash(ns, _simhash(query), 100, 1000, true)
+  let _simhash_results = _sharedindex_find_simhash(ns, _simhash(query), 100, 1000, true);
 
   -- Tier 2: Re-rank with embeddings (slower, more accurate)
-  in let query_emb = _ollama_embed("embeddinggemma", query)
-  in let emb_results = _sharedindex_find_by_embedding(ns, query_emb, top_k, 100, true)
-
-  in emb_results  -- Return embedding-ranked results
+  let query_emb = _ollama_embed("embeddinggemma", query);
+  _sharedindex_find_by_embedding(ns, query_emb, top_k, 100, true)
 }
 ```
 
@@ -421,48 +425,28 @@ ollama serve
 
 ### SimHash Builtins
 
-```ailang
--- Generate 64-bit SimHash
-_simhash(text: string) -> int
-
--- Hamming distance between two hashes
-_hamming_distance(a: int, b: int) -> int
-
--- Store with SimHash
-_sharedindex_upsert(ns: string, key: string, simhash: int, ver: int, ts: int) -> unit ! {SharedIndex}
-
--- Find by SimHash similarity
-_sharedindex_find_simhash(ns: string, query_hash: int, top_k: int, max_scan: int, deterministic: bool)
-  -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex}
-```
+| Builtin | Signature | Description |
+|---------|-----------|-------------|
+| `_simhash` | `(text: string) -> int` | Generate 64-bit SimHash |
+| `_hamming_distance` | `(a: int, b: int) -> int` | Hamming distance between two hashes |
+| `_sharedindex_upsert` | `(ns: string, key: string, simhash: int, ver: int, ts: int) -> () ! {SharedIndex}` | Store with SimHash |
+| `_sharedindex_find_simhash` | `(ns: string, query_hash: int, top_k: int, max_scan: int, deterministic: bool) -> [{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex}` | Find by SimHash similarity |
 
 ### Embedding Builtins
 
-```ailang
--- Generate embedding vector (requires Ollama)
-_ollama_embed(model: string, text: string) -> list[float] ! {IO}
-
--- Store with SimHash + embedding
-_sharedindex_upsert_emb(ns: string, key: string, simhash: int, embedding: list[float], ver: int, ts: int)
-  -> unit ! {SharedIndex}
-
--- Find by embedding similarity (cosine)
-_sharedindex_find_by_embedding(ns: string, query_emb: list[float], top_k: int, max_scan: int, deterministic: bool)
-  -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex}
-```
+| Builtin | Signature | Description |
+|---------|-----------|-------------|
+| `_ollama_embed` | `(model: string, text: string) -> [float] ! {IO}` | Generate embedding vector (requires Ollama) |
+| `_sharedindex_upsert_emb` | `(ns: string, key: string, simhash: int, embedding: [float], ver: int, ts: int) -> () ! {SharedIndex}` | Store with SimHash + embedding |
+| `_sharedindex_find_by_embedding` | `(ns: string, query_emb: [float], top_k: int, max_scan: int, deterministic: bool) -> [{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex}` | Find by embedding similarity (cosine) |
 
 ### Utility Builtins
 
-```ailang
--- Count entries in namespace
-_sharedindex_entry_count(ns: string) -> int ! {SharedIndex}
-
--- List all namespaces
-_sharedindex_namespaces(()) -> list[string] ! {SharedIndex}
-
--- Delete entry
-_sharedindex_delete(ns: string, key: string) -> unit ! {SharedIndex}
-```
+| Builtin | Signature | Description |
+|---------|-----------|-------------|
+| `_sharedindex_entry_count` | `(ns: string) -> int ! {SharedIndex}` | Count entries in namespace |
+| `_sharedindex_namespaces` | `() -> [string] ! {SharedIndex}` | List all namespaces |
+| `_sharedindex_delete` | `(ns: string, key: string) -> () ! {SharedIndex}` | Delete entry |
 
 ---
 
