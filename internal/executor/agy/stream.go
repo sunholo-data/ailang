@@ -33,6 +33,7 @@ type streamState struct {
 	// Per-step deltas (used for live budget tallies only).
 	stepIn, stepOut, stepThink, stepCache int
 
+	deniedCmds    []string
 	result        *agyResult
 	unknownEvents map[string]int
 	unparsed      int
@@ -113,6 +114,12 @@ func (s *streamState) observe(line []byte, task *executor.Task, handler executor
 			if st.State == "DONE" {
 				handler.OnToolResult(st.ToolName, "")
 			}
+			if st.State == "ERROR" {
+				if c := deniedCommand(st.ToolInfo); c != "" {
+					s.deniedCmds = append(s.deniedCmds, c)
+				}
+				handler.OnToolResult(st.ToolName, "error")
+			}
 		case "user_input":
 			// The directive itself; no work.
 		default:
@@ -185,8 +192,8 @@ func (s *streamState) verdict(waitErr error, route string) *executor.Result {
 		// it asked for. Banked as a failure so an under-permitted run is never
 		// read as a model that finished its work.
 		r.FinishReason = executor.FinishError
-		r.Error = fmt.Sprintf("agy soft-denied %d tool permission(s) [%s]; the run did not get to do what it asked (permission posture: internal/executor/agy/route.go)",
-			len(s.result.DeniedActions), deniedSummary(s.result.DeniedActions))
+		r.Error = fmt.Sprintf("agy soft-denied %d tool permission(s) [%s]%s; the run did not get to do what it asked (permission posture: internal/executor/agy/route.go)",
+			len(s.result.DeniedActions), deniedSummary(s.result.DeniedActions), deniedCmdSuffix(s.deniedCmds))
 	case exitCode == 3:
 		r.FinishReason = executor.FinishTimeout
 		r.Error = "agy --print-timeout cut the turn short (exit 3)"
@@ -252,6 +259,9 @@ func (s *streamState) fill(r *executor.Result, task *executor.Task, model, route
 		if len(s.result.DeniedActions) > 0 {
 			pd["agy_denied_actions"] = deniedSummary(s.result.DeniedActions)
 		}
+		if len(s.deniedCmds) > 0 {
+			pd["agy_denied_commands"] = append([]string(nil), s.deniedCmds...)
+		}
 		if s.result.FinishedReason != "" {
 			pd["agy_finished_reason"] = s.result.FinishedReason
 		}
@@ -263,6 +273,19 @@ func (s *streamState) fill(r *executor.Result, task *executor.Task, model, route
 		pd["agy_unparsed_lines"] = s.unparsed
 	}
 	r.ProviderData = pd
+}
+
+// deniedCmdSuffix names the refused command lines, so a denial says WHAT was
+// refused rather than only "command(Bash)".
+func deniedCmdSuffix(cmds []string) string {
+	if len(cmds) == 0 {
+		return ""
+	}
+	q := make([]string, 0, len(cmds))
+	for _, c := range cmds {
+		q = append(q, fmt.Sprintf("%q", tailOf(c, 200)))
+	}
+	return " — refused: " + strings.Join(q, ", ")
 }
 
 func tailOf(s string, n int) string {

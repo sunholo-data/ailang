@@ -48,6 +48,34 @@ type agyStep struct {
 	Usage           *agyUsage       `json:"usage"`
 }
 
+// agyToolInfo is a tool step's tool_info. A permission denial arrives as a
+// step with state "ERROR" whose error message starts "permission check failed"
+// and whose parameters carry the refused CommandLine (agy 1.5.15).
+type agyToolInfo struct {
+	Name       string         `json:"name"`
+	Parameters map[string]any `json:"parameters"`
+	Error      *struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// deniedCommand returns the refused command line of a denied tool step, or "".
+func deniedCommand(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var ti agyToolInfo
+	if json.Unmarshal(raw, &ti) != nil || ti.Error == nil ||
+		!strings.Contains(ti.Error.Message, "permission check failed") {
+		return ""
+	}
+	if c, ok := ti.Parameters["CommandLine"].(string); ok && c != "" {
+		return c
+	}
+	return ti.Name
+}
+
 type agyDenied struct {
 	Action      string `json:"action"`
 	DisplayName string `json:"display_name"`

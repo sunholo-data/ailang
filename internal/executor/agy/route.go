@@ -158,11 +158,29 @@ func ensureSettings(home, route string, allow, deny []string) error {
 	if err != nil {
 		return err
 	}
-	tmp := fmt.Sprintf("%s.ailang.%d", path, os.Getpid())
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o600); err != nil {
+	// A unique temp per write: parallel runs in ONE process (eval-suite --parallel)
+	// share a PID, so a PID-named temp let one run rename away the other's file
+	// (measured 2026-11-23: "rename settings.json.ailang.94067: no such file").
+	f, err := os.CreateTemp(filepath.Dir(path), "settings.json.ailang.*")
+	if err != nil {
 		return fmt.Errorf("agy: write settings: %w", err)
 	}
-	return os.Rename(tmp, path)
+	tmp := f.Name()
+	_, werr := f.Write(append(b, '\n'))
+	cerr := f.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("agy: write settings: %v %v", werr, cerr)
+	}
+	if err := os.Chmod(tmp, 0o600); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("agy: install settings: %w", err)
+	}
+	return nil
 }
 
 func toAny(ss []string) []any {

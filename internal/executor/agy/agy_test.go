@@ -223,6 +223,9 @@ func TestFixture_SoftDenial_IsFailure(t *testing.T) {
 	if !strings.Contains(res.Error, "soft-denied 1") || !strings.Contains(res.Error, "command(Bash)") {
 		t.Errorf("Error = %q", res.Error)
 	}
+	if !strings.Contains(res.Error, `refused: "echo agyprobe > shell.txt"`) {
+		t.Errorf("Error must name the refused command line: %q", res.Error)
+	}
 	if res.ProviderData["agy_denied_actions"] != "command(Bash)" {
 		t.Errorf("ProviderData = %v", res.ProviderData)
 	}
@@ -459,5 +462,26 @@ func TestWorkspace_PWDIsResolvedPath(t *testing.T) {
 	}
 	if got := m.env(t)["PWD"]; got != want {
 		t.Errorf("child PWD = %q, want the resolved workspace %q", got, want)
+	}
+}
+
+// Parallel runs in one process must not race on settings.json.
+func TestEnsureSettings_ConcurrentWritersInOneProcess(t *testing.T) {
+	home := t.TempDir()
+	errs := make(chan error, 16)
+	for i := 0; i < 16; i++ {
+		go func(i int) {
+			allow := []string{fmt.Sprintf("command(tool%d)", i%2)}
+			errs <- ensureSettings(home, routeSubscription, allow, []string{"command(sudo)"})
+		}(i)
+	}
+	for i := 0; i < 16; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent ensureSettings: %v", err)
+		}
+	}
+	left, _ := filepath.Glob(filepath.Join(filepath.Dir(settingsPath(home)), "settings.json.ailang.*"))
+	if len(left) != 0 {
+		t.Errorf("temp files left behind: %v", left)
 	}
 }

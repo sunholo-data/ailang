@@ -247,6 +247,13 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
   - D6 (which chain gets it) is Mark's call, after the agent smoke gate.
 - **Not built yet:** Cloud (Pillar 2), which waits on the Linux keyring question.
 
+**2026-11-23 sign-in (Mark, attended, on the rig):**
+- **P1 CLOSED:** the plan is Google AI **Ultra** on a dedicated personal account. The subscription route lists Neon, Carbon, Argon, Hydrogen, Orchestrator, 3.8 Flash, Claude Opus 5.5 / Sonnet 5.5 and gpt-oss-120b. `make agy-check` passed: gemini-4-neon-low answered `ok`, status SUCCESS, 16-19 thinking tokens.
+- **P6 CLOSED:** the sign-in is a FILE, `<HOME>/.gemini/antigravity-oauth-token` (591 bytes, mode 0600), under the isolated subscription HOME. It is not in the keychain. The operator's real HOME on the same macOS user is still "Please sign in", so isolation holds. This also makes cloud tractable: one sign-in per cloud environment, file in Secret Manager.
+- **P3 CLOSED:** a `launchctl submit`-spawned run under the subscription HOME returned SUCCESS in 2.6 s with rc 0 and no hang.
+- The laptop is signed in through the Antigravity **app**, a separate holder. The agy CLI executor on the laptop would need its own `make agy-signin`.
+- **Still open:** P4 (subscription quota observability). P5 is closed. D3 is proposed; D6 waits on the agent smoke gate.
+
 ## Deferred Decisions
 
 - Parser struct shapes, file split, and how unknown stream-json events are grouped in ProviderData — agent may choose

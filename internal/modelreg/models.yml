@@ -2530,9 +2530,10 @@ models:
       max_cost_usd: 4.00
       hard_timeout_secs: 1800
     notes: |
-      SUBSCRIPTION ROUTE — NOT YET SIGNED IN (2026-11-23). Needs the dedicated personal
-      Google account on Google AI Pro/Ultra (Workspace accounts get no plan quota in agy),
-      signed in once per machine with `make agy-signin`; `make agy-check` verifies.
+      SUBSCRIPTION ROUTE — SIGNED IN ON THE RIG 2026-11-23 (Google AI Ultra, dedicated
+      personal account; `make agy-check` passes, launchd-spawned run verified). Other machines
+      sign in separately with `make agy-signin`. The token is a FILE under the isolated HOME
+      (.gemini/antigravity-oauth-token), never copied between holders.
       Pro lists Neon/Argon/Hydrogen; Ultra adds Carbon (antigravity.google/pricing).
       Quota: one account-wide bucket refreshed every 5 h plus weekly caps, no published
       numbers, not yet observable (design doc P4).
