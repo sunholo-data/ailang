@@ -1,0 +1,73 @@
+module math_calls
+import std/math (sqrt, exp, pow, log, sin, floor, ceil, round, absFloat, absInt, PI)
+
+export func dist(dx: float, dy: float) -> float ! {}
+ensures { result >= 0.0 } {
+  sqrt(dx * dx + dy * dy)
+}
+
+export func distBad(dx: float) -> float ! {}
+ensures { result > 0.0 } {
+  sqrt(dx * dx)
+}
+
+export func growth(r: float) -> float ! {}
+requires { r >= 0.0 }
+ensures { result >= 1.0 } {
+  exp(r)
+}
+
+export func powOne(x: float) -> float ! {}
+ensures { result == x } {
+  pow(x, 1.0)
+}
+
+export func circ(r: float) -> float ! {}
+requires { r >= 0.0 }
+ensures { result >= 6.28 * r } {
+  2.0 * PI() * r
+}
+
+export func roundHalf(x: float) -> float ! {}
+requires { x == 2.5 }
+ensures { result == 3.0 } {
+  round(x)
+}
+
+export func roundNeg(x: float) -> float ! {}
+requires { x == -2.5 }
+ensures { result == -3.0 } {
+  round(x)
+}
+
+export func fl(x: float) -> float ! {}
+ensures { result <= x, result > x - 1.0 } {
+  floor(x)
+}
+
+export func ce(x: float) -> float ! {}
+ensures { result >= x, result < x + 1.0 } {
+  ceil(x)
+}
+
+export func ab(x: int) -> int ! {}
+ensures { result >= 0 } {
+  absInt(x)
+}
+
+export func wave(t: float) -> float ! {}
+ensures { result <= 1.0 } {
+  sin(t)
+}
+
+export func lg(x: float) -> float ! {}
+requires { x >= 1.0 }
+ensures { result >= 0.0 } {
+  log(x)
+}
+
+export func sqrtExactBad(x: float) -> float ! {}
+requires { x == 2.0 }
+ensures { result * result == 2.0 } {
+  sqrt(x)
+}

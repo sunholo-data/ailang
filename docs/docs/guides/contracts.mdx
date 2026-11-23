@@ -699,7 +699,8 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs)
 - **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
-- Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → `to_int`
+- Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → truncation toward zero (as at runtime)
+- `std/math`: `floor`, `ceil`, `round` (half away from zero), `absFloat`, `absInt`, `PI()`, `E()` are encoded exactly. `sqrt`, `exp`, `pow`, `log`, `sin`, `cos` are uninterpreted: each call contributes only facts the IEEE result always satisfies (`x >= 0 ⇒ sqrt(x) >= 0`, `sqrt` maps [0,1] into [0,1], `exp(x) >= 0`, `pow(x, 0) == 1`, `-1 <= sin(x) <= 1`, …). So `ensures { result >= 0.0 }` on `sqrt(dx*dx + dy*dy)` is proved, while `sqrt(2.0) * sqrt(2.0) == 2.0` is not. A model that rests on these functions is reported INCONCLUSIVE (the solver may have picked a value the real function never returns), and witness replay then confirms real violations
 - Must be pure (`pure func`, or an explicit `! {}`), or declare only `! {Declassify}` (a declassification gate). `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
 
 **Currently skipped (with hints):**

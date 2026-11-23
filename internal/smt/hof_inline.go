@@ -404,6 +404,11 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 		specBody = appendCaptureArgs(specBody, specName, caps)
 
 		// Unroll the specialized recursive function
+		// Encode the chain with fact capture off: a fact raised inside it (a
+		// math call's facts) would name the define-fun's own parameters outside
+		// their scope. Dropping facts only weakens the encoding.
+		savedFacts := activeCallFacts
+		activeCallFacts = nil
 		unrollResult, err := UnrollRecursiveFunction(UnrollConfig{
 			FuncName:   specName,
 			Params:     params,
@@ -412,6 +417,7 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 			Depth:      depth,
 			Frontier:   hofFrontier(call.Kind),
 		})
+		activeCallFacts = savedFacts
 		if err != nil {
 			result.Unsupported = fmt.Sprintf("the specialised %s chain does not encode: %v", call.Kind, err)
 			return result

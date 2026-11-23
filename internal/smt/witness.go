@@ -64,7 +64,7 @@ func witnessArgs(params []FunctionParam, model []ModelBinding, smtlib string) ([
 		if err != nil || len(sorts) != 1 {
 			return nil, fmt.Errorf("unreadable sort %q for %s", b.Sort, p.Name)
 		}
-		lit, err := modelTermToLiteral(b.Term, sorts[0], records)
+		lit, err := modelTermToLiteral(expandModelLets(b.Term, nil), sorts[0], records)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
 		}
@@ -93,7 +93,15 @@ func recordConstructors(smtlib string) map[string][]recordField {
 			return
 		}
 		for _, c := range ctors.List {
+			if !c.IsList && c.Str == nil && c.Atom != "" { // bare nullary constructor
+				out[nullaryCtorKey(c.Atom)] = nil
+				continue
+			}
 			name := c.Head()
+			if len(c.List) == 1 { // (Ctor) — nullary enum constructor
+				out[nullaryCtorKey(name)] = nil
+				continue
+			}
 			if !strings.HasPrefix(name, "mk_") {
 				continue
 			}
@@ -159,6 +167,9 @@ func modelTermToLiteral(term, sort *SExpr, records map[string][]recordField) (as
 			return nil, err
 		}
 		return &ast.List{Elements: elems}, nil
+	case !sort.IsList && !term.IsList && term.Str == nil && hasKey(records, nullaryCtorKey(term.Atom)):
+		// A nullary constructor of an enum ADT (`Failed`), declared in the script.
+		return &ast.Identifier{Name: term.Atom}, nil
 	case !sort.IsList:
 		head := term.Head()
 		if !term.IsList {
@@ -314,4 +325,65 @@ func replayInconclusive(vr VerifyResult, funcName string, params []FunctionParam
 		vr.Model = append(vr.Model, ModelBinding{Name: a.Name, Sort: a.Sort, Value: a.Text})
 	}
 	return vr
+}
+
+// uninterpretedInconclusive downgrades a model to inconclusive when the
+// encoding left std/math functions uninterpreted: the solver may have chosen a
+// value the real function never returns (exp(x) = 0, sqrt(2) = 5), so the
+// model is not a counterexample by itself. Witness replay then runs the real
+// function on the inputs and confirms or leaves it.
+func uninterpretedInconclusive(vr VerifyResult, funcName string, symbols []string, res *SolverResult, verbose bool) VerifyResult {
+	vr.Status = "inconclusive"
+	vr.ReasonCode = verification.BoundedInconclusive
+	vr.Reason = fmt.Sprintf("the solver's candidate model may rest on a value of %s that the real function never returns "+
+		"(the verifier knows these only by sign and range facts), so it is neither a proof nor a confirmed violation",
+		strings.Join(symbols, ", "))
+	vr.Model = nil
+	if verbose {
+		vr.Model = res.Model
+	}
+	return vr
+}
+
+// expandModelLets substitutes the bindings of Z3's (let ((a!1 v) …) body)
+// model terms, so the value is a plain constructor tree.
+func expandModelLets(t *SExpr, env map[string]*SExpr) *SExpr {
+	if t == nil {
+		return nil
+	}
+	if !t.IsList {
+		if t.Str == nil {
+			if v, ok := env[t.Atom]; ok {
+				return v
+			}
+		}
+		return t
+	}
+	if t.Head() == "let" && len(t.List) == 3 && t.List[1].IsList {
+		inner := make(map[string]*SExpr, len(env)+len(t.List[1].List))
+		for k, v := range env {
+			inner[k] = v
+		}
+		for _, b := range t.List[1].List { // parallel let: values see the outer env
+			if b.IsList && len(b.List) == 2 && !b.List[0].IsList {
+				inner[b.List[0].Atom] = expandModelLets(b.List[1], env)
+			}
+		}
+		return expandModelLets(t.List[2], inner)
+	}
+	out := &SExpr{IsList: true, List: make([]*SExpr, len(t.List))}
+	for i, c := range t.List {
+		out.List[i] = expandModelLets(c, env)
+	}
+	out.Original = out.String()
+	return out
+}
+
+// nullaryCtorKey keys enum constructors in the recordConstructors map apart
+// from record constructors (a nil field list).
+func nullaryCtorKey(name string) string { return "\x00enum:" + name }
+
+func hasKey(m map[string][]recordField, k string) bool {
+	_, ok := m[k]
+	return ok
 }

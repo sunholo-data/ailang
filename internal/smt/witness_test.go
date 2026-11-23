@@ -65,3 +65,17 @@ func TestWitnessArgs_RefusesUnknownShapes(t *testing.T) {
 		t.Fatal("want a refusal for a parameter absent from the model")
 	}
 }
+
+func TestWitnessArgs_ExpandsModelLets(t *testing.T) {
+	out := `sat
+(
+  (define-fun $p_xs () (Seq Int) (let ((a!1 (seq.unit 3))) (seq.++ a!1 a!1 (seq.unit 4))))
+)`
+	args, err := witnessArgs([]FunctionParam{{Name: "xs"}}, parseModel(out), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := args[0].Literal.String(); got != "[3, 3, 4]" {
+		t.Fatalf("got %s", got)
+	}
+}

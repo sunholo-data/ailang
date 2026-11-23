@@ -131,7 +131,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 **Lists**: `length`, `head`/`nth`/`last` (Option), `nthOr`/`headOr`/`lastOr`, `contains`, `take`, `drop`, `::` (cons) — not `reverse`
 
-**Numeric**: `intToFloat`, `floatToInt`, `abs`
+**Numeric**: `intToFloat`, `floatToInt` (truncates), `std/math` `floor`/`ceil`/`round`/`absInt`/`absFloat`/`PI()` (exact), `sqrt`/`exp`/`pow`/`log`/`sin`/`cos` (sign/range facts only, never values)
 
 ---
 

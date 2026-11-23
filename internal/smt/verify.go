@@ -609,6 +609,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			boundedDepth = encResult.HOFBoundedDepth // map/filter/foldl specialisations are bounded unrollings too
 		}
 		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
+		if vr.Status == "counterexample" && len(encResult.UninterpretedMath) > 0 {
+			vr = uninterpretedInconclusive(vr, funcName, encResult.UninterpretedMath, solveResult, opts.Verbose)
+		}
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)
 		}

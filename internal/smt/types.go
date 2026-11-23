@@ -484,6 +484,10 @@ func ResolveStdlibToBuiltin(module, name string) (string, bool) {
 		if builtinName, ok := StdlibOptionToSMT[name]; ok {
 			return builtinName, true
 		}
+	case "std/math":
+		if builtinName, ok := StdlibMathToSMT[name]; ok {
+			return builtinName, true
+		}
 	}
 	return "", false
 }

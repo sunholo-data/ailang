@@ -32,9 +32,11 @@ export pure func one() -> float ! {} ensures { result > 0.5 } { 1.0 }
 }
 
 // A local helper calling std/math.sqrt was inlined as a define-fun with a raw
-// `(sqrt s)` body, so Z3 hard-errored instead of the caller being skipped.
-// A helper with an encodable body must still verify.
-func TestVerify_HelperCallingSqrtSkipsHonestly(t *testing.T) {
+// `(sqrt s)` body, so Z3 hard-errored (stapledons, 2026-11-02); it was then
+// skipped. std/math.sqrt is now an uninterpreted function with IEEE-true facts
+// (sqrt maps [0,1] into [0,1]), so horizon is proved — and nothing raw reaches
+// Z3 (verifyStatuses fails on any "unknown constant").
+func TestVerify_HelperCallingSqrtVerifies(t *testing.T) {
 	if !smt.Z3Available() {
 		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
 	}
@@ -47,8 +49,8 @@ export pure func horizon(s: float) -> float requires { s >= 0.0 && s < 1.0 } ens
 export pure func twice(s: float) -> float requires { s >= 0.0 } ensures { result >= 0.0 } { dbl(s) }
 `)
 	got := verifyStatuses(t, bin, f)
-	if r := got["horizon"]; r.Status != "skipped" {
-		t.Fatalf("horizon status = %q (reason %q), want skipped", r.Status, r.Reason)
+	if r := got["horizon"]; r.Status != "verified" {
+		t.Fatalf("horizon status = %q (reason %q), want verified", r.Status, r.Reason)
 	}
 	if r := got["twice"]; r.Status != "verified" {
 		t.Fatalf("twice status = %q (reason %q), want verified", r.Status, r.Reason)

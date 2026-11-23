@@ -79,6 +79,43 @@ func encodeExprWithSortHint(expr core.CoreExpr, expectedSort string) (string, er
 		}
 		return fmt.Sprintf("(ite %s %s %s)", cond, then, els), nil
 
+	case *core.Let:
+		// The let's body is the value, so it inherits the hint: an
+		// `if room <= 0 then [] else take(…)` under a let otherwise typed its
+		// [] as (Seq Int) whatever the declared element sort. Same binding
+		// hygiene and call-facts scoping as encodeLet / encodeFactLet.
+		value, err := EncodeExpr(e.Value)
+		if err != nil {
+			return "", fmt.Errorf("let value: %w", err)
+		}
+		symbol := letSymbol(e.Name)
+		encodeBody := func() (string, error) {
+			previous := activeParamRenames
+			local := make(map[string]string, len(previous)+1)
+			for k, v := range previous {
+				local[k] = v
+			}
+			local[e.Name] = symbol
+			activeParamRenames = local
+			defer func() { activeParamRenames = previous }()
+			return encodeExprWithSortHint(e.Body, expectedSort)
+		}
+		if activeCallFacts == nil {
+			body, err := encodeBody()
+			if err != nil {
+				return "", fmt.Errorf("let body: %w", err)
+			}
+			return fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, body), nil
+		}
+		body, facts, err := captureCallFacts(encodeBody)
+		if err != nil {
+			return "", fmt.Errorf("let body: %w", err)
+		}
+		if facts != "true" {
+			addCallFact(fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, facts))
+		}
+		return fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, body), nil
+
 	default:
 		return EncodeExpr(expr)
 	}

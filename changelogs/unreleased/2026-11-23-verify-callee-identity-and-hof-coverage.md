@@ -88,3 +88,36 @@ generator that nothing called, so every function using them was skipped ("unsupp
 application"). They are now encoded exactly with `seq.extract`, matching the runtime's edge
 cases: `take(-1, xs)` is `[]` and `drop(-1, xs)` is `xs`. `reverse` is still not encodable; the
 contracts guide no longer lists it.
+
+### Added — `std/math` in verified code (2026-11-23)
+
+Every function calling `std/math` was skipped: the wrappers call `_math_*` builtins with no
+encoding. Now:
+- `floor`, `ceil`, `round` (half away from zero, as Go's `math.Round`), `absFloat` and `absInt`
+  are defined exactly, and `PI()`/`E()` are the exact float64 values.
+- `sqrt`, `exp`, `pow`, `log`, `sin` and `cos` are uninterpreted functions. Each call adds ground
+  facts that the IEEE result satisfies for every non-NaN input:
+  - `x >= 0 ⇒ sqrt(x) >= 0`, and `sqrt` maps `[0,1]` into `[0,1]` and `[1,∞)` into `[1,x]`;
+  - `exp(x) >= 0`, and `>= 1` for `x >= 0`;
+  - `pow(x, 0) == 1` and `pow(x, 1) == x`;
+  - `log(x) >= 0` for `x >= 1`;
+  - `-1 <= sin, cos <= 1`.
+- Values are never assumed: `sqrt(2.0) * sqrt(2.0) == 2.0` is not proved.
+- A helper calling `sqrt` (the stapledons Kerr `horizon` shape) now verifies.
+- A model of an encoding that uses an uninterpreted math function is **inconclusive**, not a
+  violation. The solver may pick a value the real function never returns (`exp(x) = 0`).
+  Witness replay then confirms the genuine ones (`sqrt(2.0) * sqrt(2.0) == 2.0` is a replayed
+  violation: it is 2.0000000000000004). Without this, 77 physics contracts in the measured
+  corpus would have been reported as false counterexamples.
+
+### Fixed — `[]` under a `let` was typed `(Seq Int)` (2026-11-23)
+
+The sort hint that types an empty list from the declared return type stopped at `let`.
+`let room = … in if room <= 0 then [] else take(room, jobs)` therefore built a `(Seq Int)`, and
+Z3 rejected the query for any other element type. The hint now flows through `let` bodies.
+
+### Changed — witness replay reads more model shapes (2026-11-23)
+
+Replay now expands Z3's `(let ((a!1 …)) …)` model terms and converts nullary enum constructors
+(`status: Failed`), so record-and-enum inputs (job queues, inboxes) are replayed rather than left
+inconclusive.

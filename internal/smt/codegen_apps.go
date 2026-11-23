@@ -49,6 +49,9 @@ func encodeApp(app *core.App) (string, error) {
 			if enc, ok, err := encodeOptionAccess(builtinName, app); ok {
 				return enc, err
 			}
+			if enc, ok, err := encodeMathCall(builtinName, dropUnitArgs(app.Args)); ok {
+				return enc, err
+			}
 		}
 	}
 
