@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 134 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated, byte-identical to 133 (independent sonnet judge NONE 90%); World 427 ran undegraded and recorded the `1ac80... |
 | 133 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 85%); World 425/426 ran two more full, codex-degraded fires on the unrecorded... |
 | 132 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 88%); World 423/424 add two slots to D-FLEET-45's ticket (10 → 12) on an idle... |
 | 131 | 2026-11-21 | pick NONE: all 16 tickets ruling-gated, byte-identical to 130 (independent sonnet judge NONE 85%); World 422 recorded its idle fingerprint undegrad... |
