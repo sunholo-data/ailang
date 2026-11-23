@@ -83,7 +83,7 @@ func encodeFactIfHint(e *core.If, hint string) (string, error) {
 }
 
 func encodeFactLet(e *core.Let) (string, error) {
-	value, err := EncodeExpr(e.Value)
+	value, err := encodeLetValue(e)
 	if err != nil {
 		return "", err
 	}

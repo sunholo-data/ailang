@@ -10,7 +10,7 @@ import (
 
 // encodeLet encodes a let binding as SMT-LIB let expression.
 func encodeLet(let *core.Let) (string, error) {
-	value, err := EncodeExpr(let.Value)
+	value, err := encodeLetValue(let)
 	if err != nil {
 		return "", fmt.Errorf("let value: %w", err)
 	}

@@ -336,7 +336,7 @@ func uninterpretedInconclusive(vr VerifyResult, funcName string, symbols []strin
 	vr.Status = "inconclusive"
 	vr.ReasonCode = verification.BoundedInconclusive
 	vr.Reason = fmt.Sprintf("the solver's candidate model may rest on a value of %s that the real function never returns "+
-		"(the verifier knows these only by sign and range facts), so it is neither a proof nor a confirmed violation",
+		"(the verifier knows these only by facts, not values), so it is neither a proof nor a confirmed violation",
 		strings.Join(symbols, ", "))
 	vr.Model = nil
 	if verbose {
@@ -386,4 +386,17 @@ func nullaryCtorKey(name string) string { return "\x00enum:" + name }
 func hasKey(m map[string][]recordField, k string) bool {
 	_, ok := m[k]
 	return ok
+}
+
+// uninterpretedUndecided reports a solver `unknown`/timeout on an encoding that
+// relies on uninterpreted builtins as what it is — a capability boundary: the
+// facts known about trim/split/sqrt/… did not let Z3 decide. It is a skip (as
+// these functions were before they were encoded at all), not a solver error
+// that fails the run. A plain encoding's unknown keeps the error lane.
+func uninterpretedUndecided(vr VerifyResult, symbols []string) VerifyResult {
+	vr.Status = "skipped"
+	vr.ReasonCode = verification.UnsupportedEncoding
+	vr.Reason = fmt.Sprintf("the solver could not decide this contract from the facts known about %s (%s)",
+		strings.Join(symbols, ", "), vr.Reason)
+	return vr
 }

@@ -1,0 +1,60 @@
+module string_extra
+import std/string (length, trim, toLower, toUpper, split, chars, join, repeat, charAt, replace, startsWith)
+import std/list (length as llen)
+
+export func t1(s: string) -> string ! {}
+ensures { length(result) <= length(s) } {
+  trim(s)
+}
+
+export func t1Bad(s: string) -> string ! {}
+ensures { length(result) < length(s) } {
+  trim(s)
+}
+
+export func lower(s: string) -> string ! {}
+ensures { length(result) == length(s) } {
+  toLower(s)
+}
+
+export func parts(s: string) -> [string] ! {}
+ensures { llen(result) >= 1 } {
+  split(s, ",")
+}
+
+export func partsBad(s: string) -> [string] ! {}
+ensures { llen(result) >= 2 } {
+  split(s, ",")
+}
+
+export func cs(s: string) -> [string] ! {}
+ensures { llen(result) == length(s) } {
+  chars(s)
+}
+
+export func j1(x: string) -> string ! {}
+ensures { result == x } {
+  join(", ", [x])
+}
+
+export func rep(s: string, n: int) -> string ! {}
+requires { n >= 0 }
+ensures { length(result) == length(s) * n } {
+  repeat(s, n)
+}
+
+export func first(s: string) -> string ! {}
+requires { length(s) > 0 }
+ensures { length(result) == 1 } {
+  charAt(s, 0)
+}
+
+export func dash(s: string) -> string ! {}
+ensures { result == s || length(s) > 0 } {
+  replace(s, "-", "_")
+}
+
+export func dashBad(s: string) -> string ! {}
+ensures { result == s } {
+  replace(s, "-", "_")
+}

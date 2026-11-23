@@ -584,13 +584,14 @@ func TestHasUnencodableTypes_StdlibListReverse(t *testing.T) {
 }
 
 func TestHasUnencodableTypes_StdlibStringUnmapped(t *testing.T) {
-	// std/string.join(sep, parts) is NOT in mapping → unencodable
+	// std/string.words(s) is NOT in the mapping → unencodable. (join, split,
+	// trim, … are encoded since M-VERIFY-SOUNDNESS-COVERAGE M5: stdlibStringExtra.)
 	body := &core.App{
-		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "join"}},
-		Args: []core.CoreExpr{&core.Var{Name: "sep"}, &core.Var{Name: "parts"}},
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "words"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}},
 	}
 	if !hasUnencodableTypes(body) {
-		t.Error("std/string.join should be unencodable (not in SMT mapping)")
+		t.Error("std/string.words should be unencodable (not in SMT mapping)")
 	}
 }
 

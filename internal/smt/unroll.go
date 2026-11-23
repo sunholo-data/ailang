@@ -78,13 +78,15 @@ func UnrollRecursiveFunction(cfg UnrollConfig) (*UnrollResult, error) {
 		// list literal the body returns: a map/filter specialisation's base case
 		// is `[]`, which defaults to (Seq Int) and is ill-sorted for any other
 		// element type (#215).
-		bodyExpr, err := encodeExprWithSortHint(rewrittenBody, cfg.ReturnSort)
+		defParams, bodyExpr, err := withArgRenames(cfg.Params, func() (string, error) {
+			return encodeExprWithSortHint(rewrittenBody, cfg.ReturnSort)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("encoding unrolled body at depth %d: %w", k, err)
 		}
 
-		// Build define-fun
-		defineFun := buildDefineFun(levelName, cfg.Params, cfg.ReturnSort, bodyExpr)
+		// Build define-fun (parameters bound under $a_ names: see argSymbol)
+		defineFun := buildDefineFun(levelName, defParams, cfg.ReturnSort, bodyExpr)
 		result.Declarations = append(result.Declarations, defineFun)
 	}
 

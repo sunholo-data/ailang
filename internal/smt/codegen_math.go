@@ -59,24 +59,25 @@ var mathUninterpreted = map[string]struct {
 	mathLog: {"$math_log", 1}, mathSin: {"$math_sin", 1}, mathCos: {"$math_cos", 1},
 }
 
-// activeMathSymbols records the uninterpreted math functions used by the
-// function being encoded; EncodeFunction declares exactly those.
-var activeMathSymbols map[string]int
+// activeUninterpreted records the uninterpreted builtin functions (std/math,
+// std/string) used by the function being encoded: symbol → declare-fun line.
+// EncodeFunction declares exactly those.
+var activeUninterpreted map[string]string
 
-// mathDeclarations returns the declare-fun lines for the math symbols used.
-func mathDeclarations() []string {
-	names := make([]string, 0, len(activeMathSymbols))
-	for s := range activeMathSymbols {
-		names = append(names, s)
+// useUninterpreted registers symbol with its declaration for this encoding.
+func useUninterpreted(symbol, decl string) error {
+	if activeUninterpreted == nil {
+		return fmt.Errorf("%w: %s outside a function encoding", ErrUnsupportedConstruct, symbol)
 	}
-	sort.Strings(names)
-	out := make([]string, 0, len(names))
-	for _, s := range names {
-		params := "Real"
-		if activeMathSymbols[s] == 2 {
-			params = "Real Real"
-		}
-		out = append(out, fmt.Sprintf("(declare-fun %s (%s) Real)", s, params))
+	activeUninterpreted[symbol] = decl
+	return nil
+}
+
+// uninterpretedDeclarations returns the declare-fun lines for the symbols used.
+func uninterpretedDeclarations() []string {
+	out := make([]string, 0, len(activeUninterpreted))
+	for _, s := range usedUninterpreted() {
+		out = append(out, activeUninterpreted[s])
 	}
 	return out
 }
@@ -123,10 +124,13 @@ func encodeMathCall(name string, args []core.CoreExpr) (string, bool, error) {
 	case mathAbsInt:
 		return fmt.Sprintf("(ite (>= %[1]s 0) %[1]s (- %[1]s))", x), true, nil
 	}
-	if activeMathSymbols == nil {
-		return "", true, fmt.Errorf("%w: %s outside a function encoding", ErrUnsupportedConstruct, name)
+	params := "Real"
+	if uf.arity == 2 {
+		params = "Real Real"
 	}
-	activeMathSymbols[uf.symbol] = uf.arity
+	if err := useUninterpreted(uf.symbol, fmt.Sprintf("(declare-fun %s (%s) Real)", uf.symbol, params)); err != nil {
+		return "", true, err
+	}
 	call := fmt.Sprintf("(%s %s)", uf.symbol, x)
 	if uf.arity == 2 {
 		call = fmt.Sprintf("(%s %s %s)", uf.symbol, x, enc[1])
@@ -185,10 +189,10 @@ func dropUnitArgs(args []core.CoreExpr) []core.CoreExpr {
 	return out
 }
 
-// usedMathSymbols returns the uninterpreted math symbols the encoding used.
-func usedMathSymbols() []string {
-	names := make([]string, 0, len(activeMathSymbols))
-	for s := range activeMathSymbols {
+// usedUninterpreted returns the uninterpreted symbols the encoding used, sorted.
+func usedUninterpreted() []string {
+	names := make([]string, 0, len(activeUninterpreted))
+	for s := range activeUninterpreted {
 		names = append(names, s)
 	}
 	sort.Strings(names)

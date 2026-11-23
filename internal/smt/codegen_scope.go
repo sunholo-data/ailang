@@ -60,3 +60,32 @@ func encodeLetRenamed(expr core.CoreExpr, name, symbol string) (string, error) {
 	defer func() { activeParamRenames = previous }()
 	return EncodeExpr(expr)
 }
+
+// argSymbol is the SMT name a define-fun binds a source parameter under: a
+// helper's or an unrolled function's parameter named like a record accessor
+// (`guidance(s, phase, target)` reading `t.target`) otherwise shadows the
+// accessor and Z3 rejects the application. Same hygiene as letSymbol ($l_)
+// and captureSymbol ($c_).
+func argSymbol(name string) string {
+	return "$a_" + name
+}
+
+// withArgRenames runs encode with each of params' source names bound to its
+// argSymbol, and returns params renamed to match, for the define-fun header.
+func withArgRenames(params []FunctionParam, encode func() (string, error)) ([]FunctionParam, string, error) {
+	previous := activeParamRenames
+	local := make(map[string]string, len(previous)+len(params))
+	for k, v := range previous {
+		local[k] = v
+	}
+	renamed := make([]FunctionParam, len(params))
+	for i, p := range params {
+		renamed[i] = p
+		renamed[i].Name = argSymbol(p.Name)
+		local[p.Name] = renamed[i].Name
+	}
+	activeParamRenames = local
+	defer func() { activeParamRenames = previous }()
+	out, err := encode()
+	return renamed, out, err
+}

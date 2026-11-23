@@ -121,3 +121,36 @@ Z3 rejected the query for any other element type. The hint now flows through `le
 Replay now expands Z3's `(let ((a!1 …)) …)` model terms and converts nullary enum constructors
 (`status: Failed`), so record-and-enum inputs (job queues, inboxes) are replayed rather than left
 inconclusive.
+
+### Added — `std/string` trim/toLower/toUpper/split/chars/join/repeat/replace/charAt in verified code (2026-11-23)
+
+Every caller of these was skipped. `charAt` is now exact (`str.at`). The others are uninterpreted
+functions, and each call adds facts the runtime result always has. AILANG strings are rune
+sequences, as Z3 strings are, so rune-level facts are exact:
+- `trim(s)` is a substring of `s`, no longer than it;
+- case mapping keeps the length;
+- `split` with `""` gives one part per rune; with an absent delimiter it gives `[s]`; otherwise at
+  least one part;
+- `chars` gives one element per rune;
+- `join` of `[]` is `""` and of `[x]` is `x`;
+- `repeat` with `n <= 0` is `""`, otherwise its length is `length(s) * n`;
+- `replace` leaves `s` unchanged when `old` is absent or equal to `new`.
+
+`replace` is not encoded with Z3's exact `str.replace_all`, which made the solver answer `unknown`
+(an error). Models over these functions are inconclusive, and witness replay confirms real
+violations. An inconclusive result with no bounded unrolling no longer prints "(bounded: depth 0)".
+
+### Fixed — three encoder gaps that made Z3 reject a query (2026-11-23)
+
+- **`[]` compared with a typed list.** Core's type for an empty list literal is an unresolved
+  `[α]`, and ANF hoists it into a `let`, so `r.costs == []` built `(as seq.empty (Seq Int))` and Z3
+  rejected the query. A `let`-bound `[]` now takes its sort from its first binary use whose other
+  operand has a known list type.
+- **Parameter named like a record accessor.** Helper and unrolled-function parameters were bound
+  under their source names. So `guidance(s, phase, target)` reading `t.target` shadowed the
+  accessor, and Z3 rejected the application. They are now bound as `$a_<name>`, the same hygiene
+  as lets (`$l_`) and captures (`$c_`).
+- **Solver can't decide from the facts.** A solver `unknown`/timeout on an encoding that relies on
+  uninterpreted builtins (string or math facts) is a skip naming those functions. Before they were
+  encoded these functions were skipped, so this does not turn a passing run into a failing one. A
+  plain encoding's `unknown` still fails the run.

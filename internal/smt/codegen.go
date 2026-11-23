@@ -89,11 +89,11 @@ type EncodeResult struct {
 	// uninterpreted stub. Like bounded recursion, a sat on such an encoding may
 	// rest on an invented stub value, so Verify classifies it inconclusive.
 	HOFBoundedDepth int
-	// UninterpretedMath lists the std/math functions (sqrt, exp, …) the
-	// encoding leaves uninterpreted. A sat may then rest on a value the real
+	// Uninterpreted lists the builtins (std/math sqrt/exp/…, std/string
+	// trim/split/…) the encoding leaves uninterpreted. A sat may then rest on a value the real
 	// function never returns (exp(x) = 0), so Verify classifies it
 	// inconclusive, like a bounded unrolling, and witness replay decides it.
-	UninterpretedMath []string
+	Uninterpreted []string
 }
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
@@ -177,8 +177,8 @@ func EncodeFunction(
 	// `(sqrt s)` and Z3 hard-errored (stapledons report, 2026-11-02).
 	activeUserFunctions = make(map[string]bool)
 	defer func() { activeUserFunctions = nil }()
-	activeMathSymbols = make(map[string]int)
-	defer func() { activeMathSymbols = nil }()
+	activeUninterpreted = make(map[string]string)
+	defer func() { activeUninterpreted = nil }()
 	if len(opts) > 0 && opts[0].Program != nil {
 		for _, name := range collectFunctionNames(opts[0].Program) {
 			activeUserFunctions[name] = true
@@ -587,8 +587,8 @@ func EncodeFunction(
 	lines = append(lines, fmt.Sprintf("; Verification of %s", funcName))
 	lines = append(lines, "(set-logic ALL)")
 	lines = append(lines, "")
-	result.UninterpretedMath = usedMathSymbols()
-	lines = append(lines, mathDeclarations()...) // before any use, including callee define-funs
+	result.Uninterpreted = usedUninterpreted()
+	lines = append(lines, uninterpretedDeclarations()...) // before any use, including callee define-funs
 	lines = append(lines, result.Declarations...)
 	lines = append(lines, "")
 	lines = append(lines, result.Assertions...)

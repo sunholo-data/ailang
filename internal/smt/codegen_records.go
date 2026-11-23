@@ -401,8 +401,17 @@ func fieldNamesFromExprMap(fields map[string]core.CoreExpr) []string {
 // [] → (as seq.empty (Seq Int))  (needs type from context)
 func encodeList(list *core.List) (string, error) {
 	if len(list.Elements) == 0 {
-		// Empty list — need an element sort for the typed empty sequence.
-		// Default to Int; the SMT solver will unify sorts as needed.
+		// Empty list — the typed empty sequence needs an element sort. The
+		// literal's own elaborated type gives it (`r.costs == []` is a
+		// list[Cost]); Int is only the last resort for an untyped literal,
+		// and Z3 rejects (rather than coerces) a wrong one.
+		if t := hofExprType(list); t != nil {
+			if sort, err := MapType(t); err == nil {
+				if _, isSeq := seqElemSort(sort); isSeq {
+					return fmt.Sprintf("(as seq.empty %s)", sort), nil
+				}
+			}
+		}
 		return "(as seq.empty (Seq Int))", nil
 	}
 

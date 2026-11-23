@@ -476,6 +476,9 @@ func ResolveStdlibToBuiltin(module, name string) (string, bool) {
 		if builtinName, ok := StdlibStringToSMT[name]; ok {
 			return builtinName, true
 		}
+		if builtinName, ok := stdlibStringExtra[name]; ok {
+			return builtinName, true
+		}
 	case "std/list":
 		if builtinName, ok := StdlibListToSMT[name]; ok {
 			return builtinName, true

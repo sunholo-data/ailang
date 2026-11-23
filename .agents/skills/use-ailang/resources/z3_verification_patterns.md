@@ -117,7 +117,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 - Use **bitwise** operators (`&`, `^`, `~`, `<<`, `>>`) — skipped as unencodable
 - Use an **unannotated generic parameter** (`func f(x)`) — reaches Z3 as an error (#2400); annotate `x: int`
 - Use **arrays** (use lists instead)
-- Use unsupported string builtins: `trim`, `toUpper`, `toLower`, `split`, `chars`; or datetime builtins (`addDays`, …)
+- Expect values from `trim`/`toLower`/`toUpper`/`split`/`chars`/`join`/`repeat`/`replace`: they are known only by facts (trim never lengthens, case keeps length, `split(s, ",")` has ≥ 1 part, …), so `result == "abc"` after `trim` is not provable. Unsupported: `words`, `foldChars`, `replaceMany`, datetime builtins (`addDays`, …)
 
 ### What VERIFIED does NOT cover
 

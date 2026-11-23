@@ -84,7 +84,7 @@ func encodeExprWithSortHint(expr core.CoreExpr, expectedSort string) (string, er
 		// `if room <= 0 then [] else take(…)` under a let otherwise typed its
 		// [] as (Seq Int) whatever the declared element sort. Same binding
 		// hygiene and call-facts scoping as encodeLet / encodeFactLet.
-		value, err := EncodeExpr(e.Value)
+		value, err := encodeLetValue(e)
 		if err != nil {
 			return "", fmt.Errorf("let value: %w", err)
 		}
@@ -181,4 +181,91 @@ func inlineEmptyListBindings(expr core.CoreExpr) core.CoreExpr {
 		return expr
 	}
 	return &core.Let{Name: let.Name, Value: let.Value, Body: body}
+}
+
+// encodeLetValue encodes a let-bound value. An empty list literal carries an
+// unresolved element type (`[α]`) in Core's type info, so when ANF hoists it
+// (`let $t = [] in … $other == $t …`) its sort is taken from its first binary
+// use whose other operand has a known list type. Otherwise it is encoded as
+// usual.
+func encodeLetValue(let *core.Let) (string, error) {
+	if isEmptyListLiteral(let.Value) {
+		if sort := emptyListSortFromUse(let.Name, let.Body); sort != "" {
+			return fmt.Sprintf("(as seq.empty %s)", sort), nil
+		}
+	}
+	return EncodeExpr(let.Value)
+}
+
+// emptyListSortFromUse finds, in body, the first two-operand application with
+// Var(name) as one operand and a list-typed other operand, and returns that
+// list's SMT sort ("" when none is found).
+func emptyListSortFromUse(name string, body core.CoreExpr) string {
+	found := ""
+	var walk func(e core.CoreExpr)
+	sortOf := func(other core.CoreExpr) string {
+		if t := hofExprType(other); t != nil {
+			if s, err := MapType(t); err == nil {
+				if _, isSeq := seqElemSort(s); isSeq {
+					return s
+				}
+			}
+		}
+		return ""
+	}
+	pair := func(a, b core.CoreExpr) {
+		if found != "" {
+			return
+		}
+		if v, ok := a.(*core.Var); ok && v.Name == name {
+			found = sortOf(b)
+		} else if v, ok := b.(*core.Var); ok && v.Name == name {
+			found = sortOf(a)
+		}
+	}
+	walk = func(expr core.CoreExpr) {
+		if found != "" || expr == nil {
+			return
+		}
+		switch e := expr.(type) {
+		case *core.App:
+			if len(e.Args) == 2 {
+				pair(e.Args[0], e.Args[1])
+			}
+			walk(e.Func)
+			for _, a := range e.Args {
+				walk(a)
+			}
+		case *core.DictApp:
+			if len(e.Args) == 2 {
+				pair(e.Args[0], e.Args[1])
+			}
+			for _, a := range e.Args {
+				walk(a)
+			}
+		case *core.BinOp:
+			pair(e.Left, e.Right)
+			walk(e.Left)
+			walk(e.Right)
+		case *core.Let:
+			if e.Name == name {
+				walk(e.Value)
+				return // shadowed below
+			}
+			walk(e.Value)
+			walk(e.Body)
+		case *core.If:
+			walk(e.Cond)
+			walk(e.Then)
+			walk(e.Else)
+		case *core.Match:
+			walk(e.Scrutinee)
+			for _, arm := range e.Arms {
+				walk(arm.Guard)
+				walk(arm.Body)
+			}
+		}
+	}
+	walk(body)
+	return found
 }

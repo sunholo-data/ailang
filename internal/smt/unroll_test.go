@@ -348,9 +348,9 @@ func TestUnrollRecursiveFunction_NonRecursiveBody(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// All define-fun bodies should be just "n"
+	// All define-fun bodies should be just the parameter (bound as $a_n: argSymbol)
 	for i := 1; i < len(result.Declarations); i++ {
-		if !strings.Contains(result.Declarations[i], " n)") {
+		if !strings.Contains(result.Declarations[i], " $a_n)") {
 			t.Errorf("non-recursive body at level %d should just be 'n': %q", i, result.Declarations[i])
 		}
 	}

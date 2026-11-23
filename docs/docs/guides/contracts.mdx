@@ -564,7 +564,19 @@ Use `import std/string` to access these functions. The verifier resolves stdlib 
 | `endsWith(s, x)` | `str.suffixof` | Suffix check (`std/string`) |
 | `contains(s, t)` | `str.contains` | Substring membership (`std/string`) |
 
-**Not yet encodable:** `trim`, `toUpper`, `toLower` (no Z3 equivalent), `split`, `chars` (return lists).
+**Known by facts, not values** (uninterpreted; each call adds what the runtime result always satisfies):
+
+| Function | Facts |
+|---|---|
+| `trim(s)` | a substring of `s`, no longer than `s` |
+| `toLower(s)`, `toUpper(s)` | same length as `s` (case maps rune by rune) |
+| `split(s, d)` | `d == ""`: one part per rune; `d` absent from `s`: `[s]`; otherwise ≥ 1 part |
+| `chars(s)` | one element per rune |
+| `join(d, xs)` | `[]` → `""`; `[x]` → `x` |
+| `repeat(s, n)` | `n <= 0` → `""`; else length `length(s) * n` |
+| `replace(s, old, new)` | `s` unchanged when `old` does not occur, or `old == new` |
+
+`charAt(s, i)` is exact (`str.at`). A model that rests on one of these is INCONCLUSIVE, and witness replay confirms real violations. **Not yet encodable:** `words`, `foldChars`, `replaceMany`, `splitAny`.
 
 ### List Verification
 
@@ -710,7 +722,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 | Higher-order functions (named function) | `map(f, xs)` where `f` is not a literal lambda | Requires whole-program analysis |
 | Bitwise operators | `&`, `^`, `~`, `<<`, `>>` have no `Int` encoding | Needs a bit-vector encoding |
 | Unannotated generic parameters | `func inc(x) ensures {…}` currently reaches Z3 as an error, not a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
-| `toUpper`/`toLower`/`trim`, datetime builtins | No SMT encoding yet | Yes — planned |
+| `words`/`foldChars`/`replaceMany`, datetime builtins | No SMT encoding yet | Yes — planned |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 | Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
 | Open or unsupported ADT payloads | Unresolved type variables, unit and function-valued fields have no encoding here | Requires additional type encodings |

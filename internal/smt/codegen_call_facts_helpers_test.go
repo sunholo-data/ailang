@@ -45,11 +45,11 @@ func TestFiniteFacts_HelperEnvironmentAndDiamond(t *testing.T) {
 	if strings.Count(all, "(define-fun $facts_helper ") != 1 {
 		t.Fatal(all)
 	}
-	signature := "((environment Int) (n Int))"
+	signature := "(($a_environment Int) ($a_n Int))" // parameters bound under argSymbol
 	if !strings.Contains(all, "(define-fun helper "+signature+" Int") || !strings.Contains(all, "(define-fun $facts_helper "+signature+" Bool") {
 		t.Fatal(all)
 	}
-	if !strings.Contains(all, "($facts_helper environment n)") {
+	if !strings.Contains(all, "($facts_helper $a_environment $a_n)") {
 		t.Fatal(all)
 	}
 }

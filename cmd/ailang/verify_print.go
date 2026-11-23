@@ -58,7 +58,11 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 			// A sat under bounded unrolling: not a violation, not a proof. The
 			// model is withheld by default (it is usually a let-expression over
 			// the frontier stub, not an input); --verbose keeps it.
-			fmt.Printf("  %s %s\n", yellow(fmt.Sprintf("? INCONCLUSIVE (bounded: depth %d)", r.BoundedDepth)), bold(r.Function))
+			label := "? INCONCLUSIVE"
+			if r.BoundedDepth > 0 {
+				label = fmt.Sprintf("? INCONCLUSIVE (bounded: depth %d)", r.BoundedDepth)
+			}
+			fmt.Printf("  %s %s\n", yellow(label), bold(r.Function))
 			if r.Reason != "" {
 				fmt.Printf("    %s\n", r.Reason)
 			}

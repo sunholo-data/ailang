@@ -187,7 +187,12 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				hofDepth = defaultHOFInlineDepth
 			}
 		}
-		bodyExpr, bodyFacts, err := captureCallFacts(func() (string, error) { return EncodeExpr(innerBody) })
+		var bodyExpr, bodyFacts string
+		defParams, _, err := withArgRenames(params, func() (string, error) {
+			var encErr error
+			bodyExpr, bodyFacts, encErr = captureCallFacts(func() (string, error) { return EncodeExpr(innerBody) })
+			return bodyExpr, encErr
+		})
 		if activeADTContext != nil {
 			activeADTContext.ti = previousTI
 		}
@@ -196,15 +201,15 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			continue
 		}
 
-		// Build define-fun
-		smtDef := buildDefineFun(calleeName, params, returnSort, bodyExpr)
+		// Build define-fun (parameters bound under $a_ names: see argSymbol)
+		smtDef := buildDefineFun(calleeName, defParams, returnSort, bodyExpr)
 		if len(hofDecls) > 0 {
 			smtDef = strings.Join(hofDecls, "\n") + "\n" + smtDef
 		}
 		conditionName := ""
 		if bodyFacts != "true" {
 			conditionName = "$facts_" + calleeName
-			smtDef += "\n" + buildDefineFun(conditionName, params, "Bool", bodyFacts)
+			smtDef += "\n" + buildDefineFun(conditionName, defParams, "Bool", bodyFacts)
 			activeHelperConditions[calleeName] = conditionName
 		}
 		defs = append(defs, CalleeDef{
