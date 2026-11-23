@@ -314,6 +314,12 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
 - **Higher-order list functions.** A caller of `map`/`filter` with a literal lambda reports
   `⚠ SKIPPED … calls "map" whose signature uses an unencodable type` ([#1375](https://github.com/sunholo-data/ailang/issues/1375)).
 - **Bitwise operators.** `x & 255` reports `⚠ SKIPPED … unencodable builtin: bitwiseAnd_Int`.
+- **Two imported functions with the same name.** A module imports `a/good (clamp0 as goodClamp)`
+  and `a/bad (clamp0)`; `usesBad(x) ensures { result >= 0 } { clamp0(x) }` calls the bad one
+  (`x - 1`). `ailang verify` reported `✓ VERIFIED` in 5 of 6 runs: callee bodies are looked up by
+  bare name, so the other module's `clamp0` can be inlined. Avoid same-named functions across the
+  modules a verified function imports until M1 of
+  [M-VERIFY-SOUNDNESS-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_61_0/m-verify-soundness-coverage-program.md) lands.
 - **Unannotated generic parameters.** `pure func inc(x) requires {…} ensures {…}` reports
   `! ERROR … unknown constant x` instead of a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)).
 
