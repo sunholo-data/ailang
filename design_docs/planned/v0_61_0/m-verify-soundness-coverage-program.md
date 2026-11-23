@@ -15,7 +15,8 @@
 | M1 (S7 callee identity) | **Landed on dev.** Deterministic bare-name lookups, plus a gate refusing any call that would bind another module's function (`internal/smt/callee_identity.go`, tests in `callee_identity_test.go`). One false positive (a parameter sharing a function's name) was found by the corpus run and fixed. S4/S5/S6 are still open |
 | M2 (HOF callers) | **Landed on dev, extended.** map/filter/foldl/any/flatMap over any element sort, with captures, inside callees and inside contracts. Bounded (depth 3) and classified like recursion. Let and capture hygiene (`$l_`/`$c_`) fixes #215. See §M2 result below |
 | M5 (partial) | **Landed on dev.** Named-function HOF arguments (eta-expanded). Quantifier-free map/filter frontiers, so length relations are proved for any list. Direct encodings for std/list `nthOr`/`headOr`/`lastOr`/`head`/`nth`/`last` and std/option `getOrElse`/`isSome`/`isNone`. Fixed `floatToInt` floor-vs-truncate (a false VERIFIED). Still open: generic *user* callees, Result-returning callees, math builtins |
-| M0, M3, M4, M6 | Not started |
+| M6 (witness replay) | **Landed on dev.** Each inconclusive model's inputs are run through the real function, using the property-test harness. A runtime ensures failure, with every requires holding, is a confirmed VIOLATION. Int/float/bool/string/list/record inputs are replayed; Option/ADT inputs are not yet. Corpus: 2 of 25 inconclusives became genuine violations (crew_core `ruleSource`: a missing `requires { label != "" }`; `yieldsOf`: `length(result) <= 4` is false for scenarios with more than four yields per recipe). 8 replays hit the contracts holding; 13 models were not convertible (let-terms, unsupported sorts). Induction is still open |
+| M0, M3, M4 | Not started |
 
 **Five-repo corpus, 2026-11-23 (1,840 obligations):**
 - Verified: 698 → **748**.

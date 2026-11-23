@@ -112,6 +112,7 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 		Timeout:        opts.Timeout,
 		RecursiveDepth: opts.RecursiveDepth,
 		Verbose:        opts.Verbose,
+		Replay:         witnessReplayer(file, result.Artifacts.AST, opts.Timeout),
 	})
 	mr.Verified, mr.Counterexample, mr.Inconclusive, mr.Skipped, mr.Errors, mr.Uncontracted =
 		vr.Verified, vr.Counterexample, vr.Inconclusive, vr.Skipped, vr.Errors, vr.Uncontracted

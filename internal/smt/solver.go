@@ -51,6 +51,9 @@ type ModelBinding struct {
 	Name  string `json:"name"`
 	Sort  string `json:"sort"`
 	Value string `json:"value"`
+	// Term is the parsed value (nil when the model was not parseable); it is
+	// what witness replay converts into AILANG literals.
+	Term *SExpr `json:"-"`
 }
 
 // SolverResult holds the result of running Z3 on an SMT-LIB program.
@@ -246,6 +249,49 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 //	    5)
 //	)
 func parseModel(output string) []ModelBinding {
+	if bindings, ok := parseModelSExpr(output); ok {
+		return bindings
+	}
+	return parseModelLines(output)
+}
+
+// parseModelSExpr reads the model as S-expressions, so multi-line values and
+// compound sorts such as (Seq Int) come through whole (the line reader cut
+// `(define-fun xs () (Seq Int)` at the first space and printed "(Seq = Int").
+func parseModelSExpr(output string) ([]ModelBinding, bool) {
+	exprs, err := ParseSExprs(output)
+	if err != nil {
+		return nil, false
+	}
+	var bindings []ModelBinding
+	found := false
+	for _, top := range exprs {
+		if !top.IsList {
+			continue // "sat"
+		}
+		for _, def := range top.List {
+			if def.Head() != "define-fun" || len(def.List) != 5 {
+				continue
+			}
+			found = true
+			params := def.List[2]
+			if !params.IsList || len(params.List) != 0 {
+				continue // a function, not a counterexample input/result
+			}
+			bindings = append(bindings, ModelBinding{
+				Name:  def.List[1].String(),
+				Sort:  def.List[3].String(),
+				Value: def.List[4].String(),
+				Term:  def.List[4],
+			})
+		}
+	}
+	return bindings, found || len(exprs) > 0
+}
+
+// parseModelLines is the line-oriented reader, kept for output that is not a
+// well-formed S-expression (it only feeds display).
+func parseModelLines(output string) []ModelBinding {
 	var bindings []ModelBinding
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {

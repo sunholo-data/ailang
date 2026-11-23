@@ -1,0 +1,31 @@
+module cmd/ailang/testdata/verify_replay/replay
+import std/list (length, map, filter)
+
+-- off by one for n >= 1: the bounded model is inconclusive, replay confirms it
+export func sumBad(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { result == n * (n + 1) / 2 } {
+  if n == 0 then 0 else n - 1 + sumBad(n - 1)
+}
+
+-- correct for every n, but not provable by unrolling: replay must NOT promote it
+export func sumOk(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { result >= 0 } {
+  if n == 0 then 0 else n + sumOk(n - 1)
+}
+
+type Item = { name: string, qty: int }
+
+-- false over records: filter can drop everything
+export func kept(items: [Item]) -> [Item] ! {}
+ensures { length(result) > 0 || length(items) == 0 } {
+  filter(\i. i.qty > 0, items)
+}
+
+-- true for every list but needs induction on the element property: stays inconclusive
+export func doubledNonNeg(xs: [int]) -> [int] ! {}
+requires { length(xs) >= 0 }
+ensures { length(result) == length(xs) } {
+  map(\x. x * 2, xs)
+}

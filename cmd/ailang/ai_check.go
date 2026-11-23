@@ -203,7 +203,7 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 		tally = verification.Tally{CheckPassed: checkSection.Passed, SolverAvailable: verifySection.Available,
 			NotRequested: true, Obligations: verifySection.Obligations}
 	} else {
-		verifySection = buildAIVerifySection(checkSection.Passed, result, timeout, recursiveDepth, smt.Z3Available())
+		verifySection = buildAIVerifySection(checkSection.Passed, result, filename, timeout, recursiveDepth, smt.Z3Available())
 		tally = verifySection.tally(checkSection.Passed)
 	}
 	verifySection.Outcome = verification.Classify(tally)
@@ -228,7 +228,7 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 // have proved, from the compiled Core: that count is what turns "Z3 missing"
 // from a silent pass into the `unavailable` lane. Available always means
 // "solver found", on every lane.
-func buildAIVerifySection(checkPassed bool, result pipeline.Result, timeout time.Duration, recursiveDepth int, solverAvailable bool) aiVerifySection {
+func buildAIVerifySection(checkPassed bool, result pipeline.Result, filename string, timeout time.Duration, recursiveDepth int, solverAvailable bool) aiVerifySection {
 	section := aiVerifySection{Available: solverAvailable, Results: []smt.VerifyResult{}}
 	if !checkPassed {
 		return section
@@ -244,6 +244,7 @@ func buildAIVerifySection(checkPassed bool, result pipeline.Result, timeout time
 	}
 	opts := aiCheckVerifyOptions(timeout, recursiveDepth)
 	opts.CoreTI = result.Artifacts.CoreTI
+	opts.Replay = witnessReplayer(filename, surfaceAST, timeout)
 	return aiVerifySectionFromReport(smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), opts))
 }
 

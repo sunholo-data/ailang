@@ -146,6 +146,7 @@ func verifyCommand() {
 		Timeout:        *timeoutFlag,
 		RecursiveDepth: *recursiveDepthFlag,
 		Verbose:        *verboseFlag,
+		Replay:         witnessReplayer(filename, surfaceAST, *timeoutFlag),
 	})
 	t := report.Tally()
 

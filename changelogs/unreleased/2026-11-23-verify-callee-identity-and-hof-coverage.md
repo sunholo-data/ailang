@@ -62,3 +62,21 @@ detected"). They are now `unsupported_encoding` skips, like the other capability
 The verifier encoded `floatToInt` as Z3's `to_int`, which rounds toward −∞, while the runtime
 truncates toward zero. So `ensures { result == -3 }` for `floatToInt(-2.5)` was VERIFIED, and the
 program returns −2. It is now encoded as truncation toward zero.
+
+### Added — witness replay turns inconclusive bugs into counterexamples (2026-11-23)
+
+A sat on a bounded encoding (recursion, or a map/filter/foldl/any/flatMap specialisation) used to
+be reported INCONCLUSIVE, because its model may rest on the uninterpreted frontier. That held even
+when the function had a genuine bug. `verify`, `check --verify`, `ai-check` and
+`verify --package` now run the real function on the model's parameter values, with runtime
+contract checking, through the property-test harness.
+
+If every `requires` holds and an `ensures` is false, the result is a VIOLATION with
+`witness_replayed: true` and the replayed inputs (`witness replayed at runtime: ensures clause 1
+is false for n = 2`). Otherwise it stays INCONCLUSIVE, with what the replay saw. A runtime
+error, an unconvertible value or a timeout decides nothing. Replay can only confirm what the
+runtime shows. Inputs of type int, float, bool, string, list and record are replayed; Option
+and other ADTs are not yet.
+
+Counterexample models are now read as S-expressions, so `(Seq Int)` sorts and multi-line values
+print whole (they printed as `(Seq = Int`).

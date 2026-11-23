@@ -2411,7 +2411,7 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 - List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
 - Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
 - Cross-function calls: Z3 inlines callees to reason about full call chains
-- `map`/`filter`/`foldl`/`any`/`flatMap` with a lambda or a named top-level function: unrolled to depth 3. `length(result) == length(xs)` after `map` and `length(result) <= length(xs)` after `filter` are proved for any list; other properties VERIFY when `requires` bounds the list length (`requires { length(xs) <= 3 }`) and are INCONCLUSIVE otherwise
+- `map`/`filter`/`foldl`/`any`/`flatMap` with a lambda or a named top-level function: unrolled to depth 3. `length(result) == length(xs)` after `map` and `length(result) <= length(xs)` after `filter` are proved for any list; other properties VERIFY when `requires` bounds the list length (`requires { length(xs) <= 3 }`); otherwise `verify` runs the function on the solver's inputs and reports a VIOLATION if the contract fails there, else INCONCLUSIVE
 - `std/list` `nthOr`/`headOr`/`lastOr`, `head`/`nth`/`last` (Option) and `std/option` `getOrElse`/`isSome`/`isNone` are encoded directly — full proofs
 - Recursion: unrolled to depth 2 — VERIFIED only when `requires` bounds the depth (`@verify(depth: N)` raises it); otherwise INCONCLUSIVE, which fails the run
 - Must be pure (`pure func` or `! {}`) or declare only `! {Declassify}`

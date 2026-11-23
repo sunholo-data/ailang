@@ -665,7 +665,7 @@ ailang verify --verify-recursive-depth 0 file.ail
 | 10 | Deep (max) | Slow | Maximum confidence |
 
 :::note Bounded vs Full Proofs
-Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded-unrolled function is reported **INCONCLUSIVE (bounded: depth N)**, never as a violation: Z3 can satisfy the negated postcondition by inventing a value for `f_0`, which no real run produces. A genuine bug in a recursive function is therefore also reported inconclusive — test it by running it, or gate with `--strict`. A VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
+Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded-unrolled function is reported **INCONCLUSIVE (bounded: depth N)**, never as a violation: Z3 can satisfy the negated postcondition by inventing a value for `f_0`, which no real run produces. **Witness replay** then decides most of them. The model's parameter values are concrete inputs, so `ailang verify` runs the real function on them and checks its contracts at runtime. If every `requires` holds and an `ensures` is false, the result becomes a `VIOLATION` showing those inputs (`witness replayed at runtime: ensures clause 1 is false for n = 2`). Otherwise it stays INCONCLUSIVE, and the reason says what the replay saw. Replay only ever confirms a violation the runtime produces. It covers int, float, bool, string, list and record inputs; Option and other ADT inputs are not replayed yet. A VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
 :::
 
 ### Verification Output States
@@ -673,8 +673,8 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 | Status | Symbol | Meaning |
 |--------|--------|---------|
 | Verified | `✓` | Z3 proved the contract holds for ALL valid inputs |
-| Violation | `✗` | Z3 found concrete inputs that break the postcondition |
-| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation. Exit 1 (not proved); `--allow-inconclusive` exits 0. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
+| Violation | `✗` | Z3 found concrete inputs that break the postcondition — or, under bounded unrolling, the function was run on the solver's inputs and broke it at runtime (`witness replayed`) |
+| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation, and replaying its inputs did not break the contract. Exit 1 (not proved); `--allow-inconclusive` exits 0. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
 | Skipped | `⚠` | Function is outside the decidable fragment (with reason) |
 | Error | `!` | Encoding or solver error |
 
@@ -934,6 +934,7 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 **v0.57.5 – v0.60** — Honest verdicts:
 - ✅ A bounded-unrolling model is INCONCLUSIVE, never a violation
 - ✅ One exit contract for `verify`, `check --verify` and `ai-check` (`unproved`, `inconclusive`, `--allow-inconclusive`)
+- ✅ Witness replay: an inconclusive model's inputs are run through the real function; a runtime contract failure is a confirmed violation
 - ✅ Numeric model (`float=Real, int=Int`) disclosed on every run
 
 **Open gaps** (measured at v0.60.6, 2026-11-23):
@@ -941,7 +942,7 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 - `int` is verified as unbounded `Int`, so int64 overflow is not caught; floats have no NaN
 - `map`/`filter`/`foldl`/`any`/`flatMap` callers are bounded like recursion beyond depth 3, except map/filter length relations
 - Recursive functions are inconclusive unless `requires` bounds their depth — full induction is future work
-- Counterexample `result` values print as unevaluated solver terms
+- Option/ADT inputs are not yet replayed
 :::
 
 ## See Also

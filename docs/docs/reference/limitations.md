@@ -308,7 +308,7 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
   not_established`).
 - **NaN.** `selfEq(x: float) ensures { result == true } { x == x }` is `✓ VERIFIED`; at runtime
   `NaN == NaN` is false. `float` is Z3's `Real`.
-- **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1.
+- **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1 (on dev, a *buggy* recursive or HOF function now gets a VIOLATION by witness replay; a correct unbounded one stays inconclusive).
   There is no induction: a recursive function is proved only when `requires` bounds its depth
   within the unrolling limit.
 - **Higher-order list functions.** A caller of `map`/`filter`/`foldl`/`any`/`flatMap` with a

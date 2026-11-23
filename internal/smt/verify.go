@@ -30,6 +30,9 @@ type VerifyResult struct {
 	Duration     time.Duration           `json:"duration,omitempty"`
 	SMTLib       string                  `json:"smtlib,omitempty"`
 	BoundedDepth int                     `json:"bounded_depth,omitempty"`
+	// WitnessReplayed marks a counterexample confirmed by running the function
+	// on the solver's inputs (its bounded model alone was inconclusive).
+	WitnessReplayed bool `json:"witness_replayed,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
@@ -51,6 +54,10 @@ type VerifyOptions struct {
 	RecursiveDepth int
 	// Verbose attaches the generated SMT-LIB to each solved result.
 	Verbose bool
+	// Replay, when set, runs an inconclusive model's inputs through the real
+	// function with runtime contract checking (witness.go). A confirmed
+	// violation becomes a counterexample; anything else stays inconclusive.
+	Replay WitnessReplayer
 }
 
 // VerifyReport is the outcome of Verify over one program.
@@ -602,6 +609,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			boundedDepth = encResult.HOFBoundedDepth // map/filter/foldl specialisations are bounded unrollings too
 		}
 		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
+		if vr.Status == "inconclusive" && opts.Replay != nil {
+			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)
+		}
 		if opts.Verbose {
 			vr.SMTLib = encResult.SMTLib
 		}
