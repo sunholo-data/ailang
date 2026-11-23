@@ -1220,7 +1220,13 @@
         "production",
         "latest"
       ],
-      "notes": "Exhaustive match: check rejects a match that misses a case (TC_MATCH_002), guards do not count, unreachable(\"why\") for impossible cases"
+      "notes": "Exhaustive match: check rejects a match that misses a case (TC_MATCH_002), guards do not count, unreachable(\"why\") for impossible cases",
+      "frozen": {
+        "at": "2026-11-23",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.17": {
       "file": "prompts/v0.16.17.md",
