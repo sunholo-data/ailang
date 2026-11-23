@@ -2,40 +2,21 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
-**Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
+**Last update:** 2026-11-23 · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14). Note: v1.0.0 roadmap work ([planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md)) tracks the remaining pre-1.0 items separately.
+**Latest release:** v0.60.6. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
-## `JInt` on `dev` (#2223, 2026-11-10) — downstream census CLEAN, fixes merged the same day
+## Shipped since v0.57.4 (through v0.60.6 + `dev`, 2026-11-23)
 
-Integer JSON literals now decode as `JInt`; a `match` with a `JNumber` arm and no `JInt` arm stops
-seeing integers, and `check` still passes (warning `TC_MATCH_005`), so `make downstream-check` is blind
-to it. A sweep of every downstream corpus with a `dev` compiler found 17 real sites; all are fixed with
-`asNumber`/`getNumber`, which exist since v0.54.14 and accept both constructors, so no release ordering
-was needed:
+- **Waves 1–3, soundness fixes, and second round landed** — `v0.58.0`, `v0.59.0`, and `v0.60.0`–`v0.60.6` shipped. Includes `JInt` (#2223), nominal type identity (#2228), total `show` (#2229), stdlib surface polish (#2230), match exhaustiveness error (`TC_MATCH_002`, #2246), all ten original soundness fixes + follow-ups (#2283–#2384), Go emitter removal (#2389), lexical-scoping / REPL / WASM fixes (#2387, #2403, #2408), generic numeric-literal variants (#2393), and verifier coverage/witness-replay improvements on `dev`.
+- **Downstream state:** `docparse`, `daneel`, `ailang-packages`, `ailang-parse`, `email-parse`, `ailang-world` (`world/core` 0.1.2 published), and the motoko fork all check cleanly.
+- **Active teaching prompt on `dev`:** **v0.16.17** (v0.16.16 frozen; v0.16.17 aligns Z3 verifier claims with v0.60.6).
 
-| Repo | Sites | Fix |
-|---|---|---|
-| ailang-packages | 9 (audio, maintenance-bench, specstore, terminal-ui, crew-lab) + 4 task-pack fixtures | #187 merged; task pack re-frozen in #188 (Mark's ruling) |
-| motoko fork | 3 | #8 merged |
-| world | 1 | #545 **open** — the one site still unfixed on a default branch |
-| ailang examples + std, ailang-parse, docparse, email-parse, daneel | 0 | — |
-
-Upstream motoko has a fourth site of its own (`src/core/process_limits.ail:92`); the fix is posted on
-arniwesth/motoko_agent#323. **Before installing or promoting a release with `JInt`:** world #545 merged.
-Not caught by the warning, so read for them when touching JSON code: `getInt` returns `None` for a
-fraction (it used to truncate); a decoded integer is not `==` to `JNumber` of the same value; `show` of
-a decoded integer prints `JInt(…)`. Published package versions that carry the old match cannot be
-changed (maintenance_bench 0.1.0, audio 0.3–0.6.0, terminal_ui 0.2/0.3.0); their fixed versions are
-not yet published. Missing instrument: count `TC_MATCH_005` in `make downstream-check`.
-
-Also live on merge: **teaching prompt v0.16.13** is the active prompt for every binary built from `dev`.
-
-## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag
+## Roadmap accepted 2026-11-10 (`D-66`) — breaking window open on `v0.60.x`
 An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime
 mismatch on integer overflow, a lossy `show`, and stdlib names that cannot change after the promise.
-Mark accepted the roadmap: **v0.58.x is the last breaking window → soak ≥ 7 days → rc.1 → v1.0.0.**
-All ten roadmap decisions are ruled (`D-66`, `D-67`). Order and the ten design docs: [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
-The N below still counts bar-v3 items only; re-cutting the unit to cover the roadmap is not yet ruled.
+Mark accepted the roadmap (`D-66`, `D-67`): **close the remaining breaking items → soak ≥ 7 days → rc.1 → v1.0.0.**
+Current wave status and remaining unstarted work: [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
+The N above still counts bar-v3 items only; re-cutting the unit to cover the roadmap is not yet ruled.
 
 ## The bar (v3, "1.0 = a promise we can keep")
 | Gate | Open | What closes it |

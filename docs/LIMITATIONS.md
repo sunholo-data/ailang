@@ -10,7 +10,7 @@ reviewBy: 2027-03-08
 > summary; the website copy is authoritative and carries per-entry repro transcripts + verified-at
 > dates.
 
-**All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17.** Per the
+**Baseline sweep live-verified at AILANG `v0.33.1-72-g4b46bb97e` (2026-08-17); individual entries continuously re-verified and updated through `v0.60.6` (2026-11-23).** Per the
 [M-V1-STABILITY-PROMISE](design_docs/implemented/v0_29_0/m-v1-stability-promise.md) entry policy, every
 open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
 dated "Resolved" list — this file is no longer allowed to freeze at a past version.
@@ -18,7 +18,7 @@ dated "Resolved" list — this file is no longer allowed to freeze at a past ver
 ## Open limitations (summary)
 
 See the [canonical page](docs/docs/reference/limitations.md) for repros, transcripts, and
-workarounds. Verified open at v0.33.1 (2026-08-17):
+workarounds. Dates per row below (latest re-verification: `v0.60.6`, 2026-11-23):
 
 | Limitation | Kind | Verified-at repro |
 |---|---|---|

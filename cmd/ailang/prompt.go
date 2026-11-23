@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/prompt"
@@ -24,7 +26,7 @@ func runPrompt() {
 	versionFlag := promptFS.String("version", "", "Prompt version to display (e.g., v0.3.24, v0.4.2, or 'latest')")
 	listFlag := promptFS.Bool("list", false, "List all available prompt versions")
 	infoFlag := promptFS.Bool("info", false, "Show metadata for specified version")
-	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact version (~15KB vs ~49KB)")
+	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact prompt version (for small context windows)")
 	versionActiveFlag := promptFS.Bool("version-active", false, "Print the active prompt version (machine-parseable)")
 	sourceFlag := promptFS.String("source", "embedded", "Where to load the prompt from: auto|mcp|embedded (default embedded — current via build, reproducible). auto/mcp fetch the remote MCP copy, which can lag the embedded active version.")
 	helpFlag := promptFS.Bool("help", false, "Show help for prompt command")
@@ -68,19 +70,16 @@ func runPrompt() {
 		version = "latest"
 	}
 
-	// --compact appends "-compact" to the resolved version
+	// --compact resolves to <version>-compact, or for default/latest resolves
+	// to <active>-compact if present, otherwise the latest available *-compact
+	// version in prompts/versions.json.
 	if *compactFlag {
-		if version == "latest" {
-			// Resolve latest to actual version first, then append -compact
-			activeVer, err := prompt.GetActiveVersion()
-			if err == nil && activeVer != "" {
-				version = activeVer + "-compact"
-			} else {
-				version = version + "-compact"
-			}
-		} else {
-			version = version + "-compact"
+		resolved, err := resolveCompactPromptVersion(version)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
 		}
+		version = resolved
 	}
 
 	// New: --source auto|mcp|embedded routes through LoadPromptFresh, which
@@ -115,6 +114,43 @@ func runPrompt() {
 	fmt.Print(res.Content)
 }
 
+// resolveCompactPromptVersion resolves --compact against available prompt
+// versions. Explicit versions map to "<version>-compact" (unless already
+// suffixed). Default/"latest" prefers "<active>-compact" if it exists, and
+// otherwise selects the highest-versioned "*-compact" entry in the manifest.
+func resolveCompactPromptVersion(requested string) (string, error) {
+	if requested != "" && requested != "latest" {
+		if strings.HasSuffix(requested, "-compact") {
+			return requested, nil
+		}
+		return requested + "-compact", nil
+	}
+	versions, err := prompt.ListVersions()
+	if err != nil {
+		return "", fmt.Errorf("failed to list prompt versions: %w", err)
+	}
+	activeVer, _ := prompt.GetActiveVersion()
+	if activeVer != "" {
+		want := activeVer + "-compact"
+		for _, v := range versions {
+			if v == want {
+				return want, nil
+			}
+		}
+	}
+	var compacts []string
+	for _, v := range versions {
+		if strings.HasSuffix(v, "-compact") {
+			compacts = append(compacts, v)
+		}
+	}
+	if len(compacts) == 0 {
+		return "", fmt.Errorf("no compact prompt version is available in prompts/versions.json")
+	}
+	sort.Strings(compacts)
+	return compacts[len(compacts)-1], nil
+}
+
 // shortSHA returns the first 7 chars of a hex sha (git-style).
 func shortSHA(s string) string {
 	if len(s) < 7 {
@@ -144,7 +180,7 @@ Display AILANG teaching prompt for AI code generation.
 OPTIONS:
   --version VERSION    Display specific version (e.g., v0.3.24, v0.4.2)
                       Default: latest/active version
-  --compact           Use token-efficient compact version (~15KB vs ~49KB)
+  --compact           Use token-efficient compact prompt version (for small context windows)
   --list              List all available prompt versions
   --info              Show metadata for specified version (requires --version)
   --help              Show this help message

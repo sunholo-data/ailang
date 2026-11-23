@@ -2,7 +2,8 @@
 sidebar_position: 4
 title: Module System
 description: Code organization, imports, and exports in AILANG
-reviewBy: 2027-03-08
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Module System
@@ -43,7 +44,7 @@ Files in temp directories (`/tmp/`, `/var/folders/`) auto-relax with a warning.
 
 AILANG has three import forms — each for a different scope:
 
-```ailang
+```ailang parse
 -- Standard library
 import std/io (println, print)
 import std/fs (readFile, writeFile)
@@ -65,50 +66,53 @@ import ./sub/helpers (validate)
 Import specific symbols from a module:
 
 ```ailang
+module examples/basic_imports
+
 import std/io (println, print)
 import std/fs (readFile, writeFile)
 
-func main() -> () ! {IO, FS} {
+export func main() -> () ! {IO, FS} {
   println("Reading file...");
   let content = readFile("data.txt");
   println(content)
 }
 ```
 
-### Import Aliasing (v0.5.1+)
+### Import Aliasing
 
 Rename modules on import to avoid conflicts:
 
 ```ailang
--- Module alias: qualified access
+module examples/import_alias
+
+import std/io (println)
 import std/list as List
 
-func main() -> () ! {IO} {
+export func main() -> () ! {IO} {
   let xs = [1, 2, 3];
-  println(show(List.length(xs)));     -- 3
-  println(show(List.map(\x. x * 2, xs)))  -- [2, 4, 6]
+  println(show(List.length(xs)));          -- 3
+  println(show(List.map(\x. x * 2, xs)))   -- [2, 4, 6]
 }
 ```
 
-### Symbol Aliasing (v0.5.1+)
+### Symbol Aliasing
 
 Rename individual symbols on import:
 
 ```ailang
--- Symbol alias: direct access with new name
+module examples/symbol_alias
+
+import std/io (println)
 import std/list (length as listLength, map as listMap)
 
-func main() -> () ! {IO} {
+export func main() -> () ! {IO} {
   let xs = [1, 2, 3];
-  println(show(listLength(xs)));  -- 3
-  println(show(listMap(\x. x * 2, xs)))  -- [2, 4, 6]
+  println(show(listLength(xs)));           -- 3
+  println(show(listMap(\x. x * 2, xs)))    -- [2, 4, 6]
 }
 ```
 
-Constructors can be aliased too (v0.51.1+), which resolves a clash between two
-modules' same-named constructors. The alias works in patterns and expressions
-and matches the original constructor; the original name stays available unless
-something else in scope already uses it:
+Constructors can be aliased too, which resolves a clash between two modules' same-named constructors. The alias works in patterns and expressions and matches the original constructor; the original name stays available unless something else in scope already uses it:
 
 ```ailang
 import std/option (Option, Some as S, None as Nada)
@@ -126,10 +130,12 @@ compiling to an arm that can never match.
 Use both module and symbol aliasing together:
 
 ```ailang
--- Module alias + specific symbols
+module examples/combined_alias
+
+import std/io (println)
 import std/list as L (map, filter)
 
-func main() -> () ! {IO} {
+export func main() -> () ! {IO} {
   let xs = [1, 2, 3, 4, 5];
 
   -- Direct access to map and filter
@@ -143,14 +149,14 @@ func main() -> () ! {IO} {
 
 ### Resolving Name Conflicts
 
-When two modules export the same name:
+When two modules export the same name, qualify them with module aliases:
 
-```ailang
+```ailang parse
 -- Both modules have a 'parse' function
 import json/parser as JsonParser
 import xml/parser as XmlParser
 
-func parseInput(format: string, data: string) -> Result[Data] {
+func parseInput(format: string, data: string) -> Result[Data, string] {
   match format {
     "json" => JsonParser.parse(data),
     "xml" => XmlParser.parse(data),
@@ -165,16 +171,18 @@ A module may not import a name explicitly **and** define it at module level. Exp
 means a selective import (`import M (tick)`), an aliased symbol (`import M (f as tick)`),
 or the selective list of a module alias (`import M as L (tick)`); the module-level
 definition can be a `func`, a `let`, or an ADT constructor. A bare `tick` would be
-ambiguous, so this is error [MOD015](errors/mod015.md) (the rule Haskell and Elm call
-"ambiguous occurrence", Rust's E0255). Up to v0.51.1 the import silently won.
+ambiguous, so this is error [MOD015](errors/mod015.md).
+
+```ailang parse
+import std/list (map)
+func map(f: int -> int, xs: [int]) -> [int] = xs  -- Error MOD015
+```
+
+Fix by aliasing the import (or renaming your local function):
 
 ```ailang
-import std/list (map)
-func map(f: int -> int, xs: [int]) -> [int] = ...   -- Error MOD015
-
--- Fix: alias the import (or rename yours)
 import std/list (map as listMap)
-func map(f: int -> int, xs: [int]) -> [int] = ...   -- OK: map is yours, listMap is std's
+func map(f: int -> int, xs: [int]) -> [int] = listMap(f, xs)
 ```
 
 What is allowed:
@@ -190,28 +198,29 @@ What is allowed:
 
 **Imports are NOT transitive in AILANG.** When module A imports module B, A does **not** automatically get access to B's imports.
 
-```ailang
--- module myapp/db imports std/fs internally
+```ailang file=myapp/db.ail
 module myapp/db
 import std/fs (readFile)
 export func loadConfig() -> string ! {FS} = readFile("config.json")
+```
 
--- module myapp/main - must explicitly import std/fs
+```ailang file=myapp/main.ail
 module myapp/main
+import std/io (println)
 import std/fs (readFile)        -- Required! Not inherited from myapp/db
 import myapp/db (loadConfig)
 
 export func main() -> () ! {IO, FS} {
   let config = loadConfig();
   let extra = readFile("other.txt");
-  println(config ++ extra)
+  println("${config}${extra}")
 }
 ```
 
-**Why?** Explicit imports prevent hidden dependencies and ensure each module clearly declares what it uses. This is similar to Python's "explicit is better than implicit" philosophy.
+**Why?** Explicit imports prevent hidden dependencies and ensure each module clearly declares what it uses.
 
 **Common error:**
-```
+```text
 failed to resolve global std/fs.fileExists: module std/fs not imported
 ```
 
@@ -221,7 +230,7 @@ failed to resolve global std/fs.fileExists: module std/fs not imported
 
 One exception, and exactly six names: `Option`, `Some`, `None` (from `std/option`) and `Result`,
 `Ok`, `Err` (from `std/result`) are in scope in **every** module without an import — library
-modules too since #2371, entry modules since v0.30.0. Nothing else is implicit:
+modules too, as well as entry modules. Nothing else is implicit:
 
 - their helper functions (`map`, `getOrElse`, `mapErr`, …) still need an import
   (`import std/option (map)`);
@@ -289,31 +298,22 @@ export func map[a, b](f: a -> b, opt: Option[a]) -> Option[b] {
 }
 ```
 
-### Re-Exporting
-
-Import and immediately re-export:
-
-```ailang
-module prelude
-
--- Re-export common utilities
-export import std/io (println, print)
-export import std/list (map, filter, fold)
-export import std/option (Option, Some, None)
-```
+*(Note: AILANG does not support `export import` re-export syntax. To expose an imported function from a facade module, define an `export func` wrapper.)*
 
 ## Standard Library
 
-AILANG includes a standard library with common utilities:
+AILANG includes a standard library with common utilities (run `ailang docs <module>` for full signatures):
 
 ### std/io
 
 Console I/O operations.
 
 ```ailang
+module examples/io_demo
+
 import std/io (println, print, readLine)
 
-func main() -> () ! {IO} {
+export func main() -> () ! {IO} {
   print("Enter name: ");
   let name = readLine();
   println("Hello, ${name}!")
@@ -325,14 +325,17 @@ func main() -> () ! {IO} {
 File system operations.
 
 ```ailang
-import std/fs (readFile, writeFile, exists)
+module examples/fs_demo
 
-func main() -> () ! {FS} {
-  if exists("config.json") then
+import std/fs (readFile, writeFile, fileExists)
+
+export func main() -> () ! {FS} {
+  if fileExists("config.json") then {
     let config = readFile("config.json");
     writeFile("config.backup.json", config)
-  else
+  } else {
     writeFile("config.json", "{}")
+  }
 }
 ```
 
@@ -341,14 +344,17 @@ func main() -> () ! {FS} {
 List operations.
 
 ```ailang
-import std/list (map, filter, fold, length, head, tail)
+module examples/list_demo
 
-func main() -> () ! {IO} {
+import std/io (println)
+import std/list (map, filter, foldl, length, head, tail)
+
+export func main() -> () ! {IO} {
   let numbers = [1, 2, 3, 4, 5];
 
   let doubled = map(\x. x * 2, numbers);
   let evens = filter(\x. x % 2 == 0, doubled);
-  let sum = fold(\acc x. acc + x, 0, evens);
+  let sum = foldl(\acc x. acc + x, 0, evens);
 
   println("Sum of doubled evens: ${show(sum)}")
 }
@@ -356,34 +362,32 @@ func main() -> () ! {IO} {
 
 ### std/zip
 
-ZIP archive reading operations (requires FS effect).
+ZIP archive operations (requires `FS` effect for file I/O; pure `buildArchive` also available).
 
 ```ailang
-import std/result (Result, Ok, Err)
+import std/zip (listEntries, readEntry, readEntryBytes)
 
--- List all entries in a ZIP archive
-func listArchive(path: string) -> Result[List[string], string] ! {FS} {
-  _zip_listEntries(path)
-}
-
--- Read a text entry from a ZIP
-func readText(path: string, entry: string) -> Result[string, string] ! {FS} {
-  _zip_readEntry(path, entry)
-}
-
--- Read a binary entry as base64
-func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} {
-  _zip_readEntryBytes(path, entry)
+func inspectZip(path: string, entry: string) -> Result[([string], string, string), string] ! {FS} {
+  match listEntries(path) {
+    Err(e) => Err(e),
+    Ok(entries) => match readEntry(path, entry) {
+      Err(e) => Err(e),
+      Ok(text) => match readEntryBytes(path, entry) {
+        Err(e) => Err(e),
+        Ok(b64) => Ok((entries, text, b64))
+      }
+    }
+  }
 }
 ```
 
-**Builtins:**
+**Functions:**
 
 | Function | Type | Description |
 |----------|------|-------------|
-| `_zip_listEntries` | `string -> Result[List[string], string] ! {FS}` | List all entry paths in a ZIP archive |
-| `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read a text entry (UTF-8) from a ZIP |
-| `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read a binary entry as base64 string |
+| `listEntries` | `string -> Result[[string], string] ! {FS}` | List all entry paths in a ZIP archive |
+| `readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read a text entry (UTF-8) from a ZIP |
+| `readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read a binary entry as base64 string |
 
 **Security:** Path traversal rejected, 10K entry limit, 100MB decompressed size limit.
 
@@ -392,53 +396,53 @@ func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} {
 XML parsing operations (pure functions, no effect required).
 
 ```ailang
-import std/result (Result, Ok, Err)
-import std/option (Option, Some, None)
+import std/xml (XmlNode, parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
 
--- Parse XML string into XmlNode tree
-let result = _xml_parse("<root><item>Hello</item></root>");
-
--- Query: find all elements by tag name
-let items = _xml_findAll(node, "item");
-
--- Query: find first element by tag name
-let first = _xml_findFirst(node, "item");
-
--- Extract text content, attributes, children, tag
-let text = _xml_getText(node);
-let attr = _xml_getAttr(node, "id");
-let children = _xml_getChildren(node);
-let tag = _xml_getTag(node);
+func parseDemo() -> Result[(string, [XmlNode], Option[XmlNode], string), string] {
+  match parse("<root><item id=\"1\">Hello</item></root>") {
+    Err(e) => Err(e),
+    Ok(node) => {
+      let tag = getTag(node);
+      let items = findAll(node, "item");
+      let first = findFirst(node, "item");
+      let text = getText(node);
+      Ok((tag, items, first, text))
+    }
+  }
+}
 ```
 
-**Builtins:**
+**Functions:**
 
 | Function | Type | Description |
 |----------|------|-------------|
-| `_xml_parse` | `string -> Result[XmlNode, string]` | Parse XML string into XmlNode tree |
-| `_xml_findAll` | `(XmlNode, string) -> List[XmlNode]` | Find all descendant elements by tag name |
-| `_xml_findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first descendant element by tag name |
-| `_xml_getText` | `XmlNode -> string` | Extract text content from a node |
-| `_xml_getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value by name |
-| `_xml_getChildren` | `XmlNode -> List[XmlNode]` | Get child nodes of an element |
-| `_xml_getTag` | `XmlNode -> string` | Get tag name (empty string for text/comment nodes) |
+| `parse` | `string -> Result[XmlNode, string]` | Parse XML string into `XmlNode` tree |
+| `findAll` | `(XmlNode, string) -> [XmlNode]` | Find all descendant elements by tag name |
+| `findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first descendant element by tag name |
+| `getText` | `XmlNode -> string` | Extract text content from a node |
+| `getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value by name |
+| `getChildren` | `XmlNode -> [XmlNode]` | Get child nodes of an element |
+| `getTag` | `XmlNode -> string` | Get tag name (empty string for text/comment nodes) |
 
-**XmlNode ADT:** `Element(tag, attrs, children) | Text(content) | CData(content) | Comment(content)`
+**XmlNode ADT:** `Element(string, [{ name: string, value: string }], [XmlNode]) | Text(string) | Comment(string)`
 
 ### std/html
 
 Lenient HTML5 parsing (pure functions, no effect required). Wraps `golang.org/x/net/html` (WHATWG-spec). Returns the **same `XmlNode` ADT as `std/xml`**, so every `std/xml` query — `findAll`, `findFirst`, `getText`, `getAttr`, `getTag`, `getChildren` — works unchanged on HTML trees.
 
 ```ailang
-import std/result (Result, Ok, Err)
 import std/html (parse, parseFragment)
-import std/xml (findAll, getText, getAttr)
+import std/xml (XmlNode, findAll, getText, getAttr)
 
--- Parse a full document. Handles unclosed tags, boolean attrs, mixed case.
-let result = parse("<p>first<p>second<input disabled>");
+func htmlDemo() -> (Result[XmlNode, string], Result[[XmlNode], string]) {
+  -- Parse a full document. Handles unclosed tags, boolean attrs, mixed case.
+  let doc = parse("<p>first<p>second<input disabled>");
 
--- Parse a fragment (no <html>/<body> wrapper synthesized).
-let frag = parseFragment("<p>a</p><p>b</p>");
+  -- Parse a fragment (no <html>/<body> wrapper synthesized).
+  let frag = parseFragment("<p>a</p><p>b</p>");
+
+  (doc, frag)
+}
 ```
 
 **Functions:**
@@ -450,8 +454,6 @@ let frag = parseFragment("<p>a</p><p>b</p>");
 
 **Security:** 256 depth limit, 50MB input size limit (same as `std/xml`).
 
-**Since:** v0.19.1.
-
 ### std/prelude
 
 Common utilities automatically available:
@@ -459,6 +461,7 @@ Common utilities automatically available:
 - Type classes: `Num`, `Eq`, `Ord`, `Show`
 - Operators: `+`, `-`, `*`, `/`, `==`, `<`, `>`, `++`
 - Functions: `show`, `compare`
+- Types/constructors: `Option` (`Some`, `None`), `Result` (`Ok`, `Err`)
 
 ## Entry Points
 
@@ -488,6 +491,8 @@ Any exported function can be an entry point:
 ```ailang
 module examples/calc
 
+import std/io (println)
+
 export func factorial(n: int) -> int {
   if n <= 1 then 1 else n * factorial(n - 1)
 }
@@ -509,7 +514,7 @@ ailang run --entry factorial examples/calc.ail
 
 ### Recommended Structure
 
-```
+```text
 project/
 ├── src/
 │   ├── main.ail           -- module src/main
@@ -527,19 +532,7 @@ project/
 
 ### Circular Dependencies
 
-AILANG does not allow circular imports:
-
-```ailang
--- module a
-import b (funcB)  -- OK
-export func funcA() = funcB()
-
--- module b
-import a (funcA)  -- ERROR: Circular dependency!
-export func funcB() = funcA()
-```
-
-**Solution:** Extract shared code to a third module.
+AILANG does not allow circular imports (`module a` importing `b` while `b` imports `a` fails module loading). Extract shared types or helpers into a third module imported by both.
 
 ## REPL vs File Modules
 
@@ -560,6 +553,7 @@ Files require module declarations:
 ```ailang
 module scratch/test
 
+import std/io (println)
 import std/list (map)
 
 export func main() -> () ! {IO} {

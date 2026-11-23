@@ -2,7 +2,8 @@
 sidebar_position: 3
 title: Effect System
 description: Capability-based side effects in AILANG
-reviewBy: 2027-02-08
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Effect System
@@ -39,10 +40,14 @@ def process_data():
 
 ```ailang
 -- AILANG - effects declared in signature
-func processData() -> Data ! {IO, FS} {
+import std/io (println)
+import std/fs (readFile)
+import std/string (toUpper)
+
+func processData() -> string ! {IO, FS} {
   println("Processing...");
   let data = readFile("input.txt");
-  transform(data)
+  toUpper(data)
 }
 ```
 
@@ -102,11 +107,19 @@ which runs *other* programs), needs only `--caps IO`, never returns, and flushes
 telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
 
 ```ailang
-import std/io (println, exit)
+module docs/exit_demo
 
-export func main() -> () ! {IO} {
-  match validate(args) {
-    Ok(())   => println("ok"),
+import std/io (println, exit)
+import std/env (getArgs)
+
+func validate(args: [string]) -> Result[(), string] = match args {
+  [] => Err("expected at least one argument"),
+  _ => Ok(())
+}
+
+export func main() -> () ! {IO, Env} {
+  match validate(getArgs()) {
+    Ok(_)    => println("ok"),
     Err(msg) => {
       println("error: ${msg}");
       exit(1)
@@ -130,11 +143,13 @@ reason before exiting.
 File system operations.
 
 ```ailang
-import std/fs (readFile, writeFile, exists)
+import std/fs (readFile, writeFile, fileExists)
 
 func copyFile(src: string, dst: string) -> () ! {FS} {
-  let content = readFile(src);
-  writeFile(dst, content)
+  if fileExists(src) then {
+    let content = readFile(src);
+    writeFile(dst, content)
+  } else ()
 }
 ```
 
@@ -166,10 +181,14 @@ AILANG_FS_SANDBOX=/tmp/sandbox ailang run --caps FS --entry main program.ail
 When set, all file paths are resolved relative to the sandbox root:
 
 ```ailang
+import std/fs (readFile, writeFile, listDir)
+
 -- With AILANG_FS_SANDBOX=/tmp/sandbox:
-readFile("data.txt")       -- reads /tmp/sandbox/data.txt
-writeFile("out.txt", s)    -- writes /tmp/sandbox/out.txt
-listDir("subdir")          -- lists /tmp/sandbox/subdir
+func sandboxDemo(s: string) -> [string] ! {FS} {
+  let _ = readFile("data.txt");    -- reads /tmp/sandbox/data.txt
+  writeFile("out.txt", s);         -- writes /tmp/sandbox/out.txt
+  listDir("subdir")                -- lists /tmp/sandbox/subdir
+}
 ```
 
 This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
@@ -188,6 +207,7 @@ Time operations with deterministic mode support.
 
 ```ailang
 import std/clock (now, sleep)
+import std/io (println)
 
 func timedOperation() -> int ! {Clock, IO} {
   let start = now();
@@ -318,7 +338,8 @@ programs. To set *this* program's own exit code — a CLI that must fail non-zer
 `exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
 
 ```ailang
-import std/process (exec)
+import std/io (println)
+import std/process (exec, NotFound, NotAllowed, Timeout)
 import std/bytes (toString)
 
 func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
@@ -399,12 +420,12 @@ The allowlist is a property of the **invocation**, not of the program's signatur
 Real-time streaming I/O: WebSocket, SSE, and multi-source event multiplexing.
 
 ```ailang
-import std/stream (connect, transmit, onEvent, runEventLoop, disconnect,
-                   sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents,
-                   StreamEvent, Message, Closed, StreamError, SourceText, SourceBytes)
-import std/result (Result, Ok, Err)
+module docs/stream_demo
 
-func main() -> unit ! {Stream, IO} {
+import std/io (println)
+import std/stream (asyncReadStdinLines, selectEvents, SourceText)
+
+export func main() -> () ! {Stream, IO} {
   let stdin = asyncReadStdinLines("stdin", 10);
   selectEvents([stdin], \event. match event {
     SourceText(source, text) => { println("[${source}] ${text}"); true },
@@ -490,14 +511,19 @@ are a breaking soundness correction targeting v0.56.0.
 Effects from called functions are combined:
 
 ```ailang
+module docs/combine_effects
+
+import std/io (println)
+import std/fs (readFile)
+
 func helper() -> () ! {IO} {
   println("Helper called")
 }
 
-func main() -> () ! {IO, FS} {
-  helper();           -- IO effect flows up
+export func main() -> () ! {IO, FS} {
+  helper();                      -- IO effect flows up
   let x = readFile("data.txt");  -- FS effect
-  println(x)          -- IO effect
+  println(x)                     -- IO effect
 }
 ```
 
@@ -506,6 +532,8 @@ func main() -> () ! {IO, FS} {
 Functions can be called in contexts with additional effects:
 
 ```ailang
+import std/io (println)
+
 func pureCalc(x: int) -> int { x * 2 }
 
 func effectful() -> int ! {IO} {
@@ -564,6 +592,8 @@ requires `Rand`).
 You can limit how many times a function can perform an effect using **capability budgets**:
 
 ```ailang
+import std/io (println)
+
 -- Function limited to 5 IO operations (maximum)
 func rateLimited() -> () ! {IO @limit=5} {
   println("Call 1");  -- Uses 1/5 budget
@@ -643,7 +673,9 @@ ailang run --caps IO --no-budgets --entry main program.ail
 
 The type checker verifies effect declarations:
 
-```ailang
+```ailang parse
+import std/fs (readFile)
+
 -- Error: readFile requires FS but not declared
 func badFunction() -> string ! {IO} {
   readFile("data.txt")  -- Compile error!
@@ -655,7 +687,11 @@ func badFunction() -> string ! {IO} {
 Even if you declare an effect, you must grant it:
 
 ```ailang
-func main() -> () ! {FS} {
+module docs/runtime_enforcement
+
+import std/fs (writeFile)
+
+export func main() -> () ! {FS} {
   writeFile("output.txt", "data")
 }
 ```
@@ -673,15 +709,19 @@ ailang run --caps IO --entry main program.ail
 Functions can work with any effect set:
 
 ```ailang
+import std/io (println)
+import std/fs (writeFile)
+
 -- Works with any effects
 func twice[e](f: () -> () ! {e}) -> () ! {e} {
   f();
   f()
 }
 
--- Usage
-twice(\(). println("Hello"))  -- ! {IO}
-twice(\(). writeFile("log", "entry"))  -- ! {FS}
+func demoTwice() -> () ! {IO, FS} {
+  twice(\_. println("Hello"));
+  twice(\_. writeFile("log", "entry"))
+}
 ```
 
 The callback row and the call row share the same effect variable. A pure
@@ -696,6 +736,8 @@ capability grants are still required for concrete effects.
 Use pattern matching to handle effect boundaries:
 
 ```ailang
+import std/io (println)
+
 func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
   if verbose then println(msg) else ()
 }
@@ -706,6 +748,10 @@ func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
 Keep business logic pure, effects at boundaries:
 
 ```ailang
+import std/io (println)
+import std/fs (readFile)
+import std/string (stringToFloat)
+
 -- Pure business logic
 pure func calculateTax(amount: float) -> float {
   amount * 0.2
@@ -714,7 +760,10 @@ pure func calculateTax(amount: float) -> float {
 -- Effectful boundary
 func processInvoice(id: string) -> () ! {IO, FS} {
   let data = readFile("invoices/${id}.json");
-  let amount = parseAmount(data);
+  let amount = match stringToFloat(data) {
+    Some(v) => v,
+    None => 0.0
+  };
   let tax = calculateTax(amount);  -- Pure!
   println("Tax: ${show(tax)}")
 }
@@ -724,17 +773,7 @@ func processInvoice(id: string) -> () ! {IO, FS} {
 
 ### Mocking Effects (Planned)
 
-```ailang
--- Future: Mock effects for testing
-test "file processing" with {
-  FS.mock({
-    "input.txt" => "test data"
-  })
-} {
-  let result = processFile("input.txt");
-  assert(result == "TEST DATA")
-}
-```
+Declarative effect mocking inside `test` blocks is planned for a future release. Today, test effectful programs by keeping core logic in `pure func` definitions (tested via inline `tests [...]` or named `test` blocks) and running boundary tests against `AILANG_FS_SANDBOX` or `--clock-mode fixed`.
 
 ### Pure Function Testing (Current)
 
@@ -745,7 +784,7 @@ pure func double(x: int) -> int
   tests [
     (0, 0),
     (5, 10),
-    ((-3), (-6))
+    (-3, -6)
   ]
 {
   x * 2

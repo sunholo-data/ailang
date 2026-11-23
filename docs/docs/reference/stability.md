@@ -2,19 +2,18 @@
 sidebar_position: 4
 title: Stability Promise (1.x)
 description: What syntax, stdlib, CLI, package format and hosted MCP tool surface AILANG guarantees across the 1.x release line.
-reviewed: 2026-11-09
-reviewBy: 2027-02-09
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # AILANG 1.x Stability Promise
 
-> **RATIFIED 2026-11-09 (Mark, ledger `D-65`; v1.0 bar v3 gate G1).** Re-drafted the same day
-> against bar v3 (ledger `D-64`, gates G1, G3 and G4a). The tier *semantics* below are frozen by the
+> **Ratified 2026-11-09.** The tier *semantics* below are defined by the
 > [M-V1-STABILITY-PROMISE design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md).
-> The tier *assignments* were re-done against what exists today: the dispatch table behind
-> `ailang --help` after the CLI was cut down to 17 visible commands plus the `dev`, `ops`, `eval`
-> and `pkg` groups, the frozen stdlib interfaces (`make freeze-stdlib`), the package manifest and
-> lockfile code, and the hosted executor's MCP tool list. They were ratified as drafted. Rows marked
+> The tier *assignments* reflect the current surface: the dispatch table behind
+> `ailang --help` (17 visible commands plus the `dev`, `ops`, `eval`
+> and `pkg` groups), the frozen stdlib interfaces (`make freeze-stdlib`), the package manifest and
+> lockfile code, and the hosted executor's MCP tool list. Rows marked
 > **⚠ close call** were the assignments most open to argument; each note says why it landed where it did.
 
 This page says what a consumer, whether a human developer or an AI coding agent, may rely on
@@ -55,7 +54,7 @@ That is the cheaper way to be wrong, because an Experimental item can be promote
 breaking anyone. Development, diagnostic and fleet-operations surface that has no consumer
 contract is **Internal**.
 
-**Rulings applied (D-64, Mark, 2026-11-09):** `ailang messages` is **Experimental**. The
+**Tiering decisions:** `ailang messages` is **Experimental**. The
 coordinator, missions, approvals, dashboards, eval tooling and chains/observatory are
 **Internal**. The cloud executor's MCP tool surface is **Stable**.
 
@@ -74,8 +73,8 @@ The Stable syntax set is defined **by reference** to the canonical teaching prom
 reference rather than listed again here, so there is one source of truth:
 
 - **Canonical reference:** `ailang prompt` and the [Language Syntax](/docs/reference/language-syntax)
-  page. The active prompt version is **v0.16.12** at the time of writing (`prompts/versions.json`
-  `.active`). Read the version from there, not from this page.
+  page. Read the active prompt revision from `ailang prompt --version-active` (`prompts/versions.json`
+  `.active`), not from this page.
 - The **Stable** constructs are the ones that reference documents as current:
   - modules and imports, including `pkg/vendor/name/...` package imports
   - `func`, `pure func` and `export` declarations
@@ -88,19 +87,14 @@ reference rather than listed again here, so there is one source of truth:
   - string interpolation (`"${expr}"`)
   - `requires` / `ensures` contracts
 
-  Every one of these was checked with `ailang check` and `ailang run` on a build of this branch on
-  2026-11-09.
-- **`pure func` is Stable ⚠ close call, on the condition that P0 [#1443](https://github.com/sunholo-data/ailang/issues/1443)
-  is closed.** Until then the type checker accepts a `pure func` that declares an effect row.
-  This is a v1.0 G2 item.
+- **`pure func` is Stable** (`pure` means exactly `! {}`; enforced by the type checker since #1443).
 - **Retired syntax is not Stable and the parser rejects it.** For example, the ML/Haskell form
   `match … with | …` produces `PAR019` ("'match ... with' is not valid AILANG syntax"). Use the
   brace form `match x { pat => expr, … }`.
 - **Experimental syntax:**
   - Parameterised effects and capability refinement, such as `Net[scope=public]` and `@limit=N`
     (see [Parameterised effects](/docs/guides/parameterised-effects)).
-  - IFC labels and `Declassify` (⚠ close call): P0 [#1134](https://github.com/sunholo-data/ailang/issues/1134)
-    is open, because label refinements are lost across module boundaries.
+  - IFC labels and `Declassify` (cross-module label checking landed in #1134 / #2185).
   - The `serve-api` export annotations (`@route`, `@mcp_name`, `@mcp_title`, `@mcp_hints`,
     `@noexpose`, `@nomcp`, …), which follow the `serve-api` tier below.
 - **Not implemented:** the `?` error-propagation operator, which gives `PAR_UNEXPECTED_TOKEN` at
@@ -371,7 +365,7 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `pkg affected-by` | pkg | — | package coordination over the message plane (which is Experimental) |
 | `pkg notify-upgrade` | pkg | — | package coordination over the message plane |
 | `pkg cascade` | pkg | — | the autonomous upgrade cascade |
-| `messages` | ops | `msg` | **D-64 ruling.** Heavily used, still changing |
+| `messages` | ops | `msg` | Heavily used, still changing |
 | `serve-api` | ops | — | ⚠ close call — the Stable MCP tools are served by it, and published packages deploy with it, but the flags and annotations are still growing (v0.51–v0.55) |
 | `mcp` | ops | — | `ailang mcp check` connector readiness |
 | `agent-prompt` | dev | — | ⚠ close call — the agent teaching prompt is versioned separately from `prompt` |
@@ -393,10 +387,10 @@ No promise. Diagnostic, harness, and fleet-operations surface.
 
 | Command | Listed in | Also accepted | Purpose |
 |---------|-----------|---------------|---------|
-| `eval` | top | `eval run` | Benchmark runner (**D-64: eval tooling is Internal**) |
+| `eval` | top | `eval run` | Benchmark runner (eval tooling is Internal) |
 | `eval analyze` · `browser-profile` · `censored-pairs` · `compare` · `elo` · `matrix` · `paired` · `publish` · `report` · `run` · `suite` · `summary` · `sweet-spot` · `trend` | eval | `eval-*` top-level spellings, `browser-profile` | The eval harness family (14 subcommands) |
 | `iface` | top | — | Normalised module-interface JSON. ⚠ close call — the freeze gate consumes it, but its JSON shape carries no promise; the promise is on the interface it describes |
-| `serve` | top | `server` | Observatory dashboard server (**D-64: dashboards are Internal**) |
+| `serve` | top | `server` | Observatory dashboard server (dashboards are Internal) |
 | `pkg key` | pkg | — | Scoped publish keys, superuser only |
 | `ast-edit` | dev | — | Structural declaration edits |
 | `builtins` | dev | — | Builtin-registry inspection |
@@ -411,17 +405,17 @@ No promise. Diagnostic, harness, and fleet-operations surface.
 | `policy-check` | dev | — | Evaluate a policy program against its cases |
 | `policy-tool` | dev | — | Typed tool endpoint of the `ailang_only` lane |
 | `select-best` | dev | — | Pick the best generated variant |
-| `access-approvals` | ops | — | Durable access approvals (**D-64: approvals are Internal**) |
+| `access-approvals` | ops | — | Durable access approvals (approvals are Internal) |
 | `access-control` | ops | — | Access-control management |
 | `budget` | ops | — | Budget monitoring |
-| `chains` | ops | `trace`, `observatory`, `dashboard`, `eval-chains` | Chains, traces, observatory and dashboard (**D-64**) |
-| `coordinator` | ops | — | Autonomous agent daemon (**D-64**) |
+| `chains` | ops | `trace`, `observatory`, `dashboard`, `eval-chains` | Chains, traces, observatory and dashboard |
+| `coordinator` | ops | — | Autonomous agent daemon |
 | `credit-gateway` | ops | — | Guarded Claude API credit gateway |
 | `daemon` | ops | — | Local ailang daemon |
 | `design-quorum` | ops | — | N-reviewer design quorum |
 | `design-review` | ops | — | AI review of a design document |
 | `exec` | ops | — | Unified AI execution for harnesses |
-| `mission` | ops | — | Mission registry and iteration (**D-64**) |
+| `mission` | ops | — | Mission registry and iteration |
 | `models` | ops | — | Model registry |
 | `rig-gate` | ops | — | GPU admission gateway |
 | `storage` | ops | — | Storage-plane status |
@@ -432,8 +426,7 @@ counted individually in the 46.
 
 ## Packages
 
-The package system is part of the promise: bar v3 gate G3 replaces the v2 "orchestration
-flagship" with it. This section covers **the format and resolution semantics**, meaning what
+The package system is part of the 1.x promise. This section covers **the format and resolution semantics**, meaning what
 `ailang.toml`, `ailang.lock` and the registry mean. It does not cover the contents of any
 particular package. Each package declares its own maturity in `[stability].level`. Reference:
 the [Package System guide](/docs/guides/packages) and the
@@ -467,7 +460,7 @@ the [Package System guide](/docs/guides/packages) and the
 | Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | ⚠ close call — under an agent policy, package verbs refuse network and `~/.ailang` writes with a `confined by AILANG_AGENT_POLICY` error (#1720); landed 2026-10-26 |
 | `[dependencies_dev]` | undocumented in the package guide |
 | `[ai_provider]`, `[extensions]`, `[assets]`, `[smoke]` | extension and provider wiring, still changing |
-| `[cascade]` and the upgrade cascade (`pkg cascade`, `notify-upgrade`, `affected-by`) | runs over the message plane, which is Experimental (D-64) |
+| `[cascade]` and the upgrade cascade (`pkg cascade`, `notify-upgrade`, `affected-by`) | runs over the message plane, which is Experimental |
 | `[metadata]` | free-form; no schema promised |
 
 ### Internal package surface (1)
@@ -580,7 +573,7 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 
 | Tool | Source | Why Experimental |
 |------|--------|------------------|
-| `benchmarks_list` | `mcp_tools/benchmarks.ail` | ⚠ close call — eval data (D-64 makes eval tooling Internal); the record shape follows the eval schema |
+| `benchmarks_list` | `mcp_tools/benchmarks.ail` | ⚠ close call — eval data (eval tooling is Internal); the record shape follows the eval schema |
 | `benchmarks_for_model` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `benchmarks_compare` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `submit_feedback` | built-in (`internal/apiserver/feedback_tool.go`) | ⚠ close call — the only write tool; rate-limited, and egress depends on deployment configuration |
@@ -594,9 +587,7 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 
 ## Follow-ups (post-ratification)
 
-- G2: close [#1443](https://github.com/sunholo-data/ailang/issues/1443) (`pure func`) and
-  [#1134](https://github.com/sunholo-data/ailang/issues/1134) (IFC labels). Both affect rows on
-  this page.
+- ~~Close [#1443](https://github.com/sunholo-data/ailang/issues/1443) (`pure func`) and [#1134](https://github.com/sunholo-data/ailang/issues/1134) (IFC labels)~~: done (PRs `#2184` and `#2185`).
 - A gate that checks this page's tables against the dispatch table, the stdlib goldens and the
   `@mcp_name` list, the way `check-cli-docs` checks the CLI Reference.
 - ~~Compile-time deprecation warnings~~: done — `@deprecated` and `TC_DEPRECATED_001` (see
@@ -604,5 +595,4 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 
 ---
 
-*Ratification status: **ratified 2026-11-09 (Mark, D-65)**. First drafted at mission iteration 5
-(2026-07-10); re-drafted and ratified 2026-11-09 against bar v3 (D-64).*
+*Ratification status: **ratified 2026-11-09**.*

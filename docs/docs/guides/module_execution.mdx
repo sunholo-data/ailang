@@ -1,10 +1,11 @@
 ---
-reviewBy: 2026-12-21
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Module Execution Guide
 
-**AILANG v0.5.11** - Complete guide to executing modules with entrypoint functions
+Complete guide to executing AILANG modules with entrypoint functions.
 
 ---
 
@@ -196,15 +197,19 @@ Line 1
 Line 2
 ```
 
-#### `_io_readLine() -> string`
+#### `readLine() -> string ! {IO}`
 
 Read a line from stdin (blocking).
 
 ```ailang
-export func main() -> () {
-    _io_println("Enter your name:")
-    let name = _io_readLine() in
-    _io_println(name)
+module examples/read_name
+
+import std/io (println, readLine)
+
+export func main() -> () ! {IO} {
+  println("Enter your name:");
+  let name = readLine();
+  println(name)
 }
 ```
 
@@ -218,14 +223,16 @@ export func main() -> () {
 - **Unit values**: Silent (no output)
 
 ```ailang
+import std/io (println)
+
 -- Returns int, prints to stdout
 export func compute() -> int {
-    42
+  42
 }
 
--- Returns unit, no output
-export func greet() -> () {
-    _io_println("Hello")
+-- Returns unit, prints explicitly via IO
+export func greet() -> () ! {IO} {
+  println("Hello")
 }
 ```
 
@@ -240,29 +247,30 @@ export func greet() -> () {
 
 ## Effects and Type Checking
 
-### Effect Annotations (v0.2.0)
+### Effect Annotations & Runtime Capabilities
 
-Effects are **type-checked** but **not enforced** at runtime in v0.2.0.
+Effects are both **statically type-checked** and **enforced at runtime** via `--caps`:
 
 ```ailang
+module examples/io_effect
+
+import std/io (println)
+
 -- Effect annotation required for IO operations
 export func main() -> () ! {IO} {
-    _io_println("Hello")
+  println("Hello")
 }
 ```
 
-**Note**: Runtime effect enforcement is **live** — capabilities are granted per-run with
-`ailang run --caps IO,FS ...` (a program may only perform effects whose capabilities it was
-granted). See the [effects reference](/docs/reference/effects) and
-[capability budgets](/docs/reference/capability-budgets).
+Capabilities are granted per-run with `ailang run --caps IO,FS ...` (a program may only perform effects whose capabilities it was granted). See the [effects reference](/docs/reference/effects) and [capability budgets](/docs/reference/capability-budgets).
 
 ### Pure Functions
 
-Pure functions have no effect annotation:
+Pure functions have no effect annotation (or explicit `! {}`):
 
 ```ailang
 export pure func add(x: int, y: int) -> int {
-    x + y
+  x + y
 }
 ```
 
@@ -275,8 +283,10 @@ export pure func add(x: int, y: int) -> int {
 ```ailang
 module scripts/hello
 
-export func main() -> () {
-    _io_println("Hello from AILANG!")
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello from AILANG!")
 }
 ```
 
@@ -297,10 +307,12 @@ ailang run --caps IO --entry greet --args-json '{"name":"Alice","greeting":"Hell
 ```ailang
 module apps/echo
 
-export func main() -> () {
-    _io_println("Enter text:")
-    let input = _io_readLine() in
-    _io_println(input)
+import std/io (println, readLine)
+
+export func main() -> () ! {IO} {
+  println("Enter text:");
+  let input = readLine();
+  println(input)
 }
 ```
 
@@ -349,26 +361,16 @@ Suggestions:
 
 ---
 
-## Known Limitations (v0.2.0)
+## Capabilities & Current Scope
 
 ### Supported <CheckIcon inline size={14} />
-- 0-argument and 1-argument entrypoints
-- Builtin IO functions (`_io_print`, `_io_println`, `_io_readLine`)
-- JSON argument parsing
-- Module imports and dependency resolution
-- Type checking with effects
-- Pure functions
-
-### Not Yet Supported ⏳
-- **Multi-argument functions** (2+ parameters)
-  - Workaround: Use record parameter
-- **Effect enforcement** at runtime
-  - Effects are type-checked only
-  - Runtime capability checks coming in M-R2 (v0.3.0)
-- **Pattern matching guards**
-  - Planned for M-P4
-- **Multi-statement function bodies**
-  - Parser limitation, planned for future release
+- 0-argument and 1-argument entrypoints (use a record parameter for multi-field JSON inputs)
+- Standard library IO (`std/io`: `print`, `println`, `readLine`, `exit`)
+- JSON argument parsing (`--args-json`)
+- Module imports, sibling `./` imports, and `pkg/` package dependencies
+- Static effect checking and runtime capability enforcement (`--caps`)
+- Multi-statement `{ ... }` block bodies, pattern guards, and exhaustiveness checking
+- Pure functions (`pure func`) and contract verification (`ailang verify`)
 
 ---
 
@@ -378,23 +380,23 @@ Suggestions:
 
 Modules can import other modules:
 
-```ailang
--- math/utils.ail
+```ailang file=math/utils.ail
 module math/utils
 
 export func double(x: int) -> int {
-    x * 2
+  x * 2
 }
 ```
 
-```ailang
--- app/main.ail
+```ailang file=app/main.ail
 module app/main
+
+import std/io (println)
 import math/utils (double)
 
-export func main() -> () {
-    let result = double(21) in
-    _io_println(show(result))
+export func main() -> () ! {IO} {
+  let result = double(21);
+  println(show(result))
 }
 ```
 
@@ -465,29 +467,8 @@ echo $?  # Check exit code
 ### No output
 
 - Functions returning `()` (Unit) produce no output
-- Use `_io_println()` for explicit output
+- Use `println()` from `std/io` for explicit output
 - Check stderr for errors: `ailang ... 2>&1 | grep Error`
-
----
-
-## What's Next?
-
-### v0.3.0 (M-R2: Effect Runtime)
-- Runtime effect enforcement
-- Capability-based security
-- IO and FS capabilities
-- Deny-by-default model
-
-### v0.4.0 (Pattern Matching Polish)
-- Guards in match expressions
-- Exhaustiveness checking
-- Decision tree optimization
-
-### Future
-- Multi-statement function bodies
-- Async/await concurrency
-- Quasiquotes (SQL, HTML, regex)
-- Training data export
 
 ---
 
@@ -498,16 +479,10 @@ echo $?  # Check exit code
 - [Testing Guide](/docs/guides/testing) - Testing module code
 - [Debugging Guide](/docs/guides/debugging) - Troubleshooting execution issues
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
+- [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
 
 ## Resources
 
 - **Examples**: `examples/` directory
-- **stdlib**: `stdlib/std/io.ail`, `stdlib/std/option.ail`
-- **Design docs**: `design_docs/20251002/m_r1_module_execution.md`
+- **stdlib**: `std/io.ail`, `std/option.ail`
 - **CHANGELOG**: Track new features and breaking changes
-
----
-
-**Version**: v0.5.11
-**Last Updated**: December 2025
-**Status**: Complete

@@ -2,7 +2,8 @@
 title: std/xml — Tree-walk performance builtins
 description: foldChildren, foldChildrenStep, getAttrMap, and nodeKind — collapse the FFI/allocation cost of XmlNode walks
 sidebar_label: std/xml (perf)
-reviewBy: 2026-12-07
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # std/xml — Tree-walk performance builtins
@@ -37,11 +38,11 @@ If you only need a single attribute (N=1), keep using [`getAttr`](./stdlib) — 
 Fold over the direct children of an Element without materialising `[XmlNode]`. Non-Element nodes (`Text`, `Comment`) return `init` unchanged.
 
 ```ailang
-import std/xml (foldChildren, getTag)
+import std/xml (XmlNode, foldChildren, getTag)
 
 -- Count how many direct <li> children a <ul> has.
 func countListItems(ul: XmlNode) -> int =
-  foldChildren(ul, 0, \acc, child.
+  foldChildren(ul, 0, \acc child.
     if getTag(child) == "li" then acc + 1 else acc
   )
 ```
@@ -54,12 +55,11 @@ Bounded variant of `foldChildren`. The handler returns `FoldStep[a] = Continue(a
 
 ```ailang
 import std/iter (FoldStep, Continue, Stop)
-import std/option (Option, None, Some)
-import std/xml (foldChildrenStep, getTag)
+import std/xml (XmlNode, foldChildrenStep, getTag)
 
 -- First direct child whose tag is "h1".
 func firstH1(node: XmlNode) -> Option[XmlNode] =
-  foldChildrenStep(node, None, \acc, c.
+  foldChildrenStep(node, None, \acc c.
     if getTag(c) == "h1"
       then Stop(Some(c))
       else Continue(acc)
@@ -73,15 +73,16 @@ func firstH1(node: XmlNode) -> Option[XmlNode] =
 Build a `Map[string, string]` from all attributes of an Element. Non-Element nodes return an empty map. Duplicate attribute names: last write wins (consistent with `findAttrs` semantics).
 
 ```ailang
-import std/xml (getAttrMap)
-import std/map as map
+import std/xml (XmlNode, getAttrMap)
+import std/map as M
 
 -- One FFI call, then O(1) per attribute lookup.
 func extractImgFields(img: XmlNode) -> {src: Option[string], alt: Option[string], srcset: Option[string]} =
   let attrs = getAttrMap(img) in
-  { src    = map.get(attrs, "src")
-  , alt    = map.get(attrs, "alt")
-  , srcset = map.get(attrs, "srcset")
+  {
+    src: M.lookup(attrs, "src"),
+    alt: M.lookup(attrs, "alt"),
+    srcset: M.lookup(attrs, "srcset")
   }
 ```
 
@@ -92,11 +93,11 @@ func extractImgFields(img: XmlNode) -> {src: Option[string], alt: Option[string]
 Classify a node as `KindElement | KindText | KindComment` without string-equality on the tag. Pattern-matchable and exhaustiveness-checkable.
 
 ```ailang
-import std/xml (NodeKind, KindElement, KindText, KindComment, nodeKind, getText)
+import std/xml (XmlNode, NodeKind, KindElement, KindText, KindComment, nodeKind, getTag, getText)
 
 func render(n: XmlNode) -> string =
   match nodeKind(n) {
-    KindElement => renderElement(n),
+    KindElement => "<${getTag(n)}>${getText(n)}</${getTag(n)}>",
     KindText    => getText(n),
     KindComment => ""
   }
@@ -113,7 +114,11 @@ A small ADT with three nullary constructors. **The constructors are prefixed `Ki
 *Added v0.21.0 (M4 hotfix).* Go-iterative `flatMap` over the direct children of an Element. `f` returns a list per child; results are concatenated into one Go-native slice with O(1) amortised append. **Use this — not `foldChildren` — when the walker output is a flat list.** Non-Element nodes return `[]`.
 
 ```ailang
-import std/xml (flatMapChildren)
+import std/xml (XmlNode, flatMapChildren, getText)
+
+type Block = TextBlock(string)
+
+func htmlProcessNode(n: XmlNode) -> [Block] = [TextBlock(getText(n))]
 
 -- Process every direct child into 0+ Block outputs; flatten the result.
 func htmlProcessChildren(node: XmlNode) -> [Block] =
@@ -127,7 +132,7 @@ func htmlProcessChildren(node: XmlNode) -> [Block] =
 *Added v0.21.0 (M4 hotfix).* Like `flatMapChildren` but each callback returns exactly one output element. Output slice is pre-sized to the children count. Non-Element nodes return `[]`.
 
 ```ailang
-import std/xml (mapChildren, getTag)
+import std/xml (XmlNode, mapChildren, getTag)
 
 -- Snapshot of the direct child tag names in document order.
 func childTags(node: XmlNode) -> [string] =
@@ -172,35 +177,42 @@ ailang run --caps Clock examples/runnable/xml_walk_perf.ail
 A typical walker `node -> [Block]` looks like this **before**:
 
 ```ailang
+import std/list (flatMap)
+import std/xml (XmlNode, getChildren, getTag, getText, getAttr)
+
+type Block = TextBlock(string) | ImgBlock(Option[string], Option[string], Option[string])
+
 func processChildren(node: XmlNode) -> [Block] =
   flatMap(processNode, getChildren(node))
 
 func processNode(n: XmlNode) -> [Block] =
-  if getTag(n) == ""
-    then [TextBlock(getText(n))]
-    else
-      let src = getAttr(n, "src") in
-      let alt = getAttr(n, "alt") in
-      let title = getAttr(n, "title") in
-      [ImgBlock(src, alt, title)]
+  if getTag(n) == "" then [TextBlock(getText(n))] else {
+    let src = getAttr(n, "src");
+    let alt = getAttr(n, "alt");
+    let title = getAttr(n, "title");
+    [ImgBlock(src, alt, title)]
+  }
 ```
 
-**After** (one FFI call per concern):
+**After** (one FFI call per concern, using `flatMapChildren` for list output):
 
 ```ailang
-import std/xml (foldChildren, getAttrMap, nodeKind, KindElement, KindText, KindComment, getText)
-import std/map as map
+import std/xml (XmlNode, flatMapChildren, getAttrMap, nodeKind, KindElement, KindText, KindComment, getText)
+import std/map as M
+
+type Block = TextBlock(string) | ImgBlock(Option[string], Option[string], Option[string])
 
 func processChildren(node: XmlNode) -> [Block] =
-  foldChildren(node, [], \acc, c. append(acc, processNode(c)))
+  flatMapChildren(node, processNode)
 
 func processNode(n: XmlNode) -> [Block] =
   match nodeKind(n) {
     KindText    => [TextBlock(getText(n))],
     KindComment => [],
-    KindElement =>
-      let attrs = getAttrMap(n) in
-      [ImgBlock(map.get(attrs, "src"), map.get(attrs, "alt"), map.get(attrs, "title"))]
+    KindElement => {
+      let attrs = getAttrMap(n);
+      [ImgBlock(M.lookup(attrs, "src"), M.lookup(attrs, "alt"), M.lookup(attrs, "title"))]
+    }
   }
 ```
 

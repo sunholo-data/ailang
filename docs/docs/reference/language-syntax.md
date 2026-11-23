@@ -1,26 +1,28 @@
 ---
 title: Language Syntax
 sidebar_position: 1
-reviewBy: 2026-12-21
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # AILANG Language Syntax Reference
 
-This reference documents the syntax and features of AILANG v0.6.0. Features marked with a construction sign are planned but not yet implemented.
+This reference documents the current AILANG language syntax. Every code block below is checked against the compiler (`make check-doc-samples`). For features not yet implemented, see [Known Limitations](/docs/reference/limitations).
 
 ## Basic Constructs
 
 ```ailang
 -- Comments use double dash
-let x = 5 in x + 1                 -- Immutable binding with scope
-\x. x * 2                          -- Lambda function
-if x > 0 then "pos" else "neg"     -- Conditional expression
-[1, 2, 3]                          -- List literal
-{name: "Alice", age: 30}           -- Record literal
-(1, "hello", true)                 -- Tuple literal
+let x = 5
+let incremented = let y = x in y + 1           -- Expression-style let
+let double = \n. n * 2                         -- Lambda function
+let label = if x > 0 then "pos" else "neg"     -- Conditional expression
+let nums = [1, 2, 3]                           -- List literal
+let person = {name: "Alice", age: 30}          -- Record literal
+let triple = (1, "hello", true)                -- Tuple literal
 ```
 
-## Module System ✅
+## Module System
 
 ```ailang
 -- Define a module
@@ -47,16 +49,15 @@ Run with:
 ailang run --caps IO,FS --entry main examples/math.ail
 ```
 
-### Module-Level Bindings ✅
+### Module-Level Bindings
 
 Besides functions, a module can declare top-level `let` bindings — constants shared
-across the module's functions. Both the annotated and inferred forms work (module-level
-`let` scoping has been supported since v0.5.0):
+across the module's functions. Both annotated and inferred forms work:
 
 ```ailang
 module examples/config
 
-let maxRetries : int = 3        -- with type annotation
+let maxRetries : int = 3         -- with type annotation
 let greeting = "hello"           -- inferred; may reference earlier bindings
 
 export func banner() -> string = "${greeting} (retries=${show(maxRetries)})"
@@ -66,9 +67,11 @@ This is distinct from the expression form `let x = e in body`, which binds only 
 single expression. A top-level `let name = expr` is in scope for every declaration in the
 module — use it for shared constants instead of zero-argument functions.
 
-### Function Declarations ✅
+### Function Declarations
 
 ```ailang
+import std/io (println)
+
 -- Pure function (no effects)
 export func add(x: int, y: int) -> int {
   x + y
@@ -96,30 +99,30 @@ export func isOdd(n: int) -> bool {
 
 #### Two body styles — the rule (read this once)
 
-A function body is written in **exactly one** of two styles. Mixing them is a parse error
-(`PAR017: ';' is only valid inside { ... } block bodies`):
+A function body is written in **either** block style or expression style:
 
 | Style | Shape | `=`? | `;` between statements? |
 |-------|-------|------|--------------------------|
-| **Block body** | `func f(...) -> T { s1; s2; result }` | **No `=`** | Yes — statements separated by `;`, last expression is the return value |
-| **Expression body** | `func f(...) -> T = expr` | **`=` required** | No — it is a *single* expression (use `let … in …` to sequence) |
+| **Block body** | `func f(...) -> T { s1; s2; result }` | **No `=`** | Semicolon or newline between statements; last expression is the return value |
+| **Expression body** | `func f(...) -> T = expr` | **`=` required** | Single expression (or `;`-separated sequence) |
 
 ```ailang
+import std/io (print, println)
+
 -- Block body: multiple statements, braces, NO '='
 export func render() -> () ! {IO} {
   print("frame");
   println(" done")
 }
 
--- Expression body: single expression, '=' REQUIRED, no ';'
+-- Expression body: single expression, '=' REQUIRED
 export pure func clamp(n: int) -> int = if n < 0 then 0 else n
 ```
 
-The trap: writing `= {` (an `=` *and* a brace) then using `;` inside. Pick one — if you need
-multiple statements, use a **block body** (`{ … }` with no `=`). If it is one expression, use
-`= expr`.
+*(Note: inside a `{ ... }` block, newlines separate statements except when the next line starts with `(` — put a `;` before a trailing tuple expression like `(a, b)` so it isn't parsed as a curried call.)*
 
-### ✅ Inline Tests (v0.4.5+)
+### Inline Tests
+
 ```ailang
 -- Inline tests for pure functions
 pure func factorial(n: int) -> int
@@ -145,7 +148,7 @@ pure func add(x: int, y: int) -> int
 }
 
 -- List operations
-pure func sum(xs: List[int]) -> int
+pure func sum(xs: [int]) -> int
   tests [
     ([], 0),
     ([1], 1),
@@ -154,7 +157,7 @@ pure func sum(xs: List[int]) -> int
 {
   match xs {
     [] => 0,
-    ::(x, rest) => x + sum(rest)
+    x :: rest => x + sum(rest)
   }
 }
 ```
@@ -162,84 +165,79 @@ pure func sum(xs: List[int]) -> int
 Inline row inputs and expected values support scalar literals (including negative
 numbers), lists, tuples, records, local ADT constructors, and nested combinations.
 For example, a row may expect `[2, 3]`, `{value: 2}`, `Allow`, or `Deny("nope")`.
-Both arms share the same lightweight evaluator. Binary operators, lambdas,
-and other expressions requiring elaboration are rejected by `check` and `test`
-with TST001 (unsupported syntax) or TST002 (binary operator). Write the computed
-value directly, or use a named test block for those cases.
-
-This is a syntax gate: accepted identifiers and calls can still fail at test time
-because of name resolution, types, or capabilities. Imported-module constructors
-are not added to the harness environment by this feature. Row arity and tuple-input
-disambiguation retain their existing behavior.
+Binary operators, lambdas, and other expressions requiring elaboration are rejected by
+`check` and `test` with `TST001` (unsupported syntax) or `TST002` (binary operator).
+Write the computed value directly, or use a named `test "..." { ... }` block for those cases.
 
 Run tests with:
 ```bash
 ailang test examples/factorial.ail
 ```
 
-**Limitations:**
-- Only works for self-contained pure functions
-- Functions calling other user-defined functions not yet supported (M-TESTING-DEPS)
-- Effect mocking not yet supported (M-TESTING-EFFECTS)
-
-## Lambda Expressions ✅
+## Lambda Expressions
 
 ```ailang
--- Basic lambda syntax
-let add = \x y. x + y in
-let add5 = add(5) in  -- Partial application (currying)
-add5(3)  -- Result: 8
+func lambdaExamples() -> (int, int, int) {
+  -- Basic curried lambda
+  let add = \x. \y. x + y;
+  let add5 = add(5);
+  let r1 = add5(3);  -- 8
 
--- Higher-order functions
-let compose = \f g x. f(g(x)) in
-let double = \x. x * 2 in
-let inc = \x. x + 1 in
-let doubleThenInc = compose(inc)(double) in
-doubleThenInc(5)  -- Result: 11
+  -- Higher-order functions
+  let compose = \f. \g. \x. f(g(x));
+  let double = \x. x * 2;
+  let inc = \x. x + 1;
+  let doubleThenInc = compose(inc)(double);
+  let r2 = doubleThenInc(5);  -- 11
 
--- Closures capture environment
-let makeAdder = \x. \y. x + y in
-let add10 = makeAdder(10) in
-add10(5)  -- Result: 15
-```
+  -- Closures capture environment
+  let makeAdder = \x. \y. x + y;
+  let add10 = makeAdder(10);
+  let r3 = add10(5);  -- 15
 
-## Pattern Matching ✅
-
-```ailang
--- ADT definition
-type Option[a] = Some(a) | None
-
--- Pattern matching on constructors
-match Some(42) {
-  Some(x) => x * 2,
-  None => 0
-}
--- Result: 84
-
--- Pattern matching on lists
-match [1, 2, 3] {
-  [] => "empty",
-  [x] => "single",
-  _ => "multiple"  -- Wildcard pattern
-}
-
--- Pattern matching with guards ✅
-match value {
-  Some(x) if x > 0 => x * 2,
-  Some(x) if x < 0 => 0,
-  Some(x) => x,
-  None => 0
-}
-
--- Tuple patterns
-match (1, "hello") {
-  (0, _) => "zero",
-  (_, "hello") => "greeting",
-  (x, y) => "other"
+  (r1, r2, r3)
 }
 ```
 
-### Exhaustiveness ✅
+## Pattern Matching
+
+`Option` (`Some`, `None`) and `Result` (`Ok`, `Err`) are in scope in every non-`std` module automatically.
+
+```ailang
+func matchExamples(value: Option[int]) -> (int, string, int, string) {
+  -- Pattern matching on constructors
+  let r1 = match Some(42) {
+    Some(x) => x * 2,
+    None => 0
+  };
+
+  -- Pattern matching on lists
+  let r2 = match [1, 2, 3] {
+    [] => "empty",
+    [x] => "single",
+    _ => "multiple"
+  };
+
+  -- Pattern matching with guards
+  let r3 = match value {
+    Some(x) if x > 0 => x * 2,
+    Some(x) if x < 0 => 0,
+    Some(x) => x,
+    None => 0
+  };
+
+  -- Tuple patterns
+  let r4 = match (1, "hello") {
+    (0, _) => "zero",
+    (_, "hello") => "greeting",
+    (x, y) => "other"
+  };
+
+  (r1, r2, r3, r4)
+}
+```
+
+### Exhaustiveness
 
 A `match` must cover every value of what it matches; `ailang check` rejects one
 that misses a case with `TC_MATCH_002` and names the missing pattern
@@ -268,73 +266,61 @@ pure func head(xs: [int]) -> int = match xs {
 
 Full runnable example: `examples/runnable/match_exhaustiveness.ail`.
 
-## Records ✅
+## Records & Row Polymorphism
+
+Closed record types require an exact field match; use **row polymorphism** (`{name: string | r}`) for functions that accept any record containing a `name` field (enabled by default, no env var needed):
 
 ```ailang
--- Record literals
-let person = {name: "Alice", age: 30}
-
--- Field access
-person.name  -- "Alice"
-person.age   -- 30
-
--- Nested records
-let user = {
-  profile: {name: "Bob", email: "bob@example.com"},
-  admin: true
-}
-
-user.profile.name  -- "Bob"
-
--- Record subsumption (functions accept supersets)
-export func getName(obj: {name: string}) -> string {
+-- Row-polymorphic function accepts any record with a `name: string` field
+export func getName[r](obj: {name: string | r}) -> string {
   obj.name
 }
 
-getName({name: "Alice", age: 30})  -- ✅ Works! Subsumption
-getName({name: "Bob", id: 123})     -- ✅ Works! Subsumption
-```
-
-### 🚧 Row Polymorphism (Partial - requires AILANG_RECORDS_V2=1)
-
-```ailang
--- Opt-in with environment variable
-export AILANG_RECORDS_V2=1
-
--- Row polymorphism allows extensible records
-func getName[r](obj: {name: string | r}) -> string {
-  obj.name
+func recordExamples() -> (string, string, string) {
+  let person = {name: "Alice", age: 30};
+  let user = {
+    profile: {name: "Bob", email: "bob@example.com"},
+    admin: true
+  };
+  let n1 = getName(person);          -- "Alice"
+  let n2 = getName({name: "Bob", id: 123});  -- "Bob"
+  let n3 = user.profile.name;        -- "Bob"
+  (n1, n2, n3)
 }
 ```
 
-## Block Expressions ✅
+## Block Expressions
 
 ```ailang
--- Sequential statements in blocks
-{
+module docs/blocks
+
+import std/io (println)
+
+export func sumBlock() -> int {
   let x = 5;
   let y = 10;
   x + y
-}  -- Result: 15
+}
 
--- Blocks with effects
+-- Multi-statement if/else branches require braces { ... }
+export func describe(x: int) -> int ! {IO} {
+  if x > 0 then {
+    println("Positive");
+    x * 2
+  } else {
+    println("Non-positive");
+    0
+  }
+}
+
 export func main() -> () ! {IO} {
   println("Line 1");
   println("Line 2");
-  println("Done")
-}
-
--- Blocks in conditionals
-if x > 0 then {
-  println("Positive");
-  x * 2
-} else {
-  println("Non-positive");
-  0
+  println(show(describe(sumBlock())))
 }
 ```
 
-## Effects and Capabilities ✅
+## Effects and Capabilities
 
 ```ailang
 module examples/demo
@@ -354,7 +340,7 @@ export func processData() -> () ! {IO, FS, Clock, Net} {
   sleep(1000);  -- Sleep for 1 second
   let timestamp = now();
 
-  writeFile("output.txt", response);
+  writeFile("output.txt", "${content}\n${response}");
   println("Done at ${show(timestamp)}")
 }
 ```
@@ -364,96 +350,58 @@ Run with capabilities:
 ailang run --caps IO,FS,Clock,Net --entry processData demo.ail
 ```
 
-### Available Effects
+### Core Effects
 
-| Effect | Builtins | Description |
-|--------|----------|-------------|
+| Effect | Key Stdlib Functions | Description |
+|--------|----------------------|-------------|
 | **IO** | `println`, `print`, `readLine` | Console I/O |
 | **FS** | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile` | File system access |
 | **Clock** | `now`, `sleep` | Time operations (monotonic, deterministic mode available) |
-| **Net** | `httpGet`, `httpPost` | HTTP requests with security (DNS rebinding prevention, IP blocking) |
+| **Net** | `httpGet`, `httpPost`, `httpRequest` | HTTP requests with security (DNS rebinding prevention, IP blocking) |
+| **Env** | `getEnv`, `getArgs` | Environment variables and CLI arguments |
+| **AI** | `call`, `callJson` | Typed LLM calls as a first-class effect |
+| **Debug** | `log`, `check` | Ghost effect for structured tracing |
 
-### 🚧 Quasiquotes (Planned v0.4.0+)
+## Planned Syntax (Not Yet Implemented)
 
-```ailang
--- NOT YET IMPLEMENTED
-let query = sql"""
-  SELECT * FROM users
-  WHERE age > ${minAge: int}
-"""
+The following features are **not yet implemented** in the parser (see [Known Limitations](/docs/reference/limitations) for current workarounds):
 
-let page = html"""
-  <div>${content: SafeHtml}</div>
-"""
-```
+| Feature | Current Workaround |
+|---------|--------------------|
+| **`?` error propagation** | Explicit `match` on `Result` / `Option` |
+| **Typed quasiquotes** | `"${expr}"` string interpolation |
+| **CSP concurrency (channels / session types)** | Deferred |
 
-### 🚧 Error Propagation (Planned)
+## Type Inference & Type Classes
 
-```ailang
--- NOT YET IMPLEMENTED
-func readAndProcess() -> Result[Data] ! {FS} {
-  let content = readFile("input.txt")?  -- ? operator not yet available
-    let response = httpGet(Net, "api.example.com")?
-    Ok(process(data, response))
-  }
-}
-```
-
-## Concurrency (CSP)
-
-```ailang
-func worker(ch: Channel[Task]) ! {Async} {
-  loop {
-    let task <- ch       -- Receive from channel
-    let result = process(task)
-    ch <- result         -- Send to channel
-  }
-}
-
-parallel {
-  spawn { worker(ch1) }
-  spawn { worker(ch2) }
-}  -- Waits for all spawned tasks
-```
-
-## Type Inference
-
-AILANG uses **Hindley-Milner type inference** — you rarely need to write type annotations. The compiler infers the most general type for every expression.
+AILANG uses **Hindley-Milner type inference** with built-in type classes (`Num`, `Fractional`, `Eq`, `Ord`, `Show`):
 
 ```ailang
 -- Types are inferred automatically
 let x = 42                       -- x: int
 let greeting = "hello"           -- greeting: string
-let double = \x. x + x          -- double: int -> int (via Num constraint)
-let identity = \x. x            -- identity: a -> a (polymorphic)
+let double = \n. n + n           -- double: int -> int (via Num constraint)
+let identity = \a. a             -- identity: a -> a (polymorphic)
 
--- Type annotations are optional but allowed
-export func add(x: int, y: int) -> int ! {}
-{ x + y }
+-- Type annotations on exported functions
+export func add(a: int, b: int) -> int ! {} {
+  a + b
+}
 
--- The compiler catches type errors at compile time
--- let bad = 1 + "hello"  -- ERROR: Cannot unify int with string
+-- Arithmetic, comparison, and string interpolation
+let sum = 1 + 2 + 3              -- 6
+let calc = 10 * 5 - 20 / 4       -- 45
+let place = "world"
+let interpolated = "hello ${place}"  -- "hello world" (++ is list-only)
+let eq1 = 42 == 42               -- true
+let lt = 5 < 10                  -- true
 ```
 
 **Key features:**
 - Automatic type inference for `let` bindings, lambdas, and function bodies
-- Polymorphic functions (e.g., `\x. x` works for any type)
+- Polymorphic functions (e.g., `\a. a` works for any type)
 - Row polymorphism for extensible records and effects
-- Type annotations required only for exported function signatures
-
-## Type Classes
-
-```ailang
--- Type class instances (REPL only currently)
-let sum = 1 + 2 + 3             -- Works: 6
-let calc = 10 * 5 - 20 / 4      -- Works: 45
-let greeting = "hello ${place}"     -- Interpolation: "hello world" (++ is list-only)
-
--- Type-level operations
-let eq1 = 42 == 42              -- true
-let lt = 5 < 10                 -- true
-let double = \x. x + x          -- polymorphic function
-```
+- Built-in type classes (`Num`, `Eq`, `Ord`, `Show`) and `deriving (Eq)` for ADTs
 
 ## See Also
 

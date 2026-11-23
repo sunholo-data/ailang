@@ -74,11 +74,9 @@ required for concrete effects.
 
 The Y-combinator and similar recursive lambda expressions fail with "occurs check" errors:
 
-```ailang
--- This fails:
-let Y = \f. (\x. f(x(x)))(\x. f(x(x))) in
--- ailang check ->
--- Error: occurs check failed: α2 occurs in α2 -> α3 ! {...ε4}
+```ailang parse
+-- Fails type checking (occurs check):
+func yCombinator() = let y = \f. (\x. f(x(x)))(\x. f(x(x))) in y
 ```
 
 **Root Cause**: Hindley-Milner type inference prevents infinite types to ensure decidability. The Y-combinator requires a recursive type `α = α → β`, which would create an infinite type.
@@ -168,9 +166,14 @@ the host and reload:
    ```ailang
    -- Each line is a separate match on the same Result — the type-checker
    -- repeats tagged-union analysis on `s` three times.
-   let x = match r { Ok(s) => s.x, Err(_) => 0.0 };
-   let y = match r { Ok(s) => s.y, Err(_) => 0.0 };
-   let z = match r { Ok(s) => s.z, Err(_) => 0.0 };
+   type Vec3 = { x: float, y: float, z: float }
+
+   func repeatedMatches(r: Result[Vec3, string]) -> (float, float, float) {
+     let x = match r { Ok(s) => s.x, Err(_) => 0.0 };
+     let y = match r { Ok(s) => s.y, Err(_) => 0.0 };
+     let z = match r { Ok(s) => s.z, Err(_) => 0.0 };
+     (x, y, z)
+   }
    ```
 3. Long chains of intra-package imports with many destructured constructors
 
@@ -178,24 +181,38 @@ the host and reload:
 
 1. **Flatten nested matches** into sequential `let`-bindings:
    ```ailang
+   import std/json (Json, decode, getString)
+   import std/string (length)
+
+   func optionalString(j: Json, key: string) -> string =
+     match getString(j, key) { Some(v) => v, None => "" }
+
    -- Before: triple-nested
-   match decode(raw) {
-     Err(e) => Err(e),
-     Ok(j) => match getString(j, "error") {
-       Some(p) => Err(p),
-       None => match getString(j, "text") { ... }
+   func nested(raw: string) -> Result[string, string] =
+     match decode(raw) {
+       Err(e) => Err(e),
+       Ok(j) => match getString(j, "error") {
+         Some(p) => Err(p),
+         None => match getString(j, "text") {
+           Some(t) => Ok(t),
+           None => Err("missing text")
+         }
+       }
      }
-   }
 
    -- After: flat
-   match decode(raw) {
-     Err(e) => Err(e),
-     Ok(j) => {
-       let err = optional_string(j, "error");
-       if length(err) > 0 then Err(err)
-       else match getString(j, "text") { ... }
+   func flat(raw: string) -> Result[string, string] =
+     match decode(raw) {
+       Err(e) => Err(e),
+       Ok(j) => {
+         let err = optionalString(j, "error");
+         if length(err) > 0 then Err(err)
+         else match getString(j, "text") {
+           Some(t) => Ok(t),
+           None => Err("missing text")
+         }
+       }
      }
-   }
    ```
 
 2. **Extract a helper** that does one match and returns a record:
@@ -238,23 +255,24 @@ the host and reload:
 AILANG is not layout-sensitive, so multi-statement branches must be wrapped in
 explicit braces. Without them, only the first `let` is parsed as the branch:
 
-```ailang
--- Fails:
-if x > maxX then [] else
+```not-ailang
+-- Fails: if-else branches require explicit braces when using let bindings
+func buildList(x: int, maxX: int) -> [int] =
+  if x > maxX then [] else
     let v = x * 2;
     let rest = buildList(x + 1, maxX);
     v :: rest
--- Error: if-else branches require explicit braces when using let bindings
 ```
 
 **Fix**:
 
 ```ailang
-if x > maxX then [] else {
+func buildList(x: int, maxX: int) -> [int] =
+  if x > maxX then [] else {
     let v = x * 2;
     let rest = buildList(x + 1, maxX);
     v :: rest
-}
+  }
 ```
 
 Single-expression branches don't need braces.
@@ -492,9 +510,14 @@ The `?` operator for early return on `Result` errors is designed but not yet
 implemented. For now, use explicit `match` on `Result`:
 
 ```ailang
-match readFile(path) {
-  Ok(contents) => process(contents),
-  Err(e) => Err(e)
+import std/fs (readFileResult)
+import std/string (toUpper)
+
+func loadUpper(path: string) -> Result[string, string] ! {FS} {
+  match readFileResult(path) {
+    Ok(contents) => Ok(toUpper(contents)),
+    Err(e) => Err(e)
+  }
 }
 ```
 
@@ -558,11 +581,15 @@ lookahead/lookbehind in exchange for a **linear-time, no-catastrophic-backtracki
 guarantee**. Unsupported patterns return `Err(message)` — never a panic:
 
 ```ailang
-match compile("(a)\\1") { Ok(_) => ..., Err(e) => ... }
--- Err: error parsing regexp: invalid escape sequence: `\1`
+import std/regex (compile)
 
-match compile("(?=x)") { Ok(_) => ..., Err(e) => ... }
--- Err: error parsing regexp: invalid or unsupported Perl syntax: `(?=`
+func checkUnsupported() -> (string, string) {
+  let r1 = match compile("(a)\\1") { Ok(_) => "ok", Err(e) => e };
+  -- Err: error parsing regexp: invalid escape sequence: `\1`
+  let r2 = match compile("(?=x)") { Ok(_) => "ok", Err(e) => e };
+  -- Err: error parsing regexp: invalid or unsupported Perl syntax: `(?=`
+  (r1, r2)
+}
 ```
 
 **Workaround**: restructure to RE2-expressible patterns (often a second `match` call or a

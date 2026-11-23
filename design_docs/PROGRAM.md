@@ -74,9 +74,9 @@ crash, never overflow"; everything smart is above it.
 - **Open (data-named):** the **type-error wall** (unification/arity/undefined-var ergonomics) and the
   **dialect cluster** (generic `PAR_NO_PREFIX`/`PAR_UNEXPECTED` — 7/10 stuck sessions; structural, not
   sharper-message). See [project memory: docx stuck = dialect confusion].
-- **Open (from the motoko queue grooming, 2026-10-01):** the eval harness's AILANG teaching prompt
-  (`ailang prompt`) is **96,908 chars** and rides as the system prefix on **every agent step in every
-  harness** (motoko measured ~99k chars ≈ 26k tokens/step); on the local rig that prefill dominates
+- **Open (from the motoko queue grooming, 2026-10-01; re-measured 2026-11-23):** the eval harness's AILANG teaching prompt
+  (`ailang prompt`) is **110,209 chars** (up from 96,908 chars on 2026-10-01) and rides as the system prefix on **every agent step in every
+  harness** (~28k tokens/step); on the local rig that prefill dominates
   step time. Measure what each section earns before trimming. And `ParseChatStepResponse`
   (`internal/ai/openai/step.go`) reads `usage.prompt_tokens_details.cached_tokens` with no test
   pinning it (`cache_usage_test.go` covers `Generate`, a different path) — add the arm and a mutant.
@@ -125,7 +125,7 @@ provisional (never a bogus #1), deltas are intersection-only. The standing disci
 [m-eval-validity-discipline.md](planned/m-eval-validity-discipline.md); every run has surfaced a new face
 of the same bug (comparing things measured differently), and that doc is the fix that stops the cycle.
 
-## 8. Where we are now (2026-10-19)
+## 8. Where we are now (updated 2026-11-23)
 
 **v1.0 release bar (re-cut 2026-11-09, ledger D-64):** bar v3, "1.0 = a promise we can keep" —
 stability promise ratified, zero open P0s, packages and the cloud executor MCP in the promise,
@@ -149,13 +149,9 @@ repetition guard, cache-token pricing, compaction cache-busting, OpenRouter host
 The open GLM gap is behavioural: motoko reasons ~9× more per call than pi and verifies in thought
 rather than with tools.
 
-**Real-task evidence is zero.** `ailang-only-executor` and `motoko` are registered on the cloud plane
-but no task has been dispatched to either (listing back to 09-14). The instrument that would produce it,
-[M-AILANG-LANE-EXECUTOR-SHADOW](planned/v0_55_0/m-ailang-lane-executor-shadow.md) (ratified 10-13),
-was built attended on 10-19 after its cloud sprint task `task-60e90d30` was killed at 42 min on 10-13
-and pushed nothing. M1–M6 and M7's code are on `dev`; it stays inert until the capped
-`OPENROUTER_API_KEY_SHADOW` exists, is mounted on the pi and motoko jobs, and two agents are enabled
-on the dev plane (M7). Real-task evidence starts then; the weekly report lands in the `user` inbox.
+**Real-task shadow evidence is now flowing.** [M-AILANG-LANE-EXECUTOR-SHADOW](planned/v0_55_0/m-ailang-lane-executor-shadow.md)
+(built 2026-10-19) is active and emitting weekly shadow reports to the `user` inbox (e.g.
+`Shadow report 2026-W48`: 4 comparisons graded to completion, 0 disagreements).
 
 **Upstream:** Arni merged our #258 (direct-Anthropic docs), #260 (repetition guard) and #262
 (byte-stable compaction summary); #234 (path guard) and #266 (TUI ollama flag) are open, as are issues

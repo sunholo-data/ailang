@@ -9,18 +9,20 @@ Each row in §2 is a design doc written by an independent Opus agent from that r
 the code and with its blast radius measured. This file is the index: order, dependencies, what the
 design work changed in the review, and the decisions that unblock it.
 
-## 1. Where we are
+## 1. Where we are (updated 2026-11-23)
 
-- `Release v0.58.0` is committed on `dev` (`f3b2ac26f`) and **not yet tagged**. It carries the three
-  BREAKING changes (#2184, #2185, named-test checks). That matches the review's step 2.
-- **v0.58.x is the last window for breaking changes.** Everything marked *breaking* below lands
-  there or waits for 2.0.
-- None of the ten docs has been through `ailang design-quorum` or sprint-planner yet.
-
-**Size, honestly.** The ten docs sum to roughly **95–115 working days** of effort by their own
-estimates. The review said "two to three weeks"; that was too low. With the work run in parallel
-lanes the calendar is more plausibly **five to seven weeks** including the soak. This is an
-estimate built from ten estimates, not a plan.
+- **Latest release:** `v0.60.6` (the breaking window originally named "v0.58.x" has moved through
+  `v0.58.0`, `v0.59.0`, and `v0.60.0`–`v0.60.6` and remains open until step 16).
+- **Shipped (Waves 1–3, soundness fixes, and second round — see §7):** release gates M1+M2,
+  downstream compat gate, doc-sample gate, canonical module identity + nominal type identity,
+  type-variable hygiene, `JInt`, total `show`, stdlib renames with `@deprecated` aliases,
+  match exhaustiveness (`TC_MATCH_002`), all ten original soundness issues + follow-ups,
+  Go emitter removal (`#2389`), lexical-scoping / REPL / WASM fixes, generic numeric-literal
+  variants (`#2393`), and verifier coverage + witness replay on `dev`.
+- **Remaining before close-out (see §7 "Not started"):** integer overflow trap, callback effect
+  rule, capability-grant changes & Internal command moves, help text, docs rewrites (284 baselined
+  samples + migration/security-model/support-window pages), rest of the rc pipeline, then
+  close-out steps 16–19 (remove `@deprecated` aliases → paired baseline → ≥7-day soak → `v1.0.0-rc.1` → `v1.0.0`).
 
 ## 2. The ten docs
 
@@ -276,17 +278,17 @@ the prompt); how much of the Go emitter is promised at 1.0.
 | #2387 | #2375 VM let-shadowing, #2388 ANF let-floating (wrong on EVERY engine), #2397 op-lowering/VarResolver keyed by name (declaration order changed results), #2398 specialiser shadowing | Merged (35f5ad6d6) after two reviews. A user `let` now stays nested in Core; non-expansive `let`/block values generalise |
 | #2403 | #2401 specialiser copied a lambda body to the call site (free variables captured) | Merged (651979e6b). Locals are made unique once per declaration after type checking (`core.UniqueProgramLocals`); invariant `core.CheckNoShadowing` on final Core |
 | #2408 | #2407 REPL + wasm rejected nested lets (a regression from #2387 that three review rounds missed: nobody drove the REPL); `:reset`; REPL lines are lexically scoped; registry path uniquified | Merged (5cf3088a0) |
-| #2393 | #2378/#2333 integer literal in a generic top-level function: int/float variants by cloning | **OPEN, head d0041e8ff, CI green, needs its THIRD independent review** (round-2 reviewer could not finish its sweeps). Must keep `variants.install` BEFORE `core.UniqueProgramLocals` in pipeline_module_compile.go: the other order is a silent wrong answer (probe: scratchpad review-2387/r3/nv/nv2.ail) |
+| #2393 | #2378/#2333 integer literal in a generic top-level function: int/float variants by cloning | **Merged** (`b2dede2dd`). Keeps `variants.install` before `core.UniqueProgramLocals` in `pipeline_module_compile.go` |
 
 **Rulings (Mark / controller, 2026-11-17):** numeric literals: a top-level or non-expansive let-bound FUNCTION is generic in its numeric parameter types (`inc(2.5)` = 3.5); a numeric variable is fixed at int iff it carries an integer literal AND occurs in no parameter position of any function type in the binding's type (`let K = 3`, `func K() = 3` are int; `K * 0.5` is a check error with a fix); an expansive value is one value with one type. The `full` eval condition stays pinned to devtools prompt v0.8.0-compact until the next baseline.
 
 **Review process change:** every review of a compiler change must drive the REPL and the wasm build (`ailangEval`, `ailangLoadModule`/`ailangCall`), not only `check` and `run`.
 
-**Downstream state.** The breaking soundness changes SHIPPED in v0.60.4 (2026-11-13); v0.60.5 is the latest release. docparse, daneel, ailang-packages, ailang-parse, email-parse and ailang-world all check cleanly; `world/core` 0.1.2 is published (2026-11-16); motoko fork PR 11 merged (35ea06602). Nothing since v0.60.5 has been released: the next release carries #2364's and #2393's interface-hash changes, so deploy the registry validator WITH it (PUB005 otherwise). Measured blast radius of v0.60.4: #2283 188 files, #2289 30 (24 deliberate fixtures), #2288 3, #2304 3.
+**Downstream state (2026-11-23).** The breaking soundness changes SHIPPED in v0.60.4 (2026-11-13); **v0.60.6** is the latest release. docparse, daneel, ailang-packages, ailang-parse, email-parse and ailang-world all check cleanly; `world/core` 0.1.2 is published (2026-11-16); motoko fork PR 11 merged (35ea06602). Measured blast radius of v0.60.4: #2283 188 files, #2289 30 (24 deliberate fixtures), #2288 3, #2304 3.
 
 **Unowned, in priority order:** #2410 (the playground/REPL module path is a second hand-kept pipeline that skips effect validation, match exhaustiveness and contract type-checking: a program the playground runs can be one `check` rejects), #2404 (a generalised pure lambda cannot be unified with an effectful one in an `if`/list; the obvious fix breaks ~40 tests on the #1958 ownership invariant), #2361 (`check` polynomial in expression depth and `let` count), #2409 (REPL lacks interpolation, `::`, string `<`, stdlib imports), #2323 (lambda in a tuple literal fails on the evaluator), #2399 (`--entry --args-json 2.9` truncates to int), #2400 (`verify` on unannotated generic contracts), #2392 (inline test rows call the int body), `==` on a record alias without `deriving (Eq)` accepted across modules (not filed), #2337, #2322, #2260, #2294, #2354, #2355, #2372, #2376, #2377, #2379, #2391.
 
-**Teaching-prompt edits queued for ONE new version** (none made yet): contracts are type-checked and enum `==` needs `deriving (Eq)`; `TC_MATCH_007` row; `dedup` removes all duplicates and the six list functions need `==`; library modules no longer need to import Option/Result (#2381 body lists lines); drop `extern` from the module keywords (v0.16.16:2490); numeric literals per the ruling above (the "Polymorphic Comparison Lambdas" paragraph); v0.16.16:455 vs #2322.
+**Teaching-prompt edits:** `v0.16.17` landed on `dev` (`bf01b75cd`, `efc03090b`) to align Z3 verifier claims with v0.60.6. Still queued for the next prompt update: contracts are type-checked and enum `==` needs `deriving (Eq)`; `TC_MATCH_007` row; `dedup` removes all duplicates and the six list functions need `==`; library modules no longer need to import Option/Result (#2381 body lists lines); drop `extern` from the module keywords (v0.16.16:2490); numeric literals per the ruling above (the "Polymorphic Comparison Lambdas" paragraph); v0.16.16:455 vs #2322.
 
 **Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
@@ -351,9 +353,9 @@ pipeline; then close-out steps 16–19.
   now publishes from its own folder (infra #17). Where the AILANG Cloud landing page should live is
   open.
 
-## 7. Suggested next step
+## 8. Suggested next step (updated 2026-11-23)
 
-Decisions 1–5 are ruled. Send wave 0 and nominal-identity M1 to sprint-planner; the older overflow
-design doc's pending quorum round is unblocked by ruling 3. Running
-`ailang design-quorum` on the two type-system docs first is worth its cost; on long docs pass
-`--max-cost-usd 0.30` or the budget cap drops a reviewer.
+Waves 1–3, the soundness fixes, and the second round are landed. Remaining pre-1.0 work is the
+"Not started" list in §7 (integer overflow trap, callback effect rule, public-surface hygiene,
+docs rewrites / 284 baselined samples, rest of the rc pipeline) plus the high-priority unowned
+items (`#2410`, `#2404`, `#2361`), followed by close-out steps 16–19.

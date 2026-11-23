@@ -21,6 +21,31 @@ func skipIfBinaryNotAvailable(t *testing.T) {
 	testutil.RequireAilangOnPath(t)
 }
 
+// TestResolveCompactPromptVersion verifies that --compact resolves default/latest
+// to an available *-compact version instead of failing on "<active>-compact",
+// while still honouring explicit --version requests.
+func TestResolveCompactPromptVersion(t *testing.T) {
+	got, err := resolveCompactPromptVersion("latest")
+	if err != nil {
+		t.Fatalf("resolveCompactPromptVersion(latest) error: %v", err)
+	}
+	if !strings.HasSuffix(got, "-compact") {
+		t.Fatalf("resolveCompactPromptVersion(latest) = %q, want *-compact suffix", got)
+	}
+	gotEmpty, err := resolveCompactPromptVersion("")
+	if err != nil || gotEmpty != got {
+		t.Fatalf("resolveCompactPromptVersion(\"\") = (%q, %v), want (%q, nil)", gotEmpty, err, got)
+	}
+	gotExplicit, err := resolveCompactPromptVersion("v0.7.4")
+	if err != nil || gotExplicit != "v0.7.4-compact" {
+		t.Fatalf("resolveCompactPromptVersion(v0.7.4) = (%q, %v), want (v0.7.4-compact, nil)", gotExplicit, err)
+	}
+	gotAlready, err := resolveCompactPromptVersion("v0.7.4-compact")
+	if err != nil || gotAlready != "v0.7.4-compact" {
+		t.Fatalf("resolveCompactPromptVersion(v0.7.4-compact) = (%q, %v), want (v0.7.4-compact, nil)", gotAlready, err)
+	}
+}
+
 // TestPromptCommand_Help tests the --help flag
 func TestPromptCommand_Help(t *testing.T) {
 	skipIfBinaryNotAvailable(t)

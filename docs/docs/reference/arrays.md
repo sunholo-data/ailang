@@ -1,298 +1,177 @@
 ---
 sidebar_position: 5
 title: Arrays
-description: Fixed-size arrays in AILANG
-reviewBy: 2026-11-02
+description: Fixed-size arrays in AILANG (std/array)
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Arrays
 
-AILANG v0.5.6 introduces **fixed-size arrays** as a complement to linked lists. Arrays provide efficient indexed access and are essential for game development and performance-critical code.
+AILANG provides **fixed-size immutable arrays** (`Array[T]`) in `std/array` as a complement to lists (`[T]`). Arrays give O(1) indexed reads and contiguous storage (including an unboxed 8-byte-per-element layout for `Array[float]`).
 
 ## Arrays vs Lists
 
-| Feature | Arrays `Array[T]` | Lists `List[T]` |
-|---------|-------------------|-----------------|
-| **Size** | Fixed at creation | Dynamic |
-| **Access** | O(1) indexed | O(n) traversal |
-| **Syntax** | `#[1, 2, 3]` | `[1, 2, 3]` |
-| **Memory** | Contiguous | Linked nodes |
-| **Use case** | Game grids, buffers | Recursive processing |
+| Feature | Arrays `Array[T]` | Lists `[T]` |
+|---------|-------------------|-------------|
+| **Access** | O(1) indexed (`get`, `getOpt`) | O(n) traversal |
+| **Update** | O(n) copy-on-write (`set`), or O(n + k) batch (`updateMany`, `accumulate`) | Structural / `map` / `filter` |
+| **Syntax** | `#[1, 2, 3]` or `fromList([1, 2, 3])` | `[1, 2, 3]` |
+| **Use case** | Grids, lookup tables, numeric vectors | Recursive processing, pipelines |
 
-## Array Syntax
+## Array Syntax & Construction
 
-### Array Literals
-
-Use `#[...]` to create arrays:
+Use `#[...]` for array literals, or construct arrays with `std/array` functions (`empty`, `make`, `fromList`):
 
 ```ailang
--- Integer array
-let numbers: Array[int] = #[1, 2, 3, 4, 5]
+import std/array as A
 
--- String array
-let names: Array[string] = #["Alice", "Bob", "Charlie"]
-
--- Empty array (requires type annotation)
-let empty: Array[int] = #[]
-
--- Nested arrays
-let grid: Array[Array[int]] = #[
-  #[1, 2, 3],
-  #[4, 5, 6],
-  #[7, 8, 9]
-]
-```
-
-### Array Type
-
-The `Array[T]` type is parameterized by element type:
-
-```ailang
--- Type annotations
-let xs: Array[int] = #[1, 2, 3]
-let ys: Array[string] = #["hello", "world"]
-let zs: Array[bool] = #[true, false, true]
-
--- In function signatures
-func processArray(arr: Array[int]) -> int { ... }
-```
-
-## Array Operations
-
-### Indexing
-
-Access elements by index (0-based):
-
-```ailang
-let arr = #[10, 20, 30, 40, 50]
-
-arr[0]  -- 10
-arr[2]  -- 30
-arr[4]  -- 50
-```
-
-**Bounds checking:** Out-of-bounds access results in a runtime error.
-
-### Length
-
-Get array size:
-
-```ailang
-let arr = #[1, 2, 3, 4, 5]
-length(arr)  -- 5
-
-let empty: Array[int] = #[]
-length(empty)  -- 0
-```
-
-### Mapping
-
-Transform each element:
-
-```ailang
-let arr = #[1, 2, 3, 4, 5]
-let doubled = arrayMap(\x. x * 2, arr)
--- #[2, 4, 6, 8, 10]
-
-let strings = arrayMap(show, arr)
--- #["1", "2", "3", "4", "5"]
-```
-
-### Folding
-
-Reduce array to single value:
-
-```ailang
-let arr = #[1, 2, 3, 4, 5]
-
--- Sum
-let sum = arrayFold(\acc x. acc + x, 0, arr)
--- 15
-
--- Product
-let product = arrayFold(\acc x. acc * x, 1, arr)
--- 120
-
--- Max (requires initial value)
-let max = arrayFold(\acc x. if x > acc then x else acc, arr[0], arr)
--- 5
-```
-
-### Filtering
-
-Select elements matching a predicate:
-
-```ailang
-let arr = #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-let evens = arrayFilter(\x. x % 2 == 0, arr)
--- #[2, 4, 6, 8, 10]
-
-let large = arrayFilter(\x. x > 5, arr)
--- #[6, 7, 8, 9, 10]
-```
-
-### Slicing
-
-Extract subarrays:
-
-```ailang
-let arr = #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-arraySlice(arr, 2, 5)  -- #[2, 3, 4] (from index 2, length 5)
-arraySlice(arr, 0, 3)  -- #[0, 1, 2]
-arraySlice(arr, 7, 3)  -- #[7, 8, 9]
-```
-
-## Array Patterns
-
-### Iteration
-
-Process each element:
-
-```ailang
-func printAll(arr: Array[string]) -> () ! {IO} {
-  arrayForEach(\s. println(s), arr)
+func constructionDemo() -> int {
+  let numbers: Array[int] = #[1, 2, 3, 4, 5]
+  let names: Array[string] = #["Alice", "Bob", "Charlie"]
+  let emptyArr: Array[int] = A.empty()
+  let zeros: Array[int] = A.make(4, 0)
+  let fromXs: Array[int] = A.fromList([10, 20, 30])
+  A.length(numbers) + A.length(names) + A.length(emptyArr) + A.length(zeros) + A.length(fromXs)
 }
-
-printAll(#["Hello", "World", "!"])
--- Prints:
--- Hello
--- World
--- !
 ```
 
-### Finding Elements
-
-Search for elements:
+Nested arrays represent 2D grids:
 
 ```ailang
-let arr = #[10, 20, 30, 40, 50]
+import std/array as A
 
--- Find first matching element
-let found = arrayFind(\x. x > 25, arr)
--- Some(30)
-
--- Find index
-let idx = arrayFindIndex(\x. x == 30, arr)
--- Some(2)
+func gridCenter() -> int {
+  let grid: Array[Array[int]] = #[
+    #[1, 2, 3],
+    #[4, 5, 6],
+    #[7, 8, 9]
+  ]
+  A.get(A.get(grid, 1), 1)
+}
 ```
 
-### Checking Conditions
+## Reading Elements & Length
 
-Test array properties:
+Indexing is 0-based via `get` (runtime error if out of bounds) or `getOpt` (returns `Option[a]`):
 
 ```ailang
-let arr = #[2, 4, 6, 8, 10]
+import std/array as A
 
--- All elements match predicate
-arrayAll(\x. x % 2 == 0, arr)  -- true
-
--- Any element matches predicate
-arrayAny(\x. x > 8, arr)  -- true
+func readDemo() -> (int, Option[int], Option[int], int) {
+  let arr = #[10, 20, 30, 40, 50]
+  let first = A.get(arr, 0)        -- 10
+  let inBounds = A.getOpt(arr, 2)  -- Some(30)
+  let oob = A.getOpt(arr, 99)      -- None
+  let len = A.length(arr);         -- 5
+  (first, inBounds, oob, len)
+}
 ```
 
-## Game Development Patterns
+## Updating Arrays (Copy-on-Write vs Batch Updates)
 
-### 2D Grids
+Arrays are immutable. Single-element `set` and `append` copy the whole array (**O(n)**), so updating in a loop is O(n²). For multiple writes, use `updateMany` or `accumulate` (**O(n + k)**, one copy):
 
 ```ailang
+import std/array as A
+
+func updateDemo() -> (Array[int], Array[int], Array[int]) {
+  let base = A.make(4, 0)
+
+  -- Single update (O(n))
+  let one = A.set(base, 1, 42)
+
+  -- Batch writes in one copy (O(n + k); later write to same index wins)
+  let many = A.updateMany(base, [(0, 10), (2, 20), (0, 30)])
+
+  -- Batch fold per index in one copy (O(n + k); e.g. histogram)
+  let hist = A.accumulate(base, [(0, 1), (2, 5), (0, 2)], \a b. a + b);
+
+  (one, many, hist)
+}
+```
+
+## Transforming Arrays via `std/list`
+
+`std/array` intentionally keeps its surface minimal. To map, filter, or fold an array, convert with `toList` / `fromList` and use `std/list`:
+
+```ailang
+import std/array as A
+import std/list (map, filter, foldl)
+
+func transformDemo(arr: Array[int]) -> (Array[int], Array[int], int) {
+  let xs = A.toList(arr)
+  let doubled = A.fromList(map(\x. x * 2, xs))
+  let evens = A.fromList(filter(\x. x % 2 == 0, xs))
+  let total = foldl(\acc x. acc + x, 0, xs);
+  (doubled, evens, total)
+}
+```
+
+## 2D Grid Pattern
+
+```ailang
+import std/array as A
+import std/list (map, range)
+
 type Cell = Empty | Wall | Player | Enemy
-
 type Grid = Array[Array[Cell]]
 
 func createGrid(width: int, height: int) -> Grid {
-  arrayInit(height, \y.
-    arrayInit(width, \x.
+  A.fromList(map(\y.
+    A.fromList(map(\x.
       if x == 0 || x == width - 1 || y == 0 || y == height - 1
         then Wall
-        else Empty
-    )
-  )
+        else Empty,
+      range(0, width)
+    )),
+    range(0, height)
+  ))
 }
 
 func getCell(grid: Grid, x: int, y: int) -> Cell {
-  grid[y][x]
+  A.get(A.get(grid, y), x)
 }
 
 func setCell(grid: Grid, x: int, y: int, cell: Cell) -> Grid {
-  arrayUpdate(grid, y, arrayUpdate(grid[y], x, cell))
+  let row = A.set(A.get(grid, y), x, cell)
+  A.set(grid, y, row)
 }
 ```
 
-### Entity Arrays
+## Float Kernels & Binary Codecs (`@experimental`)
+
+An `Array[float]` uses an unboxed 8-byte-per-element representation. `std/array` provides native numeric kernels (`dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax`, `scatterAdd`) and packed little-endian binary codecs (`encodeF64LE`, `decodeF64LE`, `encodeF32LE`, `decodeF32LE`):
 
 ```ailang
-type Entity = {
-  id: int,
-  x: float,
-  y: float,
-  health: int
-}
+import std/array as A
 
-func updateEntities(entities: Array[Entity], dt: float) -> Array[Entity] {
-  arrayMap(\e. {
-    id: e.id,
-    x: e.x + dt,
-    y: e.y,
-    health: e.health
-  }, entities)
-}
-
-func filterAlive(entities: Array[Entity]) -> Array[Entity] {
-  arrayFilter(\e. e.health > 0, entities)
+func vectorDemo() -> (float, int, int) {
+  let x = #[1.0, 2.0, 3.0]
+  let y = #[4.0, 5.0, 6.0]
+  let d = A.dot(x, y)            -- 32.0
+  let z = A.axpy(2.0, x, y)      -- #[6.0, 9.0, 12.0]
+  let bestIdx = A.argmax(z)      -- 2
+  let packed = A.encodeF64LE(z)
+  let decodedLen = match A.decodeF64LE(packed) {
+    Ok(v) => A.length(v),
+    Err(_) => 0
+  };
+  (d, bestIdx, decodedLen)
 }
 ```
 
-### Buffers
+## Cost Model Summary
 
-```ailang
-type RingBuffer[a] = {
-  data: Array[a],
-  head: int,
-  size: int
-}
-
-func push[a](buf: RingBuffer[a], item: a) -> RingBuffer[a] {
-  let newHead = (buf.head + 1) % length(buf.data);
-  {
-    data: arrayUpdate(buf.data, newHead, item),
-    head: newHead,
-    size: min(buf.size + 1, length(buf.data))
-  }
-}
-```
-
-## Performance Considerations
-
-### When to Use Arrays
-
-- **Fixed-size data**: Game boards, lookup tables
-- **Random access**: Frequent indexing operations
-- **Performance critical**: Contiguous memory layout
-
-### When to Use Lists
-
-- **Recursive algorithms**: Pattern matching on head/tail
-- **Unknown size**: Building collections incrementally
-- **Functional patterns**: Map/filter chains with lazy evaluation
-
-## Limitations
-
-### Current Limitations (v0.5.6)
-
-1. **No array mutation**: Arrays are immutable; `arrayUpdate` returns a new array
-2. **No array comprehensions**: Use `arrayInit` with a lambda instead
-3. **Bounds checking at runtime**: Out-of-bounds access panics
-
-### Planned Improvements
-
-- **Array patterns**: `match arr { #[x, y, z] => ... }`
-- **Array comprehensions**: `#[x * 2 | x <- #[1, 2, 3]]`
-- **Static bounds checking**: Compile-time verification where possible
+| Function | Complexity | Notes |
+|----------|------------|-------|
+| `empty()`, `length(arr)`, `get(arr, i)`, `getOpt(arr, i)` | O(1) | `get` fails on OOB; `getOpt` returns `None` |
+| `make(n, v)`, `fromList(xs)`, `toList(arr)` | O(n) | Contiguous allocation |
+| `set(arr, i, v)`, `append(arr, v)` | O(n) | Full copy — avoid in tight loops |
+| `updateMany(arr, ws)`, `accumulate(arr, ws, f)` | O(n + k) | One copy for `k` writes |
+| `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` | O(n) | `@experimental`; strict equal-length check on binary ops |
 
 ## Related Resources
 
-- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
-- [Pattern Matching](/docs/reference/language-syntax) - ADTs and matching
-- [Roadmap](/docs/roadmap) - Planned features including execution profiles
+- [Language Syntax](/docs/reference/language-syntax) — Complete syntax reference
+- [Limitations](/docs/reference/limitations) — Known runtime and representation bounds
