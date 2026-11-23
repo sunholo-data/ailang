@@ -2,7 +2,8 @@
 sidebar_position: 6
 title: Streaming & Real-Time I/O
 description: WebSocket, SSE, and multi-source event multiplexing in AILANG
-reviewBy: 2027-02-22
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Streaming & Real-Time I/O
@@ -72,6 +73,9 @@ The handler function receives `StreamEvent` and returns `bool`:
 - Return `false` to exit the event loop
 
 ```ailang
+import std/io (println)
+import std/stream (StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping)
+
 func myHandler(event: StreamEvent) -> bool ! {IO} {
   match event {
     Message(text)      => { println("Text: ${text}"); true },
@@ -90,13 +94,18 @@ func myHandler(event: StreamEvent) -> bool ! {IO} {
 Custom headers for authentication:
 
 ```ailang
-let config = {headers: [
-  {name: "Authorization", value: "Bearer ${token}"},
-  {name: "X-Custom", value: "value"}
-]};
-match connect("wss://api.example.com/ws", config) {
-  Ok(conn) => { ... },
-  Err(e) => println("Failed")
+import std/io (println)
+import std/stream (connect, disconnect)
+
+func connectWithAuth(token: string) -> () ! {Stream, IO} {
+  let config = {headers: [
+    {name: "Authorization", value: "Bearer ${token}"},
+    {name: "X-Custom", value: "value"}
+  ]};
+  match connect("wss://api.example.com/ws", config) {
+    Ok(conn) => disconnect(conn),
+    Err(e) => println("Failed")
+  }
 }
 ```
 
@@ -117,6 +126,7 @@ Read-only HTTP streaming for consuming APIs.
 SSE connections deliver events as `SSEData(eventType, data)`:
 
 ```ailang
+import std/io (println)
 import std/stream (ssePost, onEvent, runEventLoop, disconnect,
                    StreamEvent, SSEData, StreamError, Closed)
 
@@ -138,20 +148,28 @@ func handleSSE(event: StreamEvent) -> bool ! {IO} {
 Claude, OpenAI, and Gemini all use POST+SSE:
 
 ```ailang
-let body = "{\"model\": \"claude-sonnet-4-5-20250514\", \"messages\": [...]}";
-let config = {headers: [
-  {name: "Authorization", value: "Bearer ${apiKey}"},
-  {name: "Content-Type", value: "application/json"},
-  {name: "anthropic-version", value: "2023-06-01"}
-]};
+import std/io (println)
+import std/stream (ssePost, onEvent, runEventLoop, disconnect, StreamEvent, SSEData)
 
-match ssePost("https://api.anthropic.com/v1/messages", body, config) {
-  Ok(conn) => {
-    onEvent(conn, handleSSE);
-    runEventLoop(conn);
-    disconnect(conn)
-  },
-  Err(e) => println("SSE connection failed")
+func streamMessages(apiKey: string) -> () ! {Stream, IO} {
+  let body = "{\"model\": \"claude-sonnet-4-5-20250514\", \"messages\": []}";
+  let config = {headers: [
+    {name: "Authorization", value: "Bearer ${apiKey}"},
+    {name: "Content-Type", value: "application/json"},
+    {name: "anthropic-version", value: "2023-06-01"}
+  ]};
+
+  match ssePost("https://api.anthropic.com/v1/messages", body, config) {
+    Ok(conn) => {
+      onEvent(conn, \ev. match ev {
+        SSEData(_, data) => { println(data); true },
+        _ => false
+      });
+      runEventLoop(conn);
+      disconnect(conn)
+    },
+    Err(e) => println("SSE connection failed")
+  }
 }
 ```
 
@@ -192,6 +210,9 @@ Multi-source events carry their source name:
 ### Example: Stdin + WebSocket
 
 ```ailang
+module examples/stdin_ws
+
+import std/io (println)
 import std/stream (
   connect, sourceOfConn, asyncReadStdinLines, selectEvents,
   StreamEvent, Message, SourceText, SourceBytes, StreamError, Closed
@@ -225,6 +246,9 @@ Spawn a subprocess and receive its stdout as fixed-size byte chunks via `SourceB
 - **Any streaming subprocess**: Pipe output through `selectEvents`
 
 ```ailang
+module examples/async_proc
+
+import std/io (println)
 import std/stream (asyncExecProcess, asyncReadStdinLines, selectEvents,
                    StreamEvent, SourceText, SourceBytes)
 import std/bytes (toString, toBase64)
@@ -311,6 +335,9 @@ Use cases:
 - **Interprocess communication**: Write structured data to a child process
 
 ```ailang
+module examples/proc_stdin
+
+import std/io (println)
 import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/bytes (fromString)
 import std/result (Result, Ok, Err)

@@ -2,7 +2,8 @@
 sidebar_position: 9
 title: Information-Flow Control (IFC) Labels
 description: Type-level taint tracking with T<label> and T{not LABEL} for prompt-injection prevention
-reviewBy: 2027-03-01
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -53,14 +54,14 @@ a representation.
 | `! {Declassify}` | "may declassify" | Effect-row entry on functions that intentionally lower a label. |
 
 ```ailang
--- A string carrying the <email> label (untrusted source)
-let body: string<email> = fetchMailBody()
+-- A function returning a string carrying the <email> label (untrusted source)
+func fetchMailBody() -> string<email> = "raw email body"
 
 -- A function whose body parameter rejects any <email>-tainted input
-func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net} = ()
 
 -- A declassifier: <email> in, <sanitized> out, must declare ! {Declassify}
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} = "[sanitized]"
 ```
 
 ## Labels Are Open
@@ -117,13 +118,15 @@ A parameter typed `T{not LABEL}` **rejects** any argument whose type carries
 the `<LABEL>` annotation.
 
 ```ailang
-func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net} = ()
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} = "[sanitized]"
 
 -- ✅ Caller passes a declassified value
-sendEmail("alice@company.com", sanitize(rawBody))
+func forwardSafely(rawBody: string<email>) -> () ! {Net, Declassify} =
+  sendEmail("alice@company.com", sanitize(rawBody))
 
--- ❌ Caller passes the raw body — refused
-sendEmail("alice@company.com", rawBody)  -- string<email> ↛ string{not email}
+-- ❌ Passing rawBody directly (`sendEmail("alice@company.com", rawBody)`)
+--    is rejected: string<email> ↛ string{not email}
 ```
 
 ### 2. The DECLASS Rule
@@ -134,12 +137,18 @@ transition needs the effect.
 
 ```ailang
 -- ✅ Allowed: explicit declassifier
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
-{ "[sanitized]" }
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} {
+  "[sanitized]"
+}
+```
 
+Omitting `! {Declassify}` on a label-changing function is rejected at compile time:
+
+```ailang parse
 -- ❌ Rejected: function changes label without declaring Declassify
-pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
-{ "[sanitized]" }
+pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {} {
+  "[sanitized]"
+}
 ```
 
 The `{Declassify}` effect makes label-lowering **auditable** — every
@@ -185,12 +194,12 @@ rule: the output label is the join of all input labels. Identity
 functions carry the input's label forward.
 
 ```ailang
+type SendAction = { to: string, body: string }
+
 -- Attempting to "launder" the label via an identity binding:
-pure func attemptLaunder(rawBody: string<email>, recipient: string)
-  -> SendAction ! {}
-{
-  let laundered = rawBody in    -- laundered: string<email> (label preserved)
-  { to: recipient, body: laundered }  -- still rejected at the sink
+pure func attemptLaunder(rawBody: string<email>, recipient: string) -> SendAction ! {} {
+  let laundered = rawBody;    -- laundered: string<email> (label preserved)
+  { to: recipient, body: laundered }  -- still rejected if passed to a {not email} sink
 }
 ```
 
@@ -245,12 +254,12 @@ This is the headline scenario for IFC labels.
 
 ```ailang
 -- Source: any text fetched from external content carries one shared label
-func fetchEmailBody() -> string<untrusted> ! {FS}
-func fetchWebPage(url: string) -> string<untrusted> ! {Net}
+func fetchEmailBody() -> string<untrusted> ! {FS} = "email body"
+func fetchWebPage(url: string) -> string<untrusted> ! {Net} = "page body"
 
 -- Sink: tool calls that act in the world
-func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net}
-func runShell(cmd: string{not untrusted}) -> () ! {Process}
+func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net} = ()
+func runShell(cmd: string{not untrusted}) -> () ! {Process} = ()
 ```
 
 The `runShell` sink rejects anything fetched from email or the web, so a
@@ -270,14 +279,17 @@ numbers) in the summary body. Categories: GDPR Art. 5(1)(c)
 [NIST AI RMF Profile: Generative AI, GV-1.3-006](https://airc.nist.gov/AI_RMF_Knowledge_Base/Playbook).
 
 ```ailang
+type Customer = { id: string, name: string }
+type Summary = { text: string }
+
 -- PII source from a customer record
-func loadCustomer(id: string) -> Customer<pii> ! {FS}
+func loadCustomer(id: string) -> Customer<pii> ! {FS} = { id: id, name: "Alice" }
 
 -- A redactor is the only path from <pii> → <redacted>
-func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify}
+func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify} = { text: "customer ${c.id}" }
 
 -- Analytics sink refuses raw PII
-func logEvent(name: string, payload: string{not pii}) -> () ! {Net}
+func logEvent(name: string, payload: string{not pii}) -> () ! {Net} = ()
 ```
 
 A model that calls `logEvent("customer_seen", customer.name)` is
@@ -295,11 +307,14 @@ update; analogous to log-injection bugs that have shipped credentials
 to telemetry pipelines for years.
 
 ```ailang
+type Response = { status: int, body: string }
+
 -- Secrets are tainted at the source
-func getEnv(name: string) -> string<api_key> ! {Env}
+func readSecret(name: string) -> string<api_key> ! {Env} = "sk-..."
 
 -- Error responses cannot contain api-key-tainted strings
-pure func httpResponse(status: int, body: string{not api_key}) -> Response ! {}
+pure func httpResponse(status: int, body: string{not api_key}) -> Response ! {} =
+  { status: status, body: body }
 ```
 
 A debug handler that does `httpResponse(500, "config: ${getEnv("OPENAI_API_KEY")}")`
@@ -320,11 +335,13 @@ where an LLM-driven calculator was tricked into executing arbitrary
 Python.
 
 ```ailang
+type Row = { id: int, value: string }
+
 -- Output of any LLM is tainted as <llm>
-func askLLM(prompt: string) -> string<llm> ! {AI}
+func askLLM(prompt: string) -> string<llm> ! {AI} = "SELECT 1"
 
 -- The query executor refuses LLM-derived text
-func executeSQL(query: string{not llm}) -> [Row] ! {DB}
+func executeSQL(query: string{not llm}) -> [Row] ! {Net} = []
 ```
 
 The only way to compose them is to run the LLM output through a
@@ -340,11 +357,14 @@ where the prompt context is shared. Categories: SOC 2 CC6.6, ISO
 27001 A.9.4.1.
 
 ```ailang
+type TenantId = string
+type Order = { id: int, total: float }
+
 -- Per-tenant labels - open vocabulary, you make these up
-func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {DB}
+func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {Net} = []
 
 -- Per-tenant webhook sink
-func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net}
+func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net} = ()
 ```
 
 Routing tenant-A data into a tenant-B webhook produces a type error.
@@ -439,7 +459,7 @@ type — not only a top-level `<ℓ>` on a parameter or return type. Before
 v0.52.0 (#1523) the checker read only the top-level position, so a secret held
 in a declared record lost its label the moment you read the field:
 
-```ailang
+```ailang parse
 type RawCode = { raw: string<authcode> }
 pure func mk(s: string) -> RawCode = { raw: s }
 pure func logLine(s: string{not authcode}) -> string = "log: ${s}"
