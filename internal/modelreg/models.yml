@@ -2539,7 +2539,9 @@ models:
       numbers, not yet observable (design doc P4).
       The same model on the API-key route was live-verified through this executor
       2026-11-23: see agy-api-gemini-4-neon.
-      GATE: agent smoke tier PENDING (after sign-in). In NO suite, in NO role chain.
+      GATE: agent smoke 23/23 (2026-11-23, subscription, D3 option B sandbox posture; the
+      first pass's 6 failures were all harness and are fixed). ROLE: head of the stapledon
+      mission's executor FALLBACK (Mark, D6, 2026-11-23); rationed by bucket google. In no suite.
 
   agy-gemini-4-carbon:
     api_name: "gemini-4-carbon"

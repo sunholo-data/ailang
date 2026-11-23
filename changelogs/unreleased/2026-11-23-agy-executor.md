@@ -68,3 +68,10 @@ boundary, not a command allowlist.
     SUCCESS. Such runs are now failed by the executor, and the rules carry absolute paths only.
   - `--add-dir` moves the shell's starting directory away from the workspace, so it is not used.
 - **Why:** the narrow allowlist voided 2 of 23 agent smoke runs on the model's own self-checks.
+
+### Changed — Gemini 4 Neon (agy) joins the stapledon mission's executor chain
+
+`agy:gemini-4-neon-high` heads stapledon's executor fallback, ahead of the deepseek rungs. It
+fires when codex and the Anthropic rung are unavailable, and the `google` ration gates it.
+
+The agent smoke gate is 23/23 on the subscription.

@@ -267,7 +267,15 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
   - Absolute `write_file()` grants for GOCACHE, GOMODCACHE and a fixed per-route TMPDIR.
   - Measured: outside writes and `~/.config` are blocked; Go build, `ailang run` and the workspace cwd are fine.
   - Traps: relative rules break the sandbox while agy reports SUCCESS, so the executor fails such runs; `--add-dir` moves the shell cwd.
-- **D6:** see the mission env change that adds agy as an executor fallback rung.
+- **D6 DECIDED (Mark, 2026-11-23, "yep go ahead"):**
+  - `agy:gemini-4-neon-high` heads the **stapledon** mission's `MISSION_EXECUTOR_FALLBACK`, ahead of the deepseek rungs. Both env copies were changed.
+  - Why stapledon: it is a separate repo with no opus-before-pi ruling. v1, docs and motoko are kill-switched, and fleet and world are ruled opus-before-pi because harness work is high-blast-radius.
+  - Dry runs:
+    - Over ration: refused unprobed, advanced to deepseek.
+    - Admitted (pace and margin overridden for the run): the probe passed and the executor resolved to `agy:gemini-4-neon-high`.
+  - On the live fleet, codex and anthropic are both ration-blocked, so stapledon's executor reaches agy as soon as `google` admits.
+- **Agent smoke gate: 23/23** under option B. The two runs voided under the old allowlist (fizzbuzz, json_encode) now pass.
+- `ailang` was reinstalled from a clean HEAD worktree (v0.60.6-168-g9ea1a9a7a). The loops' probe and quota checks need it.
 
 ## Deferred Decisions
 
