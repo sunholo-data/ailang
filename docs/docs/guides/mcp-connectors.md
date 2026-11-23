@@ -126,6 +126,9 @@ hints".
 ### A gated tool: `@mcp_auth("oauth2")`, `@mcp_secret`, `@optional`
 
 ```ailang
+import std/json (Json, getString)
+import std/string (length)
+
 -- Summarise a document for the signed-in account.
 @mcp_title("Summarise document")
 @mcp_hints("readOnly", "openWorld")
@@ -163,6 +166,8 @@ The same tool, as each surface lists it:
 ### Who is allowed in: `@mcp_token_verifier`
 
 ```ailang
+import std/string (startsWith, length)
+
 -- Accept only tokens your authorization server minted.
 @mcp_token_verifier
 export func verifyToken(token: string) -> bool ! {IO} = startsWith(token, "demo_") && length(token) > 5
@@ -186,6 +191,10 @@ issuer for that reason.
 ### Agent-only tools and hidden exports: `@mcp_agent_only`, `@nomcp`
 
 ```ailang
+module examples/notes_svc
+
+import std/io (println)
+
 -- Device-code sign-in for headless agents; not on the directory surface.
 @mcp_title("Sign in with a device code")
 @mcp_hints("openWorld")
@@ -194,7 +203,7 @@ export func deviceLogin(label: string) -> string ! {IO} = "visit https://example
 
 -- Entry point for `ailang run`; not a tool on either MCP surface.
 @nomcp
-export func main() -> unit ! {IO} = println(formats())
+export func main() -> () ! {IO} = println("docx, pptx, xlsx, pdf")
 ```
 
 - `@mcp_agent_only` keeps a tool on `/mcp/` only. Parse uses it for `mcpAuth` and `mcpAuthPoll`,
@@ -274,7 +283,7 @@ Your service fills one `Hooks` record (from `pkg/sunholo/mcp_oauth/flow`):
 
 A minimal in-memory version. Tokens are stored only by digest, so the verifier is a hash lookup:
 
-```ailang
+```ailang parse
 func hooks() -> Hooks ! {Env} =
   { authenticate: hAuth, mint: hMint, put: hPut, get: hGet, del: hDel, revoke: hRevoke,
     accessTtlSec: 3600, issuer: issuer() }
@@ -304,7 +313,7 @@ package. Every route is `@nomcp`, so it never becomes a tool:
 
 The authorize route, from the verified example:
 
-```ailang
+```ailang parse
 @route("GET", "/oauth/authorize")
 @raw
 @nomcp
@@ -511,7 +520,8 @@ type OpenAIFile = { download_url: string, file_id: string, mime_type: string, fi
 @mcp_hints("readOnly", "openWorld")
 @mcp_auth("oauth2")
 @mcp_file("file")
-export func describeFile(file: OpenAIFile) -> string ! {IO} = describe(file)
+export func describeFile(file: OpenAIFile) -> string ! {IO} =
+  "${file.file_name} (${file.mime_type})"
 ```
 
 Your function receives a URL, not bytes. Fetch it under `Net`; `Net[scope=public]` is the safe
@@ -581,7 +591,7 @@ entry points (`asMetadataFor`, `beginAuthorizeFor`, `tokenRequest`, `revokeReque
 `registerClientDcr`). The 0.1 entry points behave exactly as 0.1.2 did, so upgrading changes nothing
 until you opt in. Build the config as a record update, so a later field keeps its default:
 
-```ailang
+```ailang parse
 import pkg/sunholo/mcp_oauth/core (ClientConfig, defaultClientConfig)
 
 -- Gemini Enterprise and Copilot (static): admin-registered confidential clients.

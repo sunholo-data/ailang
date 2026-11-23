@@ -1,5 +1,6 @@
 ---
-reviewBy: 2027-03-01
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # Serve API Guide
@@ -460,6 +461,8 @@ works on every deployment and the icon stays on the card's host) or an `https://
   An unknown hint word, a duplicate, or `readOnly` with `destructive` is logged as an `ERROR` and the tool is not registered. Purity is read from the **declared effect row**, not the `pure` keyword. The built-in `submit_feedback` tool is annotated (`Send feedback`, additive, open-world). Both MCP implementations — the go-sdk one behind `serve-api` and the stdlib `serveapi/protocol/mcphttp` dispatcher for embedders (`ToolDescriptor.Title` / `.Annotations`, resolved with `protocol.ResolveToolHints`) — emit the same JSON.
 
   ```ailang
+  import std/clock (now)
+
   @mcp_title("Current time")
   @mcp_hints("readOnly", "openWorld")
   export func currentTime() -> int ! {Clock} = now()
@@ -1000,6 +1003,10 @@ By default, `serve-api` only supports **pure functions** (no side effects). AILA
 AILANG functions declare their effects in their type signatures:
 
 ```ailang
+import std/ai (call)
+import std/io (println)
+import std/net (httpGet)
+
 -- Pure function: no capabilities needed
 export pure func add(x: int, y: int) -> int = x + y
 
@@ -1009,11 +1016,11 @@ export func greet(name: string) -> string ! {IO} =
 
 -- AI effect: requires --caps AI plus --ai MODEL
 export func summarize(text: string) -> string ! {AI} =
-  ai_call("Summarize this: ${text}")
+  call("Summarize this: ${text}")
 
 -- Multiple effects: requires --caps IO,Net
 export func fetchAndLog(url: string) -> string ! {IO, Net} {
-  let body = http_get(url);
+  let body = httpGet(url);
   println("Fetched: ${url}");
   body
 }
@@ -1141,17 +1148,19 @@ Use `@route` annotations to define custom URL paths and HTTP methods:
 ```ailang
 module docparse/api
 
+type ParseResult = { text: string }
+
 @route("POST", "/api/v1/parse")
-export func parse(content: string) -> ParseResult ! {IO}
-  parseDocument(content)
+export func parse(content: string) -> ParseResult ! {IO} =
+  { text: content }
 
 @route("GET", "/api/v1/formats")
-export pure func listFormats() -> [string]
+export pure func listFormats() -> [string] =
   ["docx", "pdf", "epub", "html"]
 
 @route("GET", "/health")
-export pure func health() -> {status: string}
-  {status = "ok"}
+export pure func health() -> {status: string} =
+  {status: "ok"}
 ```
 
 Custom routes are registered before the auto-generated catch-all routes, so they take precedence. They appear with their custom paths in the OpenAPI spec and A2A Agent Card.
@@ -1179,7 +1188,7 @@ Multiple annotations can be combined:
 ```ailang
 @route("POST", "/api/v1/compute")
 @verify(depth: 3)
-export func compute(x: int) -> int ! {}
+export func compute(x: int) -> int ! {} =
   x * x
 ```
 
@@ -1194,9 +1203,12 @@ import std/json (Json, getString)
 
 @raw
 @route("POST", "/webhooks/stripe")
-export func handle(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> string ! {IO}
-  let sig = getString(req.headers, "Stripe-Signature")
-  verifyAndProcess(req.body, sig)
+export func handle(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> string ! {IO} {
+  match getString(req.headers, "Stripe-Signature") {
+    Some(sig) => "verified (${sig}): ${req.body}",
+    None => "missing Stripe-Signature"
+  }
+}
 ```
 
 Headers and query parameters are `Json` values — use `getString`, `getInt`, etc. to extract fields.
@@ -1210,9 +1222,10 @@ import std/json (Json, getString)
 
 @route("POST", "/api/v1/secure-parse")
 export func secureParse(content: string, _headers: Json) -> string ! {IO} =
-  let apiKey = getString(_headers, "x-api-key") in
-  if apiKey == "" then "error: missing x-api-key header"
-  else "authenticated: ${content}"
+  match getString(_headers, "x-api-key") {
+    Some(apiKey) if apiKey != "" => "authenticated: ${content}",
+    _ => "error: missing x-api-key header"
+  }
 ```
 
 The `_headers` parameter receives all HTTP request headers as a `Json` value. Other parameters are parsed normally from the request body (JSON or multipart). This is useful for:
@@ -1236,7 +1249,7 @@ Add `@nowrap` to skip the envelope and write the function's return value directl
 ```ailang
 @nowrap
 @route("GET", "/api/v1/formats")
-export pure func listFormats() -> [string]
+export pure func listFormats() -> [string] =
   ["docx", "pdf", "epub", "html"]
 ```
 
@@ -1254,11 +1267,13 @@ curl http://localhost:8080/api/v1/formats
 `@nowrap` composes with `@raw` for full control over both input and output:
 
 ```ailang
+import std/json (Json)
+
 @raw
 @nowrap
 @route("POST", "/api/v1/echo")
-export func echo(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> {received: string} ! {IO}
-  {received = req.body}
+export func echo(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> {received: string} ! {IO} =
+  {received: req.body}
 ```
 
 **Use cases:**
@@ -1295,9 +1310,11 @@ curl -i http://localhost:8080/headers/nowrap-record
 When a `@nowrap` function returns a string that is a valid JSON object or array (e.g., from `encode(jo(...))`), serve-api writes it as raw JSON instead of double-encoding it:
 
 ```ailang
+import std/json (encode, jo, kv, js)
+
 @nowrap
 @route("GET", "/api/v1/health")
-export func health() -> string ! {}
+export func health() -> string ! {} =
   encode(jo([kv("status", js("healthy"))]))
 ```
 
@@ -1317,21 +1334,23 @@ Use `@noexpose` on exported functions that should be importable by other modules
 ```ailang
 module billing/internal
 
+import std/json (encode, jo, kv, jint)
+
 -- Public API endpoint
 @nowrap
 @route("GET", "/api/v1/usage")
-export func getUsage(userId: string) -> string ! {IO}
-  encode(jo([kv("requests", ji(lookupUsage(userId)))]))
+export func getUsage(userId: string) -> string ! {IO} =
+  encode(jo([kv("requests", jint(42))]))
 
 -- Exported for cross-module import, hidden from HTTP
 @noexpose
-export func generateApiKey(userId: string) -> string ! {IO}
-  apiKeyGenHexParts(userId, timestamp())
+export func generateApiKey(userId: string) -> string ! {IO} =
+  "key_${userId}"
 
 -- Also hidden from HTTP
 @noexpose
-export func validateApiKey(key: string) -> bool ! {IO}
-  checkKeyInStore(key)
+export func validateApiKey(key: string) -> bool ! {IO} =
+  key != ""
 ```
 
 `@noexpose` functions:
@@ -1351,14 +1370,14 @@ module billing/api
 
 -- Public agent tool: appears in MCP tools/list AND served over HTTP.
 @route("GET", "/api/v1/usage")
-export func getUsage(userId: string) -> string ! {IO}
-  lookupUsage(userId)
+export func getUsage(userId: string) -> string ! {IO} =
+  "usage for ${userId}"
 
 -- Served over HTTP + OpenAPI + A2A, but ABSENT from the MCP tool surface.
 @nomcp
 @route("GET", "/internal/key-usage")
-export func getKeyUsage() -> string ! {IO}
-  dumpKeyUsage()
+export func getKeyUsage() -> string ! {IO} =
+  "internal key usage"
 ```
 
 `@nomcp` functions:
@@ -1386,8 +1405,8 @@ module docparse/services/mcp_tools
 -- Parse a document and return structured content.
 @mcp_name("parse")
 @route("POST", "/api/v1/mcp/parse")
-export func mcpParse(content: string) -> string ! {IO}
-  parseDocument(content)
+export func mcpParse(content: string) -> string ! {IO} =
+  content
 ```
 
 Without `@mcp_name`, AILANG uses the following resolution order:
@@ -1442,9 +1461,11 @@ MCP-only built-in.
 Functions can accept file uploads via `multipart/form-data`. File fields arrive as `Bytes` values:
 
 ```ailang
+import std/bytes (length as bytesLength)
+
 @route("POST", "/api/v1/upload")
-export func processFile(file: Bytes) -> {name: string, size: int} ! {IO}
-  {name = bytesFilename(file), size = bytesLength(file)}
+export func processFile(file: bytes) -> {size: int} ! {IO} =
+  {size: bytesLength(file)}
 ```
 
 ```bash
@@ -1778,10 +1799,11 @@ every line to **stderr** after each request, with one rule:
 ```ailang
 import std/debug as Debug
 
--- @route POST /order
-export func order(id: string) -> string =
-  let _ = Debug.log("{\"severity\":\"ERROR\",\"message\":\"payment declined\",\"order\":\"" ++ id ++ "\"}") in
+@route("POST", "/order")
+export func order(id: string) -> string ! {Debug} {
+  Debug.log("{\"severity\":\"ERROR\",\"message\":\"payment declined\",\"order\":\"${id}\"}");
   "declined"
+}
 ```
 
 stderr (exactly what Cloud Logging receives):
@@ -1842,9 +1864,8 @@ To control the HTTP status code, return `Err` with a record containing a `_statu
 ```ailang
 @route("GET", "/users/:id")
 export func getUser(id: string) -> Result[string, {_status: int, message: string}] ! {Net, FS} =
-  match findUser(id) with
-  | Some(user) -> Ok(encode(userToJson(user)))
-  | None -> Err({_status: 404, message: "user not found"})
+  if id == "42" then Ok("{\"id\":\"42\",\"name\":\"Alice\"}")
+  else Err({_status: 404, message: "user not found"})
 ```
 
 The `_status` field is extracted for the HTTP status and stripped from the response body, following the same convention as `@raw` responses.

@@ -2,7 +2,8 @@
 sidebar_position: 8
 title: Semantic Caching Guide
 description: How to use SharedMem and SharedIndex for AI agent working memory
-reviewBy: 2027-02-01
+reviewed: 2026-11-23
+reviewBy: 2027-05-23
 ---
 
 # How to Use Semantic Caching in AILANG
@@ -36,12 +37,13 @@ Organize your frames using domain prefixes. This keeps namespaces clean and enab
 | `session:` | Per-session temporary state | `session:user-42-context` |
 
 ```ailang
--- Good: Clear domain prefix
-let _ = store_frame("plan:migrate-db", migration_plan)
-let _ = store_frame("belief:api-rate-limit", rate_limit_info)
+import std/sem (sem_frame, store_frame)
 
--- Bad: Ambiguous keys
-let _ = store_frame("data123", something)  -- What is this?
+func namespaceExamples(migration_plan: sem_frame, rate_limit_info: sem_frame) -> () ! {SharedMem} {
+  -- Good: Clear domain prefix
+  let _ = store_frame("plan:migrate-db", migration_plan);
+  store_frame("belief:api-rate-limit", rate_limit_info)
+}
 ```
 
 ## Canonical Patterns
@@ -51,14 +53,15 @@ let _ = store_frame("data123", something)  -- What is this?
 Check for cached result before expensive computation:
 
 ```ailang
+import std/clock (now)
 import std/sem (make_frame_at, store_frame, load_frame)
 
-func get_or_compute(key: string, compute: () -> bytes) -> bytes ! {SharedMem} {
+func get_or_compute(key: string, compute: () -> bytes) -> bytes ! {SharedMem, Clock} {
   match load_frame(key) {
     Some(frame) => frame.opaque,
     None => {
       let result = compute();
-      let frame = make_frame_at(key, "", result, _clock_now(()));
+      let frame = make_frame_at(key, "", result, now());
       let _ = store_frame(key, frame);
       result
     }
@@ -71,17 +74,22 @@ func get_or_compute(key: string, compute: () -> bytes) -> bytes ! {SharedMem} {
 Before storing, check if a similar frame already exists:
 
 ```ailang
-func store_if_novel(ns: string, content: string, payload: bytes) -> bool ! {SharedMem, SharedIndex} {
+import std/clock (now)
+import std/rand (uuid4)
+import std/sem (make_frame_at, store_frame)
+
+func store_if_novel(ns: string, content: string, payload: bytes) -> bool ! {SharedMem, SharedIndex, Clock, Rand} {
   let hash = _simhash(content);
   let similar = _sharedindex_find_simhash(ns, hash, 1, 50, true);
 
   match similar {
     [] => {
       -- No similar content found, store new frame
-      let key = "${ns}:${_uuid(())}";
-      let frame = make_frame_at(key, content, payload, _clock_now(()));
+      let key = "${ns}:${uuid4()}";
+      let ts = now();
+      let frame = make_frame_at(key, content, payload, ts);
       let _ = store_frame(key, frame);
-      let _ = _sharedindex_upsert(ns, key, hash, 1, _clock_now(()));
+      let _ = _sharedindex_upsert(ns, key, hash, 1, ts);
       true
     },
     _ => false  -- Similar content exists, skip
@@ -91,33 +99,22 @@ func store_if_novel(ns: string, content: string, payload: bytes) -> bool ! {Shar
 
 ### Pattern 3: Multi-Agent Plan Convergence
 
-Multiple agents refine a shared plan using CAS:
+Multiple agents refine a shared plan using CAS (`update_frame` retries automatically up to `retry_count` times):
 
 ```ailang
-import std/sem (update_frame, UpdateResult)
+import std/clock (now)
+import std/sem (sem_frame, make_frame_at, store_frame, load_frame, update_frame, CASSuccess, CASConflict)
 
-func refine_plan(goal_id: string, refiner: sem_frame -> sem_frame) -> sem_frame ! {SharedMem} {
+func refine_plan(goal_id: string, refiner: sem_frame -> sem_frame) -> Option[sem_frame] ! {SharedMem, Clock} {
   let key = "plan:${goal_id}";
-
-  -- Retry loop for CAS conflicts
-  letrec attempt = \retries.
-    if retries <= 0 then
-      match load_frame(key) {
-        Some(f) => f,
-        None => make_frame_at(key, "initial", _bytes_from_string(""), _clock_now(()))
-      }
-    else
-      match update_frame(key, refiner) {
-        Updated(frame) => frame,
-        Conflict(current) => attempt(retries - 1),  -- Retry with fresh state
-        Missing => {
-          -- Create initial frame
-          let initial = make_frame_at(key, "initial", _bytes_from_string(""), _clock_now(()));
-          let _ = store_frame(key, initial);
-          attempt(retries - 1)
-        }
-      }
-  in attempt(3)
+  match update_frame(key, refiner, 3) {
+    CASSuccess => load_frame(key),
+    CASConflict => {
+      let initial = make_frame_at(key, "initial", _bytes_from_string(""), now());
+      let _ = store_frame(key, initial);
+      Some(initial)
+    }
+  }
 }
 ```
 
@@ -133,21 +130,27 @@ The `sem_frame` has two content fields:
 **Guidelines:**
 
 ```ailang
--- Good: Content summarizes what's stored, opaque holds the actual data
-let frame = make_frame_at(
-  "cache:api-response",
-  "Weather forecast for Seattle: sunny, 72F",  -- Searchable summary
-  _bytes_from_string(full_json_response),       -- Full data
-  _clock_now(())
-)
+import std/clock (now)
+import std/sem (sem_frame, make_frame_at)
 
--- Bad: Content is empty or duplicates opaque
-let frame = make_frame_at(
-  "cache:api-response",
-  "",                                           -- No searchability!
-  _bytes_from_string(full_json_response),
-  _clock_now(())
-)
+func contentVsPayload(full_json_response: string) -> (sem_frame, sem_frame) ! {Clock} {
+  let ts = now();
+  -- Good: Content summarizes what's stored, opaque holds the actual data
+  let good = make_frame_at(
+    "cache:api-response",
+    "Weather forecast for Seattle: sunny, 72F",  -- Searchable summary
+    _bytes_from_string(full_json_response),      -- Full data
+    ts
+  );
+  -- Bad: Content is empty — no searchability!
+  let bad = make_frame_at(
+    "cache:api-response",
+    "",
+    _bytes_from_string(full_json_response),
+    ts
+  );
+  (good, bad)
+}
 ```
 
 ## Determinism Guidance
@@ -164,12 +167,15 @@ AILANG's semantic caching is designed for **deterministic behavior**:
 - Limits scan scope with `maxScan` parameter
 
 ```ailang
--- Deterministic search (recommended for agents)
-let results = _sharedindex_find_simhash("beliefs", hash, 5, 100, true)
---                                                              ^^^^ deterministic mode
+type SearchHit = {key: string, score: float, version: int, timestamp: int}
 
--- Best-effort search (faster, but order may vary on ties)
-let results = _sharedindex_find_simhash("beliefs", hash, 5, 100, false)
+func determinismDemo(hash: int) -> ([SearchHit], [SearchHit]) ! {SharedIndex} {
+  -- Deterministic search (recommended for agents)
+  let det = _sharedindex_find_simhash("beliefs", hash, 5, 100, true);
+  -- Best-effort search (faster, but order may vary on ties)
+  let fast = _sharedindex_find_simhash("beliefs", hash, 5, 100, false);
+  (det, fast)
+}
 ```
 
 ### CAS Determinism
@@ -222,13 +228,16 @@ Compute embeddings for frames that represent **durable knowledge**:
 - `content` should be short, canonical, and discriminative (1-3 sentences plus key identifiers/constraints)
 
 ```ailang
+import std/sem (sem_frame, make_frame_at)
+
 -- Good: content is short summary, opaque holds full data
-let frame = make_frame_at(
-  "doc:report-123",
-  "Q3 sales report: revenue $1.2M, 15% growth, APAC expansion",  -- Embed this
-  _bytes_from_string(full_report_json),                           -- Not this
-  timestamp
-)
+func makeReportFrame(full_report_json: string, timestamp: int) -> sem_frame =
+  make_frame_at(
+    "doc:report-123",
+    "Q3 sales report: revenue $1.2M, 15% growth, APAC expansion",  -- Embed this
+    _bytes_from_string(full_report_json),                          -- Not this
+    timestamp
+  )
 ```
 
 ### How to Store with Embeddings
@@ -267,6 +276,8 @@ This gives you:
 - **Stable traces** - Same query = same results
 
 ```ailang
+import std/sem (sem_frame, load_frame)
+
 func resolve_best_match_hybrid(ns: string, query: string, top_k: int, max_scan: int)
   -> Option[sem_frame] ! {SharedMem, SharedIndex, IO} {
 
@@ -328,9 +339,10 @@ If you later add ANN indexes, treat them as BestEffort by definition.
 module example/dedupe
 
 import std/ai (call)
+import std/clock (now)
 import std/sem (make_frame_at, store_frame, load_frame)
 
-func cached_ai_call(prompt: string) -> string ! {AI, SharedMem, SharedIndex} {
+func cached_ai_call(prompt: string) -> string ! {AI, SharedMem, SharedIndex, Clock} {
   let hash = _simhash(prompt);
   let similar = _sharedindex_find_simhash("ai-cache", hash, 1, 50, true);
 
@@ -347,12 +359,13 @@ func cached_ai_call(prompt: string) -> string ! {AI, SharedMem, SharedIndex} {
   }
 }
 
-func call_and_cache(prompt: string, hash: int) -> string ! {AI, SharedMem, SharedIndex} {
+func call_and_cache(prompt: string, hash: int) -> string ! {AI, SharedMem, SharedIndex, Clock} {
   let response = call(prompt);
   let key = "ai-cache:${show(hash)}";
-  let frame = make_frame_at(key, prompt, _bytes_from_string(response), _clock_now(()));
+  let ts = now();
+  let frame = make_frame_at(key, prompt, _bytes_from_string(response), ts);
   let _ = store_frame(key, frame);
-  let _ = _sharedindex_upsert("ai-cache", key, hash, 1, _clock_now(()));
+  let _ = _sharedindex_upsert("ai-cache", key, hash, 1, ts);
   response
 }
 ```
@@ -362,33 +375,20 @@ func call_and_cache(prompt: string, hash: int) -> string ! {AI, SharedMem, Share
 ```ailang
 module example/beliefs
 
-import std/sem (make_frame_at, update_frame, load_frame, UpdateResult)
+import std/clock (now)
+import std/sem (make_frame_at, store_frame, update_frame, CASSuccess, CASConflict)
 
-type Belief = { assertion: string, confidence: float, evidence: [string] }
-
-func add_evidence(belief_id: string, new_evidence: string) -> Belief ! {SharedMem} {
+func add_evidence(belief_id: string, new_evidence: string) -> bool ! {SharedMem, Clock} {
   let key = "belief:${belief_id}";
 
-  match update_frame(key, \frame.
-    let belief = decode_belief(frame.opaque);
-    let updated = {belief |
-      confidence: min(1.0, belief.confidence + 0.1),
-      evidence: new_evidence :: belief.evidence
-    };
-    {frame | opaque: encode_belief(updated)}
-  ) {
-    Updated(frame) => decode_belief(frame.opaque),
-    Conflict(current) => {
-      -- Another agent updated, merge our evidence
-      let existing = decode_belief(current.opaque);
-      add_evidence(belief_id, new_evidence)  -- Retry
-    },
-    Missing => {
-      -- Create initial belief
-      let initial = { assertion: "", confidence: 0.5, evidence: [new_evidence] };
-      let frame = make_frame_at(key, "", encode_belief(initial), _clock_now(()));
+  match update_frame(key, \frame. {
+    frame | content: "${frame.content}; ${new_evidence}"
+  }, 3) {
+    CASSuccess => true,
+    CASConflict => {
+      let frame = make_frame_at(key, new_evidence, _bytes_from_string(""), now());
       let _ = store_frame(key, frame);
-      initial
+      true
     }
   }
 }
@@ -398,6 +398,9 @@ func add_evidence(belief_id: string, new_evidence: string) -> Belief ! {SharedMe
 
 ```ailang
 module example/debug_retrieval
+
+import std/io (print)
+import std/list (length, map)
 
 func traced_search(query: string) -> [string] ! {IO, SharedMem, SharedIndex} {
   -- Log query
