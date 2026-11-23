@@ -80,3 +80,11 @@ and other ADTs are not yet.
 
 Counterexample models are now read as S-expressions, so `(Seq Int)` sorts and multi-line values
 print whole (they printed as `(Seq = Int`).
+
+### Fixed — `take`/`drop` in verified code were always skipped (2026-11-23)
+
+`std/list.take`/`drop` were on the encodable list, but the only encoding was an unrolling
+generator that nothing called, so every function using them was skipped ("unsupported
+application"). They are now encoded exactly with `seq.extract`, matching the runtime's edge
+cases: `take(-1, xs)` is `[]` and `drop(-1, xs)` is `xs`. `reverse` is still not encodable; the
+contracts guide no longer lists it.

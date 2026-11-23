@@ -129,7 +129,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 **Strings**: `length`, `substring`, `find`, `startsWith`, `endsWith`, `contains`, `"${a}${b}"` / `concat([..])` (string `++` is a type error)
 
-**Lists**: `length`, `head`, `nth`, `contains`, `reverse`, `take`, `drop`, `::` (cons)
+**Lists**: `length`, `head`/`nth`/`last` (Option), `nthOr`/`headOr`/`lastOr`, `contains`, `take`, `drop`, `::` (cons) — not `reverse`
 
 **Numeric**: `intToFloat`, `floatToInt`, `abs`
 

@@ -689,7 +689,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=` — a contract is type-checked like a function body, so `==`/`!=` on an enum or other ADT needs `deriving (Eq)` on the type (`type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)`); without it `check` reports TC_CONTRACT_001 naming the type to change
 - Logical: `&&`, `||`, `!`
 - String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
-- List operations: `length`, `reverse`, `take`, `drop`, `contains` from `std/list`, `_list_head`, `_list_nth`, `_list_contains`, `_list_extract`, `::` (cons), `++` (concat), list literals
+- List operations: `length`, `take`, `drop`, `contains` from `std/list` (not `reverse`: it has no SMT encoding), `_list_head`, `_list_nth`, `_list_contains`, `_list_extract`, `::` (cons), `++` (concat), list literals
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums, ADTs, and **records** (field destructuring)
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)

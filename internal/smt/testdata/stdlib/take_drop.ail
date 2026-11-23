@@ -1,0 +1,22 @@
+module take_drop
+import std/list (take, drop, length)
+
+export func t1(xs: [int], n: int) -> [int] ! {}
+ensures { length(result) <= length(xs), n < 0 || length(result) <= n } {
+  take(n, xs)
+}
+
+export func t2(xs: [int]) -> [int] ! {}
+ensures { result == xs } {
+  drop(-1, xs)
+}
+
+export func t3(xs: [int]) -> [int] ! {}
+ensures { length(take(2, xs)) + length(drop(2, xs)) == length(xs) } {
+  xs
+}
+
+export func tBad(xs: [int], n: int) -> [int] ! {}
+ensures { length(result) == n } {
+  take(n, xs)
+}

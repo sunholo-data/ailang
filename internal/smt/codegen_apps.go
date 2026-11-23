@@ -25,6 +25,9 @@ func encodeApp(app *core.App) (string, error) {
 		if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeListBuiltin(spec, app.Args)
 		}
+		if enc, ok, err := encodeListDefaultedAccess(vg.Ref.Name, app.Args); ok {
+			return enc, err
+		}
 		// Numeric conversion builtins (intToFloat → to_real, floatToInt → truncation)
 		if spec, ok := NumericBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeNumericBuiltin(spec, app.Args)
@@ -424,10 +427,16 @@ func encodeNumericBuiltin(spec NumericBuiltinSpec, args []core.CoreExpr) (string
 //	nthOr(xs, i, d)  = if 0 <= i < len(xs) then xs[i] else d
 //	headOr(xs, d)    = if len(xs) == 0 then d else xs[0]
 //	lastOr(xs, d)    = if len(xs) == 0 then d else xs[len(xs)-1]
+//	take(n, xs)      = the first max(n, 0) elements    (_list_take)
+//	drop(n, xs)      = xs without its first n elements; xs itself when n <= 0
 //
+// take/drop were listed as encodable (RecursiveListBuiltins) but only a
+// never-called unrolling generator existed, so every caller failed to encode.
+// seq.extract is exact: a negative length gives the empty sequence and an
+// over-long one stops at the end, as the runtime's take does.
 // ok is false when name is not one of them.
 func encodeListDefaultedAccess(name string, args []core.CoreExpr) (string, bool, error) {
-	want := map[string]int{listNthOr: 3, listHeadOr: 2, listLastOr: 2}[name]
+	want := map[string]int{listNthOr: 3, listHeadOr: 2, listLastOr: 2, "_list_take": 2, "_list_drop": 2}[name]
 	if want == 0 {
 		return "", false, nil
 	}
@@ -441,6 +450,12 @@ func encodeListDefaultedAccess(name string, args []core.CoreExpr) (string, bool,
 			return "", true, err
 		}
 		enc[i] = e
+	}
+	switch name {
+	case "_list_take":
+		return fmt.Sprintf("(seq.extract %[2]s 0 %[1]s)", enc[0], enc[1]), true, nil
+	case "_list_drop":
+		return fmt.Sprintf("(ite (<= %[1]s 0) %[2]s (seq.extract %[2]s %[1]s (- (seq.len %[2]s) %[1]s)))", enc[0], enc[1]), true, nil
 	}
 	xs := enc[0]
 	switch name {

@@ -59,3 +59,25 @@ func TestOptionAccessorsVerify(t *testing.T) {
 		}
 	}
 }
+
+// take/drop were listed as encodable but had no encoding on any reachable path
+// (only an unused unrolling generator), so every caller failed. They are now
+// exact seq.extract terms with the runtime's edge cases (n < 0, n > length).
+func TestTakeDropVerify(t *testing.T) {
+	path := filepath.Join("testdata", "stdlib", "take_drop.ail")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, _ := verifySource(t, path, string(src))
+	want := map[string]string{"t1": "verified", "t2": "verified", "t3": "verified", "tBad": "counterexample"}
+	got := map[string]string{}
+	for _, r := range report.Results {
+		got[r.Function] = r.Status
+	}
+	for fn, w := range want {
+		if got[fn] != w {
+			t.Errorf("%s: status %q, want %q", fn, got[fn], w)
+		}
+	}
+}
