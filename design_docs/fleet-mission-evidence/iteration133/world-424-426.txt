@@ -1,0 +1,15 @@
+[2026-11-23 08:15:57] Codex quota window: state=over window=10080m used=39.0% allowed=32.9% start_margin=2.0pp observed=2026-11-23T07:15:52Z
+[2026-11-23 08:16:05] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-11-23 08:16:36] LANE DEGRADED this fire: - `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus` - `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+[2026-11-23 08:16:40] world: idle snapshot taken for world-1795418198-51109 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 09:10:10] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=6 last_age_s=13 elapsed_s=3258 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 12:15:58] Codex quota window: state=over window=10080m used=39.0% allowed=36.3% start_margin=2.0pp observed=2026-11-23T11:15:53Z
+[2026-11-23 12:16:11] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-11-23 12:17:16] LANE DEGRADED this fire: - `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus` - `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+[2026-11-23 12:17:18] world: idle snapshot taken for world-1795432636-512 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 12:52:04] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=9 last_age_s=16 elapsed_s=2171 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat
+[2026-11-23 16:16:03] Codex quota window: state=over window=10080m used=39.0% allowed=39.6% start_margin=2.0pp observed=2026-11-23T15:15:54Z
+[2026-11-23 16:16:14] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-11-23 16:16:33] LANE DEGRADED this fire: - `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus` - `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+[2026-11-23 16:16:35] world: idle snapshot taken for world-1795446993-95284 (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0)
+[2026-11-23 16:48:17] slot-verdict: COMPLETED rc=0 attempt=1/3 stamps=7 last_age_s=12 elapsed_s=1943 mission=world hb=/Users/voightkampff/.ailang/state/mission-world-heartbeat

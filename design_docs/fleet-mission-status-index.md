@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 130 | 2026-11-21 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 82%); World 421 is a 10th slot of `skill:idle-record-barred-on-degraded-no-p... |
 | 129 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 78%); World 420's idle snapshot is byte-identical to 419's (`dae8092b…`), a ... |
 | 128 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 75%); World 418's idle snapshot is byte-identical to 417's (`0355e1e2…`), th... |
 | 127 | 2026-11-20 | pick NONE — all 16 tickets ruling-gated (independent judge sonnet NONE 75%); World 416/417's new occurrences of `skill:idle-record-barred-on-degrad... |
