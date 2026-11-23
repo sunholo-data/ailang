@@ -252,7 +252,13 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
 - **P6 CLOSED:** the sign-in is a FILE, `<HOME>/.gemini/antigravity-oauth-token` (591 bytes, mode 0600), under the isolated subscription HOME. It is not in the keychain. The operator's real HOME on the same macOS user is still "Please sign in", so isolation holds. This also makes cloud tractable: one sign-in per cloud environment, file in Secret Manager.
 - **P3 CLOSED:** a `launchctl submit`-spawned run under the subscription HOME returned SUCCESS in 2.6 s with rc 0 and no hang.
 - The laptop is signed in through the Antigravity **app**, a separate holder. The agy CLI executor on the laptop would need its own `make agy-signin`.
-- **Still open:** P4 (subscription quota observability). P5 is closed. D3 is proposed; D6 waits on the agent smoke gate.
+- **P4 CLOSED (observable, zero inference):** `HOME=<sub home> agy -p /quota` (or `/usage`) prints TSV with rc 0: `<bucket>\t<window>\t<pct remaining>\t<reset RFC3339>`, for buckets "Gemini Models" and "Claude and GPT models" and windows "Weekly Limit Remaining" and "Five Hour Limit Remaining". This is the instrument for a mission `google` ration. The 2026-11-23 agent smoke gate (23 runs plus 6 reruns) took Gemini weekly from 100% to 97% and the five-hour window to 95%.
+- **Agent smoke gate, agy-gemini-4-neon (subscription), 2026-11-23:**
+  - First pass 17/23. All 6 failures were harness: 5 soft denials and 1 settings-temp race, fixed in c124fbeb9.
+  - Rerun of the 6: 4 pass. The other 2 were denied self-checks: fizzbuzz's inline `python3` assertion, and json_encode's `diff <(...) /tmp/out.txt && rm -f`. The harness voids both as `harness_error` rows.
+  - **Net: 21/21 valid rows pass; 2 voided by the D3 posture.**
+- **`--mode auto` is unavailable on Ultra too** ("not available for this account"), so Google's reviewer agent is not a D3 option today. Unexplained: a hand-run `python3 -c ... > answer.txt` under the same HOME was NOT denied, while the eval's `python3` heredoc was. Allow-rule matching for heredocs and redirects needs one more measurement before D3 is ratified.
+- **Still open:** D3 ratification (Mark). D6 waits on core/frontier placement.
 
 ## Deferred Decisions
 
