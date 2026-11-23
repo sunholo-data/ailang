@@ -537,9 +537,14 @@ func TestInlineHOFCalls_ReplacesMapInBody(t *testing.T) {
 		},
 	}
 
+	restore := activateADTContext(nil, []EncodeFunctionOpts{{CoreTI: typeHOFCall(body, intList, intList)}})
+	defer restore()
 	result := InlineHOFCalls("myFunc", body, 3)
 	if result == nil {
 		t.Fatal("expected non-nil InlineResult")
+	}
+	if result.Unsupported != "" {
+		t.Fatalf("unexpected refusal: %s", result.Unsupported)
 	}
 
 	// The new body should NOT contain any Lambda in arg position
@@ -685,6 +690,7 @@ func TestEncodeFunction_WithInlinableMap(t *testing.T) {
 
 	opts := EncodeFunctionOpts{
 		HOFInlineDepth: 3,
+		CoreTI:         typeHOFCall(body, intList, intList),
 	}
 
 	result, err := EncodeFunction("incrementAll", params, body, "(Seq Int)", meta, nil, opts)
@@ -765,6 +771,7 @@ func TestEncodeFunction_WithInlinableFilter(t *testing.T) {
 
 	opts := EncodeFunctionOpts{
 		HOFInlineDepth: 3,
+		CoreTI:         typeHOFCall(body, intList, intList),
 	}
 
 	result, err := EncodeFunction("positives", params, body, "(Seq Int)", meta, nil, opts)

@@ -87,12 +87,13 @@ func encodeFactLet(e *core.Let) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	body, facts, err := captureCallFacts(func() (string, error) { return encodeLetScoped(e.Body, e.Name) })
+	symbol := letSymbol(e.Name) // same hygiene as encodeLet (#215)
+	body, facts, err := captureCallFacts(func() (string, error) { return encodeLetRenamed(e.Body, e.Name, symbol) })
 	if err != nil {
 		return "", err
 	}
 	if facts != "true" {
-		addCallFact(fmt.Sprintf("(let ((%s %s)) %s)", e.Name, value, facts))
+		addCallFact(fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, facts))
 	}
-	return fmt.Sprintf("(let ((%s %s)) %s)", e.Name, value, body), nil
+	return fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, body), nil
 }

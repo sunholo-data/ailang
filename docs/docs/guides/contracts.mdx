@@ -695,6 +695,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
 - Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
 - Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
+- **Higher-order functions**: `map`, `filter`, `foldl`, `any`, `flatMap` with a **literal lambda**, over any element type, specialized and unrolled (depth 3) — see [below](#higher-order-function-verification)
 - **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
 - Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → `to_int`
@@ -704,7 +705,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 
 | Feature | Reason | Expandable? |
 |---------|--------|-------------|
-| Higher-order functions (any lambda) | `map`/`filter`/`foldl` signatures use type variables, which the callee-sort gate rejects before the HOF inliner runs ([#1375](https://github.com/sunholo-data/ailang/issues/1375)) | Yes — planned |
+| Higher-order functions (named function) | `map(f, xs)` where `f` is not a literal lambda | Requires whole-program analysis |
 | Bitwise operators | `&`, `^`, `~`, `<<`, `>>` have no `Int` encoding | Needs a bit-vector encoding |
 | Unannotated generic parameters | `func inc(x) ensures {…}` currently reaches Z3 as an error, not a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
 | `toUpper`/`toLower`/`trim`, datetime builtins | No SMT encoding yet | Yes — planned |
@@ -771,11 +772,9 @@ ensures { listLength(result) >= 0 }
 { map(\x -> x + 1, xs) }
 ```
 
-The design specializes the lambda `\x -> x + 1` into a recursive `map_specialized` function, then unrolls it for Z3.
+The lambda `\x -> x + 1` is specialized into a recursive `_map_spec_incrementAll` function over the list's real element sort, then unrolled three levels for Z3. `map`, `filter`, `foldl`, `any` and `flatMap` are specialized this way, over any element type (`[string]`, `[float]`, records).
 
-:::warning Currently skipped
-As of v0.60.6 this does not run: the callee-sort gate sees the type variables in `map`'s signature and skips the function before the inliner is reached, so `incrementAll` above reports `SKIPPED` ([#1375](https://github.com/sunholo-data/ailang/issues/1375)). Until that lands, put the property on a recursive helper instead of `map`/`filter`/`foldl`.
-:::
+The unrolling bottoms out in an uninterpreted stub, so the rules are those of [bounded recursion](#bounded-recursion-verification): a contract is `VERIFIED (bounded: depth 3)` when `requires` bounds the list within the depth (`requires { length(xs) <= 3 }`), or when it holds whatever the stub returns, as `length(result) >= 0` does. Any model the solver finds is `INCONCLUSIVE`, never a violation. If the function argument is a named function rather than a literal lambda, the function is skipped.
 
 ### Bounded Quantifiers
 
@@ -937,7 +936,7 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 **Open gaps** (measured at v0.60.6, 2026-11-23):
 - A callee's `requires` is not checked at call sites
 - `int` is verified as unbounded `Int`, so int64 overflow is not caught; floats have no NaN
-- `map`/`filter`/`foldl` callers are skipped ([#1375](https://github.com/sunholo-data/ailang/issues/1375))
+- `map`/`filter`/`foldl`/`any`/`flatMap` callers are bounded like recursion: no proof beyond depth 3
 - Recursive functions are inconclusive unless `requires` bounds their depth — full induction is future work
 - Counterexample `result` values print as unevaluated solver terms
 :::

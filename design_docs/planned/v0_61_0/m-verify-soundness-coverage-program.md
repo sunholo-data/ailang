@@ -8,6 +8,14 @@
 
 **Quorum trigger:** #1 fired (design-freeze items D1–D3). Run `ailang design-quorum` before M3/M4 are planned. M0–M2 have no freeze items and may proceed.
 
+## Progress
+
+| Milestone | State (2026-11-23) |
+|---|---|
+| M1 (S7 callee identity) | **Landed on dev.** Deterministic bare-name lookups, plus a gate refusing any call that would bind another module's function (`internal/smt/callee_identity.go`, tests in `callee_identity_test.go`). One false positive (a parameter sharing a function's name) was found by the corpus run and fixed. S4/S5/S6 are still open |
+| M2 (HOF callers) | **Landed on dev, extended.** map/filter/foldl/any/flatMap over any element sort, with captures, inside callees and inside contracts. Bounded (depth 3) and classified like recursion. Let and capture hygiene (`$l_`/`$c_`) fixes #215. See §M2 result below |
+| M0, M3–M6 | Not started |
+
 ## Why this program, and why not Lean
 
 Question asked on 2026-11-23: "we use Z3, a lot of people use Lean for verification. Should we?"

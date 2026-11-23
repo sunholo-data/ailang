@@ -43,7 +43,7 @@ func TestContractSubstitution_RespectsShadowing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(d.SMTLib, "(>= ($spec_bounded 1) 1)") || !strings.Contains(d.SMTLib, "_result n)") {
+	if strings.Contains(d.SMTLib, "(>= ($spec_bounded 1) 1)") || !strings.Contains(d.SMTLib, "_result $l_n)") {
 		t.Fatal(d.SMTLib)
 	}
 }

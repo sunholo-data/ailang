@@ -117,7 +117,7 @@ func TestEncodeForall_InLet(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(result, "(let ((n 5))") {
+	if !strings.Contains(result, "(let (($l_n 5))") {
 		t.Error("expected let binding")
 	}
 	if !strings.Contains(result, "(forall ((i Int))") {

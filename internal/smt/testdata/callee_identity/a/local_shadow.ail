@@ -1,0 +1,14 @@
+module a/local_shadow
+import a/bad (clamp0 as badClamp)
+
+pure func clamp0(x: int) -> int = if x < 0 then 0 else x
+
+export func usesLocal(x: int) -> int ! {}
+ensures { result >= 0 } {
+  clamp0(x)
+}
+
+export func usesImported(x: int) -> int ! {}
+ensures { result >= 0 } {
+  badClamp(x)
+}

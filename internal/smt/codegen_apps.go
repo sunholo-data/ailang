@@ -139,7 +139,9 @@ func encodeApp(app *core.App) (string, error) {
 		return encodeCheckedConstructor(app, name, app.Args)
 	}
 
-	return "", fmt.Errorf("unsupported application: %s", app.String())
+	// A call the encoder has no SMT form for is a capability boundary of the
+	// fragment (#757): reported as a skip, never as a verifier error.
+	return "", fmt.Errorf("%w: unsupported application: %s", ErrUnsupportedConstruct, app.String())
 }
 
 // encodeBuiltinOp encodes a builtin operator application.

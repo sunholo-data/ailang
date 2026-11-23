@@ -1,0 +1,11 @@
+module a/param_shadow
+import a/bad (clamp0)
+
+-- A parameter that shares a top-level function's name is a value, not a call:
+-- it must not trip the callee-identity gate (daneel_route.reviewWords, 2026-11-23).
+export pure func own(x: int) -> int = x
+
+export pure func pick(rest: int, own: int) -> int
+  ensures { result == own || result == 0 } {
+  if rest == 0 then 0 else own
+}

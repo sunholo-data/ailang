@@ -122,8 +122,8 @@ func TestEncodeExpr_Let(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "(let ((x 5)) x)" {
-		t.Errorf("got %q, want %q", got, "(let ((x 5)) x)")
+	if got != "(let (($l_x 5)) $l_x)" {
+		t.Errorf("got %q, want %q", got, "(let (($l_x 5)) $l_x)")
 	}
 }
 

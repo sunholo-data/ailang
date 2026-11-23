@@ -257,8 +257,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	}
 
 	// Build imported programs map and extend surface params/sorts from imported modules.
+	// Iterate in sorted path order: every bare-name map below is first-wins, and must
+	// agree with findFuncBodyInAnyProg (root, then sorted imports) — see callee_identity.go.
+	modulePaths := make([]string, 0, len(modules))
+	for modPath := range modules {
+		modulePaths = append(modulePaths, modPath)
+	}
+	sort.Strings(modulePaths)
 	importedPrograms := make(map[string]*core.Program)
-	for modPath, mod := range modules {
+	for _, modPath := range modulePaths {
+		mod := modules[modPath]
 		if mod.Core != nil {
 			importedPrograms[modPath] = mod.Core
 			if mod.File != nil {
@@ -317,7 +325,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		calleeASTFuncs[name] = fd
 	}
 	allTypeFiles := []*ast.File{surfaceAST}
-	for _, mod := range modules {
+	for _, modPath := range modulePaths {
+		mod := modules[modPath]
 		if mod.File == nil {
 			continue
 		}
@@ -392,6 +401,21 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 			rejections = filtered
 			encodable = len(rejections) == 0
+		}
+		// Callee-identity gate (S7): every callee lookup below is by bare name. If a
+		// reachable call means a different module's function than that lookup would
+		// bind, the encoding would prove a contract about the wrong code — refuse.
+		if m := firstMisresolvedCallee(append([]core.CoreExpr{body}, contractExprs(meta.Contracts)...), funcName, owner, coreProg, importedPrograms); m != nil {
+			resolved := m.Resolved
+			if resolved == "" {
+				resolved = owner
+			}
+			rejections = append(rejections, SMTRejectionReason{
+				Code:    RejectUnencodable,
+				Message: fmt.Sprintf("Function %q calls %s.%s, but another loaded module (%s) also defines %q and the verifier resolves callees by bare name", funcName, m.Wanted, m.Name, resolved, m.Name),
+				Hint:    "Rename one of the two functions so the name is unique among the modules this function's calls reach.",
+			})
+			encodable = false
 		}
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
 		// unencodable signature type (e.g. Option[float]) rather than leaking an
@@ -534,7 +558,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				report.Results = append(report.Results, VerifyResult{
 					Function:   funcName,
 					Status:     "skipped",
-					Reason:     fmt.Sprintf("unsupported construct in SMT encoding: %v", err),
+					Reason:     unsupportedConstructReason(err),
 					ReasonCode: verification.UnsupportedEncoding,
 					Rejections: []SMTRejectionReason{{
 						Code:    RejectUnencodable,
@@ -573,6 +597,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		boundedDepth := 0
 		if effectiveDepth > 0 && IsRecursiveFunc(innerBody, funcName) {
 			boundedDepth = effectiveDepth
+		}
+		if encResult.HOFBoundedDepth > boundedDepth {
+			boundedDepth = encResult.HOFBoundedDepth // map/filter/foldl specialisations are bounded unrollings too
 		}
 		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
 		if opts.Verbose {
@@ -702,4 +729,16 @@ func encodingErrorReason(err error) verification.ReasonCode {
 		return verification.UnsupportedEncoding
 	}
 	return verification.VerifierError
+}
+
+// unsupportedConstructReason leads every unsupported-construct skip with the
+// fixed "unsupported construct in SMT encoding: " prefix (consumers match on
+// it), without repeating it when the error already starts with it.
+func unsupportedConstructReason(err error) string {
+	msg := err.Error()
+	prefix := ErrUnsupportedConstruct.Error() + ": "
+	if strings.HasPrefix(msg, prefix) {
+		return msg
+	}
+	return prefix + msg
 }

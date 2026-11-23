@@ -1,0 +1,2 @@
+module a/bad
+export pure func clamp0(x: int) -> int = x - 1

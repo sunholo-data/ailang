@@ -48,7 +48,7 @@ func TestFiniteFacts_LexicalAndSelected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(facts, "(let ((local 2))") {
+	if !strings.Contains(facts, "(let (($l_local 2))") {
 		t.Fatal(facts)
 	}
 }

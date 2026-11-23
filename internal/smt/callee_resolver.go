@@ -32,6 +32,9 @@ type CalleeDef struct {
 	ADTDecl       string // Any ADT declarations needed (may be empty)
 	IsContract    bool   // True when using contract-as-spec fallback (not define-fun)
 	ResultConst   string // Non-empty when IsContract: the UF symbol applied to actual arguments
+	// HOFBoundedDepth > 0: the callee's body specialised HOF calls to this depth,
+	// so any proof through it is bounded (see EncodeResult.HOFBoundedDepth).
+	HOFBoundedDepth int
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -158,11 +161,31 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			continue
 		}
 
-		// Encode the callee body
+		// Encode the callee body (under the callee program's type info)
 		var previousTI types.CoreTypeInfo
 		if activeADTContext != nil {
 			previousTI = activeADTContext.ti
 			activeADTContext.ti = activeADTContext.programTI[calleeProg]
+		}
+		// Literal-lambda HOF calls in the callee are specialised exactly as in a
+		// contracted body; their chains are declared ahead of the callee.
+		var hofDecls []string
+		hofDepth := 0
+		if r := InlineHOFCalls(calleeName, innerBody, defaultHOFInlineDepth); r != nil {
+			if r.Unsupported != "" {
+				if activeADTContext != nil {
+					activeADTContext.ti = previousTI
+				}
+				return nil, fmt.Errorf("%w: callee %q: %s", ErrUnsupportedConstruct, calleeName, r.Unsupported)
+			}
+			innerBody = r.NewBody
+			for _, spec := range r.Specializations {
+				hofDecls = append(hofDecls, spec.Declarations...)
+				resolvedSoFar[spec.TopLevelName] = true
+			}
+			if len(r.Specializations) > 0 {
+				hofDepth = defaultHOFInlineDepth
+			}
 		}
 		bodyExpr, bodyFacts, err := captureCallFacts(func() (string, error) { return EncodeExpr(innerBody) })
 		if activeADTContext != nil {
@@ -175,6 +198,9 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 
 		// Build define-fun
 		smtDef := buildDefineFun(calleeName, params, returnSort, bodyExpr)
+		if len(hofDecls) > 0 {
+			smtDef = strings.Join(hofDecls, "\n") + "\n" + smtDef
+		}
 		conditionName := ""
 		if bodyFacts != "true" {
 			conditionName = "$facts_" + calleeName
@@ -182,9 +208,10 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			activeHelperConditions[calleeName] = conditionName
 		}
 		defs = append(defs, CalleeDef{
-			Name:          calleeName,
-			SMTLib:        smtDef,
-			ConditionName: conditionName,
+			Name:            calleeName,
+			SMTLib:          smtDef,
+			ConditionName:   conditionName,
+			HOFBoundedDepth: hofDepth,
 		})
 		resolvedSoFar[calleeName] = true
 	}
@@ -192,13 +219,22 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 	return defs, nil
 }
 
-// findFuncBodyInAnyProg looks up a function body first in the current program,
-// then in importedPrograms. Returns (body, sourceProg) or (nil, nil) if not found.
+// findFuncBodyInAnyProg looks up a function body by BARE name: first in the
+// current program, then in importedPrograms in sorted path order. Returns
+// (body, sourceProg) or (nil, nil) if not found. The order is fixed so the
+// result never depends on map iteration; Verify refuses any call whose module
+// this lookup would not pick (firstMisresolvedCallee, callee_identity.go).
 func findFuncBodyInAnyProg(funcName string, prog *core.Program, importedPrograms map[string]*core.Program) (core.CoreExpr, *core.Program) {
-	if body := findFuncBody(prog, funcName); body != nil {
-		return body, prog
+	if prog != nil {
+		if body := findFuncBody(prog, funcName); body != nil {
+			return body, prog
+		}
 	}
-	for _, imp := range importedPrograms {
+	for _, path := range sortedProgramPaths(importedPrograms) {
+		imp := importedPrograms[path]
+		if imp == nil {
+			continue
+		}
 		if body := findFuncBody(imp, funcName); body != nil {
 			return body, imp
 		}
@@ -255,6 +291,15 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 	}
 	switch e := expr.(type) {
 	case *core.App:
+		// A literal-lambda map/filter/foldl/any/flatMap is specialised in place
+		// (InlineHOFCalls), never resolved as a callee body: walk its arguments
+		// (the lambda body's own calls still count) but not its head.
+		if _, ok := matchHOFCall(e); ok {
+			for _, arg := range e.Args {
+				collectCalleeCallsInner(arg, selfName, prog, imported, seen, xmodDepth)
+			}
+			return
+		}
 		// Check if function is a user-defined call via VarGlobal
 		if vg, ok := e.Func.(*core.VarGlobal); ok {
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
@@ -368,7 +413,9 @@ func topoSort(callees []string, rootFunc string, prog *core.Program, imported ma
 		}
 		if state[name] == 1 {
 			cycle = append(cycle, name)
-			return fmt.Errorf("circular function call detected: %s", strings.Join(cycle, " → "))
+			// Mutually recursive helpers are outside the inlinable fragment (a
+			// define-fun cannot refer forward): a skip, not a verifier error.
+			return fmt.Errorf("%w: circular function call detected: %s", ErrUnsupportedConstruct, strings.Join(cycle, " → "))
 		}
 		state[name] = 1
 		cycle = append(cycle, name)
@@ -412,6 +459,12 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 	}
 	switch e := expr.(type) {
 	case *core.App:
+		if _, ok := matchHOFCall(e); ok { // specialised in place, not a callee
+			for _, arg := range e.Args {
+				collectDirectCallsInner(arg, selfName, prog, imported, seen)
+			}
+			return
+		}
 		if vg, ok := e.Func.(*core.VarGlobal); ok {
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
 				// Skip stdlib functions with known SMT mappings
@@ -555,8 +608,9 @@ func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.Cor
 		})
 	}
 
-	// No higher-order functions
-	if hasHigherOrder(body) {
+	// No higher-order functions, except literal-lambda HOF calls, which are
+	// specialised inside the callee's own define-fun (resolveCalleesFromRoots).
+	if hasHigherOrder(body) && !AllHigherOrderIsInlinable(body) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectHigherOrder,
 			Message: fmt.Sprintf("Callee %q uses higher-order functions", funcName),

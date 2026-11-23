@@ -24,6 +24,10 @@ var ErrUnresolvableTypes = errors.New("unresolvable SMT declaration types")
 // construct is a language-feature boundary, not a verifier fault (#757).
 var ErrUnsupportedConstruct = errors.New("unsupported construct in SMT encoding")
 
+// defaultHOFInlineDepth is how many levels a map/filter/foldl/any/flatMap
+// specialisation is unrolled when no depth is configured.
+const defaultHOFInlineDepth = 3
+
 // FunctionParam describes a function parameter for SMT encoding.
 type FunctionParam struct {
 	Name string
@@ -80,6 +84,11 @@ type EncodeResult struct {
 	Assertions []string
 	// BodyExpr is the encoded function body expression.
 	BodyExpr string
+	// HOFBoundedDepth > 0 means literal-lambda map/filter/foldl calls were
+	// replaced by specialised chains unrolled this deep, bottoming out in an
+	// uninterpreted stub. Like bounded recursion, a sat on such an encoding may
+	// rest on an invented stub value, so Verify classifies it inconclusive.
+	HOFBoundedDepth int
 }
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
@@ -400,23 +409,27 @@ func EncodeFunction(
 		hofDepth = opts[0].HOFInlineDepth
 	}
 	if hofDepth == 0 {
-		hofDepth = 3 // default depth for HOF specializations
+		hofDepth = defaultHOFInlineDepth
+	}
+	for _, def := range calleeDefs {
+		if def.HOFBoundedDepth > result.HOFBoundedDepth {
+			result.HOFBoundedDepth = def.HOFBoundedDepth // a callee's specialisation bounds this proof too
+		}
 	}
 	inlineResult := InlineHOFCalls(funcName, body, hofDepth)
+	if inlineResult != nil && inlineResult.Unsupported != "" {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedConstruct, inlineResult.Unsupported)
+	}
 	if inlineResult != nil {
 		body = inlineResult.NewBody
+		if len(inlineResult.Specializations) > 0 {
+			result.HOFBoundedDepth = hofDepth
+		}
 		for _, spec := range inlineResult.Specializations {
 			result.Declarations = append(result.Declarations, spec.Declarations...)
 			// Register specialized functions as resolved callees so encodeApp recognizes them
 			ctx.ResolvedCallees[spec.TopLevelName] = true
-			switch spec.Kind {
-			case HOFMap:
-				hofInlinedKinds = append(hofInlinedKinds, "map")
-			case HOFFilter:
-				hofInlinedKinds = append(hofInlinedKinds, "filter")
-			case HOFFoldl:
-				hofInlinedKinds = append(hofInlinedKinds, "foldl")
-			}
+			hofInlinedKinds = append(hofInlinedKinds, spec.Kind.String())
 		}
 	}
 	// Suppress "unused" warning for hofInlinedKinds (used for labeling output)
@@ -471,7 +484,11 @@ func EncodeFunction(
 		if contract.Expr == nil {
 			continue
 		}
-		encoded, err := EncodeExpr(contract.Expr)
+		pred, err := inlineContractHOFs(funcName, "req", contract.Expr, hofDepth, result)
+		if err != nil {
+			return nil, fmt.Errorf("cannot encode requires clause: %w", err)
+		}
+		encoded, err := EncodeExpr(pred)
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode requires clause: %w", err)
 		}
@@ -526,7 +543,11 @@ func EncodeFunction(
 		if contract.Expr == nil {
 			continue
 		}
-		encoded, err := EncodeExpr(contract.Expr)
+		pred, err := inlineContractHOFs(funcName, "ens", contract.Expr, hofDepth, result)
+		if err != nil {
+			return nil, fmt.Errorf("cannot encode ensures clause: %w", err)
+		}
+		encoded, err := EncodeExpr(pred)
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode ensures clause: %w", err)
 		}
@@ -692,4 +713,34 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 		}
 	}
 	return nil
+}
+
+// contractHOFCounter keeps contract specialisation names unique within one
+// EncodeFunction (several clauses may each contain a map/any call).
+var contractHOFCounter int
+
+// inlineContractHOFs specialises literal-lambda HOF calls in a contract
+// predicate exactly as in a body (`ensures { any(\r. r.ok, result) }`), adding
+// their chains to result.Declarations. Sound in both positions: a bounded chain
+// in `ensures` makes any model inconclusive (HOFBoundedDepth), and in `requires`
+// its free frontier only weakens the assumption.
+func inlineContractHOFs(funcName, kind string, pred core.CoreExpr, depth int, result *EncodeResult) (core.CoreExpr, error) {
+	contractHOFCounter++
+	r := InlineHOFCalls(fmt.Sprintf("%s_%s%d", funcName, kind, contractHOFCounter), pred, depth)
+	if r == nil {
+		return pred, nil
+	}
+	if r.Unsupported != "" {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedConstruct, r.Unsupported)
+	}
+	for _, spec := range r.Specializations {
+		result.Declarations = append(result.Declarations, spec.Declarations...)
+		if activeResolvedCallees != nil {
+			activeResolvedCallees[spec.TopLevelName] = true
+		}
+	}
+	if len(r.Specializations) > 0 && depth > result.HOFBoundedDepth {
+		result.HOFBoundedDepth = depth
+	}
+	return r.NewBody, nil
 }

@@ -62,8 +62,11 @@ func UnrollRecursiveFunction(cfg UnrollConfig) (*UnrollResult, error) {
 		// Rewrite body: replace self-calls with previous level
 		rewrittenBody := ReplaceSelfCalls(cfg.Body, cfg.FuncName, prevName)
 
-		// Encode the rewritten body
-		bodyExpr, err := EncodeExpr(rewrittenBody)
+		// Encode the rewritten body. The declared return sort types any empty
+		// list literal the body returns: a map/filter specialisation's base case
+		// is `[]`, which defaults to (Seq Int) and is ill-sorted for any other
+		// element type (#215).
+		bodyExpr, err := encodeExprWithSortHint(rewrittenBody, cfg.ReturnSort)
 		if err != nil {
 			return nil, fmt.Errorf("encoding unrolled body at depth %d: %w", k, err)
 		}

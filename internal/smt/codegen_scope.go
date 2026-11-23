@@ -40,8 +40,23 @@ func encodePatternScoped(expr core.CoreExpr, p core.CorePattern) (string, error)
 	defer restore()
 	return EncodeExpr(expr)
 }
-func encodeLetScoped(expr core.CoreExpr, name string) (string, error) {
-	restore := withoutParameterRenames([]string{name})
-	defer restore()
+
+// letSymbol is the SMT symbol a Core let binds name under. The $l_ prefix keeps
+// a local from colliding with a declared accessor, constructor or function of
+// the same name (#215); $p_ is the parameter prefix, so the two cannot clash.
+func letSymbol(name string) string {
+	return "$l_" + name
+}
+
+// encodeLetRenamed encodes expr with name referring to the let-bound symbol.
+func encodeLetRenamed(expr core.CoreExpr, name, symbol string) (string, error) {
+	previous := activeParamRenames
+	local := make(map[string]string, len(previous)+1)
+	for k, v := range previous {
+		local[k] = v
+	}
+	local[name] = symbol
+	activeParamRenames = local
+	defer func() { activeParamRenames = previous }()
 	return EncodeExpr(expr)
 }

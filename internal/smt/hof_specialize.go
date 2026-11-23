@@ -15,6 +15,15 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 	switch e := body.(type) {
 	case *core.Var:
 		if e.Name == paramName {
+			// A variable replacement keeps the replaced occurrence's node
+			// identity, so its elaborated type (the list element's, for a HOF
+			// lambda parameter) stays visible to the encoder — a field access
+			// on it needs the record sort.
+			if rv, ok := replacement.(*core.Var); ok {
+				n := *rv
+				n.CoreNode = e.CoreNode
+				return &n
+			}
 			return replacement
 		}
 		return e
@@ -32,14 +41,18 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if newBody == e.Body {
 			return e
 		}
-		return &core.Lambda{Params: e.Params, Body: newBody}
+		n := *e
+		n.Body = newBody
+		return &n
 	case *core.App:
 		newFunc := SubstituteLambdaVar(e.Func, paramName, replacement)
 		newArgs := substituteLambdaVarSlice(e.Args, paramName, replacement)
 		if newFunc == e.Func && sliceUnchanged(newArgs, e.Args) {
 			return e
 		}
-		return &core.App{Func: newFunc, Args: newArgs}
+		n := *e
+		n.Func, n.Args = newFunc, newArgs
+		return &n
 	case *core.If:
 		newCond := SubstituteLambdaVar(e.Cond, paramName, replacement)
 		newThen := SubstituteLambdaVar(e.Then, paramName, replacement)
@@ -47,7 +60,9 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if newCond == e.Cond && newThen == e.Then && newElse == e.Else {
 			return e
 		}
-		return &core.If{Cond: newCond, Then: newThen, Else: newElse}
+		n := *e
+		n.Cond, n.Then, n.Else = newCond, newThen, newElse
+		return &n
 	case *core.Let:
 		newValue := SubstituteLambdaVar(e.Value, paramName, replacement)
 		if e.Name == paramName {
@@ -55,13 +70,17 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 			if newValue == e.Value {
 				return e
 			}
-			return &core.Let{Name: e.Name, Value: newValue, Body: e.Body}
+			n := *e
+			n.Value = newValue
+			return &n
 		}
 		newBody := SubstituteLambdaVar(e.Body, paramName, replacement)
 		if newValue == e.Value && newBody == e.Body {
 			return e
 		}
-		return &core.Let{Name: e.Name, Value: newValue, Body: newBody}
+		n := *e
+		n.Value, n.Body = newValue, newBody
+		return &n
 	case *core.LetRec:
 		// Check if any binding shadows the param
 		for _, b := range e.Bindings {
@@ -82,7 +101,9 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if !changed && newBody == e.Body {
 			return e
 		}
-		return &core.LetRec{Bindings: newBindings, Body: newBody}
+		n := *e
+		n.Bindings, n.Body = newBindings, newBody
+		return &n
 	case *core.Match:
 		newScrutinee := SubstituteLambdaVar(e.Scrutinee, paramName, replacement)
 		newArms := make([]core.MatchArm, len(e.Arms))
@@ -105,26 +126,34 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if !changed {
 			return e
 		}
-		return &core.Match{Scrutinee: newScrutinee, Arms: newArms}
+		n := *e
+		n.Scrutinee, n.Arms = newScrutinee, newArms
+		return &n
 	case *core.BinOp:
 		newLeft := SubstituteLambdaVar(e.Left, paramName, replacement)
 		newRight := SubstituteLambdaVar(e.Right, paramName, replacement)
 		if newLeft == e.Left && newRight == e.Right {
 			return e
 		}
-		return &core.BinOp{Op: e.Op, Left: newLeft, Right: newRight}
+		n := *e
+		n.Left, n.Right = newLeft, newRight
+		return &n
 	case *core.UnOp:
 		newOperand := SubstituteLambdaVar(e.Operand, paramName, replacement)
 		if newOperand == e.Operand {
 			return e
 		}
-		return &core.UnOp{Op: e.Op, Operand: newOperand}
+		n := *e
+		n.Operand = newOperand
+		return &n
 	case *core.Intrinsic:
 		newArgs := substituteLambdaVarSlice(e.Args, paramName, replacement)
 		if sliceUnchanged(newArgs, e.Args) {
 			return e
 		}
-		return &core.Intrinsic{Op: e.Op, Args: newArgs}
+		n := *e
+		n.Args = newArgs
+		return &n
 	case *core.Record:
 		newFields := make(map[string]core.CoreExpr, len(e.Fields))
 		changed := false
@@ -138,13 +167,17 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if !changed {
 			return e
 		}
-		return &core.Record{Fields: newFields}
+		n := *e
+		n.Fields = newFields
+		return &n
 	case *core.RecordAccess:
 		newRecord := SubstituteLambdaVar(e.Record, paramName, replacement)
 		if newRecord == e.Record {
 			return e
 		}
-		return &core.RecordAccess{Record: newRecord, Field: e.Field}
+		n := *e
+		n.Record = newRecord
+		return &n
 	case *core.RecordUpdate:
 		newBase := SubstituteLambdaVar(e.Base, paramName, replacement)
 		newUpdates := make(map[string]core.CoreExpr, len(e.Updates))
@@ -159,32 +192,42 @@ func SubstituteLambdaVar(body core.CoreExpr, paramName string, replacement core.
 		if !changed {
 			return e
 		}
-		return &core.RecordUpdate{Base: newBase, Updates: newUpdates}
+		n := *e
+		n.Base, n.Updates = newBase, newUpdates
+		return &n
 	case *core.List:
 		newElems := substituteLambdaVarSlice(e.Elements, paramName, replacement)
 		if sliceUnchanged(newElems, e.Elements) {
 			return e
 		}
-		return &core.List{Elements: newElems}
+		n := *e
+		n.Elements = newElems
+		return &n
 	case *core.Tuple:
 		newElems := substituteLambdaVarSlice(e.Elements, paramName, replacement)
 		if sliceUnchanged(newElems, e.Elements) {
 			return e
 		}
-		return &core.Tuple{Elements: newElems}
+		n := *e
+		n.Elements = newElems
+		return &n
 	case *core.DictApp:
 		newDict := SubstituteLambdaVar(e.Dict, paramName, replacement)
 		newArgs := substituteLambdaVarSlice(e.Args, paramName, replacement)
 		if newDict == e.Dict && sliceUnchanged(newArgs, e.Args) {
 			return e
 		}
-		return &core.DictApp{Dict: newDict, Args: newArgs}
+		n := *e
+		n.Dict, n.Args = newDict, newArgs
+		return &n
 	case *core.DictAbs:
 		newBody := SubstituteLambdaVar(e.Body, paramName, replacement)
 		if newBody == e.Body {
 			return e
 		}
-		return &core.DictAbs{Params: e.Params, Body: newBody}
+		n := *e
+		n.Body = newBody
+		return &n
 	case *core.DictRef:
 		return e
 	default:
@@ -403,4 +446,72 @@ func buildListTail(listExpr core.CoreExpr) core.CoreExpr {
 		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_tail"}},
 		Args: []core.CoreExpr{listExpr},
 	}
+}
+
+// hofListStep builds the shared recursion skeleton of a list specialisation:
+//
+//	if seq.len(xs) == 0 then base
+//	else let _hof_h = head(xs) in let _hof_t = tail(xs) in step
+func hofListStep(xsVar *core.Var, base, step core.CoreExpr) core.CoreExpr {
+	return &core.If{
+		Cond: &core.App{
+			Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "eq_Int"}},
+			Args: []core.CoreExpr{
+				&core.App{
+					Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_length"}},
+					Args: []core.CoreExpr{xsVar},
+				},
+				&core.Lit{Kind: core.IntLit, Value: int64(0)},
+			},
+		},
+		Then: base,
+		Else: &core.Let{
+			Name: "_hof_h",
+			Value: &core.App{
+				Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_head"}},
+				Args: []core.CoreExpr{xsVar},
+			},
+			Body: &core.Let{Name: "_hof_t", Value: buildListTail(xsVar), Body: step},
+		},
+	}
+}
+
+// SpecializeAny transforms any(\x -> p, xs) into a recursive function:
+//
+//	any_spec(xs) = if seq.len(xs) == 0 then false
+//	               else let h = head(xs) in let t = tail(xs) in
+//	                    if p[x -> h] then true else any_spec(t)
+func SpecializeAny(funcName string, lambda *core.Lambda, listParam string) (core.CoreExpr, string) {
+	specName := fmt.Sprintf("_any_spec_%s", funcName)
+	if len(lambda.Params) == 0 {
+		return nil, ""
+	}
+	pred := SubstituteLambdaVar(lambda.Body, lambda.Params[0], &core.Var{Name: "_hof_h"})
+	step := &core.If{
+		Cond: pred,
+		Then: &core.Lit{Kind: core.BoolLit, Value: true},
+		Else: &core.App{Func: &core.Var{Name: specName}, Args: []core.CoreExpr{&core.Var{Name: "_hof_t"}}},
+	}
+	return hofListStep(&core.Var{Name: listParam}, &core.Lit{Kind: core.BoolLit, Value: false}, step), specName
+}
+
+// SpecializeFlatMap transforms flatMap(\x -> ys, xs) into a recursive function:
+//
+//	flatMap_spec(xs) = if seq.len(xs) == 0 then []
+//	                   else let h = head(xs) in let t = tail(xs) in
+//	                        ys[x -> h] ++ flatMap_spec(t)
+func SpecializeFlatMap(funcName string, lambda *core.Lambda, listParam string) (core.CoreExpr, string) {
+	specName := fmt.Sprintf("_flatMap_spec_%s", funcName)
+	if len(lambda.Params) == 0 {
+		return nil, ""
+	}
+	part := SubstituteLambdaVar(lambda.Body, lambda.Params[0], &core.Var{Name: "_hof_h"})
+	step := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "concat_List"}},
+		Args: []core.CoreExpr{
+			part,
+			&core.App{Func: &core.Var{Name: specName}, Args: []core.CoreExpr{&core.Var{Name: "_hof_t"}}},
+		},
+	}
+	return hofListStep(&core.Var{Name: listParam}, &core.List{Elements: nil}, step), specName
 }

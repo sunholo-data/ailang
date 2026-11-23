@@ -11,9 +11,11 @@ import (
 type HOFKind int
 
 const (
-	HOFMap    HOFKind = iota // map(lambda, list)
-	HOFFilter                // filter(lambda, list)
-	HOFFoldl                 // foldl(lambda, init, list)
+	HOFMap     HOFKind = iota // map(lambda, list)
+	HOFFilter                 // filter(lambda, list)
+	HOFFoldl                  // foldl(lambda, init, list)
+	HOFAny                    // any(lambda, list)
+	HOFFlatMap                // flatMap(lambda, list)
 )
 
 // InlinableHOFCall describes a detected higher-order function call
@@ -34,6 +36,11 @@ type InlineResult struct {
 	NewBody core.CoreExpr
 	// Specializations are the unrolled recursive function declarations.
 	Specializations []SpecializationResult
+	// Unsupported is non-empty when a literal-lambda HOF call was found but
+	// could not be specialised (its list or result type is unknown, or the
+	// specialised chain does not encode). The call is then left in NewBody, so
+	// the encoder must refuse the function rather than encode it partially.
+	Unsupported string
 }
 
 // SpecializationResult holds the unrolled declarations for one specialization.
@@ -51,13 +58,16 @@ var knownHOFBuiltins = map[string]HOFKind{
 	"map_List":    HOFMap,
 	"filter_List": HOFFilter,
 	"foldl_List":  HOFFoldl,
+	"_list_any":   HOFAny,
 }
 
 // knownHOFStdlib maps std/list function names to their HOF kind.
 var knownHOFStdlib = map[string]HOFKind{
-	"map":    HOFMap,
-	"filter": HOFFilter,
-	"foldl":  HOFFoldl,
+	"map":     HOFMap,
+	"filter":  HOFFilter,
+	"foldl":   HOFFoldl,
+	"any":     HOFAny,
+	"flatMap": HOFFlatMap,
 }
 
 // IsInlinableHOF walks the Core AST looking for HOF calls (map, filter, foldl)
@@ -160,7 +170,7 @@ func matchHOFCall(app *core.App) (InlinableHOFCall, bool) {
 
 	// Now check that the function argument (first arg) is a literal Lambda
 	switch hofKind {
-	case HOFMap, HOFFilter:
+	case HOFMap, HOFFilter, HOFAny, HOFFlatMap:
 		// Expected: App(hof, [lambda, list])
 		if len(app.Args) < 2 {
 			return InlinableHOFCall{}, false
@@ -325,33 +335,72 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 		// Get the list param name (or generate one)
 		listParamName := fmt.Sprintf("_hof_xs_%d", specCounter)
 
+		// The specialised chain's signature comes from the call's own types:
+		// the list argument's type, and the call's result type (a list for
+		// map/filter, the accumulator for foldl). Never assumed: hard-coding
+		// (Seq Int) sent every non-int list to Z3 as a sort error (#215).
+		listType := hofExprType(call.ListArg)
+		resultType := hofExprType(call.Original)
+		if listType == nil || resultType == nil {
+			result.Unsupported = fmt.Sprintf("the list or result type of a %s call is unknown", call.Kind)
+			return result
+		}
+		sort, err := MapType(resultType)
+		if err != nil {
+			result.Unsupported = fmt.Sprintf("the result type of a %s call has no SMT sort: %v", call.Kind, err)
+			return result
+		}
+		returnSort = sort
+
+		// One specialisation per call site: two map calls in one function
+		// must not share a define-fun name.
+		specOwner := funcName
+		if specCounter > 1 {
+			specOwner = fmt.Sprintf("%s_%d", funcName, specCounter)
+		}
 		switch call.Kind {
 		case HOFMap:
-			specBody, specName = SpecializeMap(funcName, call.Lambda, listParamName)
-			params = []FunctionParam{
-				{Name: listParamName, Type: &types.TList{Element: &types.TCon{Name: "int"}}},
-			}
-			returnSort = "(Seq Int)"
+			specBody, specName = SpecializeMap(specOwner, call.Lambda, listParamName)
+			params = []FunctionParam{{Name: listParamName, Type: listType}}
 
 		case HOFFilter:
-			specBody, specName = SpecializeFilter(funcName, call.Lambda, listParamName)
-			params = []FunctionParam{
-				{Name: listParamName, Type: &types.TList{Element: &types.TCon{Name: "int"}}},
-			}
-			returnSort = "(Seq Int)"
+			specBody, specName = SpecializeFilter(specOwner, call.Lambda, listParamName)
+			params = []FunctionParam{{Name: listParamName, Type: listType}}
+
+		case HOFAny:
+			specBody, specName = SpecializeAny(specOwner, call.Lambda, listParamName)
+			params = []FunctionParam{{Name: listParamName, Type: listType}}
+
+		case HOFFlatMap:
+			specBody, specName = SpecializeFlatMap(specOwner, call.Lambda, listParamName)
+			params = []FunctionParam{{Name: listParamName, Type: listType}}
 
 		case HOFFoldl:
-			specBody, specName = SpecializeFoldl(funcName, call.Lambda, listParamName)
+			specBody, specName = SpecializeFoldl(specOwner, call.Lambda, listParamName)
 			params = []FunctionParam{
-				{Name: "_hof_acc", Type: &types.TCon{Name: "int"}},
-				{Name: listParamName, Type: &types.TList{Element: &types.TCon{Name: "int"}}},
+				{Name: "_hof_acc", Type: resultType},
+				{Name: listParamName, Type: listType},
 			}
-			returnSort = "Int"
 		}
 
 		if specBody == nil {
-			continue
+			result.Unsupported = fmt.Sprintf("a %s call's lambda takes no parameter", call.Kind)
+			return result
 		}
+
+		// Free variables of the lambda travel as extra parameters (hof_captures.go),
+		// bound under a $c_ prefix: a capture named like a record accessor
+		// (`filter(\p. p.actor == actor, rs)`) would otherwise shadow it.
+		caps, err := lambdaCaptures(call.Lambda)
+		if err != nil {
+			result.Unsupported = fmt.Sprintf("%s call: %v", call.Kind, err)
+			return result
+		}
+		for _, c := range caps {
+			params = append(params, FunctionParam{Name: captureSymbol(c.Name), Type: c.Type})
+			specBody = SubstituteLambdaVar(specBody, c.Name, &core.Var{Name: captureSymbol(c.Name)})
+		}
+		specBody = appendCaptureArgs(specBody, specName, caps)
 
 		// Unroll the specialized recursive function
 		unrollResult, err := UnrollRecursiveFunction(UnrollConfig{
@@ -362,8 +411,8 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 			Depth:      depth,
 		})
 		if err != nil {
-			// If unrolling fails, skip this specialization
-			continue
+			result.Unsupported = fmt.Sprintf("the specialised %s chain does not encode: %v", call.Kind, err)
+			return result
 		}
 
 		result.Specializations = append(result.Specializations, SpecializationResult{
@@ -374,16 +423,20 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 
 		// Replace the HOF call in the body with a call to the top-level unrolled function
 		var replacementCall core.CoreExpr
+		captureArgs := make([]core.CoreExpr, len(caps))
+		for i, c := range caps {
+			captureArgs[i] = c.Node // encoded in the caller's scope, with its renames
+		}
 		switch call.Kind {
-		case HOFMap, HOFFilter:
+		case HOFMap, HOFFilter, HOFAny, HOFFlatMap:
 			replacementCall = &core.App{
 				Func: &core.Var{Name: unrollResult.TopLevelName},
-				Args: []core.CoreExpr{call.ListArg},
+				Args: append([]core.CoreExpr{call.ListArg}, captureArgs...),
 			}
 		case HOFFoldl:
 			replacementCall = &core.App{
 				Func: &core.Var{Name: unrollResult.TopLevelName},
-				Args: []core.CoreExpr{call.InitVal, call.ListArg},
+				Args: append([]core.CoreExpr{call.InitVal, call.ListArg}, captureArgs...),
 			}
 		}
 
@@ -416,7 +469,9 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed {
 			return e
 		}
-		return &core.App{Func: newFunc, Args: newArgs}
+		n := *e
+		n.Func, n.Args = newFunc, newArgs
+		return &n
 	case *core.If:
 		newCond := replaceHOFCall(e.Cond, target, replacement)
 		newThen := replaceHOFCall(e.Then, target, replacement)
@@ -424,14 +479,18 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if newCond == e.Cond && newThen == e.Then && newElse == e.Else {
 			return e
 		}
-		return &core.If{Cond: newCond, Then: newThen, Else: newElse}
+		n := *e
+		n.Cond, n.Then, n.Else = newCond, newThen, newElse
+		return &n
 	case *core.Let:
 		newValue := replaceHOFCall(e.Value, target, replacement)
 		newBody := replaceHOFCall(e.Body, target, replacement)
 		if newValue == e.Value && newBody == e.Body {
 			return e
 		}
-		return &core.Let{Name: e.Name, Value: newValue, Body: newBody}
+		n := *e
+		n.Value, n.Body = newValue, newBody
+		return &n
 	case *core.LetRec:
 		newBindings := make([]core.RecBinding, len(e.Bindings))
 		changed := false
@@ -446,7 +505,9 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed && newBody == e.Body {
 			return e
 		}
-		return &core.LetRec{Bindings: newBindings, Body: newBody}
+		n := *e
+		n.Bindings, n.Body = newBindings, newBody
+		return &n
 	case *core.Match:
 		newScrutinee := replaceHOFCall(e.Scrutinee, target, replacement)
 		newArms := make([]core.MatchArm, len(e.Arms))
@@ -469,26 +530,34 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed {
 			return e
 		}
-		return &core.Match{Scrutinee: newScrutinee, Arms: newArms}
+		n := *e
+		n.Scrutinee, n.Arms = newScrutinee, newArms
+		return &n
 	case *core.BinOp:
 		newLeft := replaceHOFCall(e.Left, target, replacement)
 		newRight := replaceHOFCall(e.Right, target, replacement)
 		if newLeft == e.Left && newRight == e.Right {
 			return e
 		}
-		return &core.BinOp{Op: e.Op, Left: newLeft, Right: newRight}
+		n := *e
+		n.Left, n.Right = newLeft, newRight
+		return &n
 	case *core.UnOp:
 		newOperand := replaceHOFCall(e.Operand, target, replacement)
 		if newOperand == e.Operand {
 			return e
 		}
-		return &core.UnOp{Op: e.Op, Operand: newOperand}
+		n := *e
+		n.Operand = newOperand
+		return &n
 	case *core.Lambda:
 		newBody := replaceHOFCall(e.Body, target, replacement)
 		if newBody == e.Body {
 			return e
 		}
-		return &core.Lambda{Params: e.Params, Body: newBody}
+		n := *e
+		n.Body = newBody
+		return &n
 	case *core.Intrinsic:
 		newArgs := make([]core.CoreExpr, len(e.Args))
 		changed := false
@@ -501,7 +570,9 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed {
 			return e
 		}
-		return &core.Intrinsic{Op: e.Op, Args: newArgs}
+		n := *e
+		n.Args = newArgs
+		return &n
 	case *core.Record:
 		newFields := make(map[string]core.CoreExpr, len(e.Fields))
 		changed := false
@@ -515,13 +586,17 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed {
 			return e
 		}
-		return &core.Record{Fields: newFields}
+		n := *e
+		n.Fields = newFields
+		return &n
 	case *core.RecordAccess:
 		newRecord := replaceHOFCall(e.Record, target, replacement)
 		if newRecord == e.Record {
 			return e
 		}
-		return &core.RecordAccess{Record: newRecord, Field: e.Field}
+		n := *e
+		n.Record = newRecord
+		return &n
 	case *core.List:
 		newElems := make([]core.CoreExpr, len(e.Elements))
 		changed := false
@@ -534,8 +609,42 @@ func replaceHOFCall(expr core.CoreExpr, target *core.App, replacement core.CoreE
 		if !changed {
 			return e
 		}
-		return &core.List{Elements: newElems}
+		n := *e
+		n.Elements = newElems
+		return &n
 	default:
 		return expr
 	}
+}
+
+// String names the HOF kind for diagnostics.
+func (k HOFKind) String() string {
+	switch k {
+	case HOFMap:
+		return "map"
+	case HOFFilter:
+		return "filter"
+	case HOFFoldl:
+		return "foldl"
+	case HOFAny:
+		return "any"
+	case HOFFlatMap:
+		return "flatMap"
+	}
+	return fmt.Sprintf("HOFKind(%d)", int(k))
+}
+
+// hofExprType returns the elaborated type of a Core node from the active
+// encoding's type info, or nil when it is unknown. Nodes synthesised by the
+// verifier carry NodeID 0 and are never looked up.
+func hofExprType(expr core.CoreExpr) types.Type {
+	c := activeADTContext
+	if c == nil || c.ti == nil || expr == nil || expr.ID() == 0 {
+		return nil
+	}
+	t, ok := c.ti.Get(expr.ID())
+	if !ok {
+		return nil
+	}
+	return t
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 func verifySource(t *testing.T, filename, source string) (*smt.VerifyReport, pipeline.Result) {
@@ -22,7 +23,8 @@ func verifySource(t *testing.T, filename, source string) (*smt.VerifyReport, pip
 	}
 	modules := make(map[string]smt.VerifyModule)
 	for name, mod := range result.Modules {
-		modules[name] = smt.VerifyModule{File: mod.File, Core: mod.Core}
+		coreTI, _ := mod.CoreTI.(types.CoreTypeInfo)
+		modules[name] = smt.VerifyModule{File: mod.File, Core: mod.Core, CoreTI: coreTI}
 	}
 	before := make(map[*core.DeclMeta]bool)
 	for _, meta := range result.Artifacts.Core.Meta {
@@ -35,7 +37,9 @@ func verifySource(t *testing.T, filename, source string) (*smt.VerifyReport, pip
 			}
 		}
 	}
-	report := smt.Verify(result.Artifacts.Core, result.Artifacts.AST, modules, smt.VerifyOptions{Timeout: 5 * time.Second})
+	// CoreTI as the CLI passes it (cmd/ailang/verify.go): the encoder reads
+	// elaborated types from it (operand sorts, HOF specialisation signatures).
+	report := smt.Verify(result.Artifacts.Core, result.Artifacts.AST, modules, smt.VerifyOptions{Timeout: 5 * time.Second, CoreTI: result.Artifacts.CoreTI})
 	for meta, pure := range before {
 		if meta.IsPure != pure {
 			t.Fatalf("verification mutated purity of %s", meta.Name)

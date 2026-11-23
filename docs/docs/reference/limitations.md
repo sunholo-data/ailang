@@ -311,15 +311,18 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
 - **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1.
   There is no induction: a recursive function is proved only when `requires` bounds its depth
   within the unrolling limit.
-- **Higher-order list functions.** A caller of `map`/`filter` with a literal lambda reports
-  `⚠ SKIPPED … calls "map" whose signature uses an unencodable type` ([#1375](https://github.com/sunholo-data/ailang/issues/1375)).
+- **Higher-order list functions.** A caller of `map`/`filter`/`foldl`/`any`/`flatMap` with a
+  literal lambda is unrolled to depth 3 (dev, after v0.60.6; it was SKIPPED, #1375): like recursion
+  it is VERIFIED only when `requires` bounds the list, and INCONCLUSIVE otherwise. A named function
+  argument is still skipped.
 - **Bitwise operators.** `x & 255` reports `⚠ SKIPPED … unencodable builtin: bitwiseAnd_Int`.
 - **Two imported functions with the same name.** A module imports `a/good (clamp0 as goodClamp)`
   and `a/bad (clamp0)`; `usesBad(x) ensures { result >= 0 } { clamp0(x) }` calls the bad one
   (`x - 1`). `ailang verify` reported `✓ VERIFIED` in 5 of 6 runs: callee bodies are looked up by
-  bare name, so the other module's `clamp0` can be inlined. Avoid same-named functions across the
-  modules a verified function imports until M1 of
-  [M-VERIFY-SOUNDNESS-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_61_0/m-verify-soundness-coverage-program.md) lands.
+  bare name, so the other module's `clamp0` can be inlined. **Fixed on dev after v0.60.6**: a call
+  whose bare name would bind another module's function is now SKIPPED, naming both modules
+  ([M-VERIFY-SOUNDNESS-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_61_0/m-verify-soundness-coverage-program.md) M1).
+  On v0.60.6 and earlier, avoid same-named functions across a verified function's imports.
 - **Unannotated generic parameters.** `pure func inc(x) requires {…} ensures {…}` reports
   `! ERROR … unknown constant x` instead of a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)).
 
@@ -328,7 +331,7 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
 **Workaround**: guard callee preconditions in code (or with `--verify-contracts` on the evaluator);
 bound ints explicitly in `requires` where overflow is possible; guard floats with `std/math.isNaN`;
 give recursive functions a depth-bounding `requires` or test them by running them; write a
-recursive helper instead of `map`/`filter`/`foldl`; annotate every parameter type. Guide:
+`requires` that bounds a list passed to `map`/`filter`/`foldl`; annotate every parameter type. Guide:
 [Contracts & Verification](/docs/guides/contracts#reading-verification-evidence).
 
 ---

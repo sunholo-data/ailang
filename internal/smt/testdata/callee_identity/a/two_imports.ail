@@ -1,0 +1,13 @@
+module a/two_imports
+import a/good (clamp0 as goodClamp)
+import a/bad (clamp0)
+
+export func usesGood(x: int) -> int ! {}
+ensures { result >= 0 } {
+  goodClamp(x)
+}
+
+export func usesBad(x: int) -> int ! {}
+ensures { result >= 0 } {
+  clamp0(x)
+}

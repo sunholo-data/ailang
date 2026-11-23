@@ -12,7 +12,7 @@ func TestEncodeLetLexicalParameterScopeRestored(t *testing.T) {
 	defer func() { activeParamRenames = previous }()
 	expr := &core.Let{Name: "n", Value: &core.Var{Name: "n"}, Body: &core.Var{Name: "n"}}
 	got, err := EncodeExpr(expr)
-	if err != nil || got != "(let ((n $p_n)) n)" {
+	if err != nil || got != "(let (($l_n $p_n)) $l_n)" {
 		t.Fatalf("let scope capture: %s %v", got, err)
 	}
 	if activeParamRenames["n"] != "$p_n" {

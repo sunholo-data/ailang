@@ -14,11 +14,15 @@ func encodeLet(let *core.Let) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("let value: %w", err)
 	}
-	body, err := encodeLetScoped(let.Body, let.Name)
+	// Bind under a prefixed symbol: a local named like a record accessor or a
+	// declared function (`let applicable = …`) otherwise shadows that symbol
+	// and Z3 rejects the reference as ambiguous (#215).
+	symbol := letSymbol(let.Name)
+	body, err := encodeLetRenamed(let.Body, let.Name, symbol)
 	if err != nil {
 		return "", fmt.Errorf("let body: %w", err)
 	}
-	return fmt.Sprintf("(let ((%s %s)) %s)", let.Name, value, body), nil
+	return fmt.Sprintf("(let ((%s %s)) %s)", symbol, value, body), nil
 }
 
 // encodeMatch encodes a match expression.
