@@ -7,11 +7,11 @@ require (
 	cloud.google.com/go/pubsub v1.52.0
 	cloud.google.com/go/run v1.25.0
 	cloud.google.com/go/secretmanager v1.24.0
-	cloud.google.com/go/storage v1.70.0
+	cloud.google.com/go/storage v1.71.0
 	cloud.google.com/go/trace v1.18.1
 	firebase.google.com/go/v4 v4.23.0
 	github.com/BurntSushi/toml v1.6.0
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.39.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.10.1
@@ -38,12 +38,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0
 	go.opentelemetry.io/proto/otlp v1.11.1
 	go.uber.org/zap v1.28.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
 	golang.org/x/text v0.44.0
-	google.golang.org/api v0.314.0
+	google.golang.org/api v0.316.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -52,7 +52,7 @@ require (
 require (
 	cel.dev/expr v0.26.0 // indirect
 	cloud.google.com/go v0.123.0 // indirect
-	cloud.google.com/go/auth v0.24.3 // indirect
+	cloud.google.com/go/auth v0.24.4 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.3.1 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	cloud.google.com/go/iam v1.15.1 // indirect
@@ -61,7 +61,7 @@ require (
 	cloud.google.com/go/monitoring v1.32.1 // indirect
 	cloud.google.com/go/pubsub/v2 v2.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.62.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.62.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.63.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
