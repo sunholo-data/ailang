@@ -10,3 +10,10 @@ Placed alone across 81 benchmarks (smoke through long-frontier) at `--trials 1`:
 anchored ELO 2735**, banked. Smoke and core were clean, and every run finished `stop`. The one
 miss, `contract_sorted_merge`, printed a set as `{1, 2, 3}` where the spec wants `[1,2,3]`. The
 run cost $17.53 at list ($0.216/run, no cache hits recorded). It is in no suite yet.
+
+### Changed — Gemini 4 Neon joins `extended_suite`; managed-agents row added
+
+`gemini-4-neon` is now in `extended_suite` next to Argon and Carbon (2026-11-23). A new opt-in row
+`gemini-agents-neon` pins the Developer API managed agent (`antigravity-preview-09-2026`) to Neon.
+The pin was accepted and echoed, and a made-up model name was rejected with a 404. Billing has not
+yet confirmed that Neon served it, and the agent smoke tier has not been run.

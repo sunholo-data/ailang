@@ -2473,6 +2473,37 @@ models:
 
       GATE: full smoke tier PENDING. In NO suite, in NO role chain.
 
+  # Same gemini_agents executor, pinned to Gemini 4 Neon via agent_config (2026-11-23)
+  gemini-agents-neon:
+    api_name: "antigravity-preview-09-2026"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini Developer API Managed Agents (antigravity 09-2026) pinned to gemini-4-neon — edits the local workspace via repo mount + patch export"
+    env_var: "GEMINI_AGENTS_API_KEY"  # SA-bound, generativelanguage-only key; scripts/security/setup_gemini_agents_project.sh
+    agent_cli: "gemini_agents"
+    agent_model_name: "antigravity-preview-09-2026/gemini-4-neon"
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      # List rates, as gemini-4-neon. Not yet checked against the billing export.
+      input_per_1k: 0.003          # $3.00 per 1M
+      output_per_1k: 0.015         # $15.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.00015   # $0.15 per 1M
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 900
+    notes: |
+      PIN PROBED 2026-11-23 (Developer API, GEMINI_AGENTS_API_KEY, Api-Revision 2026-05-20,
+      the TestLiveArgonPin W_dev request shape): agent_config{type:antigravity,
+      model:gemini-4-neon} -> 200, model echoed "gemini-4-neon", status completed,
+      5,454 input tokens; control model gemini-9-does-not-exist -> 404 "Requested entity
+      was not found". Acceptance is not billing: the 2026-11-23 SKU lines for project
+      ailang-gemini-agents are the proof that Neon served it (still owed).
+      Vertex cannot pin (see gemini-agents-argon). Executor, auth and spend cap: see the
+      gemini-agents-antigravity row.
+
+      GATE: agent smoke tier PENDING. In NO suite, in NO role chain.
+
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
     provider: "google"
@@ -7006,6 +7037,9 @@ extended_suite:
     # replacing it: Google positions Argon as the low-token-spend model. Placement run alone,
     # --trials 1, smoke+core+frontier+stretch+long-frontier: 81/81, anchored ELO 2969 (a floor).
     # Same list price as Argon but 6.7x its output+thinking tokens; full record on the row.
+  - "gemini-4-neon"      # Google Gemini 4 Neon — ADDED 2026-11-23 (Mark), alongside Argon/Carbon.
+    # Placement run alone 2026-11-19, --trials 1, smoke..long-frontier: 80/81, anchored ELO 2735;
+    # $3/$15 flat (no intro), $0.216/run uncached. Full record on the row.
   - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
     # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
     # command, same day, thinking-inclusive, N=1 unless noted:
