@@ -37,7 +37,7 @@ mc_codex_env_args() {
   # The exact marker is the only secret-pattern exception. Empty exported markers are invalid.
   if [ "${AILANG_SECRETS_LANE+x}" = x ]; then
     case "$AILANG_SECRETS_LANE" in
-      claude-controller|codex-controller|pi-controller|claude-role|codex-role|pi-role) : ;;
+      claude-controller|codex-controller|pi-controller|claude-role|codex-role|pi-role|agy-role) : ;;
       *) echo 'codex-env: refused invalid scope marker' >&2; return 64 ;;
     esac
   fi

@@ -338,6 +338,29 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
     the text response). Do NOT pin `MISSION_EXECUTOR_MODEL=gemini:…` expecting worktree edits — that
     is a follow-up (bridge work), not this lane. generator≠judge: gemini (Google) is a distinct
     provider from any Anthropic/OpenAI executor, so it is a valid independent evaluator/reviewer.
+- **`PROVIDER=agy`** (added 2026-11-23, attended; **wired, not in any chain yet** — placing it is
+  Mark's D6 call after the agent smoke gate). Google's Antigravity CLI through the AILANG executor
+  `internal/executor/agy`, reached ONLY via `ailang exec agy` — never bare `agy` (the executor owns
+  the isolated HOME, the permission rules, and the exit-0 soft-denial verdict). Pin forms:
+  `agy:gemini-4-neon-high` = Google AI **subscription** (flat rate, bucket `google`);
+  `agy:api/gemini-4-neon-high` = locked `GEMINI_AGENTS_API_KEY` (**metered**, bucket `gemini-api`).
+  Rows: `agy-gemini-4-neon`, `agy-gemini-4-carbon` (Ultra only), `agy-api-gemini-4-neon`.
+  1. **Probe:** the driver's `_mc_probe_agy` (lib/lane-probe.sh) — `ailang exec agy --json` inside
+     the `agy-role` secrets scope; verdict = the JSON `"success"`, never rc. Same call by hand:
+     `/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" agy-role -- ailang exec agy --model "$M" --workspace "$(mktemp -d)" --timeout 110s --json 'reply with exactly: ok'`.
+     `unknown provider "agy"` = the installed `ailang` predates the executor (reinstall, not a lane fault).
+     `make agy-signin` in the error = the subscription is not signed in on this machine (attended fix).
+  2. **Real run — reuse the codex recipe's guards BY REFERENCE** (per-iteration directive file,
+     `< /dev/null`, backgrounded bounded `date +%s` cap, NO git write operations in the directive):
+     `/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_scoped_run.sh" agy-role -- ailang exec agy --model "$M" --workspace "$WT" --timeout 30m --json "$(cat /tmp/agy_directive_iter<N>.txt)" > /tmp/agy_run_iter<N>.json`.
+     Read `.success`, `.error`, `.finish_reason`, `.cost_usd`, `.cost_provenance`. **`success:false`
+     with "soft-denied" is a lane failure** (agy refused a shell command its allowlist lacks —
+     `internal/executor/agy/route.go`); fall back and FLAG, never re-prompt in place.
+  3. **Ledger:** `cost_provenance: list-price-equivalent` (subscription) is NOT metered spend;
+     `metered` (`api/`) IS — post it to the Gate-3 metered ledger like an OpenRouter run.
+  4. **Not an evaluator yet:** `test_evaluator_skill_lane.sh` admits only `claude:*`/`pi:*` judges
+     (measured skill support); agy's skill loading is unmeasured. Not a controller either — the
+     driver skips `agy:` controller entries by name.
 - **`PROVIDER=pi`** (executor role — added 2026-08-06, Mark: codex-quota offload after the codex
   bucket dried; gate trial = agent smoke 23/23 + the #590 mission replay, 12/13 held-out landed
   tests at $0.076/12.6 min — memory `project_pi_deepseek_flash_mission_trial`). pi CLI at

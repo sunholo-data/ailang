@@ -3,7 +3,7 @@
 
 mc_secrets_scope_lane_valid() {
   case "${1-}" in
-    claude-controller|codex-controller|pi-controller|claude-role|codex-role|pi-role) return 0 ;;
+    claude-controller|codex-controller|pi-controller|claude-role|codex-role|pi-role|agy-role) return 0 ;;
     *) return 64 ;;
   esac
 }
@@ -30,6 +30,12 @@ mc_secrets_scope_allow() {
       printf '%s\n' OLLAMA_API_KEY
       # P: pi quota gauges: cmd/ailang/pi_assets/provider-quota.ts:35,69,119-120.
       printf '%s\n' OPENROUTER_API_KEY
+      ;;
+    agy-role)
+      # G: the agy executor's API-key route maps it to the child's GEMINI_API_KEY and
+      # nothing else (internal/executor/agy/route.go routeEnv). The subscription route
+      # needs no env credential: agy's own cached sign-in under its isolated HOME.
+      printf '%s\n' GEMINI_AGENTS_API_KEY
       ;;
     *) return 64 ;;
   esac

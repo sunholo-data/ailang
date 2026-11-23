@@ -975,7 +975,7 @@ MC_PAUSED=0
 # bare `opus` in PREFS and the `claude:opus` it becomes are the same rung here.
 _mc_canon_id() {
   case "$1" in
-    codex:*|pi:*|claude:*) printf '%s' "$1" ;;
+    codex:*|pi:*|claude:*|agy:*) printf '%s' "$1" ;;
     *) printf 'claude:%s' "$1" ;;
   esac
 }
@@ -1064,6 +1064,12 @@ select_model() {
         if [ "$rcode" -eq 0 ]; then _mc_set_controller "$m" "probe ok"; return 0; fi
         log "controller preference $m probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
         ;;
+      agy:*)
+        # agy (internal/executor/agy) serves ROLES via `ailang exec agy`; nothing here can
+        # run it as the controller session. Skipped loudly rather than probed as a claude
+        # alias (the `*)` arm below), which would fail and read as an Anthropic outage.
+        log "controller preference $m is an agy role lane, not a controller — skipping"
+        ;;
       *)
         _mc_probe "$m"; rcode=$?
         case "$rcode" in
@@ -1111,6 +1117,7 @@ select_model() {
         fi
         log "pi controller rung '$m' probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
         ;;
+      agy:*) log "CONTROLLER_FALLBACK entry '$fb' is an agy role lane, not a controller — skipping" ;;
       *) log "unsupported CONTROLLER_FALLBACK entry '$fb' (expected codex:<model> or pi:<model>) — skipping" ;;
     esac
   done
@@ -1866,7 +1873,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   var="MISSION_${role}_MODEL"; val="${!var:-}"
   # Only anthropic-shaped values: a bare Agent alias (sonnet/opus) or an explicit claude: pin.
   case "$val" in
-    ""|codex:*|pi:*) continue ;;
+    ""|codex:*|pi:*|agy:*) continue ;;
   esac
   an_model="${val#claude:}"
   case "$_an_probed" in *":${an_model}:"*) : ;; *)   # not yet probed
@@ -2012,24 +2019,32 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   # non-pi value (or a settled pi value) breaks out at the bottom.
   while :; do
   val="${!var}"
-  case "$val" in pi:*)
-    pi_model="${val#pi:}"
-    case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
-      _pi_probed="${_pi_probed}${pi_model}:"
-      _mc_probe_pi "$pi_model"
+  # agy:* (internal/executor/agy, via `ailang exec agy`) rides this loop: same probe-
+  # then-advance-along-the-chain contract, its own probe. lane_prov is "pi" for every
+  # pi value, so pi's log lines and ledger entries read exactly as before.
+  case "$val" in pi:*|agy:*)
+    lane_prov="${val%%:*}"
+    pi_model="${val#*:}"
+    case "$_pi_probed" in *":${val}:"*) : ;; *)   # not yet probed
+      _pi_probed="${_pi_probed}${val}:"
+      if [ "$lane_prov" = agy ]; then
+        _mc_probe_agy "$pi_model"
+      else
+        _mc_probe_pi "$pi_model"
+      fi
       pi_rc=$?; pi_out="$MC_BOUNDED_OUT"
       if [ "$pi_rc" -ne 0 ]; then
-        _pi_failed="${_pi_failed}${pi_model}:"
+        _pi_failed="${_pi_failed}${val}:"
         if [ "$pi_rc" -eq 124 ]; then pi_why="probe timed out after ${PROBE_TIMEOUT}s"
         else pi_why="probe failed (rc=$pi_rc)"; fi
-        log "pi model '$pi_model' unusable: $pi_why"
-        log "pi probe output: $(printf '%s' "$pi_out" | tail -3 | tr '\n' ' ')"
-        _pi_rcmap="${_pi_rcmap}${pi_model}=${pi_rc};"
+        log "${lane_prov} model '$pi_model' unusable: $pi_why"
+        log "${lane_prov} probe output: $(printf '%s' "$pi_out" | tail -3 | tr '\n' ' ')"
+        _pi_rcmap="${_pi_rcmap}${val}=${pi_rc};"
       fi
     ;; esac
-    case "$_pi_failed" in *":${pi_model}:"*)
+    case "$_pi_failed" in *":${val}:"*)
       role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
-      _pi_rc_for=$(printf '%s' "$_pi_rcmap" | tr ';' '\n' | grep "^${pi_model}=" | head -1 | cut -d= -f2)
+      _pi_rc_for=$(printf '%s' "$_pi_rcmap" | tr ';' '\n' | awk -F= -v k="$val" '$1 == k {print $2; exit}')
       [ -n "$_pi_rc_for" ] || _pi_rc_for="unknown"
       # Advance along the chain rather than jumping to opus. The Ollama Cloud rung
       # can be exhausted by a quota whose denominator is unpublished, so the
@@ -2039,15 +2054,15 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       if [ -n "$_rem" ]; then
         _next=$(_chain_head "$_rem")
         printf -v "$remvar" '%s' "$(_chain_tail "$_rem")"; export "$remvar"
-        log "pi ${role_lc} lane '$pi_model' unusable -> advancing to '$_next'"
+        log "${lane_prov} ${role_lc} lane '$pi_model' unusable -> advancing to '$_next'"
         _lane_degraded="${_lane_degraded}
-- \`${role_lc}\`: **pi** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → advanced to \`${_next}\`"
+- \`${role_lc}\`: **${lane_prov}** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → advanced to \`${_next}\`"
         printf -v "$var" '%s' "$_next"; export "$var"
         continue
       fi
-      log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
+      log "${lane_prov} ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
       _lane_degraded="${_lane_degraded}
-- \`${role_lc}\`: **pi** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`opus\` (end of chain)"
+- \`${role_lc}\`: **${lane_prov}** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`opus\` (end of chain)"
       printf -v "$var" 'opus'; export "$var"
     ;; esac
   ;; esac

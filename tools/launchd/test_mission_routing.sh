@@ -494,7 +494,8 @@ _drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control
 _res_fn=$(awk '/^_rs_bucket\(\)/,/^}/' "$RESOLVE")
 _hook_fn=$(awk '/^_lane_bucket\(\)/,/^}/' "$ROOT/tools/launchd/spawn-pin-hook.sh")
 for _r in codex:gpt-6-sol pi:openrouter/z-ai/glm-5.3 pi:ollama/glm-5.3:cloud pi:ollama/x-cloud \
-          pi:ollama/qwen3.8:27b claude:claude-opus-5-5 opus pi:other/model; do
+          pi:ollama/qwen3.8:27b claude:claude-opus-5-5 opus pi:other/model \
+          agy:gemini-4-neon-high agy:api/gemini-4-neon-high; do
   _a=$(bash -c "$_drv_fn"'; _mc_rung_bucket "$1"' _ "$_r")
   _b=$(bash -c "$_res_fn"'; _rs_bucket "$1"' _ "$_r")
   _c=$(bash -c "$_hook_fn"'; _lane_bucket "$1"' _ "$_r")

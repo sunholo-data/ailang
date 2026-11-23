@@ -55,6 +55,8 @@ _lane_bucket() {
     pi:openrouter/*) printf 'openrouter' ;;
     pi:ollama/*:cloud|pi:ollama/*-cloud) printf 'ollama' ;;
     pi:ollama/*|pi:*) printf '' ;;
+    agy:api/*) printf 'gemini-api' ;; # agy: see _mc_rung_bucket (lib/lane-probe.sh)
+    agy:*) printf 'google' ;;
     *) printf 'anthropic' ;;
   esac
 }

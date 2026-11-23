@@ -3,7 +3,7 @@
 # shellcheck shell=bash
 set -u
 if [ "$#" -lt 3 ] || [ "$2" != -- ]; then
-  echo 'usage: mission_scoped_run.sh <codex-role|claude-role> -- <command...>' >&2
+  echo 'usage: mission_scoped_run.sh <codex-role|claude-role|agy-role> -- <command...>' >&2
   exit 64
 fi
 lane=$1
@@ -22,5 +22,8 @@ case "$lane" in
     exec "$@" ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"}
     ;;
   claude-role) exec "$@" ;;
+  # agy: `ailang exec agy …`. The executor builds the child env itself (default-deny,
+  # isolated HOME); the scope above already stripped everything but its one key.
+  agy-role) exec "$@" ;;
   *) echo 'mission-scoped-run: unsupported role lane; launch refused' >&2; exit 64 ;;
 esac

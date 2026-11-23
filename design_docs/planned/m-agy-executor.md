@@ -238,9 +238,14 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
   - `--mode auto` is "not available for this account" on the API key. It may exist on the subscription, which would put a Google reviewer agent in charge of command approval instead.
 - **Symlinked cwd trap:** agy judges workspace writes against the RESOLVED cwd. A `/var/...` PWD over a `/private/var/...` cwd soft-denied `write_file(Edit)` intermittently. The executor resolves the workspace and sets `PWD` to the resolved path.
 - **P6 partly answered:** the docs say the sign-in lives in the OS keyring (macOS item `Antigravity CLI`), with a file fallback added in 1.4.7/1.5.9. Under the isolated HOME, `agy models` says "Please sign in", so the cached credential is HOME-scoped or absent. Re-check after `make agy-signin`, including from a launchd-spawned run (P3).
-- **Not built yet:**
-  - The mission-driver lane. `agy:` pins currently fall through to the anthropic bucket in `lane-probe.sh` and `resolve-role-spawn.sh`, so this is a separate change under the mission-loop-change skill.
-  - Cloud (Pillar 2), which waits on the Linux keyring question.
+- **Mission lane wired, in no chain:**
+  - Buckets: `agy:` is `google`, `agy:api/` is `gemini-api`, in all three maps.
+  - `_mc_probe_agy` probes through `ailang exec agy` inside the `agy-role` secrets scope.
+  - The role pre-flight walks `agy:` pins, and the controller skips them.
+  - Dry-run proven: degrade path DEGRADED -> opus, with the reason named.
+  - The healthy dry run waits for an installed `ailang` that includes the executor. The recipe is in mission-control `gate-3-route.md`.
+  - D6 (which chain gets it) is Mark's call, after the agent smoke gate.
+- **Not built yet:** Cloud (Pillar 2), which waits on the Linux keyring question.
 
 ## Deferred Decisions
 

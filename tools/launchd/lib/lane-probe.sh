@@ -9,6 +9,9 @@
 
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
+# The tree this library was sourced from; probes that launch a repo script use it when the
+# caller has not set MC_DRIVER_ROOT (mission-lane-check.sh sources this file directly).
+_MC_PROBE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)"
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/codex-auth-profile.sh"
 
 # _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
@@ -156,6 +159,36 @@ _mc_probe_pi() {
   _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --no-extensions --model "$m" -p 'reply with exactly: ok'
 }
 
+# _mc_probe_agy MODEL → 0 usable | 2 unusable | 124 timeout | 75 ration-blocked.
+# MODEL is the agy executor's model string: "gemini-4-neon-high" (Google AI subscription)
+# or "api/gemini-4-neon-high" (metered locked key). The probe goes through
+# `ailang exec agy`, the SAME path a role run takes (isolated HOME, permission posture,
+# soft-denial and no-sign-in handling), inside the agy-role secrets scope.
+# rc from agy itself is never trusted (it exits 0 on a soft denial): the verdict is the
+# executor's JSON "success". A missing sign-in reads as unusable with the executor's
+# "make agy-signin" hint in the captured output; quota exhaustion on the subscription is
+# NOT yet distinguishable (m-agy-executor P4), so it also reads as unusable.
+_mc_probe_agy() {
+  local m="$1" ws rc
+  if _mc_is_over_ration "agy:$m"; then
+    MC_BOUNDED_OUT="agy quota admission blocked (over ration or observation unavailable)"
+    log "agy:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
+  ws=$(mktemp -d -t mc_agy_probe) || { MC_BOUNDED_OUT="mktemp failed"; return 2; }
+  _mc_bounded "$PROBE_TIMEOUT" /bin/bash "${MC_DRIVER_ROOT:-$_MC_PROBE_ROOT}/scripts/mission_scoped_run.sh" agy-role -- \
+    ailang exec agy --model "$m" --workspace "$ws" --timeout "$((PROBE_TIMEOUT > 30 ? PROBE_TIMEOUT - 10 : PROBE_TIMEOUT))s" \
+    --json 'reply with exactly: ok'
+  rc=$?
+  rm -rf "$ws"
+  [ "$rc" -eq 124 ] && return 124
+  if printf '%s' "$MC_BOUNDED_OUT" | grep -qE '"success": *true'; then
+    return 0
+  fi
+  log "agy:$m probe failed (rc=$rc): $(printf '%s' "$MC_BOUNDED_OUT" | grep -oE '"error": *"[^"]{0,240}' | head -1)"
+  return 2
+}
+
 # ---- the daily ration gate (M-QUOTA-RATIONING-ROUTING M4, D-1/D-4) ---------
 #
 # Routing has always asked "is this lane UP?" and never "can it AFFORD to be
@@ -275,6 +308,12 @@ _mc_rung_bucket() {
     pi:ollama/*) printf '' ;; # Local models do not consume the cloud subscription.
     claude:*) printf 'anthropic' ;;
     pi:*) printf '' ;;
+    # agy (Google Antigravity CLI, internal/executor/agy): api/ = the metered locked key,
+    # bare = the Google AI subscription. Neither bucket is in the ration ledger yet
+    # (quota unobservable, m-agy-executor P4), so neither is ever refused by it; they
+    # are named so they cannot fall through to the anthropic bucket below.
+    agy:api/*) printf 'gemini-api' ;;
+    agy:*) printf 'google' ;;
     *) printf 'anthropic' ;;
   esac
 }

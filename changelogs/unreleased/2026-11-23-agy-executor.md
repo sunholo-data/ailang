@@ -21,3 +21,20 @@ subscription (design: `design_docs/planned/m-agy-executor.md`).
   and `agy-api-gemini-4-neon` are in no suite.
 - **Status.** Live-verified on the API-key route: `ailang exec agy --model api/gemini-4-neon-high`
   edited the workspace, priced at $0.043. The subscription route waits on the sign-in.
+
+### Added — `agy:` mission role lane (wired, in no chain)
+
+The mission driver now accepts `agy:<model>` role pins:
+- **Buckets:** `agy:gemini-4-neon-high` is bucket `google` (subscription), and
+  `agy:api/gemini-4-neon-high` is `gemini-api` (metered). All three bucket maps (driver, resolver,
+  spawn-pin hook) agree, and R13 checks it. Before this, an `agy:` pin fell through to the
+  **anthropic** bucket.
+- **Probe:** `_mc_probe_agy` goes through `ailang exec agy --json` inside a new `agy-role` secrets
+  scope, which keeps only `GEMINI_AGENTS_API_KEY`. The verdict is the executor's `success` field, not
+  the exit code.
+- **Role pre-flight:** walks `agy:` pins with the pi loop's advance-along-the-chain contract. The
+  Anthropic pre-flight no longer probes them as Claude models.
+- **Controller:** controller selection skips `agy:` entries by name.
+
+Covered by `tools/launchd/test_agy_lane.sh`, which is wired into `make test-launchd-drivers` and
+mutation-checked. No mission's chain names agy yet, so it changes no fire until a pin is set.

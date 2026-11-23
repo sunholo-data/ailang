@@ -51,6 +51,7 @@ case "$arm" in
       claude-role) expected=CLAUDE_CODE_OAUTH_TOKEN ;;
       codex-role) expected='' ;;
       pi-role) expected='OLLAMA_API_KEY OPENROUTER_API_KEY' ;;
+      agy-role) expected=GEMINI_AGENTS_API_KEY ;;
     esac
     actual=$(mc_secrets_scope_allow "$lane") || exit 98
     [ "$(printf '%s' "$actual" | tr '\n' ' ')" = "$expected" ] || exit 99
@@ -278,7 +279,7 @@ done
 # host-missing-lib: make bridge return 0 if library is absent.
 # host-missing-root/bridge: replace host failure exit 78 with return 0.
 # multiple: replace caller loop with for name in $names (no zsh splitting).
-ARMS='source lane-claude-controller lane-codex-controller lane-pi-controller lane-claude-role lane-codex-role lane-pi-role unknown future helper-collision forms dedup decoy noeval disclosure parent missing unset-failure bridge-unset bridge-empty host-good host-unset host-empty host-missing-lib host-missing-root host-missing-bridge multiple'
+ARMS='source lane-claude-controller lane-codex-controller lane-pi-controller lane-claude-role lane-codex-role lane-pi-role lane-agy-role unknown future helper-collision forms dedup decoy noeval disclosure parent missing unset-failure bridge-unset bridge-empty host-good host-unset host-empty host-missing-lib host-missing-root host-missing-bridge multiple'
 
 if [ "${1-}" != --mutations ]; then
   for shell in /bin/bash /bin/zsh; do
@@ -312,6 +313,7 @@ elif arm.startswith('lane-'):
         'codex-controller': 'CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY OPENROUTER_API_KEY',
         'pi-controller': 'CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY OPENROUTER_API_KEY',
         'claude-role': '', 'codex-role': 'OPENAI_API_KEY', 'pi-role': 'OLLAMA_API_KEY',
+        'agy-role': 'OPENAI_API_KEY',
     }[lane]
     output = "printf '%s\\n' " + allowed if allowed else ':'
     new = s.replace('mc_secrets_scope_allow() {', 'mc_secrets_scope_allow() {\n  if [ "${1-}" = "'+lane+'" ]; then '+output+'; return 0; fi', 1)

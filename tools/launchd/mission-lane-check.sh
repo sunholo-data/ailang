@@ -105,6 +105,7 @@ check_rung() { # RUNG → RUNG_V = ok | skip:<why> | dead:<why>
                # task minutes apart (2026-10-02). Two misses is a lane problem; one is noise.
                case "$out" in dead:empty_worktree*) out=$(pi_task "$m") ;; esac
              else _mc_probe_pi "$m" >/dev/null 2>&1; rc=$?; fi ;;
+    agy:*)   m="${r#agy:}"; _mc_probe_agy "$m" >/dev/null 2>&1; rc=$? ;;
     *)       m="${r#claude:}"; _mc_probe "$m" >/dev/null 2>&1; rc=$? ;;
   esac
   if [ -z "$out" ]; then
@@ -122,7 +123,7 @@ for r in "${_ctl[@]}"; do
   [ -n "$r" ] || continue
   check_rung "$r"; v="$RUNG_V"; _ctl_rows="$_ctl_rows $r=$v"
   if [ "$v" = ok ] && [ -z "$CTL_PROVIDER" ]; then
-    case "$r" in codex:*) CTL_PROVIDER=codex ;; pi:*) CTL_PROVIDER=pi ;; *) CTL_PROVIDER=claude ;; esac
+    case "$r" in codex:*) CTL_PROVIDER=codex ;; pi:*) CTL_PROVIDER=pi ;; agy:*) continue ;; *) CTL_PROVIDER=claude ;; esac
   fi
 done
 if [ -n "$CTL_PROVIDER" ]; then row controller ok "first usable: $CTL_PROVIDER ·$_ctl_rows"
@@ -138,7 +139,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     # A claude-lane judge is reached through Claude's Agent tool, which only a claude
     # controller has (iteration 17: agent-tool:sonnet-unavailable). Usable is not reachable.
     if [ "$role" = EVALUATOR ] && [ "$v" = ok ] && [ "$CTL_PROVIDER" != claude ]; then
-      case "$r" in codex:*|pi:*) ;; *) v="skip:unreachable from a $CTL_PROVIDER controller" ;; esac
+      case "$r" in codex:*|pi:*|agy:*) ;; *) v="skip:unreachable from a $CTL_PROVIDER controller" ;; esac
     fi
     _rows="$_rows $r=$v"
     [ "$v" = ok ] && [ -z "$_usable" ] && _usable="$r"
