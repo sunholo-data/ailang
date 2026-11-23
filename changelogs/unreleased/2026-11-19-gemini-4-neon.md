@@ -9,7 +9,7 @@ knobs. `max_output_tokens` is 65536, the Developer API's declared limit.
 Placed alone across 81 benchmarks (smoke through long-frontier) at `--trials 1`: **80/81,
 anchored ELO 2735**, banked. Smoke and core were clean, and every run finished `stop`. The one
 miss, `contract_sorted_merge`, printed a set as `{1, 2, 3}` where the spec wants `[1,2,3]`. The
-run cost $17.53 at list ($0.216/run, no cache hits recorded). It is in no suite yet.
+run cost $17.53 at list ($0.216/run, no cache hits recorded).
 
 ### Changed — Gemini 4 Neon joins `extended_suite`; managed-agents row added
 
