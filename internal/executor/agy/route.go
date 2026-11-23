@@ -46,7 +46,7 @@ func homeRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("agy: cannot resolve the operator HOME for the agy HOME root: %w", err)
 	}
-	return filepath.Join(h, ".ailang", "state", "agy"), nil
+	return config.AgyHomeRootFor(h), nil
 }
 
 // routeHome is the isolated HOME agy runs under for a route. Never the

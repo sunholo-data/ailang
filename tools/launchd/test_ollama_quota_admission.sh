@@ -42,7 +42,7 @@ eval "$(awk '/^_mc_load_ration\(\) \{/,/^\}$/' "$DRIVER" "$HERE/lib/lane-probe.s
 _mc_bounded(){ MC_BOUNDED_OUT='unavailable';return 124; }
 MC_OVER_RATION_READ=0
 _mc_load_ration
-[ "$MC_OVER_RATION" = 'codex ollama' ] || { echo 'FAIL quota command outage opened admission';exit 1; }
+[ "$MC_OVER_RATION" = 'codex ollama google' ] || { echo 'FAIL quota command outage opened admission';exit 1; }
 echo 'PASS actual planner/executor fallbacks and quota-command outage admission'
 # Absolute and file controller pins cannot bypass cloud admission.
 _mc_load_ration(){ :; }

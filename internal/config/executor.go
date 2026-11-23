@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -75,6 +76,17 @@ func ExecutorEnvInherit() []string {
 // AgyHomeRoot returns AILANG_AGY_HOME_ROOT, "" when unset (the executor
 // then uses ~/.ailang/state/agy).
 func AgyHomeRoot() string { return get(EnvAgyHomeRoot) }
+
+// AgyHomeRootFor is the agy executor's HOME root for an operator home:
+// AILANG_AGY_HOME_ROOT, else <home>/.ailang/state/agy. The ONE definition the
+// executor (which runs agy there) and the quota observer (which reads the
+// subscription's quota there) share, so they cannot look in different places.
+func AgyHomeRootFor(home string) string {
+	if r := AgyHomeRoot(); r != "" {
+		return r
+	}
+	return filepath.Join(home, ".ailang", "state", "agy")
+}
 
 // ChildGitCredentials returns the AILANG_CHILD_GIT_CREDENTIALS mode, or an
 // error naming the variable for a value that is neither mode (no silent

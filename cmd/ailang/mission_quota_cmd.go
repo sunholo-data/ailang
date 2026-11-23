@@ -5,7 +5,8 @@ package main
 // Routing has always been able to ask "is this lane up?" and never "can it afford to be
 // used?". This is where the second question is answered: consumption per (bucket, window)
 // against the ration, fleet-wide because that is what the subscription is. Codex and
-// Anthropic are paced by weekday (mission.WeekdayPacePercent); the others at 10%/day.
+// Anthropic are paced by weekday (mission.WeekdayPacePercent); Google (agy) at
+// AILANG_GOOGLE_DAILY_PACE %/calendar day; the others at 10%/day.
 
 import (
 	"encoding/json"
@@ -26,9 +27,9 @@ func missionQuota(args []string) error {
 func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) error {
 	fs := flag.NewFlagSet("mission quota", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
-	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
+	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama, google)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
-	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. These block unknown quota; other buckets require proven ledger exceedance.")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. Google (agy subscription) uses `agy -p /quota` paced at AILANG_GOOGLE_DAILY_PACE %/day. These block unknown quota; other buckets require proven ledger exceedance.")
 	codexReset := fs.Bool("codex-reset", false, "ATTENDED ONLY: spend one Codex reset credit (resets the account's current windows). Requires --yes; refused inside a mission iteration.")
 	codexCredit := fs.String("credit", "", "With --codex-reset: the credit id to spend (default: the provider picks)")
 	yes := fs.Bool("yes", false, "With --codex-reset: confirm spending the credit")
@@ -68,6 +69,14 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		anthropic = &observation
 	}
 
+	// The Google AI subscription the agy executor runs on (bucket google). Read from agy's
+	// own /quota, which makes no model call; unreadable blocks, like codex and ollama.
+	var google *mission.GoogleQuotaObservation
+	if *bucket == "" || *bucket == "google" {
+		observation := mission.ObserveGoogleQuota(paths, now)
+		google = &observation
+	}
+
 	// The fourth provider, and the one that had NO row in this report at all — not
 	// "unrationed and loud", simply absent, while pi:openrouter/* sat in every role chain.
 	var openrouter *mission.OpenRouterQuotaObservation
@@ -90,7 +99,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 
 	ledger, err := mission.LoadLedger(paths, now)
 	if err != nil {
-		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter) {
+		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter, google) {
 			fmt.Fprintf(os.Stderr, "quota: token ledger unavailable: %v\n", err)
 			return nil
 		}
@@ -111,7 +120,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		// advertises it and the full report prints its row. Measured 2026-09-14 — the
 		// gauge-only providers are codex, ollama and openrouter; anthropic has ledger
 		// rows and so reaches this check legitimately.
-		gaugeOnly := canon == "codex" || canon == "ollama" || canon == "openrouter"
+		gaugeOnly := canon == "codex" || canon == "ollama" || canon == "openrouter" || canon == "google"
 		if len(filtered) == 0 && !gaugeOnly {
 			// An empty result is a claim ("nothing spent") that could equally mean
 			// "wrong name". Distinguish them.
@@ -147,7 +156,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				printed[v.Bucket] = true
 			}
 		}
-		emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter)
+		emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter, google)
 		return nil
 	}
 
@@ -167,7 +176,8 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 			Ollama     *mission.OllamaQuotaObservation     `json:"ollama_provider_usage,omitempty"`
 			Anthropic  *mission.AnthropicQuotaObservation  `json:"anthropic_provider_usage,omitempty"`
 			OpenRouter *mission.OpenRouterQuotaObservation `json:"openrouter_provider_usage,omitempty"`
-		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic, OpenRouter: openrouter}
+			Google     *mission.GoogleQuotaObservation     `json:"google_provider_usage,omitempty"`
+		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic, OpenRouter: openrouter, Google: google}
 		body, err := json.MarshalIndent(out, "", "  ")
 		if err != nil {
 			return err
@@ -223,6 +233,15 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if openrouter != nil {
 		fmt.Printf("openrouter provider usage: %s — %s\n", openrouter.State, openrouter.Reason)
 	}
+	if google != nil {
+		fmt.Printf("google provider usage (agy subscription): %s — %s\n", google.State, google.Reason)
+		for _, w := range google.Windows {
+			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s\n", w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339))
+		}
+		for _, r := range google.Other {
+			fmt.Printf("  %s %s: %.0f%% remaining (not paced)\n", r.Family, r.Window, r.RemainingPercent)
+		}
+	}
 	for _, u := range ledger.Usage {
 		if u.Bucket == "codex" || u.Bucket == "ollama" {
 			continue
@@ -243,7 +262,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 }
 
 // Preserve provider admission independently of the optional token journal.
-func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation, openrouter *mission.OpenRouterQuotaObservation) bool {
+func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation, openrouter *mission.OpenRouterQuotaObservation, google *mission.GoogleQuotaObservation) bool {
 	blocked := false
 	if codex != nil {
 		for _, w := range codex.Windows {
@@ -281,6 +300,11 @@ func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *missi
 		if openrouter.State != "ok" {
 			fmt.Fprintf(os.Stderr, "quota: openrouter %s: %s\n", openrouter.State, openrouter.Reason)
 		}
+	}
+	if google != nil && google.Blocked() {
+		fmt.Println("google")
+		fmt.Fprintf(os.Stderr, "quota: google %s: %s\n", google.State, google.Reason)
+		blocked = true
 	}
 	return blocked
 }

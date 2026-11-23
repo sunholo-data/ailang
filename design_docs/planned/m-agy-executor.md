@@ -258,6 +258,10 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
   - Rerun of the 6: 4 pass. The other 2 were denied self-checks: fizzbuzz's inline `python3` assertion, and json_encode's `diff <(...) /tmp/out.txt && rm -f`. The harness voids both as `harness_error` rows.
   - **Net: 21/21 valid rows pass; 2 voided by the D3 posture.**
 - **`--mode auto` is unavailable on Ultra too** ("not available for this account"), so Google's reviewer agent is not a D3 option today. Unexplained: a hand-run `python3 -c ... > answer.txt` under the same HOME was NOT denied, while the eval's `python3` heredoc was. Allow-rule matching for heredocs and redirects needs one more measurement before D3 is ratified.
+- **Ration (Mark, 2026-11-23: "15% a day similar to the other agent subs"):**
+  - Bucket `google` in `ailang mission quota`, observed through `agy -p /quota` (internal/mission/google_quota.go).
+  - The Gemini weekly window is paced at `AILANG_GOOGLE_DAILY_PACE`=15 %/calendar day with a 2pp start margin. The 5h window blocks only when exhausted. An unreadable quota is blocked.
+  - The weekly window began at first use, 2026-11-23T14:09Z. The smoke gate had spent 3% by then, so the loops admit google from about 8h into the window.
 - **Still open:** D3 ratification (Mark). D6 waits on core/frontier placement.
 
 ## Deferred Decisions

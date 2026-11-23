@@ -356,7 +356,10 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      Read `.success`, `.error`, `.finish_reason`, `.cost_usd`, `.cost_provenance`. **`success:false`
      with "soft-denied" is a lane failure** (agy refused a shell command its allowlist lacks —
      `internal/executor/agy/route.go`); fall back and FLAG, never re-prompt in place.
-  3. **Ledger:** `cost_provenance: list-price-equivalent` (subscription) is NOT metered spend;
+  3. **Ration:** bucket `google` = `ailang mission quota --bucket google` (reads `agy -p /quota`,
+     no model call): Gemini weekly paced at `AILANG_GOOGLE_DAILY_PACE` (15) %/calendar day, 2pp
+     margin, unreadable = blocked. Attended agy use on the same account counts against it.
+     **Ledger:** `cost_provenance: list-price-equivalent` (subscription) is NOT metered spend;
      `metered` (`api/`) IS — post it to the Gate-3 metered ledger like an OpenRouter run.
   4. **Not an evaluator yet:** `test_evaluator_skill_lane.sh` admits only `claude:*`/`pi:*` judges
      (measured skill support); agy's skill loading is unmeasured. Not a controller either — the

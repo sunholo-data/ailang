@@ -62,6 +62,26 @@ _mc_probe_agy gemini-4-neon-high; rc=$?
 MC_OVER_RATION=""
 echo "PASS over-ration agy rung refuses without a probe"
 
+# 3b. The REAL ration loader: `ailang mission quota --over` printing google blocks the
+#     subscription rung, and only that rung — agy:api/* is the metered key (gemini-api).
+eval "$(awk '/^_mc_load_ration\(\) \{/,/^\}$/' "$LIB")"
+_mc_bounded_real=$(declare -f _mc_bounded)
+_mc_bounded() { MC_BOUNDED_OUT=$(printf 'google\nquota: google over: Google weekly usage 3.0%% exceeds the 15%%/day pace line 0.3%%\n'); return 0; }
+MC_OVER_RATION_READ=0; MC_OVER_RATION=""
+_mc_load_ration
+case " $MC_OVER_RATION " in *" google "*) : ;; *) fail "loader dropped the google bucket: '$MC_OVER_RATION'" ;; esac
+printf '%s' "$MC_RATION_REASONS" | grep -q '^google over' || fail "loader dropped the google reason line"
+_mc_is_over_ration agy:gemini-4-neon-high || fail "over-ration google did not refuse the subscription rung"
+_mc_is_over_ration agy:api/gemini-4-neon-high && fail "google ration wrongly refused the metered api-key rung"
+# A failed quota command fails CLOSED on google, like codex and ollama.
+_mc_bounded() { MC_BOUNDED_OUT="boom"; return 3; }
+MC_OVER_RATION_READ=0; MC_OVER_RATION=""
+_mc_load_ration
+case " $MC_OVER_RATION " in *" google "*) : ;; *) fail "quota outage left google open: '$MC_OVER_RATION'" ;; esac
+eval "$_mc_bounded_real"
+_mc_load_ration() { :; }; MC_OVER_RATION=""
+echo "PASS ration loader: google line blocks the subscription rung only; quota outage fails closed"
+
 # 4. The REAL role loop: an agy executor pin is probed by _mc_probe_agy, and a failure
 #    advances along MISSION_<ROLE>_CHAIN_REMAINING, never to the anthropic pre-flight.
 ROLE_LOOP=$(awk '/^for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do/{on=1;buf=""} on{buf=buf $0 "\n"} on && /^done$/{if(buf ~ /pi_model=/)print buf;on=0}' "$DRIVER")

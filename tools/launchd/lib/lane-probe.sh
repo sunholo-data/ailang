@@ -208,8 +208,8 @@ _mc_load_ration() {
   [ "$MC_OVER_RATION_READ" -eq 1 ] && return 0
   MC_OVER_RATION_READ=1
   if ! command -v ailang >/dev/null 2>&1; then
-    MC_OVER_RATION="codex ollama"
-    log "ration gate: no ailang on PATH — blocking Codex and Ollama Cloud"
+    MC_OVER_RATION="codex ollama google"
+    log "ration gate: no ailang on PATH — blocking Codex, Ollama Cloud and Google (agy)"
     return 0
   fi
   # rc is taken from ailang DIRECTLY, not through the pipe: a pipeline reports the
@@ -228,7 +228,7 @@ _mc_load_ration() {
   printf '%s\n' "$_raw" | while IFS= read -r line; do
     case "$line" in "Codex quota window: "*) log "$line" ;; esac
   done
-  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter)$/' | tr '\n' ' ')
+  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|google)$/' | tr '\n' ' ')
   # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
   # machine-readable block list and a `quota: <bucket> <state>: …` line as the human
   # one, and the driver used to read the first and discard the second — so a bucket
@@ -245,8 +245,8 @@ _mc_load_ration() {
     # Say so. A silently unrationed fleet looks identical to a rationed one that
     # found nothing over — and that is the exact ambiguity this milestone exists
     # to remove. An `ailang` too old to know --over lands here.
-    MC_OVER_RATION="codex ollama"
-    log "ration gate: quota command failed (rc=$_rc) — blocking Codex and Ollama Cloud"
+    MC_OVER_RATION="codex ollama google"
+    log "ration gate: quota command failed (rc=$_rc) — blocking Codex, Ollama Cloud and Google (agy)"
     return 0
   fi
   if [ -n "$MC_OVER_RATION" ]; then

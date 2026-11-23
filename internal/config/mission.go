@@ -1,6 +1,10 @@
 package config
 
-import "strings"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // The mission outer loop and the identity of whoever is acting.
 const (
@@ -13,6 +17,7 @@ const (
 	EnvMissionDesignAuthor      = "MISSION_DESIGN_AUTHOR"
 	EnvMissionQuorumArtifactDir = "MISSION_QUORUM_ARTIFACT_DIR"
 	EnvAnthropicRation          = "AILANG_ANTHROPIC_RATION"
+	EnvGoogleDailyPace          = "AILANG_GOOGLE_DAILY_PACE"
 	EnvMissionRegistry          = "AILANG_MISSION_REGISTRY"
 	EnvCodexHome                = "CODEX_HOME"
 	EnvCodexRuntime             = "AILANG_CODEX_RUNTIME"
@@ -34,6 +39,7 @@ const (
 const MissionMessagePlaneProject = "ailang-multivac"
 
 var missionVars = []Var{
+	{EnvGoogleDailyPace, "15", AreaMission, "Percent of the weekly Google AI subscription (agy, bucket google) the mission loops may have used per calendar day of the window; the pace line is this times the days elapsed since the weekly reset, capped at 100. Attended agy use counts against the same account."},
 	{EnvMissionQuorumArtifactDir, "", AreaMission, "Opt-in absolute quorum evidence directory; unset uses the current repo local directory. Raw nonempty AILANG_AGENT_POLICY suppresses default overrides for confinement; distinct explicit artifact paths retain precedence."},
 	{EnvMissionName, "", AreaMission, "Name of the mission whose fire this process belongs to (v1, docs, motoko, world, fleet); set by the mission driver. Default filer for `ailang mission ticket file`; the push scope guard keys on it."},
 	{EnvMissionGHIssue, "", AreaMission, "GitHub issue number that overrides the mission's directive channel, so a cutover can be rehearsed against a scratch issue."},
@@ -76,6 +82,17 @@ func MissionMeteredBudgetUSD() string { return get(EnvMissionMeteredBudget) }
 // AnthropicRation reports whether rationing is on: anything but
 // AILANG_ANTHROPIC_RATION=0.
 func AnthropicRation() bool { return getOr(EnvAnthropicRation) != "0" }
+
+// GoogleDailyPace returns AILANG_GOOGLE_DAILY_PACE as a percent per day, or
+// an error naming the variable for a value that is not a number in (0, 100].
+func GoogleDailyPace() (float64, error) {
+	raw := strings.TrimSpace(getOr(EnvGoogleDailyPace))
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v <= 0 || v > 100 {
+		return 0, fmt.Errorf("%s=%q: want a percent in (0, 100]", EnvGoogleDailyPace, raw)
+	}
+	return v, nil
+}
 
 // MissionRegistry returns AILANG_MISSION_REGISTRY, "" when unset.
 func MissionRegistry() string { return get(EnvMissionRegistry) }

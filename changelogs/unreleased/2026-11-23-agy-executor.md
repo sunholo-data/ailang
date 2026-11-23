@@ -38,3 +38,17 @@ The mission driver now accepts `agy:<model>` role pins:
 
 Covered by `tools/launchd/test_agy_lane.sh`, which is wired into `make test-launchd-drivers` and
 mutation-checked. No mission's chain names agy yet, so it changes no fire until a pin is set.
+
+### Added — `google` quota bucket: the agy subscription is rationed at 15% a day
+
+`ailang mission quota` reads the Google AI subscription through `agy -p /quota` under the agy
+executor's subscription HOME. That command makes no model call. Only the Gemini weekly window is
+paced: `AILANG_GOOGLE_DAILY_PACE` percent (default 15) per calendar day since the weekly reset,
+capped at 100, with a 2pp start margin. The five-hour window blocks only when exhausted. The
+Claude/GPT rows are reported and not paced.
+
+An unreadable quota fails closed, as for Codex and Ollama: agy missing, not signed in, a bad
+pace value or unparseable output all block. `--over` prints `google`, and the mission driver blocks
+it. A failed quota command now blocks `codex ollama google`, so an `agy:` subscription rung is
+refused unprobed when over. The metered `agy:api/` route has its own bucket (`gemini-api`) and is
+not paced by this.

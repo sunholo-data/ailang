@@ -24,6 +24,7 @@ import (
 //	anthropic  1pp  of the weekly window (p75 0.3-0.6pp)
 //	ollama     3pp  of the trailing-24h gauge ration (p75 1.3-3.3pp)
 //	openrouter $0.60 of the daily dollar ration (p75 ~$0.47-0.56)
+//	google     2pp  of the weekly window (agy; 29 smoke runs = ~3pp, 2026-11-23)
 //
 // AILANG_QUOTA_MARGIN_<BUCKET> overrides one bucket (a non-negative number; 0 restores the
 // bare comparison). Attended sessions are never gated by this.
@@ -32,6 +33,9 @@ var defaultStartMargins = map[string]float64{
 	"anthropic":  1,
 	"ollama":     3,
 	"openrouter": 0.60,
+	// google: 2pp of the weekly window, like Codex. Measured 2026-11-23: a 29-run
+	// agent smoke gate took ~3pp, so 2pp is several mission runs of headroom.
+	"google": 2,
 }
 
 // StartMargin returns the headroom a bucket must have before a new run is admitted.

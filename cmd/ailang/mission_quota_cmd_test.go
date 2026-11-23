@@ -58,7 +58,9 @@ func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 	// this list and passes, while CI has no key and fails. The assertion is only meaningful
 	// if the environment cannot supply an answer — keep the Setenv list in step with the
 	// providers this output can name.
-	if output != "codex\nollama\nanthropic\nopenrouter\n" {
+	// google joined 2026-11-23 (agy subscription). Deterministic without any Setenv: the
+	// temp HOME has no agy subscription HOME, so its quota is unreadable on every machine.
+	if output != "codex\nollama\nanthropic\nopenrouter\ngoogle\n" {
 		t.Fatalf("corrupt ledger bypass: %q", output)
 	}
 }
@@ -93,7 +95,7 @@ func TestMissionQuotaOtherBucketDoesNotInspectCodex(t *testing.T) {
 // on a correctly spelled, documented name. Measured 2026-09-14, against a real ledger.
 // The typo guard itself is still worth having, so the last case keeps it honest.
 func TestMissionQuotaAdvertisedBucketsAreAllSelectable(t *testing.T) {
-	for _, bucket := range []string{"codex", "ollama", "openrouter", "anthropic"} {
+	for _, bucket := range []string{"codex", "ollama", "openrouter", "anthropic", "google"} {
 		t.Run(bucket, func(t *testing.T) {
 			t.Setenv("OLLAMA_API_KEY", "")
 			t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
