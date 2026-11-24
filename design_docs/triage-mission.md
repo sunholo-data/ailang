@@ -254,5 +254,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 
 15. [HARNESS] [RESOLVED receipt iteration49] ticket:ci:motoko-probe-refusing-live-path-unexpected-success. Fleet #2385 at b1942b7f9b8fbd53c41d1c712b27397b90626d3a is an ancestor of reviewed dev. The empty-read test guards both lanes. MiniMax concurred. Receipt inbox_1794899510520_d8631754 remains unread until this record lands.
 
+16. [HARNESS] [NONBLOCKING] ticket:push:scope-guard:rebased-record-inherited-sibling-paths — iteration 54 rebase of the existing #2450 record branch made the active guard flag 14 fleet paths already on dev. A docs-only fast-forward passed with the guard enabled. Fleet receipt inbox_1795492285808_70b28f94.
+
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
