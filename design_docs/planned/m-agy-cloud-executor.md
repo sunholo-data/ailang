@@ -1,6 +1,6 @@
 # M-AGY-CLOUD: agy on the cloud executor plane, on the Google AI subscription
 
-**Status**: Planned — awaiting Mark's ratification of D1–D3. Quorum blocked twice; every objection accepted and closed in text, round-1 fixes unreviewed (see Quorum). Phase 0 is a measurement spike that needs one human sign-in; Phases 1–3 are gated on it.
+**Status**: Phase 0 in progress. D1–D3 ratified by Mark 2026-11-24 ("ok lets do this"), as recommended. Quorum blocked twice; every objection accepted and closed in text, round-1 fixes unreviewed (see Quorum). Phase 0 is a measurement spike that needs one human sign-in; Phases 1–3 are gated on it.
 **Target**: v0.60.x
 **Priority**: P1
 **Estimated**: Phase 0 ~1 day incl. sign-in tooling (one cloud sign-in by Mark); Phase 1 ~2 days; Phase 2 ~1 day (multivac terraform + images); Phase 3 is a routing decision, not work
@@ -85,9 +85,9 @@ agy has no long-lived-token mode like `claude setup-token` (V8), so agy is a cod
 
 ### Design Freeze
 
-- [ ] D1 — separate cloud-only sign-in (Mark)
-- [ ] D2 — one leased credential to start (Mark)
-- [ ] D3 — shared pace line, in-job check (Mark)
+- [x] D1 — separate cloud-only sign-in (Mark) — ratified 2026-11-24
+- [x] D2 — one leased credential to start (Mark) — ratified 2026-11-24
+- [x] D3 — shared pace line, in-job check (Mark) — ratified 2026-11-24
 - [ ] Phase 0 closed: every PENDING row in the Verification Log measured, or the phase it gates re-scoped
 
 ## Solution Design
@@ -136,9 +136,9 @@ Over the line or unreadable → the job publishes the ration reason, runs `finis
 ### Implementation Plan
 
 **Phase 0: measurement spike** (~1 day; needs Mark for one sign-in). Each P-item closes one PENDING row. Run as a one-off job in the **dev** project, not prod. The credential tooling comes first, so the spike's sign-in already has D1's guarantees:
-- [ ] P0a `tools/agy/signin.sh --profile cloud`: sign in under a fresh `HOME` (never the loops' HOME, never `~/.gemini`); `--upload <project> <secret>` pipes the token file into `gcloud secrets versions add … --data-file=-`, never prints it, deletes the local copy
-- [ ] P0b dev secret `ailang-dev-agy-oauth-token`, created by hand with accessor + version-adder for the spike job's service account only (the terraform version is Phase 2)
-- [ ] P0c a throwaway Debian image with agy 1.5.15 (Linux SHA512 computed and pinned in `install.sh`), run as a one-off dev job that reads the secret into an isolated `HOME`
+- [x] P0a (b5ede5610) `tools/agy/signin.sh --profile cloud`: sign in under a fresh `HOME` (never the loops' HOME, never `~/.gemini`); `--upload <project> <secret>` pipes the token file into `gcloud secrets versions add … --data-file=-`, never prints it, deletes the local copy
+- [x] P0b (2026-11-24) dev secret `ailang-dev-agy-oauth-token` and SA `ailang-dev-agy-spike` (no project roles; accessor + version-adder on that secret only), created by hand, labelled `purpose=m-agy-cloud-phase0` with accessor + version-adder for the spike job's service account only (the terraform version is Phase 2)
+- [x] P0c no image needed: `tools/agy/cloud_spike_run.sh` runs `tools/agy/cloud_spike.sh` in the stock `google-cloud-cli:slim` image as job `ailang-dev-agy-spike`; Linux SHA512s pinned in `install.sh`. Dry run before sign-in (execution `ailang-dev-agy-spike-xhx27`): pinned 1.5.15 installs and runs on Debian 13 x86_64; unauthenticated agy waits 60 s for the sign-in then exits 1 (no hang), and offers a paste-the-code sign-in, so P2's in-container fallback exists
 - [ ] P1 Linux agy 1.5.15 runs headless `-p` with `--output-format stream-json` in a Debian container: no hang (the #318 class), same event schema as our fixtures
 - [ ] P2 A token file from a macOS sign-in works under a fresh Linux `HOME` with no keyring daemon (file credential, not keyring). **Fallback if not:** sign in inside the Linux container instead (agy prints a sign-in URL when unauthenticated: "Authentication required. Please visit the URL to log in", seen 2026-11-23) and upload from there; P0a gains an `--in-container` mode
 - [ ] P3 Refresh-token rotation (V7): does `token.refresh_token` change when agy refreshes?
@@ -275,7 +275,7 @@ execute-job: credential lease released
 | V4 | No cloud image or job installs agy | `grep -ril 'agy\|antigravity'` over `docker/`, `../ailang-multivac/terraform/` and `../ailang-multivac/cloudbuild*.yaml`: the only hits are bytes inside `.terraform/` provider binaries | Confirmed |
 | V5 | A pinned Linux build of 1.5.15 exists for amd64 and arm64 | HEAD `…/1.5.15-5514532022517760/linux-x64/cli_linux_x64.tar.gz` → 200, `linux-arm/cli_linux_arm64.tar.gz` → 200. The manifest itself now serves 1.5.16 (SHA512 published only for latest, so 1.5.15 Linux hashes are computed at pin time) | Confirmed |
 | V6 | agy rewrites its token file when it refreshes the access token | token file born 2026-11-23 15:08, last written 2026-11-24 08:53 with a one-hour `expires_in`; keys `token.{access_token,refresh_token,expiry,expires_in,token_type}`, `auth_method`, `id_token_email` (values not read) | Confirmed |
-| V7 | Whether the refresh token itself changes on refresh | 2026-11-24: refresh-token SHA-256 prefix `0faa64cf0c75` at 09:30; the file was rewritten by a refresh at 09:52:15 (new one-hour expiry); prefix afterwards `0faa64cf0c75`. **Not rotated across one refresh.** One sample, so P3 repeats it over ≥3 refreshes in the cloud HOME | Measured once: not rotated; P3 confirms |
+| V7 | Whether the refresh token itself changes on refresh | 2026-11-24: refresh-token SHA-256 prefix `0faa64cf0c75` at 09:30; the file was rewritten by a refresh at 09:52:15 (new one-hour expiry); prefix afterwards `0faa64cf0c75`. **Not rotated across one refresh.** Second sample: rewritten again at 10:47:49, refresh token still the same. P3 repeats it in the cloud HOME | Measured twice on the rig: not rotated; P3 confirms |
 | V8 | agy has no long-lived non-refreshing token mode like `claude setup-token` | `agy --help` (1.5.15) lists no token-minting option; auth is the interactive sign-in or a `GEMINI_API_KEY` | Confirmed for the CLI; docs re-read in Phase 0 |
 | V9 | The agy executor does not confirm process termination | `internal/executor/agy/agy.go` calls `proctree.Kill(cmd)` (lines 250–304), which discards `KillGroup`'s error (`internal/proctree/proctree.go:40-44`); codex returns `ErrProcessTerminationUnconfirmed` (`internal/executor/codex/process_lifecycle.go:32`) | Confirmed |
 | V10 | `agy -p /quota` reads the account's windows with no model call | m-agy-executor P4; `internal/mission/google_quota.go` | Confirmed (macOS); Linux = P7 |

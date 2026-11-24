@@ -20,6 +20,14 @@ set -euo pipefail
 AGY_VERSION="1.5.15"
 AGY_URL_DARWIN_ARM64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.15-5514532022517760/darwin-arm/cli_mac_arm64.tar.gz"
 AGY_SHA512_DARWIN_ARM64="b03a841eb3a29be918a66960b775f68ed4f3bcc02f33962131bbbc26c46ea983ceac6c832ad46efd11d73d9a2cb97df4ab24d4bc92ee47d3d5ece7b8d8b61235"
+# Linux (cloud executor images, M-AGY-CLOUD). The manifest publishes a SHA512 only for
+# its LATEST version (1.5.16 by 2026-11-24), so these two were computed from our own
+# HTTPS download of the 1.5.15 build on 2026-11-24 (trust on first use), not copied
+# from Google's manifest. Re-verify against the manifest at the next bump.
+AGY_URL_LINUX_AMD64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.15-5514532022517760/linux-x64/cli_linux_x64.tar.gz"
+AGY_SHA512_LINUX_AMD64="af3f0be58b8475940d79f9abea19e762ecc3d265ea9f56cff8dd805e27ba299b44a305a79504a7ffe6ebdfa29a294c56edc4caed1875990bfaf2fef1508ec8b0"
+AGY_URL_LINUX_ARM64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.15-5514532022517760/linux-arm/cli_linux_arm64.tar.gz"
+AGY_SHA512_LINUX_ARM64="d64ad759781b50dfacfa7d9826c0ad469959d01bdf5a170acd4c83472eba31c677baf0052ac8ab48eef40f0d3f0e26057e752aabd24331c79f4c881d4b872125"
 
 # The executor's OWN copy, never ~/.local/bin/agy: interactive agy self-updates the
 # binary it runs from (1.5.15 -> 1.5.16 on 2026-11-24), and a shared file would
@@ -56,7 +64,9 @@ fi
 
 case "$(uname -s)/$(uname -m)" in
   Darwin/arm64) url="$AGY_URL_DARWIN_ARM64"; want="$AGY_SHA512_DARWIN_ARM64" ;;
-  *) echo "install-agy: only darwin/arm64 is pinned (got $(uname -s)/$(uname -m)); add its manifest values" >&2; exit 1 ;;
+  Linux/x86_64) url="$AGY_URL_LINUX_AMD64"; want="$AGY_SHA512_LINUX_AMD64" ;;
+  Linux/aarch64|Linux/arm64) url="$AGY_URL_LINUX_ARM64"; want="$AGY_SHA512_LINUX_ARM64" ;;
+  *) echo "install-agy: no pin for $(uname -s)/$(uname -m); add its manifest values" >&2; exit 1 ;;
 esac
 
 stage=$(mktemp -d "${TMPDIR:-/tmp}/agy-install.XXXXXX")
@@ -64,7 +74,11 @@ trap 'rm -rf "$stage"' EXIT
 echo "Downloading agy ${AGY_VERSION}..."
 curl -fsSL --retry 2 -o "$stage/payload.tar.gz" "$url"
 
-got=$(shasum -a 512 "$stage/payload.tar.gz" | awk '{print $1}')
+if command -v sha512sum >/dev/null; then   # Debian images ship sha512sum, not shasum
+  got=$(sha512sum "$stage/payload.tar.gz" | awk '{print $1}')
+else
+  got=$(shasum -a 512 "$stage/payload.tar.gz" | awk '{print $1}')
+fi
 if [ "$got" != "$want" ]; then
   echo "install-agy: SHA512 MISMATCH — refusing to install." >&2
   echo "  want ${want}" >&2
@@ -75,7 +89,7 @@ echo "SHA512 verified."
 
 tar -xzf "$stage/payload.tar.gz" -C "$stage" antigravity
 chmod +x "$stage/antigravity"
-xattr -d com.apple.quarantine "$stage/antigravity" 2>/dev/null || true
+command -v xattr >/dev/null && xattr -d com.apple.quarantine "$stage/antigravity" 2>/dev/null || true
 
 mkdir -p "$BIN_DIR"
 # Same filesystem as the target, so the final mv is an atomic rename.
