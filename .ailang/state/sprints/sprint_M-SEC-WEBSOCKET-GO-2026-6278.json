@@ -1,0 +1,62 @@
+{
+  "sprint_id": "M-SEC-WEBSOCKET-GO-2026-6278",
+  "status": "not_started",
+  "created": "2026-11-24T05:32:00Z",
+  "design_doc": "design_docs/planned/v0_60_7/m-sec-websocket-go-2026-6278.md",
+  "sprint_plan": "design_docs/planned/v0_60_7/sprint-plan-m-sec-websocket-go-2026-6278.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 16,
+    "estimated_total_loc": 8,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1_PIN",
+      "description": "Pin the first fixed Gorilla WebSocket version and confirm minimal module graph changes",
+      "estimated_loc": 3,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Gorilla WebSocket resolves to v1.5.4-0.20240701034025-d67f41855da4 and x/net remains at the reviewed baseline",
+        "The diff updates the single requirement and its two checksums, with no unrelated graph drift",
+        "go mod verify succeeds"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_VERIFY",
+      "description": "Add the security fragment and verify the candidate through focused checks and required CI",
+      "estimated_loc": 5,
+      "dependencies": [
+        "M1_PIN"
+      ],
+      "acceptance_criteria": [
+        "go build ./..., make test-changed, all six focused consumer package tests, and make check-changelog succeed",
+        "The CI-pinned govulncheck pipeline exits 0 without GO-2026-6278 in findings and the allowlist remains empty",
+        "The dedicated PR contains only module manifests and the Security fragment, and all required contexts pass on the candidate",
+        "The post-merge dev run records green govulncheck and checks jobs"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_PIN",
+      "package": null,
+      "action": "none",
+      "reason": "Existing Go module pin with no new AILANG package capability"
+    },
+    {
+      "milestone": "M2_VERIFY",
+      "package": null,
+      "action": "none",
+      "reason": "Reuses the existing repository test targets and CI workflow"
+    }
+  ]
+}
