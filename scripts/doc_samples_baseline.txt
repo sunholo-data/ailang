@@ -11,27 +11,17 @@
 # Editing a listed block changes its hash, so touching a block means fixing or tagging it.
 # After a burn-down: make check-doc-samples DOC_SAMPLES_ARGS=-write-baseline
 docs/LIMITATIONS.md 64ed8b72df7b PAR017
-docs/docs/guides/ai-effect.mdx 6dcc796075d8 PAR_UNEXPECTED_TOKEN
-docs/docs/guides/ai-effect.mdx 7ae1a201ca18 PAR_UNEXPECTED_TOKEN
-docs/docs/guides/ai-effect.mdx ca2334dfccab TC_UNDEFINED_VAR
 docs/docs/guides/build-a-motoko-extension.md 4f7de3610090 MODULE
 docs/docs/guides/build-a-motoko-extension.md d004cdf34e94 PAR_NO_PREFIX_PARSE
 docs/docs/guides/contracts.mdx 4d8ff047641a TC_UNDEFINED_VAR
 docs/docs/guides/contracts.mdx 6c1bc8f4d3ae PAR_UNEXPECTED_TOKEN
 docs/docs/guides/custom-ai-providers.md 783ef894c9fd MOD014
 docs/docs/guides/go-interop.md 18a47ef74050 TC_UNDEFINED_VAR
-docs/docs/guides/packages.md 1470b1f70b33 MODULE
-docs/docs/guides/packages.md 5d60653d9eb2 MODULE
-docs/docs/guides/packages.md b296257139b6 MODULE
-docs/docs/guides/packages.md eed652289a6c MODULE
 docs/docs/guides/semantic-caching-vs-vectordb.md 60ab2b4f9686 TC_UNDEFINED_VAR
 docs/docs/guides/semantic-caching-vs-vectordb.md c575a69efc5d TC_UNDEFINED_VAR
 docs/docs/guides/testing.md 8fa5e005084a PAR_UNEXPECTED_TOKEN
 docs/docs/guides/traces.md f8d4db8b9659 PAR020
 docs/docs/guides/wasm-ai-step-byo-key.md 09f95852ab2f TC_TYPE
-docs/docs/recipes/ai-tool-loop.md ad840e20bbef TC_UNDEFINED_VAR
-docs/docs/recipes/ai-tool-loop.md d8c66d104dbb TC_TYPE
-docs/docs/recipes/ai-tool-loop.md fd3320924193 MOD014
 docs/docs/reference/capability-budgets.mdx 36843c488cc5 PAR_NO_PREFIX_PARSE
 docs/docs/reference/effects.md ec7b115b0354 FMT_EXIT2
 docs/docs/reference/errors/mod007.md 3fc51e1e0d02 MOD007

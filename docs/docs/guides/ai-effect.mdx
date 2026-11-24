@@ -205,11 +205,14 @@ the same responses.
 ```ailang
 import std/ai (callSpeech, speechSampleRate)
 import std/audio (wavFromPcm)
+import std/fs (writeFileBytes)
+import std/io (println)
 
--- Result[bytes, AIError] ! {AI}
-match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
-  Ok(pcm) => writeFileBytes("line.wav", wavFromPcm(pcm, speechSampleRate(), 1, 16)),
-  Err(e)  => println("speech failed (${e.code}): ${e.message}")
+func speakLine() -> () ! {AI, FS, IO} {
+  match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
+    Ok(pcm) => writeFileBytes("line.wav", wavFromPcm(pcm, speechSampleRate(), 1, 16)),
+    Err(e)  => println("speech failed (${e.code}): ${e.message}")
+  }
 }
 ```
 
@@ -240,7 +243,7 @@ By convention, use JSON for structured input/output:
 
 ```ailang
 import std/ai (call)
-import std/json (encode, decode)
+import std/json (encode, decode, getString, jo, kv, jint, jb)
 
 type GameContext = {
     player_health: int,
@@ -251,10 +254,19 @@ type GameContext = {
 type Action = Wait | Attack | Retreat | Heal
 
 func decide_action(ctx: GameContext) -> Action ! {AI} {
-    let input = encode(ctx) in
-    let output = call(input) in
-    match decode[Action](output) {
-        Ok(action) => action,
+    let input = encode(jo([
+        kv("player_health", jint(ctx.player_health)),
+        kv("enemy_count", jint(ctx.enemy_count)),
+        kv("has_weapon", jb(ctx.has_weapon))
+    ]));
+    let output = call(input);
+    match decode(output) {
+        Ok(j) => match getString(j, "kind") {
+            Some("Attack") => Attack,
+            Some("Retreat") => Retreat,
+            Some("Heal") => Heal,
+            _ => Wait
+        },
         Err(_) => Wait  -- Safe fallback
     }
 }
@@ -359,7 +371,7 @@ runs your `dispatch` callback on each tool call, threads results back as
 tool-role messages, and terminates when the model is done OR the step
 budget hits zero.
 
-```ailang
+```not-ailang
 runTools(
   model: string,
   messages: [Message],

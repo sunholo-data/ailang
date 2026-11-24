@@ -1,7 +1,8 @@
 ---
 title: AI Multi-Turn Tool Loop
 sidebar_position: 12
-reviewBy: 2026-11-30
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -29,9 +30,10 @@ Get back the full final transcript on success or a typed `AIError` on
 failure.
 
 ```ailang
+module examples/ai_tool_loop_demo
+
 import std/ai (runTools, Message, ToolSchema, ToolCall, AIError)
 import std/io (println)
-import std/result (Result, Ok, Err)
 import std/list (length)
 
 export pure func dispatch(call: ToolCall) -> string {
@@ -48,7 +50,7 @@ export func main() -> () ! {AI, IO} {
   }];
   let messages: [Message] = [{
     role: "user", content: "Summarize nda.docx",
-    tool_calls: [], tool_call_id: ""
+    tool_calls: [], tool_call_id: "", images: []
   }];
   match runTools("", messages, tools, dispatch, 8) {
     Ok(transcript) =>
@@ -92,17 +94,26 @@ infers an open effect row, so a callback with effects (`! {FS, Process}`,
 `! {Net}`, etc.) composes without changing `runTools`'s signature.
 
 ```ailang
+import std/ai (runTools, Message, ToolSchema, ToolCall, AIError)
+import std/bytes (toString)
+import std/fs (readFile)
+import std/process (exec)
+
 -- Real dispatch with file I/O + shell exec
 func dispatchReal(call: ToolCall) -> string ! {FS, Process} {
   if call.name == "read_doc"
-  then read_file(extract_name(call.arguments))
+  then readFile(call.arguments)
   else if call.name == "run_command"
-  then exec_shell(call.arguments)
+  then match exec("echo", [call.arguments]) {
+    Ok(out) => toString(out.stdout),
+    Err(_) => "exec failed"
+  }
   else "unknown tool: ${call.name}"
 }
 
 -- runTools picks up the {FS, Process} from dispatch automatically
-runTools("", messages, tools, dispatchReal, 8)  -- inferred ! {AI, FS, Process}
+func runAgent(messages: [Message], tools: [ToolSchema]) -> Result[[Message], AIError] ! {AI, FS, Process} =
+  runTools("", messages, tools, dispatchReal, 8)
 ```
 
 This is the pattern [`motoko_agent`](https://github.com/arniwesth/motoko_agent)
@@ -116,6 +127,7 @@ ceilings, custom logging), drop down to `step` and write your own loop:
 
 ```ailang
 import std/ai (step, Message, ToolSchema, AIError)
+import std/io (println)
 
 func myLoop(messages: [Message], budget: int)
   -> Result[[Message], AIError] ! {AI, IO} {

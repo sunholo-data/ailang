@@ -107,7 +107,7 @@ modules = ["myapp/services/api", "myapp/handlers/parse"]
 
 Source files keep their existing `module myapp/...` declarations. Consumers import via the canonical path:
 
-```ailang
+```ailang parse
 import pkg/sunholo/myapp/services/api (startServer)
 ```
 
@@ -230,7 +230,7 @@ Run 'ailang lock' to update
 
 Use the `pkg/` prefix for external package imports:
 
-```ailang
+```ailang parse
 -- Stdlib (always available)
 import std/io (println)
 
@@ -565,7 +565,7 @@ See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-me
 **2. Missing `export type`**: Any type used by another package must have `export type`, not just `type`. This includes record types AND ADTs.
 
 **3. Use `./` for intra-package siblings, `pkg/` for external**: Three-way import distinction:
-```ailang
+```ailang parse
 import ./plan (Plan, lookupPlan)              -- LOCAL: sibling in same package
 import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
 import std/result (Ok, Err)                   -- STDLIB: bundled
@@ -573,7 +573,7 @@ import std/result (Ok, Err)                   -- STDLIB: bundled
 `./` resolves in module namespace: if current module is `a/b/c`, then `./d` means `a/b/d`.
 
 **Intra-package sibling imports — three equivalent forms.** All three resolve to the same file and produce identical interface hashes. Pick whichever reads best:
-```ailang
+```ailang parse
 -- 1. Bare canonical (matches what the imported module declares — useful when reading top-down)
 import sunholo/linkedin/types (Profile)
 
