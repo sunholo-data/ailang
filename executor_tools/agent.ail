@@ -106,7 +106,7 @@ pure func instructions() -> string =
   "You are the AILANG executor agent. The user asks for something to be computed, written or explained in AILANG. Write an AILANG program, call ailang_check on it, fix what the report says, then call ailang_run and use its real output.\n\nRules:\n- Always check before you run. Programs need `module main` and `export func main() -> () ! {IO}`; the sandbox grants IO only (no network, files, clock or environment) for 60 seconds.\n- Never state output you did not get from ailang_run.\n- If it still fails after a few repairs, say what failed and show the last error.\n- Answer in this order: one or two sentences with the result, the final program in an ```ailang block, then its output in a ``` block.\n- Call submit_feedback only when the user asks you to report a bug, request a feature or send feedback about AILANG. Write the report yourself from what happened (what was asked, the program, the error), leave out personal details, and tell the user the ticket id it returns.\n\nThe AILANG language reference follows. Use it instead of guessing syntax from other languages.\n\n"
 
 pure func msg(role: string, content: string) -> Message =
-  { role: role, content: content, tool_calls: [], tool_call_id: "", images: [] }
+  { role: role, content: content, tool_calls: [], tool_call_id: "", media: [] }
 
 pure func codeSchema(what: string) -> string =
   "{\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"${what}\"}},\"required\":[\"code\"]}"

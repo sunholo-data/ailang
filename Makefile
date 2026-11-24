@@ -226,18 +226,18 @@ brain-index-syntax-reset: build
 snapshot: bin/build-snapshot
 	@./bin/build-snapshot --repo . --out build/snapshot
 
-## verify-mcp-tools: Type-check every AILANG file under mcp_tools/ (M-AGENT-MCP M8)
+## verify-mcp-tools: Type-check every AILANG file under mcp_tools/ and executor_tools/ (both ship in the executor-mcp image)
 verify-mcp-tools: build
-	@echo "$(BOLD)Verifying mcp_tools/...$(RESET)"
-	@FAIL=0; for f in mcp_tools/*.ail; do \
+	@echo "$(BOLD)Verifying mcp_tools/ and executor_tools/...$(RESET)"
+	@FAIL=0; for f in mcp_tools/*.ail executor_tools/*.ail; do \
 		AILANG_RELAX_MODULES=1 ./bin/ailang check $$f > /dev/null 2>&1 \
 			&& echo "  ✓ $$f" \
 			|| { echo "  ✗ $$f"; FAIL=1; }; \
 	done; \
 	if [ $$FAIL -ne 0 ]; then \
-		echo "$(BOLD)mcp_tools/ verification FAILED$(RESET)"; exit 1; \
+		echo "$(BOLD)mcp_tools/ + executor_tools/ verification FAILED$(RESET)"; exit 1; \
 	fi
-	@echo "$(BOLD)✓ All mcp_tools/ AILANG modules type-check$(RESET)"
+	@echo "$(BOLD)✓ All mcp_tools/ + executor_tools/ AILANG modules type-check$(RESET)"
 
 ## test-feedback-integration: Run integration tests for submit_feedback against test env Firestore (M-PKG-FEEDBACK-LOOP M1)
 test-feedback-integration:
