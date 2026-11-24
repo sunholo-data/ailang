@@ -50,7 +50,7 @@ export func main() -> () ! {AI, IO} {
   }];
   let messages: [Message] = [{
     role: "user", content: "Summarize nda.docx",
-    tool_calls: [], tool_call_id: "", images: []
+    tool_calls: [], tool_call_id: "", media: []
   }];
   match runTools("", messages, tools, dispatch, 8) {
     Ok(transcript) =>
