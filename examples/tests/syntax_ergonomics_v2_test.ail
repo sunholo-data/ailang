@@ -1,0 +1,62 @@
+module examples/tests/syntax_ergonomics_v2_test
+
+import std/list (map, foldl)
+import std/map as M
+
+-- E6: optional trailing semicolon on top-level let bindings
+let MOD = 1000000007;
+
+export pure func normMod(x: int) -> int = x % MOD
+
+-- E4: lambda tuple destructuring
+export pure func sumPairs(xs: [(int, int)]) -> [int] =
+  map(\(a, b). a + b, xs)
+
+export pure func sumMapValues(m: M.Map[string, int]) -> int =
+  foldl(\acc (k, v). acc + v, 0, M.toList(m))
+
+export pure func nestedLambdaTuple(xs: [(int, (int, int))]) -> [int] =
+  map(\(a, (b, _)). a + b, xs)
+
+-- E5: record destructuring in let (closed, renamed, rest, and `in` form)
+export pure func closedRecordLet(r: {name: string, age: int}) -> int {
+  let {name, age} = r
+  if name == "Ada" then age + 1 else age
+}
+
+export pure func restRecordLet(cfg: {host: string, port: int, tls: bool}) -> int {
+  let {port: p, ...} = cfg
+  p * 2
+}
+
+export pure func recordLetIn(r: {x: int, y: int, z: int}) -> int =
+  let {x, z: k, ...} = r in x + k
+
+test "E4 lambda tuple destructuring with map" {
+  assert sumPairs([(1, 2), (3, 4), (5, 6)]) == [3, 7, 11]
+}
+
+test "E4 lambda tuple destructuring with foldl and M.toList" {
+  let m = M.insert(M.insert(M.empty(), "a", 10), "b", 32)
+  assert sumMapValues(m) == 42
+}
+
+test "E4 nested tuple lambda with wildcard" {
+  assert nestedLambdaTuple([(1, (2, 99)), (10, (20, 0))]) == [3, 30]
+}
+
+test "E5 closed record destructuring in let" {
+  assert closedRecordLet({name: "Ada", age: 36}) == 37
+}
+
+test "E5 renamed and rest record destructuring in let" {
+  assert restRecordLet({host: "localhost", port: 8080, tls: true}) == 16160
+}
+
+test "E5 record destructuring let-in form" {
+  assert recordLetIn({x: 7, y: 99, z: 5}) == 12
+}
+
+test "E6 top-level let with trailing semicolon" {
+  assert normMod(1000000010) == 3
+}

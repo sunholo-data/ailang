@@ -198,15 +198,20 @@ type Lambda struct {
 }
 
 type Param struct {
-	Name string
-	Type Type
-	Pos  Pos
+	Name    string
+	Pattern Pattern // Optional irrefutable destructuring pattern (e.g. \(a, b). body); nil for plain identifier params
+	Type    Type
+	Pos     Pos
 }
 
 func (l *Lambda) String() string {
 	params := []string{}
 	for _, p := range l.Params {
-		params = append(params, p.Name)
+		if p.Pattern != nil {
+			params = append(params, p.Pattern.String())
+		} else {
+			params = append(params, p.Name)
+		}
 	}
 	return fmt.Sprintf("\\%s. %s", strings.Join(params, " "), l.Body)
 }

@@ -112,8 +112,8 @@ func (p *Parser) parseLetExpression() ast.Expr {
 		Pos: p.curPos(),
 	}
 
-	if p.peekTokenIs(lexer.LPAREN) {
-		return p.parseLetTuplePattern(let.Pos)
+	if p.peekTokenIs(lexer.LPAREN) || p.peekTokenIs(lexer.LBRACE) {
+		return p.parseLetPattern(let.Pos)
 	}
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
@@ -170,22 +170,24 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	return let
 }
 
-// parseLetTuplePattern parses `let (p1, p2, ...) = value [in body]`
-// (M-SYNTAX-ERGONOMICS-V1 E1). Only irrefutable tuple patterns (identifiers,
-// wildcards, and nested tuples of those) are accepted; refutable patterns
-// direct the user to `match`.
-func (p *Parser) parseLetTuplePattern(startPos ast.Pos) ast.Expr {
-	p.nextToken() // move onto LPAREN
+// parseLetPattern parses irrefutable destructuring `let` bindings:
+//   - tuple destructuring: `let (p1, p2, ...) = value [in body]` (M-SYNTAX-ERGONOMICS-V1 E1)
+//   - record destructuring: `let {a, b: x, ...} = value [in body]` (M-SYNTAX-ERGONOMICS-V2 E5)
+//
+// Only irrefutable patterns (identifiers, wildcards, and nested tuples/records
+// of those) are accepted; refutable patterns direct the user to `match`.
+func (p *Parser) parseLetPattern(startPos ast.Pos) ast.Expr {
+	p.nextToken() // move onto LPAREN or LBRACE
 	patPos := p.curPos()
 	pat := p.parsePattern()
-	if !isIrrefutableTuplePattern(pat) {
+	if !isIrrefutableLetPattern(pat) {
 		p.errors = append(p.errors, NewSuggestionError(
 			"PAR_LET_PATTERN",
 			patPos,
 			p.curToken,
-			"only irrefutable tuple patterns like 'let (a, b) = ...' are allowed in 'let' bindings",
+			"only irrefutable tuple/record patterns like 'let (a, b) = ...' or 'let {a, b} = ...' are allowed in 'let' bindings",
 			[]string{
-				"Use variables, '_', and nested tuples: let (a, (b, _)) = expr",
+				"Use variables, '_', and nested tuples/records: let (a, (b, _)) = expr  or  let {name, ...} = rec",
 				"For refutable patterns (constructors, literals, lists), use 'match expr { ... }'",
 			},
 			"https://ailang.sunholo.com/docs/reference/language-syntax",
@@ -228,22 +230,61 @@ func (p *Parser) parseLetTuplePattern(startPos ast.Pos) ast.Expr {
 	return lp
 }
 
+// isIrrefutableLetPattern reports whether pat is an irrefutable tuple or record
+// pattern allowed in a `let` destructuring binding.
+func isIrrefutableLetPattern(pat ast.Pattern) bool {
+	switch p := pat.(type) {
+	case *ast.TuplePattern:
+		return isIrrefutableTuplePattern(p)
+	case *ast.RecordPattern:
+		return isIrrefutableRecordPattern(p)
+	default:
+		return false
+	}
+}
+
+// isIrrefutablePatternElem reports whether a sub-pattern inside a tuple/record
+// destructuring pattern is irrefutable.
+func isIrrefutablePatternElem(pat ast.Pattern) bool {
+	switch p := pat.(type) {
+	case *ast.Identifier, *ast.WildcardPattern:
+		return true
+	case *ast.TuplePattern:
+		return isIrrefutableTuplePattern(p)
+	case *ast.RecordPattern:
+		return isIrrefutableRecordPattern(p)
+	default:
+		return false
+	}
+}
+
 // isIrrefutableTuplePattern reports whether pat is a tuple pattern of ≥2 elements
-// whose elements are all irrefutable (identifiers, wildcards, or nested tuples).
+// whose elements are all irrefutable.
 func isIrrefutableTuplePattern(pat ast.Pattern) bool {
 	tp, ok := pat.(*ast.TuplePattern)
 	if !ok || len(tp.Elements) < 2 {
 		return false
 	}
 	for _, el := range tp.Elements {
-		switch el.(type) {
-		case *ast.Identifier, *ast.WildcardPattern:
-			continue
-		case *ast.TuplePattern:
-			if !isIrrefutableTuplePattern(el) {
-				return false
-			}
-		default:
+		if !isIrrefutablePatternElem(el) {
+			return false
+		}
+	}
+	return true
+}
+
+// isIrrefutableRecordPattern reports whether pat is a record pattern whose field
+// sub-patterns are all irrefutable (both closed `{a, b}` and open `{a, ...}`).
+func isIrrefutableRecordPattern(pat ast.Pattern) bool {
+	rp, ok := pat.(*ast.RecordPattern)
+	if !ok {
+		return false
+	}
+	if len(rp.Fields) == 0 && !rp.Rest {
+		return false
+	}
+	for _, f := range rp.Fields {
+		if !isIrrefutablePatternElem(f.Pattern) {
 			return false
 		}
 	}

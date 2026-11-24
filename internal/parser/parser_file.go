@@ -82,6 +82,14 @@ func (p *Parser) ParseFile() (file *ast.File) {
 	// Top-level declarations
 	for !p.curTokenIs(lexer.EOF) {
 		if decl := p.parseTopLevelDecl(); decl != nil {
+			// M-SYNTAX-ERGONOMICS-V2 E6: allow an optional trailing ';' after
+			// top-level `let` bindings (e.g. `let MOD = 1000000007;`).
+			switch decl.(type) {
+			case *ast.Let, *ast.LetPattern, *ast.LetRec:
+				if p.peekTokenIs(lexer.SEMICOLON) {
+					p.nextToken()
+				}
+			}
 			// Separate functions from other statements
 			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
 				file.Funcs = append(file.Funcs, funcDecl)

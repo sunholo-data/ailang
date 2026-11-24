@@ -167,7 +167,12 @@ func withNames(scope map[string]bool, names ...string) map[string]bool {
 func paramNames(ps []*ast.Param) []string {
 	var out []string
 	for _, p := range ps {
-		if p != nil {
+		if p == nil {
+			continue
+		}
+		if p.Pattern != nil {
+			out = append(out, patternVars(p.Pattern)...)
+		} else {
 			out = append(out, p.Name)
 		}
 	}
@@ -212,6 +217,11 @@ func (w *astUseWalker) walk(n interface{}, scope map[string]bool) {
 			w.walk(x.Value, scope)
 			w.walk(x.Body, withNames(scope, x.Name))
 		}
+	case *ast.LetPattern:
+		if x != nil {
+			w.walk(x.Value, scope)
+			w.walk(x.Body, withNames(scope, patternVars(x.Pattern)...))
+		}
 	case *ast.LetRec:
 		if x != nil {
 			inner := withNames(scope, x.Name)
@@ -229,6 +239,10 @@ func (w *astUseWalker) walk(n interface{}, scope map[string]bool) {
 			case *ast.Let:
 				if b != nil && b.Body == nil {
 					s = withNames(s, b.Name)
+				}
+			case *ast.LetPattern:
+				if b != nil && b.Body == nil {
+					s = withNames(s, patternVars(b.Pattern)...)
 				}
 			case *ast.LetRec:
 				if b != nil && b.Body == nil {

@@ -226,7 +226,15 @@ func (p *printer) lambda(n *ast.Lambda) error {
 		if i > 0 {
 			p.w.write(" ")
 		}
-		p.w.write(param.Name)
+		if param.Pattern != nil {
+			pat, err := p.patternString(param.Pattern)
+			if err != nil {
+				return err
+			}
+			p.w.write(pat)
+		} else {
+			p.w.write(param.Name)
+		}
 	}
 	p.w.write(". ")
 	return p.expr(n.Body, precLambda)

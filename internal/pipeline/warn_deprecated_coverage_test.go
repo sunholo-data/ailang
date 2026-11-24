@@ -126,7 +126,7 @@ var deprecatedStmtKinds = map[string]string{
 // and are searched field by field.
 var deprecatedExprKinds = map[string]string{
 	"Identifier": "use", "RecordAccess": "use (L.f)",
-	"Lambda": "binder", "FuncLit": "binder", "Let": "binder", "LetRec": "binder",
+	"Lambda": "binder", "FuncLit": "binder", "Let": "binder", "LetPattern": "binder", "LetRec": "binder",
 	"Block": "binder (sequential let)", "Match": "binder (pattern variables)", "ForallExpr": "binder",
 	"Literal": "plain", "BinaryOp": "plain", "UnaryOp": "plain", "AssertStmt": "plain",
 	"FuncCall": "plain", "If": "plain", "List": "plain", "Array": "plain", "Tuple": "plain",

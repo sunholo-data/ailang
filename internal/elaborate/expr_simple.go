@@ -79,18 +79,63 @@ func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param
 
 // normalizeLambda handles lambda expressions
 func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
-	// Extract parameter names
+	// Extract parameter names; for destructuring pattern params (e.g. \(a, b). body),
+	// mint a synthetic parameter name and desugar to a single-arm exhaustive core.Match
+	// wrapping the lambda body (M-SYNTAX-ERGONOMICS-V2 E4).
+	type patBinding struct {
+		synName string
+		pat     core.CorePattern
+		pos     ast.Pos
+	}
 	params := make([]string, len(lam.Params))
+	scopeNames := make([]string, 0, len(lam.Params))
+	var patBindings []patBinding
 	for i, p := range lam.Params {
-		params[i] = p.Name
+		if p.Pattern != nil {
+			synName := e.freshVar()
+			params[i] = synName
+			corePat, err := e.elaboratePattern(p.Pattern)
+			if err != nil {
+				return nil, fmt.Errorf("failed to elaborate lambda parameter pattern: %w", err)
+			}
+			patBindings = append(patBindings, patBinding{
+				synName: synName,
+				pat:     corePat,
+				pos:     p.Pos,
+			})
+			scopeNames = append(scopeNames, astPatternBinders(p.Pattern)...)
+		} else {
+			params[i] = p.Name
+			scopeNames = append(scopeNames, p.Name)
+		}
 	}
 
-	// Normalize body with the parameters in scope (#1467)
-	e.pushScope(params...)
+	// Normalize body with the parameters (and pattern binders) in scope (#1467)
+	e.pushScope(scopeNames...)
 	body, err := e.normalize(lam.Body)
 	e.popScope()
 	if err != nil {
 		return nil, err
+	}
+
+	// Wrap body with single-arm exhaustive matches for any pattern parameters
+	// (right-to-left so earlier parameter bindings sit in outer scope).
+	for i := len(patBindings) - 1; i >= 0; i-- {
+		pb := patBindings[i]
+		body = &core.Match{
+			CoreNode: e.makeNode(pb.pos),
+			Scrutinee: &core.Var{
+				CoreNode: e.makeNode(pb.pos),
+				Name:     pb.synName,
+			},
+			Arms: []core.MatchArm{
+				{
+					Pattern: pb.pat,
+					Body:    body,
+				},
+			},
+			Exhaustive: true,
+		}
 	}
 
 	// Create Core Lambda node

@@ -62,7 +62,7 @@ func (e *Executor) newHarnessEvaluator() *eval.CoreEvaluator {
 	evaluator := e.newEvaluator()
 	builtins := runtime.NewBuiltinRegistry(evaluator)
 	env := evaluator.Env()
-	own := e.injectModuleBindings(env, builtins)
+	own, valueLets := e.injectModuleBindings(env, builtins)
 	evaluator.SetGlobalResolver(&CombinedResolver{
 		Builtins:       builtins,
 		Env:            env,
@@ -70,7 +70,23 @@ func (e *Executor) newHarnessEvaluator() *eval.CoreEvaluator {
 		ModuleBindings: own,
 	})
 	e.injectADTConstructors(evaluator)
+	// Evaluate top-level value `let` bindings (e.g. `let MOD = 1000000007`) now
+	// that resolvers and constructors are installed, binding them into each
+	// module's closed-over scope so functions and tests see them.
+	for _, vl := range valueLets {
+		if val, err := evaluator.Eval(vl.value); err == nil && val != nil {
+			vl.scope.bind(env, vl.name, val)
+		}
+	}
 	return evaluator
+}
+
+// moduleValueLet is a non-lambda, non-reexport top-level `let` binding deferred
+// until resolvers and constructors are installed on the harness evaluator.
+type moduleValueLet struct {
+	scope *moduleScope
+	name  string
+	value core.CoreExpr
 }
 
 // moduleScope is one module's environment during injection.
@@ -107,10 +123,10 @@ func (s *moduleScope) bind(shared *eval.Environment, name string, v eval.Value) 
 // Re-exports (`let concat = VarGlobal{std/list, concat}`) are resolved after
 // every module's functions are bound, because module order is lexical, not
 // dependency order.
-func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime.BuiltinRegistry) map[string]map[string]eval.Value {
+func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime.BuiltinRegistry) (map[string]map[string]eval.Value, []moduleValueLet) {
 	own := make(map[string]map[string]eval.Value, len(e.modules))
 	if len(e.modules) == 0 {
-		return own
+		return own, nil
 	}
 
 	type reexport struct {
@@ -119,6 +135,7 @@ func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime
 		ref   core.GlobalRef
 	}
 	var reexports []reexport
+	var valueLets []moduleValueLet
 
 	// Deterministic module order regardless of Go's map iteration order.
 	sortedPaths := make([]string, 0, len(e.modules))
@@ -152,6 +169,8 @@ func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime
 					})
 				} else if vg, ok := d.Value.(*core.VarGlobal); ok {
 					reexports = append(reexports, reexport{scope: scope, name: d.Name, ref: vg.Ref})
+				} else if d.Value != nil {
+					valueLets = append(valueLets, moduleValueLet{scope: scope, name: d.Name, value: d.Value})
 				}
 
 			case *core.LetRec:
@@ -208,5 +227,5 @@ func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime
 		}
 		reexports = pending
 	}
-	return own
+	return own, valueLets
 }

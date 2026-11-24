@@ -432,7 +432,9 @@ func PrintAILANGSource(expr ast.Expr) string {
 	case *ast.Lambda:
 		params := make([]string, len(e.Params))
 		for i, p := range e.Params {
-			if p.Type != nil {
+			if p.Pattern != nil {
+				params[i] = p.Pattern.String()
+			} else if p.Type != nil {
 				params[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
 			} else {
 				params[i] = p.Name

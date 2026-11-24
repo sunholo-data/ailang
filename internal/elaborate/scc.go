@@ -236,7 +236,11 @@ func withBound(bound map[string]bool, names ...string) map[string]bool {
 func paramNames(params []*ast.Param) []string {
 	names := make([]string, 0, len(params))
 	for _, p := range params {
-		names = append(names, p.Name)
+		if p.Pattern != nil {
+			names = append(names, astPatternBinders(p.Pattern)...)
+		} else {
+			names = append(names, p.Name)
+		}
 	}
 	return names
 }

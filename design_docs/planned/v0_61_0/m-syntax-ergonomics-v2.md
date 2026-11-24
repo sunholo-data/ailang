@@ -1,6 +1,6 @@
 # M-SYNTAX-ERGONOMICS-V2: Lambda Tuple Destructuring, Record `let` Destructuring, and Top-Level `let` Semicolons
 
-**Status**: Planned
+**Status**: Implemented (2026-11-24)
 **Target**: v0.61.0 (pre-v1.0.0 polish)
 **Priority**: P1 (High — directly targets the top remaining AI parse errors in `v0.16.19`)
 **Estimated**: 1.5–2 days across 3 independent milestones (E4, E5, E6)
@@ -100,8 +100,8 @@ From the `v0.16.19` `gemini-2-5-flash` 54-benchmark eval (`core` + `stretch` + `
 | **D2** | Scope of E5 (`let { ... } = r`) | **(a)** Closed & rest record patterns (`{a, b}`, `{a: x, ...}`) with irrefutable sub-patterns vs **(b)** Closed only | **(a)** Both closed and `...` rest patterns (reuses existing `RecordPattern` directly) | Mark | Low |
 
 ### Design Freeze
-- [ ] **D1** ratified
-- [ ] **D2** ratified
+- [x] **D1** ratified — **(b)** Optional `Pattern ast.Pattern` on `ast.Param` (Mark, 2026-11-24)
+- [x] **D2** ratified — **(a)** Closed & rest record patterns in `let` (Mark, 2026-11-24)
 
 ---
 

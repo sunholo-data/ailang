@@ -99,28 +99,56 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 	// Parse parameters - support curried sugar \x y z. body
 	var params []*ast.Param
 
-	// Keep consuming identifiers until we hit DOT
+	// Keep consuming identifiers or irrefutable tuple patterns until we hit DOT
 	for {
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-
-		param := &ast.Param{
-			Name: p.curToken.Literal,
-			Pos:  p.curPos(),
-			// Type will be inferred
+		var param *ast.Param
+		if p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken() // move onto LPAREN
+			patPos := p.curPos()
+			pat := p.parsePattern()
+			if !isIrrefutableTuplePattern(pat) {
+				p.errors = append(p.errors, NewSuggestionError(
+					"PAR_LAMBDA_PATTERN",
+					patPos,
+					p.curToken,
+					"only irrefutable tuple patterns like '\\(a, b). ...' are allowed in lambda parameters",
+					[]string{
+						"Use variables, '_', and nested tuples: \\(a, (b, _)). a + b",
+						"For refutable patterns (constructors, literals, lists), use '\\x. match x { ... }'",
+					},
+					"https://ailang.sunholo.com/docs/reference/language-syntax",
+				))
+				return nil
+			}
+			param = &ast.Param{
+				Pattern: pat,
+				Pos:     patPos,
+			}
+		} else {
+			if !p.expectPeek(lexer.IDENT) {
+				return nil
+			}
+			param = &ast.Param{
+				Name: p.curToken.Literal,
+				Pos:  p.curPos(),
+				// Type will be inferred
+			}
 		}
 		params = append(params, param)
 
-		// Check if next token is DOT (end of params) or another IDENT (more params)
+		// Check if next token is DOT (end of params) or another param (IDENT or LPAREN)
 		if p.peekTokenIs(lexer.DOT) {
 			break
 		} else if p.peekTokenIs(lexer.ARROW) {
 			// \x -> body is wrong; AILANG uses \x. body (dot, not arrow)
 			p.nextToken() // consume -> to prevent cascading PAR_NO_PREFIX_PARSE
-			p.errors = append(p.errors, fmt.Errorf("lambda body separator is '.' not '->' at %s\n\t\twrite: \\%s. <body>", p.curToken.Position(), params[len(params)-1].Name))
+			lastParam := params[len(params)-1].Name
+			if params[len(params)-1].Pattern != nil {
+				lastParam = params[len(params)-1].Pattern.String()
+			}
+			p.errors = append(p.errors, fmt.Errorf("lambda body separator is '.' not '->' at %s\n\t\twrite: \\%s. <body>", p.curToken.Position(), lastParam))
 			return nil
-		} else if !p.peekTokenIs(lexer.IDENT) {
+		} else if !p.peekTokenIs(lexer.IDENT) && !p.peekTokenIs(lexer.LPAREN) {
 			p.errors = append(p.errors, fmt.Errorf("expected '.' after lambda parameter at %s", p.peekToken.Position()))
 			return nil
 		}
