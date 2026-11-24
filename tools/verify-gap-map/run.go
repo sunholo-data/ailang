@@ -23,7 +23,9 @@ type row struct {
 	RequiresCallees []string `json:"requires_callees,omitempty"`
 	RequiresChecked []string `json:"requires_checked,omitempty"`
 	Caveats         []string `json:"caveats,omitempty"` // caveat kinds
-	Replayed        bool     `json:"witness_replayed,omitempty"`
+	// Unchecked are the obligations checked only to an unrolling depth.
+	Unchecked []string `json:"unchecked_obligations,omitempty"`
+	Replayed  bool     `json:"witness_replayed,omitempty"`
 }
 
 func (r row) key() string { return r.Corpus + "|" + r.File + "|" + r.Function }
@@ -52,7 +54,8 @@ type verifyOutput struct {
 		Caveats         []struct {
 			Kind string `json:"kind"`
 		} `json:"caveats"`
-		WitnessReplayed bool `json:"witness_replayed"`
+		WitnessReplayed      bool     `json:"witness_replayed"`
+		UncheckedObligations []string `json:"unchecked_obligations"`
 	} `json:"results"`
 }
 
@@ -123,7 +126,7 @@ func runOne(bin string, extra []string, j job, timeout time.Duration) ([]row, *f
 			Corpus: j.corpus.Name, File: filepath.ToSlash(j.file), Function: r.Function,
 			Status: st, ReasonCode: r.ReasonCode, Reason: truncate(r.Reason, 240),
 			RequiresCallees: r.RequiresCallees, RequiresChecked: r.RequiresChecked, Replayed: r.WitnessReplayed,
-			Caveats: caveatKinds(r.Caveats),
+			Caveats: caveatKinds(r.Caveats), Unchecked: r.UncheckedObligations,
 		})
 	}
 	return rows, nil

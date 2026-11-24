@@ -21,6 +21,7 @@ const (
 	CaveatIntOverflow          = "int_overflow"
 	CaveatIntOverflowUndecided = "int_overflow_undecided"
 	CaveatFloatInputs          = "float_inputs_assumed_non_nan"
+	CaveatObligationsBounded   = "obligations_checked_to_depth"
 )
 
 const intOverflowDetail = "an int + - * may leave the int64 range for some inputs (runtime int wraps at 64 bits); bound the inputs in requires, or run with --int-model=int64 to make this a violation"
@@ -135,5 +136,20 @@ func unrolledUndecided(vr VerifyResult, callees []string) VerifyResult {
 	vr.Status = "skipped"
 	vr.ReasonCode = verification.UnsupportedEncoding
 	vr.Reason = fmt.Sprintf("the solver could not decide this contract through the bounded unrolling of %s (%s)", strings.Join(callees, ", "), vr.Reason)
+	return vr
+}
+
+// boundedObligationsCaveat records, on a verified result, the obligations
+// checked only to the unrolling depth of a recursive helper or a HOF lambda.
+func boundedObligationsCaveat(vr VerifyResult, names []string) VerifyResult {
+	vr.UncheckedObligations = names
+	if vr.Status != "verified" || len(names) == 0 {
+		return vr
+	}
+	labels := make([]string, len(names))
+	for i, n := range names {
+		labels[i] = obligationLabel(n)
+	}
+	vr.Caveats = append(vr.Caveats, Caveat{Kind: CaveatObligationsBounded, Detail: "checked only to the unrolling depth of a recursive helper or a map/filter/foldl lambda (deeper calls are not checked): " + strings.Join(labels, "; ")})
 	return vr
 }

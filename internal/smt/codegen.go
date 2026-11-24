@@ -101,6 +101,8 @@ type EncodeResult struct {
 	// unrolling. A solver that cannot decide through them reports a skip, as
 	// before they were encoded, not a new unknown.
 	UnrolledCallees []string
+	// UncheckedObligations: obligations checked only to an unrolling depth.
+	UncheckedObligations []string
 }
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
@@ -197,6 +199,10 @@ func EncodeFunction(
 		}
 	}
 
+	// Runtime code carries obligations; contracts are encoded with them off.
+	bounded, restoreObligations := beginObligations()
+	defer restoreObligations()
+
 	// Resolve cross-function call dependencies
 	var calleeDefs []CalleeDef
 	if len(opts) > 0 && opts[0].Program != nil {
@@ -232,19 +238,18 @@ func EncodeFunction(
 
 	// Finite facts are collected for evaluated expressions only.
 	previousSpecs, previousFacts, previousConditions := activeContractSpecs, activeCallFacts, activeHelperConditions
-	previousReqs, previousUncheckable, previousObligations := activeCalleeRequires, activeUncheckableRequires, activeObligationCallees
+	previousReqs, previousUncheckable := activeCalleeRequires, activeUncheckableRequires
 	activeHelperConditions = make(map[string]string)
 	activeContractSpecs = make(map[string]*ContractSpec)
 	activeCalleeRequires = make(map[string]string)
 	activeUncheckableRequires = make(map[string]string)
-	activeObligationCallees = make(map[string]bool)
 	var callFacts []string
 	activeCallFacts = nil
 	defer func() {
 		activeContractSpecs = previousSpecs
 		activeCallFacts = previousFacts
 		activeHelperConditions = previousConditions
-		activeCalleeRequires, activeUncheckableRequires, activeObligationCallees = previousReqs, previousUncheckable, previousObligations
+		activeCalleeRequires, activeUncheckableRequires = previousReqs, previousUncheckable
 	}()
 	for _, def := range calleeDefs {
 		if def.ConditionName != "" {
@@ -431,7 +436,6 @@ func EncodeFunction(
 	}
 
 	// Step 1.55: HOF inlining — specialize map/filter/foldl with literal lambdas
-	var hofInlinedKinds []string
 	hofDepth := 0
 	if len(opts) > 0 {
 		hofDepth = opts[0].HOFInlineDepth
@@ -457,11 +461,8 @@ func EncodeFunction(
 			result.Declarations = append(result.Declarations, spec.Declarations...)
 			// Register specialized functions as resolved callees so encodeApp recognizes them
 			ctx.ResolvedCallees[spec.TopLevelName] = true
-			hofInlinedKinds = append(hofInlinedKinds, spec.Kind.String())
 		}
 	}
-	// Suppress "unused" warning for hofInlinedKinds (used for labeling output)
-	_ = hofInlinedKinds
 
 	// Step 1.6: Bounded recursion unrolling (if enabled)
 	var unrollTopName string
@@ -470,12 +471,16 @@ func EncodeFunction(
 		recursiveDepth = opts[0].RecursiveDepth
 	}
 	if recursiveDepth > 0 && isRecursive(body, funcName) {
+		// Recursive calls must meet the function's own requires (induction).
+		selfReq, inductive := selfCallRequires(funcName, meta, params, recursiveDepth, result)
+		defer selfReq()
 		unrollResult, err := UnrollRecursiveFunction(UnrollConfig{
 			FuncName:   funcName,
 			Params:     params,
 			Body:       body,
 			ReturnSort: returnSort,
 			Depth:      recursiveDepth,
+			Inductive:  inductive,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unrolling recursive function: %w", err)
@@ -516,7 +521,7 @@ func EncodeFunction(
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode requires clause: %w", err)
 		}
-		encoded, err := EncodeExpr(pred)
+		encoded, err := withoutObligations(func() (string, error) { return EncodeExpr(pred) })
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode requires clause: %w", err)
 		}
@@ -540,15 +545,13 @@ func EncodeFunction(
 			}
 		}
 		bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
+		addDefinitionObligations(unrollTopName, paramNames)
 	} else {
 		var err error
 		// The result sort is determined BEFORE the body is encoded so it can
 		// resolve empty list literals in the body, whose element sort is not
 		// recoverable from the literal itself (ailang#689).
-		// Calls in the body itself carry their callees' requires as obligations.
-		obligationsOn = true
 		bodyExpr, err = encodeExprWithSortHint(body, resultSortFor(params, body, ctx, adtTypes, returnSort))
-		obligationsOn = false
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode function body: %w", err)
 		}
@@ -579,7 +582,7 @@ func EncodeFunction(
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode ensures clause: %w", err)
 		}
-		encoded, err := EncodeExpr(pred)
+		encoded, err := withoutObligations(func() (string, error) { return EncodeExpr(pred) })
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode ensures clause: %w", err)
 		}
@@ -597,9 +600,9 @@ func EncodeFunction(
 
 	// Callee preconditions are assumed in the postcondition query and checked
 	// in one obligation query per callee (codegen_obligations.go).
-	callees := obligationCallees()
+	callees := obligationCallees(callFacts)
 	for _, fact := range callFacts {
-		result.Assertions = append(result.Assertions, Assert(bindRequiresOk(fact, callees, "*", "true")))
+		result.Assertions = append(result.Assertions, Assert(bindPostconditionAssumptions(fact, callees)))
 	}
 	if err := leakedObligation(result.Declarations); err != nil {
 		return nil, err
@@ -629,6 +632,7 @@ func EncodeFunction(
 	lines = append(lines, GetModel())
 
 	result.SMTLib = strings.Join(lines, "\n")
+	result.UncheckedObligations = sortedKeys(bounded)
 	for _, g := range callees {
 		q := append(append([]string(nil), lines[:preamble]...), requiresAssertions...)
 		q = append(q, obligationAssertions(callFacts, callees, g)...)
@@ -773,6 +777,7 @@ var contractHOFCounter int
 // its free frontier only weakens the assumption.
 func inlineContractHOFs(funcName, kind string, pred core.CoreExpr, depth int, result *EncodeResult) (core.CoreExpr, error) {
 	contractHOFCounter++
+	defer obligationsOff()() // a contract is not runtime code of the caller
 	r := InlineHOFCalls(fmt.Sprintf("%s_%s%d", funcName, kind, contractHOFCounter), pred, depth)
 	if r == nil {
 		return pred, nil

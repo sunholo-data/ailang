@@ -51,7 +51,9 @@ that may rest on an unrolling frontier is `inconclusive`, and so is one over an 
 builtin. Unknown makes the result `unknown`.
 
 **Scope of v1 (stated in the docs, not silent):** obligations are emitted for calls in the verified
-function's *own body*. These are not yet checked:
+function's *own body*. *Update, same day:* the first three below are now checked, through
+per-definition `$ob_` predicates (program doc, "M3/M4 inside definitions"); calls inside
+`requires`/`ensures` still are not. The v1 list was:
 - calls inside a helper's body, which are checked when that helper is verified, if it has a contract;
 - calls inside a lambda passed to `map`/`filter`/`foldl`;
 - calls inside the unrolled body of a recursive function, including its own recursive call;

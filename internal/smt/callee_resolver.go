@@ -103,13 +103,17 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 	// define-fun application (dropping unit args of nullary callees) rather than
 	// falling through to the constructor path. Restore the caller's view after.
 	previousSpecs, previousContractCallees, previousConditions := activeContractSpecs, activeContractCallees, activeHelperConditions
+	previousReqs, previousUncheckable := activeCalleeRequires, activeUncheckableRequires
 	activeContractSpecs = make(map[string]*ContractSpec)
 	activeContractCallees = make(map[string]string)
 	activeHelperConditions = make(map[string]string)
+	activeCalleeRequires = make(map[string]string)
+	activeUncheckableRequires = make(map[string]string)
 	defer func() {
 		activeContractSpecs = previousSpecs
 		activeContractCallees = previousContractCallees
 		activeHelperConditions = previousConditions
+		activeCalleeRequires, activeUncheckableRequires = previousReqs, previousUncheckable
 	}()
 	prevResolved := activeResolvedCallees
 	resolvedSoFar := make(map[string]bool)
@@ -209,6 +213,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				smtDef = strings.Join(hofDecls, "\n") + "\n" + smtDef
 			}
 			reqName, reqUncheckable := calleeRequiresDef(calleeName, meta, params, defParams, &smtDef)
+			registerCalleeRequires(calleeName, reqName, reqUncheckable)
 			defs = append(defs, CalleeDef{
 				Name:                calleeName,
 				SMTLib:              smtDef,
@@ -221,9 +226,10 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			continue
 		}
 		var bodyExpr, bodyFacts string
+		var bounded map[string]bool
 		defParams, _, err := withArgRenames(params, func() (string, error) {
 			var encErr error
-			bodyExpr, bodyFacts, encErr = captureCallFacts(func() (string, error) { return EncodeExpr(innerBody) })
+			bodyExpr, bodyFacts, bounded, encErr = captureDefinition(func() (string, error) { return EncodeExpr(innerBody) })
 			return bodyExpr, encErr
 		})
 		if activeADTContext != nil {
@@ -239,6 +245,12 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		if len(hofDecls) > 0 {
 			smtDef = strings.Join(hofDecls, "\n") + "\n" + smtDef
 		}
+		// The body's obligations become $ob_ define-funs; the rest of its
+		// facts, with every obligation off, is its condition.
+		obDecls, bodyFacts := definitionObligations(calleeName, defParams, bodyFacts, bounded)
+		for _, d := range obDecls {
+			smtDef += "\n" + d
+		}
 		conditionName := ""
 		if bodyFacts != "true" {
 			conditionName = "$facts_" + calleeName
@@ -248,6 +260,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		// The callee's requires, over the same renamed parameters: each call in
 		// the contracted body must meet it (codegen_obligations.go).
 		reqName, reqUncheckable := calleeRequiresDef(calleeName, meta, params, defParams, &smtDef)
+		registerCalleeRequires(calleeName, reqName, reqUncheckable)
 		defs = append(defs, CalleeDef{
 			Name:                calleeName,
 			SMTLib:              smtDef,
@@ -705,9 +718,10 @@ const defaultCalleeUnrollDepth = defaultHOFInlineDepth
 // (name_0 … name_N, name_0 an uninterpreted stub) plus a define-fun `name` over
 // name_N, so call sites encode exactly as for any inline callee. Any proof
 // through it is bounded: the caller reports HOFBoundedDepth, and a sat is
-// inconclusive until witness replay decides it. Facts are not collected inside
-// the unrolled levels (they would escape their define-funs); dropping them only
-// weakens what the solver knows.
+// inconclusive until witness replay decides it. Facts inside the unrolled
+// levels are kept only as each level's obligations ($ob_ define-funs); the
+// rest would escape their define-funs, and dropping them only weakens what the
+// solver knows.
 func unrollRecursiveCallee(name string, params []FunctionParam, body core.CoreExpr, returnSort string) (string, []FunctionParam, error) {
 	savedFacts := activeCallFacts
 	activeCallFacts = nil
@@ -725,7 +739,9 @@ func unrollRecursiveCallee(name string, params []FunctionParam, body core.CoreEx
 	if len(args) > 0 {
 		top = fmt.Sprintf("(%s %s)", top, strings.Join(args, " "))
 	}
-	return strings.Join(unrolled.Declarations, "\n") + "\n" + buildDefineFun(name, defParams, returnSort, top), defParams, nil
+	decls := append(unrolled.Declarations, buildDefineFun(name, defParams, returnSort, top))
+	decls = append(decls, aliasDefinitionObligations(name, unrolled.TopLevelName, defParams)...)
+	return strings.Join(decls, "\n"), defParams, nil
 }
 
 // calleeRequiresDef appends to *smtDef the Bool define-fun holding the
@@ -747,4 +763,15 @@ func calleeRequiresDef(name string, meta *core.DeclMeta, params, defParams []Fun
 // onlyRecursive reports whether recursion is the callee's only rejection.
 func onlyRecursive(reasons []SMTRejectionReason) bool {
 	return len(reasons) == 1 && reasons[0].Code == RejectRecursive
+}
+
+// registerCalleeRequires makes a resolved callee's requires checkable at calls
+// encoded after it: later callees' bodies as well as the contracted body.
+func registerCalleeRequires(name, reqName, uncheckable string) {
+	if reqName != "" {
+		activeCalleeRequires[name] = reqName
+	}
+	if uncheckable != "" {
+		activeUncheckableRequires[name] = uncheckable
+	}
 }

@@ -241,3 +241,26 @@ func caveatCounts(rows []row) map[string]int {
 	}
 	return c
 }
+
+// uncheckedCounts counts, per obligation kind, the verified results that check
+// it only to an unrolling depth (a recursive helper or a HOF lambda): numeric
+// operations (%int64, %nan) or a callee's requires (folded into "requires").
+func uncheckedCounts(rows []row) map[string]int {
+	c := map[string]int{}
+	for _, r := range rows {
+		if r.Status != "verified" {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, k := range r.Unchecked {
+			if !strings.HasPrefix(k, "%") {
+				k = "requires"
+			}
+			if !seen[k] {
+				seen[k] = true
+				c[k]++
+			}
+		}
+	}
+	return c
+}

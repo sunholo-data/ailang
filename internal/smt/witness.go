@@ -400,3 +400,27 @@ func uninterpretedUndecided(vr VerifyResult, symbols []string) VerifyResult {
 		strings.Join(symbols, ", "), vr.Reason)
 	return vr
 }
+
+// runtimeWitnessModel returns a model whose int parameters fit in int64, so
+// replay can pass them to the real function. The encoding's ints are
+// unbounded, and the int64 obligations it assumes are guarded on in-range
+// operands, so the solver may meet them with an input no caller can pass
+// (n = 2^63). It re-solves with the parameters bounded and falls back to the
+// original model when that finds none.
+func runtimeWitnessModel(smtlib string, params []FunctionParam, model []ModelBinding, cfg SolverConfig) []ModelBinding {
+	var bounds []string
+	for _, p := range params {
+		if sort, err := MapType(p.Type); err == nil && sort == "Int" {
+			bounds = append(bounds, Assert(in64(ParamRenamePrefix+p.Name)))
+		}
+	}
+	i := strings.LastIndex(smtlib, CheckSat())
+	if len(bounds) == 0 || i < 0 {
+		return model
+	}
+	sr, err := Solve(smtlib[:i]+strings.Join(bounds, "\n")+"\n"+smtlib[i:], cfg)
+	if err != nil || sr.Status != StatusCounterexample || len(sr.Model) == 0 {
+		return model
+	}
+	return sr.Model
+}

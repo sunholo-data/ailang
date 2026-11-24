@@ -1,0 +1,78 @@
+module def_obs
+import std/list (map, length)
+
+-- Obligations inside helpers, HOF lambdas and recursion are checked at each
+-- call, under the caller's path. Before this, every function here except
+-- recBad was VERIFIED: helper bodies, lambdas and unrolled recursion were
+-- encoded with no obligations at all.
+
+pure func needsPos(x: int) -> int
+  requires { x > 0 }
+{ x }
+
+pure func square(x: int) -> int = x * x + 1
+pure func inv(x: float) -> float = 1.0 / x
+pure func invSafe(x: float) -> float = if x == 0.0 then 0.0 else 1.0 / x
+pure func viaNeeds(x: int) -> int = needsPos(x)
+pure func twice(x: float) -> float = inv(x) + inv(x)
+
+-- A helper's int arithmetic: a note under the default int model.
+export pure func useSquare(x: int) -> int
+  requires { x >= 0 }
+  ensures { result >= 1 }
+{ square(x) }
+
+export pure func useSquareSmall(x: int) -> int
+  requires { x >= 0 && x < 1000 }
+  ensures { result >= 1 }
+{ square(x) }
+
+-- A helper divides by zero.
+export pure func useInv(x: float) -> float
+  ensures { result == result }
+{ inv(x) }
+
+-- The caller's path rules it out.
+export pure func useInvGuarded(x: float) -> float
+  ensures { result == result }
+{ if x > 0.0 then inv(x) else 0.0 }
+
+-- The helper's own path rules it out.
+export pure func useInvSafe(x: float) -> float
+  ensures { result == result }
+{ invSafe(x) }
+
+-- Two helpers deep.
+export pure func useTwice(x: float) -> float
+  ensures { result == result }
+{ twice(x) }
+
+-- A helper breaks another function's requires.
+export pure func useNeedsBad(x: int) -> int
+  ensures { result == x }
+{ viaNeeds(x) }
+
+export pure func useNeedsOk(x: int) -> int
+  requires { x > 5 }
+  ensures { result > 5 }
+{ viaNeeds(x) }
+
+-- A map lambda: checked to the specialisation's depth.
+export pure func useLambda(xs: [int]) -> [int]
+  ensures { length(result) == length(xs) }
+{ map(\y. y + 1, xs) }
+
+-- A recursive call must meet the function's own requires; with that checked
+-- the unrolling's obligations follow by induction (no depth caveat).
+@verify(depth: 3)
+export pure func recOk(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == result }
+{ if n <= 1 then 0 else recOk(n - 2) }
+
+-- recBad(1) calls recBad(-1).
+@verify(depth: 3)
+export pure func recBad(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == result }
+{ if n == 0 then 0 else recBad(n - 2) }

@@ -284,6 +284,7 @@ func encodeUserFunctionCall(funcName string, args []core.CoreExpr) (string, erro
 		}
 		encodedArgs = append(encodedArgs, encoded)
 	}
+	addDefinitionObligations(funcName, encodedArgs)
 	if len(encodedArgs) == 0 {
 		return funcName, nil
 	}
@@ -309,6 +310,8 @@ func encodeConstructorApp(ctorName string, args []core.CoreExpr) (string, error)
 		}
 		encodedArgs[i] = encoded
 	}
+	addDefinitionObligations(ctorName, encodedArgs) // a call to an unrolled level
+	addLevelRequires(ctorName, encodedArgs)
 	return fmt.Sprintf("(%s %s)", ctorName, strings.Join(encodedArgs, " ")), nil
 }
 

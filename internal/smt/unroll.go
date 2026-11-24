@@ -22,6 +22,10 @@ type UnrollConfig struct {
 	// quantifier-free on purpose: a quantified fact made Z3 time out on every
 	// false contract instead of returning a model.
 	Frontier func(level0 string, paramSorts []string, returnSort string) []string
+	// Inductive: the bottom level's obligations follow from the levels above
+	// (the contracted function's own recursion with no requires). Otherwise
+	// obligations are checked only to Depth and reported as bounded.
+	Inductive bool
 }
 
 // UnrollResult holds the generated SMT-LIB declarations for a bounded unrolling.
@@ -78,16 +82,33 @@ func UnrollRecursiveFunction(cfg UnrollConfig) (*UnrollResult, error) {
 		// list literal the body returns: a map/filter specialisation's base case
 		// is `[]`, which defaults to (Seq Int) and is ill-sorted for any other
 		// element type (#215).
+		// Facts are captured per level only for its obligations ($ob_
+		// define-funs, codegen_def_obligations.go); other facts would name the
+		// level's parameters outside its define-fun and are dropped.
+		var facts string
+		var bounded map[string]bool
 		defParams, bodyExpr, err := withArgRenames(cfg.Params, func() (string, error) {
-			return encodeExprWithSortHint(rewrittenBody, cfg.ReturnSort)
+			value, f, b, encErr := captureDefinition(func() (string, error) {
+				return encodeExprWithSortHint(rewrittenBody, cfg.ReturnSort)
+			})
+			facts, bounded = f, b
+			return value, encErr
 		})
 		if err != nil {
 			return nil, fmt.Errorf("encoding unrolled body at depth %d: %w", k, err)
+		}
+		if k == 1 && !cfg.Inductive {
+			// The stub level below has the same obligations, unchecked.
+			for _, n := range reqOkNames(facts) {
+				bounded[n] = true
+			}
 		}
 
 		// Build define-fun (parameters bound under $a_ names: see argSymbol)
 		defineFun := buildDefineFun(levelName, defParams, cfg.ReturnSort, bodyExpr)
 		result.Declarations = append(result.Declarations, defineFun)
+		obDecls, _ := definitionObligations(levelName, defParams, facts, bounded)
+		result.Declarations = append(result.Declarations, obDecls...)
 	}
 
 	result.TopLevelName = fmt.Sprintf("%s_%d", cfg.FuncName, cfg.Depth)

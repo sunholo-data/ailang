@@ -64,6 +64,9 @@ func report(w io.Writer, cur, prev *snapshot, prevPath string, n int) int {
 	if cc := caveatCounts(cur.Rows); len(cc) > 0 {
 		section(w, "Verified results with caveats (kind)", top(cc, n))
 	}
+	if uc := uncheckedCounts(cur.Rows); len(uc) > 0 {
+		section(w, "Verified results with obligations checked only to an unrolling depth (kind)", top(uc, n))
+	}
 
 	fmt.Fprintf(w, "\nCall-site requires (D1): %d results reach a callee with a requires\n", cur.D1.Results)
 	fmt.Fprintf(w, "  %-15s %5s %10s\n", "", "all", "unchecked")

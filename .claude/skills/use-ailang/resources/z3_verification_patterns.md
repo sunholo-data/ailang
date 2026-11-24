@@ -123,7 +123,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 ### What VERIFIED does NOT cover
 
-- **Call-site preconditions, partly**: a callee's `requires` IS checked at each call in the verified function's body (a possible break is a VIOLATION, `requires_violation`), but not at calls inside HOF lambdas, recursion or helper bodies
+- **Call-site preconditions, partly**: a callee's `requires` IS checked at each call the verified function makes, including inside helpers, HOF lambdas and its own recursion (a possible break is a VIOLATION, `requires_violation`); inside recursive helpers and lambdas only to the unrolling depth (an `obligations_checked_to_depth` note), and never at calls from unverified code
 - **int64 overflow, partly**: `int` + - * that can wrap is reported as a note on the VERIFIED result (`--int-model=int64` makes it a violation); bound inputs in `requires` to remove it
 - **NaN inputs / IEEE rounding**: `float` is Z3's `Real`; NaN *inputs* are assumed away. Division by zero, `sqrt` of a negative and `log` of a non-positive ARE violations (`float_nan_or_inf`)
 

@@ -321,14 +321,17 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
   `requires { n > 0 }`; `caller(n)` declares `requires { n < 0 }` and returns `one(n)`. `caller` is now
   `✗ VIOLATION` with reason `requires_violation` ("a call to one may break its requires"); before,
   both reported `✓ VERIFIED`. Calls in the verified function's own body are checked, under the
-  branch and `let` that reach them. Not yet checked: calls inside a helper's body (checked when that
-  helper is itself verified), inside a lambda passed to `map`/`filter`/`foldl`, inside a recursive
-  function's unrolled body, and inside `requires`/`ensures`.
+  branch and `let` that reach them, and so are calls inside the helpers it calls, inside a lambda
+  passed to `map`/`filter`/`foldl`, and its own recursive calls (which must meet its own `requires`).
+  Inside a recursive helper or a lambda the check reaches only the unrolling depth (depth 3), and
+  the result carries an `obligations_checked_to_depth` note. Not checked: calls inside
+  `requires`/`ensures`, and calls from an unverified caller.
 - **int64 overflow (reported on dev, 2026-11-24).** `inc(x) requires { x >= 0 } ensures { result > x }
   { x + 1 }` is `✓ VERIFIED` with a note (`caveats: int_overflow`) showing `x = 9223372036854775807`;
   `ailang run` of that input prints `-9223372036854775808`. By default the note does not change the
   verdict or exit code; `ailang verify --int-model=int64` makes it a VIOLATION (`int_overflow`).
-  Arithmetic inside lambdas, recursion, helper bodies and contracts is not checked yet.
+  Arithmetic inside helpers, lambdas and recursion is checked the same way (to the unrolling depth
+  in recursive helpers and lambdas); arithmetic inside contracts is not.
 - **NaN (partly closed on dev, 2026-11-24).** Float `/` and `%` by a possible zero, `sqrt` of a
   possible negative and `log` of a possible non-positive are VIOLATIONS (`float_nan_or_inf`). Float
   inputs are still assumed non-NaN: `selfEq(x: float) ensures { result == true } { x == x }` is

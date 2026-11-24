@@ -40,8 +40,9 @@ Overflow of a float product to ±Inf is not modelled (the encoding is the reals)
 **Evidence.** `numeric_model` gains `int_overflow` (`reported` or `checked`) and `float_nan`
 (`operations_checked`). The `Scope:` line says so.
 
-**Scope** (same as M3): arithmetic inside `requires`/`ensures`, HOF lambdas, recursion and helper
-bodies is not checked yet. Int `/` and `%` by zero are runtime errors, not values, so they are
+**Scope** (same as M3): arithmetic inside `requires`/`ensures` is not checked. Arithmetic inside
+helpers, HOF lambdas and recursion is checked since the follow-up (obligations inside definitions,
+see the program doc); in recursive helpers and lambdas only to the unrolling depth. Int `/` and `%` by zero are runtime errors, not values, so they are
 outside the partial-correctness model and not checked. `pow` is not checked.
 
 ## Verification log

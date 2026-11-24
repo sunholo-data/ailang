@@ -73,9 +73,11 @@ bad inputs in ordinary execution rather than rely on that opt-in flag.
 **A `requires` clause is assumed by the function and checked at verified calls.**
 The verifier assumes a function's precondition while proving that function's
 `ensures`. When a verified function calls it, each call in that function's body
-must meet it: a call that may not is a VIOLATION (`requires_violation`). Calls
-inside a lambda passed to `map`/`filter`/`foldl`, inside recursion or inside a
-helper's body are not checked yet, and an unverified caller is never checked.
+must meet it: a call that may not is a VIOLATION (`requires_violation`). That
+includes calls inside a helper it calls, a lambda passed to `map`/`filter`/`foldl`,
+and its own recursive calls (which must meet its own `requires`). Inside a recursive
+helper or a lambda the check reaches only the unrolling depth (a note says so). An
+unverified caller is never checked.
 `ailang run` checks `requires` only with `--verify-contracts`. So a `VERIFIED`
 result means "the `ensures` holds whenever the `requires` holds"; guard inputs
 that come from unverified code.
@@ -474,7 +476,7 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 **Limitations:**
 - Callees must also be in the decidable fragment (pure, encodable types)
 - A self-recursive callee (an index scanner like `allFrom(s, i) = i >= length(s) || (ok(charAt(s, i)) && allFrom(s, i + 1))`) is unrolled to depth 3 below an uninterpreted stub. A proof through it holds for every value the stub could return, so it is a real proof, labelled `bounded: depth 3`; a counterexample through it is inconclusive until witness replay confirms it. Mutually recursive helpers are still skipped. See [Bounded Recursion](#bounded-recursion-verification) above
-- A callee's `requires` **is** checked at each call in the verified function's body, under the branch and `let` that reach the call: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` is a `✗ VIOLATION` with reason `requires_violation`. Calls inside a lambda passed to `map`/`filter`/`foldl`, inside recursion, or inside a helper's body are not yet checked
+- A callee's `requires` **is** checked at each call in the verified function's body, under the branch and `let` that reach the call: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` is a `✗ VIOLATION` with reason `requires_violation`. The same holds for calls inside the helpers it calls, inside a lambda passed to `map`/`filter`/`foldl`, and for its own recursive calls; so do the int overflow and NaN checks. Inside a recursive helper or a lambda they reach only the unrolling depth, and the result carries a note saying so
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 
 ### Record Verification
@@ -969,7 +971,7 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 - ✅ Numeric model (`float=Real, int=Int`) disclosed on every run
 
 **On dev (2026-11-24)** — Call-site preconditions:
-- ✅ A call that may break its callee's `requires` is a VIOLATION (`requires_violation`); calls in lambdas, recursion and helper bodies are not yet checked
+- ✅ A call that may break its callee's `requires` is a VIOLATION (`requires_violation`), including calls in helpers, `map`/`filter`/`foldl` lambdas and recursion (recursive helpers and lambdas: to the unrolling depth)
 - ✅ int64 overflow of `+ - *` reported on the verified result (`--int-model=int64` makes it a violation); float division by zero, `sqrt` of a negative and `log` of a non-positive are violations
 
 **Open gaps** (measured at v0.60.6, 2026-11-23):

@@ -3,7 +3,6 @@ package smt
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -24,16 +23,16 @@ import (
 //     $req_ok_* false (assumptions only) and NOT the facts with $req_ok_g true:
 //     sat means a reachable call to g breaks g's requires.
 //
-// Obligations are emitted only while the contracted function's own body is
-// encoded (obligationsOn). Helper bodies, unrolled recursion, HOF
-// specialisations and contracts are encoded as define-funs or callee
-// templates, where a free $req_ok_ symbol cannot appear; their calls are not
-// checked yet (stated in the docs).
+// Obligations are emitted while runtime code is encoded (obligationsOn): the
+// contracted body, and the helper bodies, unrolled recursion and HOF
+// specialisations it calls, whose obligations travel as $ob_ define-funs
+// (codegen_def_obligations.go). Contracts are not runtime code of the caller
+// and are encoded with obligations off (withoutObligations).
 
 const reqOkPrefix = "$req_ok_"
 
 var (
-	// obligationsOn is true only while EncodeFunction encodes the body.
+	// obligationsOn is true while EncodeFunction encodes runtime code.
 	obligationsOn bool
 	// activeCalleeRequires maps an inline (define-fun) callee to the Bool
 	// define-fun holding its requires over its parameters.
@@ -41,8 +40,6 @@ var (
 	// activeUncheckableRequires maps a callee whose requires could not be
 	// encoded to the reason: a call to it cannot be checked.
 	activeUncheckableRequires map[string]string
-	// activeObligationCallees records the callees that received an obligation.
-	activeObligationCallees map[string]bool
 )
 
 // CallObligation is the query that checks every call to Callee against its requires.
@@ -63,13 +60,19 @@ func addObligation(callee, requires string) {
 	if !obligationsOn || requires == "" || requires == "true" {
 		return
 	}
-	activeObligationCallees[callee] = true
 	addCallFact(fmt.Sprintf("(=> %s %s)", reqOkSymbol(callee), requires))
 }
 
 // uncheckableCall is the error for a call whose callee's requires has no encoding.
 func uncheckableCall(callee, why string) error {
 	return fmt.Errorf("%w: the requires of %q cannot be encoded, so a call to it cannot be checked: %s", ErrUnsupportedConstruct, callee, why)
+}
+
+// obligationsOff turns obligations off and returns the func restoring them.
+func obligationsOff() func() {
+	previous := obligationsOn
+	obligationsOn = false
+	return func() { obligationsOn = previous }
 }
 
 // withoutObligations encodes with obligations off: a callee's own contract is
@@ -101,7 +104,9 @@ func requiresContracts(meta *core.DeclMeta) []*core.Contract {
 func encodeRequiresBody(reqs []*core.Contract) (string, error) {
 	parts := make([]string, 0, len(reqs))
 	for _, c := range reqs {
-		value, facts, err := captureCallFacts(func() (string, error) { return EncodeExpr(c.Expr) })
+		value, facts, err := captureCallFacts(func() (string, error) {
+			return withoutObligations(func() (string, error) { return EncodeExpr(c.Expr) })
+		})
 		if err != nil {
 			return "", err
 		}
@@ -148,14 +153,9 @@ func bindRequiresOk(fact string, callees []string, on, rest string) string {
 	return fmt.Sprintf("(let (%s) %s)", strings.Join(binds, " "), fact)
 }
 
-// obligationCallees returns the callees that received obligations, sorted.
-func obligationCallees() []string {
-	out := make([]string, 0, len(activeObligationCallees))
-	for c := range activeObligationCallees {
-		out = append(out, c)
-	}
-	sort.Strings(out)
-	return out
+// obligationCallees returns, sorted, the obligation names the facts carry.
+func obligationCallees(facts []string) []string {
+	return reqOkNames(facts...)
 }
 
 // obligationAssertions builds, for callee g, the assertions after the
@@ -192,6 +192,7 @@ func obligationDependsOn(facts []string, callee string, uninterpreted []string) 
 		if !ok.MatchString(f) {
 			continue
 		}
+		f = expandObligationDefs(f)
 		for _, u := range uninterpreted {
 			if strings.Contains(f, u+" ") || strings.Contains(f, u+")") {
 				return true
@@ -199,4 +200,22 @@ func obligationDependsOn(facts []string, callee string, uninterpreted []string) 
 		}
 	}
 	return false
+}
+
+// bindPostconditionAssumptions binds the obligation symbols of fact for the
+// postcondition query: callee requires and NaN obligations are assumed (true);
+// int64 range obligations are not (false).
+func bindPostconditionAssumptions(fact string, callees []string) string {
+	if !strings.Contains(fact, reqOkPrefix) {
+		return fact
+	}
+	binds := make([]string, len(callees))
+	for i, c := range callees {
+		v := "true"
+		if c == obligationInt64 {
+			v = "false"
+		}
+		binds[i] = fmt.Sprintf("(%s %s)", reqOkSymbol(c), v)
+	}
+	return fmt.Sprintf("(let (%s) %s)", strings.Join(binds, " "), fact)
 }

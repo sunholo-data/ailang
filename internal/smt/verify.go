@@ -38,13 +38,15 @@ type VerifyResult struct {
 	// measures what decision D1 could change; it does not affect Status.
 	RequiresCallees []string `json:"requires_callees,omitempty"`
 	// RequiresChecked lists the callees whose requires were checked at every
-	// call in the function's own body (M3). A callee in RequiresCallees but
-	// not here is reached only where calls are not yet checked (a helper's
-	// body, a HOF lambda, unrolled recursion, a contract).
+	// call the function's body reaches, through helpers, HOF lambdas and its
+	// own recursion (M3). A callee in RequiresCallees but not here is reached
+	// only where calls are not checked (a contract) or not at all.
 	RequiresChecked []string `json:"requires_checked,omitempty"`
 	// Caveats qualify a result without changing its status (int64 overflow
 	// under the default int model, float inputs assumed non-NaN).
 	Caveats []Caveat `json:"caveats,omitempty"`
+	// UncheckedObligations: checked only to an unrolling depth; not a status.
+	UncheckedObligations []string `json:"unchecked_obligations,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
@@ -638,12 +640,13 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		if vr.Status == "verified" && len(encResult.Obligations) > 0 {
 			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts)
 		}
+		vr = boundedObligationsCaveat(vr, encResult.UncheckedObligations)
 		vr = floatCaveat(vr, encResult.SMTLib)
 		if vr.Status == "unknown" && len(encResult.UnrolledCallees) > 0 {
 			vr = unrolledUndecided(vr, encResult.UnrolledCallees)
 		}
 		if vr.Status == "inconclusive" && opts.Replay != nil {
-			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)
+			vr = replayInconclusive(vr, funcName, params, runtimeWitnessModel(encResult.SMTLib, params, solveResult.Model, solverCfg), encResult.SMTLib, opts.Replay)
 		}
 		if opts.Verbose {
 			vr.SMTLib = encResult.SMTLib
