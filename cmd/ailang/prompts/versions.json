@@ -1241,7 +1241,7 @@
     },
     "v0.16.18": {
       "file": "prompts/v0.16.18.md",
-      "hash": "c274235abf48c7a8dd9cabdf890bbb530a1f29fd6a20a9bc0c088b55aa66f730",
+      "hash": "d16f699547c7602e954529c24432d5dbc6c245b6ad6795e1ca04eac237fef56c",
       "description": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly",
       "created": "2026-11-24",
       "tags": [

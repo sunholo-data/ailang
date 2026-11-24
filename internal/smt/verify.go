@@ -37,6 +37,11 @@ type VerifyResult struct {
 	// which the verifier assumes but does not check at the call (S1). It
 	// measures what decision D1 could change; it does not affect Status.
 	RequiresCallees []string `json:"requires_callees,omitempty"`
+	// RequiresChecked lists the callees whose requires were checked at every
+	// call in the function's own body (M3). A callee in RequiresCallees but
+	// not here is reached only where calls are not yet checked (a helper's
+	// body, a HOF lambda, unrolled recursion, a contract).
+	RequiresChecked []string `json:"requires_checked,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
@@ -618,6 +623,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 		if vr.Status == "unknown" && len(encResult.Uninterpreted) > 0 {
 			vr = uninterpretedUndecided(vr, encResult.Uninterpreted)
+		}
+		if vr.Status == "verified" && len(encResult.Obligations) > 0 {
+			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts.Verbose)
 		}
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)

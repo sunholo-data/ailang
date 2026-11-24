@@ -21,6 +21,9 @@ const (
 	SolverTimeout        ReasonCode = "solver_timeout"
 	VerifierError        ReasonCode = "verifier_error"
 	Counterexample       ReasonCode = "counterexample"
+	// RequiresViolation marks a counterexample in which a call breaks its
+	// callee's requires (decision D1(a), M-VERIFY-CALL-SITE-REQUIRES).
+	RequiresViolation ReasonCode = "requires_violation"
 	// BoundedInconclusive marks a sat found under bounded recursion unrolling:
 	// the model may rest on an invented value for the uninterpreted frontier
 	// stub, so the verifier can neither prove nor refute the obligation.

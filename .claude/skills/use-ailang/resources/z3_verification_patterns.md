@@ -121,7 +121,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 
 ### What VERIFIED does NOT cover
 
-- **Call-site preconditions**: a callee's `requires` is assumed, never checked where it is called
+- **Call-site preconditions, partly**: a callee's `requires` IS checked at each call in the verified function's body (a possible break is a VIOLATION, `requires_violation`), but not at calls inside HOF lambdas, recursion or helper bodies
 - **int64 overflow**: `int` is Z3's unbounded `Int`; runtime `int` wraps at 64 bits
 - **NaN / IEEE rounding**: `float` is Z3's `Real`
 

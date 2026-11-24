@@ -24,6 +24,18 @@ func encodeResolvedApplication(name string, args []core.CoreExpr) (string, error
 	if err != nil {
 		return "", err
 	}
+	if obligationsOn {
+		if why, bad := activeUncheckableRequires[name]; bad {
+			return "", uncheckableCall(name, why)
+		}
+		if req := activeCalleeRequires[name]; req != "" {
+			obligation, err := encodeUserFunctionCall(req, operands)
+			if err != nil {
+				return "", err
+			}
+			addObligation(name, obligation)
+		}
+	}
 	if condition := activeHelperConditions[name]; condition != "" {
 		fact, err := encodeUserFunctionCall(condition, operands)
 		if err != nil {

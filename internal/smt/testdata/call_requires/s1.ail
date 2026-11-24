@@ -1,0 +1,28 @@
+module s1
+
+export pure func one(n: int) -> int
+  requires { n > 0 }
+  ensures { result == 1 }
+{ 1 }
+
+export pure func caller(n: int) -> int
+  requires { n < 0 }
+  ensures { result == 1 }
+{ one(n) }
+
+-- The branch implies one's requires: must still verify.
+export pure func guarded(n: int) -> int
+  ensures { result == 1 || result == 0 }
+{ if n > 0 then one(n) else 0 }
+
+-- The let-bound value meets the requires.
+export pure func viaLet(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == 1 }
+{ let m = n + 1 in one(m) }
+
+-- The let-bound value does not.
+export pure func viaLetBad(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == 1 }
+{ let m = n - 1 in one(m) }

@@ -35,6 +35,11 @@ type CalleeDef struct {
 	// HOFBoundedDepth > 0: the callee's body specialised HOF calls to this depth,
 	// so any proof through it is bounded (see EncodeResult.HOFBoundedDepth).
 	HOFBoundedDepth int
+	// RequiresName is the Bool define-fun holding the callee's requires over
+	// its parameters; UncheckableRequires says why it could not be encoded.
+	// Each call in the contracted body must meet it (codegen_obligations.go).
+	RequiresName        string
+	UncheckableRequires string
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -212,11 +217,25 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			smtDef += "\n" + buildDefineFun(conditionName, defParams, "Bool", bodyFacts)
 			activeHelperConditions[calleeName] = conditionName
 		}
+		// The callee's requires, over the same renamed parameters: each call in
+		// the contracted body must meet it (codegen_obligations.go).
+		var reqName, reqUncheckable string
+		if reqs := requiresContracts(meta); len(reqs) > 0 {
+			_, reqBody, reqErr := withArgRenames(params, func() (string, error) { return encodeRequiresBody(reqs) })
+			if reqErr != nil {
+				reqUncheckable = reqErr.Error()
+			} else {
+				reqName = "$req_" + calleeName
+				smtDef += "\n" + buildDefineFun(reqName, defParams, "Bool", reqBody)
+			}
+		}
 		defs = append(defs, CalleeDef{
-			Name:            calleeName,
-			SMTLib:          smtDef,
-			ConditionName:   conditionName,
-			HOFBoundedDepth: hofDepth,
+			Name:                calleeName,
+			SMTLib:              smtDef,
+			ConditionName:       conditionName,
+			RequiresName:        reqName,
+			UncheckableRequires: reqUncheckable,
+			HOFBoundedDepth:     hofDepth,
 		})
 		resolvedSoFar[calleeName] = true
 	}

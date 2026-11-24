@@ -108,3 +108,17 @@ func TestDiffSeparatesRegressionsFromSourceDrift(t *testing.T) {
 		t.Fatalf("regressions = %v, want %v", regressed, want)
 	}
 }
+
+// A result whose every requires-carrying callee was checked is not
+// "unchecked"; one reaching a callee only where calls are not checked is.
+func TestD1SeparatesCheckedFromUnchecked(t *testing.T) {
+	d := d1([]row{
+		{Status: "verified", RequiresCallees: []string{"a"}, RequiresChecked: []string{"a"}},
+		{Status: "verified", RequiresCallees: []string{"a", "b"}, RequiresChecked: []string{"a"}},
+		{Status: "skipped", RequiresCallees: []string{"c"}},
+		{Status: "verified"},
+	})
+	if d.Results != 3 || d.ByStatus["verified"] != 2 || d.Unchecked["verified"] != 1 || d.Unchecked["skipped"] != 1 {
+		t.Fatalf("d1 = %+v", d)
+	}
+}

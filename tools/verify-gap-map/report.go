@@ -57,12 +57,14 @@ func report(w io.Writer, cur, prev *snapshot, prevPath string, n int) int {
 	section(w, "Skips blamed on a callee signature: type", top(a.Types, n))
 	section(w, "Unsupported applications", top(a.Builtins, n))
 
-	fmt.Fprintf(w, "\nD1 blast radius: %d results reach a callee whose requires is assumed, not checked\n", cur.D1.Results)
+	fmt.Fprintf(w, "\nCall-site requires (D1): %d results reach a callee with a requires\n", cur.D1.Results)
+	fmt.Fprintf(w, "  %-15s %5s %10s\n", "", "all", "unchecked")
 	for _, s := range statusOrder {
 		if c := cur.D1.ByStatus[s]; c > 0 {
-			fmt.Fprintf(w, "  %-15s %5d\n", s, c)
+			fmt.Fprintf(w, "  %-15s %5d %10d\n", s, c, cur.D1.Unchecked[s])
 		}
 	}
+	fmt.Fprintln(w, "  (unchecked: reached only through a helper body, HOF lambda, recursion or contract)")
 
 	if len(cur.Failures) > 0 {
 		fmt.Fprintln(w, "\nNot measured")

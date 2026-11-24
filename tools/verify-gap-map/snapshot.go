@@ -31,13 +31,6 @@ type corpusInfo struct {
 	Note  string `json:"note,omitempty"` // why it was not measured
 }
 
-// d1Radius is the population decision D1 could change: results whose function
-// reaches a callee with a requires the verifier assumes rather than checks.
-type d1Radius struct {
-	Results  int            `json:"results"`
-	ByStatus map[string]int `json:"by_status"`
-}
-
 func totals(rows []row) map[string]int {
 	t := map[string]int{}
 	for _, r := range rows {
@@ -46,15 +39,45 @@ func totals(rows []row) map[string]int {
 	return t
 }
 
+// d1Radius is the population decision D1 applies to: results whose function
+// reaches a callee with a requires. Since M3 the calls in the function's own
+// body are checked; Unchecked counts results reaching such a callee only where
+// calls are not checked yet (helper bodies, HOF lambdas, recursion, contracts).
+type d1Radius struct {
+	Results   int            `json:"results"`
+	ByStatus  map[string]int `json:"by_status"`
+	Unchecked map[string]int `json:"unchecked_by_status,omitempty"`
+}
+
 func d1(rows []row) d1Radius {
-	d := d1Radius{ByStatus: map[string]int{}}
+	d := d1Radius{ByStatus: map[string]int{}, Unchecked: map[string]int{}}
 	for _, r := range rows {
-		if len(r.RequiresCallees) > 0 {
-			d.Results++
-			d.ByStatus[r.Status]++
+		if len(r.RequiresCallees) == 0 {
+			continue
+		}
+		d.Results++
+		d.ByStatus[r.Status]++
+		if len(uncheckedCallees(r)) > 0 {
+			d.Unchecked[r.Status]++
 		}
 	}
 	return d
+}
+
+// uncheckedCallees are the requires-carrying callees r reaches whose calls
+// were not checked.
+func uncheckedCallees(r row) []string {
+	checked := map[string]bool{}
+	for _, c := range r.RequiresChecked {
+		checked[c] = true
+	}
+	var out []string
+	for _, c := range r.RequiresCallees {
+		if !checked[c] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 var (

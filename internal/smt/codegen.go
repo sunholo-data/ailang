@@ -94,6 +94,9 @@ type EncodeResult struct {
 	// function never returns (exp(x) = 0), so Verify classifies it
 	// inconclusive, like a bounded unrolling, and witness replay decides it.
 	Uninterpreted []string
+	// Obligations check each callee's requires at its calls in the body
+	// (one query per callee). Run only when SMTLib verifies.
+	Obligations []CallObligation
 }
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
@@ -225,18 +228,29 @@ func EncodeFunction(
 
 	// Finite facts are collected for evaluated expressions only.
 	previousSpecs, previousFacts, previousConditions := activeContractSpecs, activeCallFacts, activeHelperConditions
+	previousReqs, previousUncheckable, previousObligations := activeCalleeRequires, activeUncheckableRequires, activeObligationCallees
 	activeHelperConditions = make(map[string]string)
 	activeContractSpecs = make(map[string]*ContractSpec)
+	activeCalleeRequires = make(map[string]string)
+	activeUncheckableRequires = make(map[string]string)
+	activeObligationCallees = make(map[string]bool)
 	var callFacts []string
 	activeCallFacts = nil
 	defer func() {
 		activeContractSpecs = previousSpecs
 		activeCallFacts = previousFacts
 		activeHelperConditions = previousConditions
+		activeCalleeRequires, activeUncheckableRequires, activeObligationCallees = previousReqs, previousUncheckable, previousObligations
 	}()
 	for _, def := range calleeDefs {
 		if def.ConditionName != "" {
 			activeHelperConditions[def.Name] = def.ConditionName
+		}
+		if def.RequiresName != "" {
+			activeCalleeRequires[def.Name] = def.RequiresName
+		}
+		if def.UncheckableRequires != "" {
+			activeUncheckableRequires[def.Name] = def.UncheckableRequires
 		}
 		if def.Contract != nil {
 			activeContractSpecs[def.Name] = def.Contract
@@ -501,6 +515,7 @@ func EncodeFunction(
 		}
 		result.Assertions = append(result.Assertions, Assert(encoded))
 	}
+	requiresAssertions := append([]string(nil), result.Assertions...)
 
 	// Step 4: Encode function body and bind to "result"
 	var bodyExpr string
@@ -523,7 +538,10 @@ func EncodeFunction(
 		// The result sort is determined BEFORE the body is encoded so it can
 		// resolve empty list literals in the body, whose element sort is not
 		// recoverable from the literal itself (ailang#689).
+		// Calls in the body itself carry their callees' requires as obligations.
+		obligationsOn = true
 		bodyExpr, err = encodeExprWithSortHint(body, resultSortFor(params, body, ctx, adtTypes, returnSort))
+		obligationsOn = false
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode function body: %w", err)
 		}
@@ -570,8 +588,14 @@ func EncodeFunction(
 		result.Assertions = append(result.Assertions, AssertNot(conj))
 	}
 
+	// Callee preconditions are assumed in the postcondition query and checked
+	// in one obligation query per callee (codegen_obligations.go).
+	callees := obligationCallees()
 	for _, fact := range callFacts {
-		result.Assertions = append(result.Assertions, Assert(fact))
+		result.Assertions = append(result.Assertions, Assert(bindRequiresOk(fact, callees, "*", "true")))
+	}
+	if err := leakedObligation(result.Declarations); err != nil {
+		return nil, err
 	}
 
 	// Step 5.5: Validate declarations — check for forward references to undeclared sorts.
@@ -591,12 +615,19 @@ func EncodeFunction(
 	lines = append(lines, uninterpretedDeclarations()...) // before any use, including callee define-funs
 	lines = append(lines, result.Declarations...)
 	lines = append(lines, "")
+	preamble := len(lines) // header and declarations, shared by the obligation queries
 	lines = append(lines, result.Assertions...)
 	lines = append(lines, "")
 	lines = append(lines, CheckSat())
 	lines = append(lines, GetModel())
 
 	result.SMTLib = strings.Join(lines, "\n")
+	for _, g := range callees {
+		q := append(append([]string(nil), lines[:preamble]...), requiresAssertions...)
+		q = append(q, obligationAssertions(callFacts, callees, g)...)
+		q = append(q, "", CheckSat(), GetModel())
+		result.Obligations = append(result.Obligations, CallObligation{Callee: g, SMTLib: strings.Join(q, "\n")})
+	}
 	return result, nil
 }
 

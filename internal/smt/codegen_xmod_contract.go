@@ -211,7 +211,10 @@ func encodeContractExprWithSubs(expr core.CoreExpr, paramSubs map[string]string,
 	resultAlias := prefix + "result"
 	bindings = append(bindings, fmt.Sprintf("(%s %s)", resultAlias, resultConst))
 	substituted := substituteContractExpr(expr, aliases, resultAlias)
-	value, facts, err := captureCallFacts(func() (string, error) { return EncodeExpr(substituted) })
+	// A callee's contract is its template, not the caller's body: no obligations.
+	value, facts, err := captureCallFacts(func() (string, error) {
+		return withoutObligations(func() (string, error) { return EncodeExpr(substituted) })
+	})
 	if err != nil {
 		return "", err
 	}

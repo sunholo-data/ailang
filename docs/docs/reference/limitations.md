@@ -317,9 +317,13 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
 
 **Status**: Open
 **Verified at**: v0.60.6-128-g3fb62e616c, Z3 4.16.0 (2026-11-23), `ailang verify` on one probe file per row:
-- **Call-site preconditions.** `one(n)` declares `requires { n > 0 }`; `caller(n)` declares
-  `requires { n < 0 }` and returns `one(n)`. Both report `✓ VERIFIED`. A callee's `requires` is
-  assumed, never discharged where it is called.
+- **Call-site preconditions (partly closed on dev, 2026-11-24).** `one(n)` declares
+  `requires { n > 0 }`; `caller(n)` declares `requires { n < 0 }` and returns `one(n)`. `caller` is now
+  `✗ VIOLATION` with reason `requires_violation` ("a call to one may break its requires"); before,
+  both reported `✓ VERIFIED`. Calls in the verified function's own body are checked, under the
+  branch and `let` that reach them. Not yet checked: calls inside a helper's body (checked when that
+  helper is itself verified), inside a lambda passed to `map`/`filter`/`foldl`, inside a recursive
+  function's unrolled body, and inside `requires`/`ensures`.
 - **int64 overflow.** `inc(x) requires { x >= 0 } ensures { result > x } { x + 1 }` is `✓ VERIFIED`;
   `ailang run` of `inc(9223372036854775807)` prints `-9223372036854775808`. `int` is proved as Z3's
   unbounded `Int`. Every run says so on its `Scope:` line (`int=Int`, `runtime equivalence

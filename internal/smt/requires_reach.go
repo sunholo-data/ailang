@@ -8,11 +8,10 @@ import (
 
 // requires_reach.go — the D1 blast radius (M-VERIFY-SOUNDNESS-COVERAGE M0).
 //
-// The verifier assumes a callee's ensures at a call site but never checks the
-// callee's requires there (S1). Before deciding how a possibly-violated
-// requires should be reported (D1), we measure how many results it could
-// touch: for each contracted function, the reachable callees that carry a
-// requires. The gap-map instrument counts these; nothing here changes a verdict.
+// For each contracted function, the reachable callees that carry a requires.
+// Since M3 the calls to them in the function's own body are checked
+// (RequiresChecked); the gap map reports the rest as not yet checked.
+// Nothing here changes a verdict.
 
 // annotateRequiresCallees fills RequiresCallees on every result whose function
 // reaches (through its body or its contracts, as the encoder inlines them) a

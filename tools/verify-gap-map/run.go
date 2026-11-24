@@ -21,6 +21,7 @@ type row struct {
 	ReasonCode      string   `json:"reason_code,omitempty"`
 	Reason          string   `json:"reason,omitempty"`
 	RequiresCallees []string `json:"requires_callees,omitempty"`
+	RequiresChecked []string `json:"requires_checked,omitempty"`
 	Replayed        bool     `json:"witness_replayed,omitempty"`
 }
 
@@ -46,6 +47,7 @@ type verifyOutput struct {
 		ReasonCode      string   `json:"reason_code"`
 		Reason          string   `json:"reason"`
 		RequiresCallees []string `json:"requires_callees"`
+		RequiresChecked []string `json:"requires_checked"`
 		WitnessReplayed bool     `json:"witness_replayed"`
 	} `json:"results"`
 }
@@ -115,7 +117,7 @@ func runOne(bin string, j job, timeout time.Duration) ([]row, *fileFailure) {
 		rows = append(rows, row{
 			Corpus: j.corpus.Name, File: filepath.ToSlash(j.file), Function: r.Function,
 			Status: st, ReasonCode: r.ReasonCode, Reason: truncate(r.Reason, 240),
-			RequiresCallees: r.RequiresCallees, Replayed: r.WitnessReplayed,
+			RequiresCallees: r.RequiresCallees, RequiresChecked: r.RequiresChecked, Replayed: r.WitnessReplayed,
 		})
 	}
 	return rows, nil

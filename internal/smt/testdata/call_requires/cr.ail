@@ -1,0 +1,45 @@
+module cr
+import std/string (length, words)
+
+-- Body not encodable (std/string.words), contract is: the contract path.
+export pure func wordsAtLeast(s: string, n: int) -> int
+  requires { n >= 0 }
+  ensures { result >= n }
+{ n + length(s) * 0 + 0 * listLen(words(s)) }
+
+pure func listLen(xs: [string]) -> int = 0
+
+export pure func useOk(s: string) -> int
+  ensures { result >= 1 }
+{ wordsAtLeast(s, 1) }
+
+export pure func useBad(s: string, k: int) -> int
+  ensures { result >= k }
+{ wordsAtLeast(s, k) }
+
+-- A requires the encoder cannot express: calls to it cannot be checked.
+export pure func opaque(s: string) -> int
+  requires { listLen(words(s)) >= 0 }
+  ensures { result == 0 }
+{ 0 }
+
+export pure func useOpaque(s: string) -> int
+  ensures { result == 0 }
+{ opaque(s) }
+
+export pure func one(n: int) -> int
+  requires { n > 0 }
+  ensures { result == 1 }
+{ 1 }
+
+-- Contract-path callee whose own ensures calls one(n) with no guard: a defect in
+-- describe's contract for n <= 0, not in its callers. The template is the
+-- callee's, so no obligation may come from it. useDescribe also calls one(1)
+-- itself, so one is resolved and the template's one(n) encodes.
+export pure func describe(s: string, n: int) -> int
+  ensures { result >= 1 && result >= one(n) }
+{ 1 + 0 * listLen(words(s)) }
+
+export pure func useDescribe(s: string, k: int) -> int
+  ensures { result >= 1 }
+{ describe(s, k) + one(1) - 1 }

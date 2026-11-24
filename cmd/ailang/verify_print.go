@@ -43,9 +43,10 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 			}
 		case "counterexample":
 			fmt.Printf("  %s %s\n", red("✗ VIOLATION"), bold(r.Function))
-			if r.WitnessReplayed {
-				// Confirmed by running the function: the bounded model alone was
-				// inconclusive, so say how this one was decided.
+			if r.WitnessReplayed || r.ReasonCode == verification.RequiresViolation {
+				// Say how this one was decided: by running the function (the
+				// bounded model alone was inconclusive), or at a call whose
+				// callee's requires the inputs break.
 				fmt.Printf("    %s\n", dim(r.Reason))
 			}
 			if len(r.Model) > 0 {
