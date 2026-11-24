@@ -4365,6 +4365,50 @@ models:
       pi-harness sibling of opencode-qwen3-8-27b. Requires the qwen3.8:27b-mxfp8
       tag in the ~/.pi/agent/models.json ollama provider block. Added 2026-08-17.
 
+  # INKLING 2 MINI ON-DEVICE TEST (2026-11-24). Candidate replacement for the
+  # qwen3.8 pair above; passed the OpenRouter screen (pi-or-inkling-2-mini 80/81 =
+  # pi-or-qwen3-8-27b 80/81, 17% fewer output tokens overall, 2-4x fewer on the
+  # benchmarks the rig times out on). Needs ollama >= 0.40.17. Timeouts and the
+  # token WORK gate are copied from the qwen3.8 pair so the model is the only
+  # variable. Attended test only — NOT in OS_FILLER_MODELS.
+  opencode-inkling-2-mini:
+    api_name: "inkling-2-mini:26b-a5b"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — reasoning cannot be fully disabled (model card)
+    description: "Inkling 2 Mini 26.4B/3.4B-active looped MoE (NVFP4, ~22GB resident) via opencode+Ollama — LOCAL test vs opencode-qwen3-8-27b"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama-rig/inkling-2-mini:26b-a5b"
+    model_family: "inkling-2"
+    max_output_tokens: 32768  # = opencode-qwen3-8-27b
+    ttft_timeout: 1800        # = opencode-qwen3-8-27b
+    generation_timeout: 3600  # = opencode-qwen3-8-27b
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-inkling-2-mini:
+    api_name: "inkling-2-mini:26b-a5b"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — reasoning cannot be fully disabled (model card)
+    description: "Inkling 2 Mini 26.4B/3.4B-active looped MoE (NVFP4) via pi+Ollama — LOCAL test vs pi-qwen3-8-27b (requires ~/.pi/agent/models.json ollama-rig entry)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/inkling-2-mini:26b-a5b"
+    model_family: "inkling-2"
+    max_output_tokens: 32768  # one wire budget per api_name (TestModels_SameAPINameSameWireBudget); pi clamps to 32000 on the wire like pi-qwen3-8-27b
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
   # ---------------------------------------------------------------------------
   # FINE-TUNE PHASE 0 SIZE LADDER (2026-11-05, m-eval-finetuning-data-pipeline §Phase 0).
   # Primary ladder = Gemma 4 (Mark's default family): E4B -> 12B dense, all MXFP8 on

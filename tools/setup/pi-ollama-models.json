@@ -27,6 +27,23 @@
         },
         {
           "id": "qwen3.6:35b-a3b-mxfp8"
+        },
+        {
+          "id": "inkling-2-mini:26b-a5b",
+          "contextWindow": 262144,
+          "maxTokens": 32000,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "high": null,
+            "low": null,
+            "medium": null,
+            "minimal": null,
+            "off": null,
+            "xhigh": null
+          },
+          "compat": {
+            "maxTokensField": "max_tokens"
+          }
         }
       ]
     }
