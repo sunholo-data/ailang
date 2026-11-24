@@ -169,6 +169,9 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 
 // Generate implements ai.Provider. It always routes to Chat Completions.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	if err := ai.RejectUnsupportedInputMedia("openrouter", req); err != nil {
+		return nil, err
+	}
 	// Image requests (ResponseModalities ["IMAGE"]) take the same chat path:
 	// generateChat adds modalities/image_config and harvests message.images
 	// (M-OPENROUTER-IMAGE-OUTPUT, #1500). A non-image model surfaces the

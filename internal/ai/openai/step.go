@@ -401,17 +401,18 @@ func BuildChatStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*Cha
 				})
 				continue
 			}
-			// Vision input (M-STD-AI-VISION-INPUT, v0.30.0): when a user message
-			// carries images, content becomes a multimodal parts ARRAY (text
-			// part first, if any, then one image_url part per image). With no
-			// images, content stays the plain-string form — byte-for-byte
-			// identical to pre-vision wire bytes.
-			if len(m.Images) > 0 {
-				parts := make([]openaiContentPart, 0, len(m.Images)+1)
+			// Vision input (M-STD-AI-VISION-INPUT, v0.30.0) & M-STD-AI-GEMINI-FILE-SLICING:
+			// extract default-resolution images; fail closed on File parts or explicit resolution.
+			imgs, mediaErr := ai.ExtractLegacyImages("openai", m)
+			if mediaErr != nil {
+				return nil, mediaErr
+			}
+			if len(imgs) > 0 {
+				parts := make([]openaiContentPart, 0, len(imgs)+1)
 				if m.Content != "" {
 					parts = append(parts, openaiContentPart{Type: "text", Text: m.Content})
 				}
-				for _, img := range m.Images {
+				for _, img := range imgs {
 					parts = append(parts, openaiContentPart{
 						Type:     "image_url",
 						ImageURL: &openaiImageURL{URL: toDataURI(img.Source, img.Mime)},
@@ -439,6 +440,9 @@ func BuildChatStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*Cha
 			})
 
 		case "tool":
+			if _, mediaErr := ai.ExtractLegacyImages("openai", m); mediaErr != nil {
+				return nil, mediaErr
+			}
 			raw, err := json.Marshal(m.Content)
 			if err != nil {
 				return nil, ai.NewAIError(ai.CodeInternal,

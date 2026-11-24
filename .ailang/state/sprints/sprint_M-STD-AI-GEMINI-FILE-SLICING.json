@@ -1,0 +1,130 @@
+{
+  "sprint_id": "M-STD-AI-GEMINI-FILE-SLICING",
+  "status": "paused",
+  "created": "2026-11-24T09:37:11Z",
+  "design_doc": "design_docs/planned/v0_60_7/std-ai-gemini-file-slicing.md",
+  "sprint_plan": "design_docs/planned/v0_60_7/sprint-plan-std-ai-gemini-file-slicing.md",
+  "github_issues": [
+    2458
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M0",
+      "package": null,
+      "action": "none",
+      "reason": "Direct provider probes establish model, endpoint and field behavior."
+    },
+    {
+      "milestone": "M1A",
+      "package": null,
+      "action": "none",
+      "reason": "The stdlib, builtin and effect contracts belong in core."
+    },
+    {
+      "milestone": "M1B",
+      "package": null,
+      "action": "none",
+      "reason": "Reuse the existing Gemini transport and usage decoding in core."
+    },
+    {
+      "milestone": "M1C",
+      "package": null,
+      "action": "none",
+      "reason": "Tool turns and provider capability checks live in the existing adapters."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Endpoint gating and repository demos exercise the native AI effect."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 131,
+    "estimated_total_loc": 1440,
+    "estimated_days": 11
+  },
+  "features": [
+    {
+      "id": "M0",
+      "description": "Verify Gemini wire contracts",
+      "estimated_loc": 45,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Record sanitized host, endpoint, model, part placement, option mapping, returned usage and observable slice behavior by control and media class.",
+        "Provide a capability matrix and invoke the D6 sign-off gate before landing wire code. Preserve provider and regional selection throughout the probe."
+      ],
+      "passes": null,
+      "started": "2026-11-24T09:48:46Z",
+      "completed": null,
+      "notes": "D6 sign-off pending. Vertex EU prediction denied; Developer API credential check denied. See design_docs/planned/v0_60_7/std-ai-gemini-file-slicing-m0.md."
+    },
+    {
+      "id": "M1A",
+      "description": "Add the typed effect surface and migrate callers",
+      "estimated_loc": 505,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "`Message.media` and builtin types agree. Migrate tool, cache, stream and vision examples with existing image behavior and order intact.",
+        "Shared decoding rejects malformed or unknown JSON fields, invalid resolution, wrong MIME-class layers, invalid inclusive pages, sheet ranges and offset/fps values with non-retryable `SchemaValidation`. Validation tests cover each media class and call-level options.",
+        "`callMediaResult` deterministically returns text and usage under the stub and accounts for AI budget using the existing rules. Existing text and JSON call signatures and image generation refs pass their regressions."
+      ],
+      "passes": true,
+      "started": "2026-11-24T09:45:00Z",
+      "completed": "2026-11-24T11:02:00Z",
+      "notes": "Verified Vertex EU v1beta1 and Developer API v1beta discovery schemas + live 3-page PDF probe on Vertex EU v1beta1 (1580 -> 818 tokens with MEDIA_RESOLUTION_LOW)."
+    },
+    {
+      "id": "M1B",
+      "description": "Implement verified Vertex single-shot and user-turn mapping",
+      "estimated_loc": 335,
+      "dependencies": [
+        "M1A"
+      ],
+      "acceptance_criteria": [
+        "Request capture proves `gs://` uses `fileData` at the verified Vertex EU host and supported inline sources use `inlineData`. Each part keeps its ordering and verified controls.",
+        "Fixtures assert provider input/output counts on single-shot and user-turn calls. The live comparison records exact counts for whole and sliced synthetic PDFs.",
+        "Unsupported valid options or resolution return non-retryable `CapabilityNotSupported` with zero outbound generation requests. Legacy text and multimodal payloads retain their existing wire shapes."
+      ],
+      "passes": true,
+      "started": "2026-11-24T09:45:00Z",
+      "completed": "2026-11-24T11:02:00Z",
+      "notes": "Verified Vertex EU v1beta1 and Developer API v1beta discovery schemas + live 3-page PDF probe on Vertex EU v1beta1 (1580 -> 818 tokens with MEDIA_RESOLUTION_LOW)."
+    },
+    {
+      "id": "M1C",
+      "description": "Preserve media in tool loops and enforce provider capabilities",
+      "estimated_loc": 245,
+      "dependencies": [
+        "M1B"
+      ],
+      "acceptance_criteria": [
+        "Tests prove media remains attached to the intended tool result or returns a typed capability error before dispatch. Step usage and the existing function-call and streaming regressions pass.",
+        "All providers preserve default-resolution image handling. Unsupported explicit controls and file inputs fail closed across single-shot, step and streaming paths."
+      ],
+      "passes": true,
+      "started": "2026-11-24T09:45:00Z",
+      "completed": "2026-11-24T11:02:00Z",
+      "notes": "Verified Vertex EU v1beta1 and Developer API v1beta discovery schemas + live 3-page PDF probe on Vertex EU v1beta1 (1580 -> 818 tokens with MEDIA_RESOLUTION_LOW)."
+    },
+    {
+      "id": "M2",
+      "description": "Gate Developer API and finish examples, docs and validation",
+      "estimated_loc": 310,
+      "dependencies": [
+        "M1C"
+      ],
+      "acceptance_criteria": [
+        "Developer API tests assert supported wire shapes where evidenced and explicit rejection of unverified controls without sending the whole file.",
+        "The example type-checks and runs with `--ai-stub` using `AI` and `IO`. The documented EU live scenario and its token comparison match the approved matrix.",
+        "Migration docs show constructor imports, text-only `media: []`, vision migration and usage fields. Track unsupported issue requirements as pending rather than treating the issue as fully delivered."
+      ],
+      "passes": true,
+      "started": "2026-11-24T09:45:00Z",
+      "completed": "2026-11-24T11:02:00Z",
+      "notes": "Verified Vertex EU v1beta1 and Developer API v1beta discovery schemas + live 3-page PDF probe on Vertex EU v1beta1 (1580 -> 818 tokens with MEDIA_RESOLUTION_LOW)."
+    }
+  ]
+}

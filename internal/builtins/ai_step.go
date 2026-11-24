@@ -44,20 +44,25 @@ func imagePartRecordType(T *types.Builder) types.Type {
 	)
 }
 
+// mediaPartType returns the AILANG MediaPart ADT shape (Image({...}) | File({...})).
+// Added by M-STD-AI-GEMINI-FILE-SLICING (v0.60.7, #2458).
+func mediaPartType(T *types.Builder) types.Type {
+	return T.App("MediaPart")
+}
+
 // messageRecordType returns the AILANG Message record shape.
 //
-// M-STD-AI-VISION-INPUT (v0.30.0) added the required `images: [ImagePart]`
-// field. AILANG records are closed (all fields required), so this is a
-// deliberate breaking change: every Message literal must include `images`
-// (use `images: []` for a text-only message). Full static typing on images
-// was chosen over source back-compat — see the design doc's Design Freeze.
+// M-STD-AI-GEMINI-FILE-SLICING (v0.60.7) replaced `images: [ImagePart]` with
+// `media: [MediaPart]`. AILANG records are closed (all fields required), so
+// every Message literal must include `media` (use `media: []` for a text-only
+// message). ImagePart remains exported for callImageWithRefs.
 func messageRecordType(T *types.Builder) types.Type {
 	return T.Record(
 		types.Field("role", T.String()),
 		types.Field("content", T.String()),
 		types.Field("tool_calls", T.List(toolCallRecordType(T))),
 		types.Field("tool_call_id", T.String()),
-		types.Field("images", T.List(imagePartRecordType(T))),
+		types.Field("media", T.List(mediaPartType(T))),
 	)
 }
 

@@ -1,0 +1,62 @@
+-- examples/runnable/ai_file_slicing.ail
+-- Demonstrates std/ai.callMediaResult and typed MediaPart slicing controls
+-- (M-STD-AI-GEMINI-FILE-SLICING, v0.60.7, #2458).
+--
+-- Shows:
+--   1. PDF document slicing with page_options, content_layers, and resolution
+--      via callMediaResult (returns text + input_tokens + output_tokens).
+--   2. Spreadsheet slicing (sheet_index, visible_cells, content_layers) on
+--      a multi-turn Message via std/ai.step.
+--   3. Validation failure surfacing as typed Err(AIError{code: "SchemaValidation"}).
+--
+-- Offline deterministic run:
+--   ailang run --caps AI,IO --ai-stub examples/runnable/ai_file_slicing.ail
+
+module examples/runnable/ai_file_slicing
+
+import std/ai (callMediaResult, step, MediaPart, File, Message, MediaCallResult, StepResult, AIError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {AI, IO} {
+  let pdf: MediaPart = File({
+    uri: "gs://eu-bucket/report.pdf",
+    mime: "application/pdf",
+    resolution: "low",
+    options: "{\"page_options\":{\"start_page\":3,\"end_page\":5},\"content_layers\":[\"page_text\"]}"
+  })
+
+  match callMediaResult("Extract invoice totals from pages 3-5.", [pdf], "") {
+    Ok(r) => println("PDF slice ok: tokens in=${show(r.input_tokens)} out=${show(r.output_tokens)} text=${r.text}"),
+    Err(e) => println("PDF slice error [${e.code}]: ${e.message}")
+  }
+
+  let sheet: MediaPart = File({
+    uri: "gs://eu-bucket/q3.xlsx",
+    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    resolution: "",
+    options: "{\"sheet_index\":0,\"visible_cells\":\"A1:G42\",\"content_layers\":[\"data\",\"formulas\"]}"
+  })
+  let msgs: [Message] = [{
+    role: "user",
+    content: "Which rows are missing VAT?",
+    tool_calls: [],
+    tool_call_id: "",
+    media: [sheet]
+  }]
+  match step("", msgs, []) {
+    Ok(r) => println("Sheet step ok: tokens in=${show(r.input_tokens)} out=${show(r.output_tokens)}"),
+    Err(e) => println("Sheet step error [${e.code}]: ${e.message}")
+  }
+
+  let badPdf: MediaPart = File({
+    uri: "gs://eu-bucket/report.pdf",
+    mime: "application/pdf",
+    resolution: "ultra",
+    options: ""
+  })
+  match callMediaResult("Should fail validation", [badPdf], "") {
+    Ok(_) => println("unexpected ok"),
+    Err(e) => println("Validation rejected as expected: code=${e.code}")
+  }
+}

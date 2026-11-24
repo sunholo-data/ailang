@@ -47,12 +47,12 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, rErr
 	}
 
-	apiReq, err := buildStepRequest(req, reasoning)
+	apiReq, err := buildStepRequestWithAuth(req, reasoning, c.authType)
 	if err != nil {
 		return nil, err
 	}
 
-	url, urlErr := c.buildURL(req.Model)
+	url, urlErr := c.buildURLForRequest(req)
 	if urlErr != nil {
 		return nil, ai.ClassifyError(urlErr)
 	}
@@ -86,6 +86,10 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 // generateContent body. It lifts req.SystemText() (SystemPrompt plus the
 // system-role messages) to the top-level systemInstruction field.
 func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generateRequest, error) {
+	return buildStepRequestWithAuth(req, reasoning, AuthAPIKey)
+}
+
+func buildStepRequestWithAuth(req *ai.Request, reasoning ai.ReasoningDecision, authType AuthType) (*generateRequest, error) {
 	out := &generateRequest{
 		Contents: make([]content, 0, len(req.Messages)),
 	}
@@ -121,15 +125,31 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 		case "user":
 			if m.ToolCallID != "" {
 				// User-role tool result (rare but supported — same shape as
-				// Role="tool"). Build a functionResponse part.
+				// Role="tool"). Build a functionResponse part, attaching any
+				// media parts on functionResponse.parts[].
 				name := idToName[m.ToolCallID]
 				if name == "" {
-					// Fall back to raw text if we can't recover the tool name.
+					if len(m.EffectiveMedia()) > 0 {
+						parts, mErr := userMediaParts(m, authType)
+						if mErr != nil {
+							return nil, mErr
+						}
+						out.Contents = append(out.Contents, content{Role: "user", Parts: parts})
+						continue
+					}
 					out.Contents = append(out.Contents, content{
 						Role:  "user",
 						Parts: []part{{Text: m.Content}},
 					})
 					continue
+				}
+				var frParts []part
+				if len(m.EffectiveMedia()) > 0 {
+					var mErr error
+					frParts, mErr = toolMediaParts(m, authType)
+					if mErr != nil {
+						return nil, mErr
+					}
 				}
 				out.Contents = append(out.Contents, content{
 					Role: "user",
@@ -137,19 +157,21 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 						FunctionResponse: &functionResponse{
 							Name:     name,
 							Response: map[string]interface{}{"content": m.Content},
+							Parts:    frParts,
 						},
 					}},
 				})
 				continue
 			}
-			if len(m.Images) > 0 {
-				// Vision input (M-STD-AI-VISION-INPUT): emit a leading text
-				// part (only when non-empty) followed by one inlineData part
-				// per image. Guarded strictly on len(m.Images) > 0 so a
-				// text-only user message stays wire-identical to pre-vision.
+			if len(m.EffectiveMedia()) > 0 {
+				// Typed media input (Image or File with optional resolution & slicing).
+				parts, mErr := userMediaParts(m, authType)
+				if mErr != nil {
+					return nil, mErr
+				}
 				out.Contents = append(out.Contents, content{
 					Role:  "user",
-					Parts: userImageParts(m),
+					Parts: parts,
 				})
 				continue
 			}
@@ -196,6 +218,14 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 		case "tool":
 			name := idToName[m.ToolCallID]
 			if name == "" {
+				if len(m.EffectiveMedia()) > 0 {
+					parts, mErr := userMediaParts(m, authType)
+					if mErr != nil {
+						return nil, mErr
+					}
+					out.Contents = append(out.Contents, content{Role: "user", Parts: parts})
+					continue
+				}
 				// No matching prior tool call — fall back to plain text in
 				// a user turn so the model still sees the content.
 				out.Contents = append(out.Contents, content{
@@ -204,12 +234,21 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 				})
 				continue
 			}
+			var frParts []part
+			if len(m.EffectiveMedia()) > 0 {
+				var mErr error
+				frParts, mErr = toolMediaParts(m, authType)
+				if mErr != nil {
+					return nil, mErr
+				}
+			}
 			out.Contents = append(out.Contents, content{
 				Role: "user",
 				Parts: []part{{
 					FunctionResponse: &functionResponse{
 						Name:     name,
 						Response: map[string]interface{}{"content": m.Content},
+						Parts:    frParts,
 					},
 				}},
 			})

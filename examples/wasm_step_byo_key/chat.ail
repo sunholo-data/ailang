@@ -16,7 +16,7 @@ import std/io (println)
 
 -- Single-turn ai.step. Returns the assistant text or an error string.
 export func ask(model: string, prompt: string) -> string ! {AI} = {
-  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", media: [] }]
   let tools: [ToolSchema] = []
   match step(model, messages, tools) {
     Ok(result) => result.message.content,
@@ -28,7 +28,7 @@ export func ask(model: string, prompt: string) -> string ! {AI} = {
 -- forwards the breakpoints to Anthropic's cache_control field (or skips
 -- them on providers that don't support caching).
 export func askCached(model: string, system: string, prompt: string) -> string ! {AI} = {
-  let messages: [Message] = [{ role: "system", content: system, tool_calls: [], tool_call_id: "", images: [] }, { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let messages: [Message] = [{ role: "system", content: system, tool_calls: [], tool_call_id: "", media: [] }, { role: "user", content: prompt, tool_calls: [], tool_call_id: "", media: [] }]
   let tools: [ToolSchema] = []
   let breakpoints: [CacheBreakpoint] = [{ position: "system", ttl: "ephemeral" }]
   match stepWithCache(model, messages, tools, breakpoints) {
@@ -52,7 +52,7 @@ export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
 }
 
 export func askStreaming(model: string, prompt: string) -> string ! {AI, IO} = {
-  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", media: [] }]
   let tools: [ToolSchema] = []
   let breakpoints: [CacheBreakpoint] = []
   match stepWithStream(model, messages, tools, breakpoints, renderChunk) {

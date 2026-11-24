@@ -54,6 +54,7 @@ const (
 	fixtureKindText   = "text"
 	fixtureKindImage  = "image"
 	fixtureKindSpeech = "speech"
+	fixtureKindMedia  = "media"
 )
 
 // fixtureFile is the on-disk shape.
@@ -81,9 +82,11 @@ type fixtureEntry struct {
 	// speech: the literal request, instead of "sha256"
 	Request *SpeechFixtureRequest `json:"request,omitempty"`
 
-	// text
-	Response  *string           `json:"response,omitempty"`
-	ToolCalls []fixtureToolCall `json:"tool_calls,omitempty"`
+	// text / media
+	Response     *string           `json:"response,omitempty"`
+	ToolCalls    []fixtureToolCall `json:"tool_calls,omitempty"`
+	InputTokens  int               `json:"input_tokens,omitempty"`
+	OutputTokens int               `json:"output_tokens,omitempty"`
 	// image
 	Base64   string `json:"base64,omitempty"`
 	MimeType string `json:"mime_type,omitempty"`
@@ -210,8 +213,15 @@ func (sf *StubFixtures) validate(e *fixtureEntry) (string, error) {
 			return "", fmt.Errorf("speech \"pcm_base64\" is %d bytes, not whole 16-bit samples", len(b))
 		}
 		e.decoded = b
+	case fixtureKindMedia:
+		if e.Response == nil {
+			return "", fmt.Errorf("media fixture needs \"response\" (or \"error\")")
+		}
+		if e.Base64 != "" || e.MimeType != "" || e.PCMBase64 != "" || len(e.ToolCalls) > 0 {
+			return "", fmt.Errorf("media fixture carries only \"response\" and optional token counts")
+		}
 	default:
-		return "", fmt.Errorf("unknown \"kind\" %q (want text, image or speech)", e.Kind)
+		return "", fmt.Errorf("unknown \"kind\" %q (want text, image, speech or media)", e.Kind)
 	}
 	return key, nil
 }
@@ -358,6 +368,64 @@ func (h *FixtureAIHandler) CallSpeech(text, voice, style, options string) ([]byt
 		return nil, err
 	}
 	return append([]byte(nil), e.decoded...), nil
+}
+
+// MediaFixtureCanonical returns the canonical request key string for a
+// callMediaResult call: compact JSON combining prompt and ordered media parts.
+func MediaFixtureCanonical(prompt string, media []ai.MediaPart) string {
+	type partKey struct {
+		Kind       string `json:"kind"`
+		Source     string `json:"source"`
+		Mime       string `json:"mime"`
+		Resolution string `json:"resolution"`
+		Options    string `json:"options"`
+	}
+	parts := make([]partKey, len(media))
+	for i, m := range media {
+		parts[i] = partKey{
+			Kind:       string(m.Kind),
+			Source:     m.Source,
+			Mime:       m.Mime,
+			Resolution: m.Resolution,
+			Options:    m.Options,
+		}
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(map[string]any{"media": parts, "prompt": prompt})
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// CallMediaResult replays a "media" fixture keyed by prompt+media (falling back
+// to prompt-only key when no full media-keyed entry is present).
+func (h *FixtureAIHandler) CallMediaResult(prompt string, media []ai.MediaPart, options string) (*ai.Response, error) {
+	parts := make([]ai.MediaPart, len(media))
+	copy(parts, media)
+	if err := ai.ValidateMediaParts(parts); err != nil {
+		return nil, err
+	}
+	if _, err := ai.ParseMediaCallOptions(options); err != nil {
+		return nil, err
+	}
+	canonical := MediaFixtureCanonical(prompt, parts)
+	e, err := h.fixtures.lookup(fixtureKindMedia, canonical)
+	if err != nil {
+		// Allow prompt-keyed media fixtures for concise test authoring.
+		if pe, perr := h.fixtures.lookup(fixtureKindMedia, prompt); perr == nil {
+			e = pe
+			err = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ai.Response{
+		Text:         *e.Response,
+		InputTokens:  e.InputTokens,
+		OutputTokens: e.OutputTokens,
+		TotalTokens:  e.InputTokens + e.OutputTokens,
+	}, nil
 }
 
 // StepWithCache ignores the cache hints, as the default stub does.

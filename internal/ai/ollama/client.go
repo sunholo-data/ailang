@@ -137,6 +137,9 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	if ai.RequestsImage(req) {
 		return nil, ai.NewProviderError("ollama", 0, "image generation not supported by provider \"ollama\" (model: "+req.Model+")", nil)
 	}
+	if err := ai.RejectUnsupportedInputMedia("ollama", req); err != nil {
+		return nil, err
+	}
 	// Start OTEL span
 	ctx, span := telemetry.StartSpan(ctx, ollamaTracer, "ollama.generate",
 		trace.WithAttributes(

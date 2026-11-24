@@ -85,6 +85,9 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 			ai.ErrRoutingNotSupported)
 	}
 
+	if err := ai.RejectUnsupportedInputMedia(p.spec.Name, req); err != nil {
+		return nil, err
+	}
 	// Image generation gate: refuse unless capabilities.vision declares it.
 	// (Vision in v1 schema covers both input and output of images; richer
 	// flags can split that in v2 if needed.)

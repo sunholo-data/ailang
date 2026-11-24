@@ -46,6 +46,7 @@ type functionCall struct {
 type functionResponse struct {
 	Name     string                 `json:"name"`
 	Response map[string]interface{} `json:"response"`
+	Parts    []part                 `json:"parts,omitempty"` // Multimodal tool-result attachments (v1beta/v1beta1)
 }
 
 // content represents a content block with role and parts.
@@ -61,17 +62,59 @@ type content struct {
 // during streaming. Reasoning text is NOT accumulated into Response.Text;
 // reasoning-token count surfaces via UsageMetadata.ThoughtsTokenCount.
 type part struct {
-	Text             string            `json:"text,omitempty"`
-	Thought          bool              `json:"thought,omitempty"`          // Reasoning part (Gemini 2.5+ thinking models)
-	InlineData       *inlineData       `json:"inlineData,omitempty"`       // For multimodal (images, PDFs, etc.)
-	FileData         *fileData         `json:"fileData,omitempty"`         // For file URI references (GCS, Files API)
-	FunctionCall     *functionCall     `json:"functionCall,omitempty"`     // Model-emitted tool invocation (Step path)
-	FunctionResponse *functionResponse `json:"functionResponse,omitempty"` // Host-supplied tool result (Step path)
+	Text                string               `json:"text,omitempty"`
+	Thought             bool                 `json:"thought,omitempty"`             // Reasoning part (Gemini 2.5+ thinking models)
+	InlineData          *inlineData          `json:"inlineData,omitempty"`          // For multimodal (images, PDFs, etc.)
+	FileData            *fileData            `json:"fileData,omitempty"`            // For file URI references (GCS, Files API)
+	MediaResolution     *partMediaResolution `json:"mediaResolution,omitempty"`     // Per-part resolution (v1beta / Vertex v1beta1)
+	DocumentMetadata    *documentMetadata    `json:"documentMetadata,omitempty"`    // Document/slide page & layer slicing (v1beta / Vertex v1beta1)
+	SpreadsheetMetadata *spreadsheetMetadata `json:"spreadsheetMetadata,omitempty"` // Spreadsheet sheet/range/layer slicing (v1beta / Vertex v1beta1)
+	AudioMetadata       *audioMetadata       `json:"audioMetadata,omitempty"`       // Audio offset slicing (v1beta / Vertex v1beta1)
+	VideoMetadata       *videoMetadata       `json:"videoMetadata,omitempty"`       // Video offset/fps/layer slicing (v1beta / Vertex v1beta1)
+	FunctionCall        *functionCall        `json:"functionCall,omitempty"`        // Model-emitted tool invocation (Step path)
+	FunctionResponse    *functionResponse    `json:"functionResponse,omitempty"`    // Host-supplied tool result (Step path)
 	// ThoughtSignature: Gemini 3 signs each functionCall part and refuses the
 	// next turn unless the signature comes back on the same part
 	// ("Function call is missing a thought_signature", 400). It rides in the
 	// tool-call ID (toolCallID / splitToolCallID) so no caller has to carry it.
 	ThoughtSignature string `json:"thoughtSignature,omitempty"`
+}
+
+// partMediaResolution is Gemini's per-part mediaResolution object
+// (MEDIA_RESOLUTION_LOW | MEDIA_RESOLUTION_MEDIUM | MEDIA_RESOLUTION_HIGH).
+type partMediaResolution struct {
+	Level string `json:"level"`
+}
+
+// documentMetadata is Gemini's Part.documentMetadata (1-indexed inclusive pages
+// and contentLayers: PAGE_TEXT | PAGE_IMAGE).
+type documentMetadata struct {
+	StartPage     int      `json:"startPage,omitempty"`
+	EndPage       int      `json:"endPage,omitempty"`
+	ContentLayers []string `json:"contentLayers,omitempty"`
+}
+
+// spreadsheetMetadata is Gemini's Part.spreadsheetMetadata (1-indexed sheetIndex,
+// A1 visibleCells range, and contentLayers: DATA | FORMULAS | VISUAL).
+type spreadsheetMetadata struct {
+	SheetIndex    int      `json:"sheetIndex,omitempty"`
+	VisibleCells  string   `json:"visibleCells,omitempty"`
+	ContentLayers []string `json:"contentLayers,omitempty"`
+}
+
+// audioMetadata is Gemini's Part.audioMetadata (protobuf duration offsets).
+type audioMetadata struct {
+	StartOffset string `json:"startOffset,omitempty"`
+	EndOffset   string `json:"endOffset,omitempty"`
+}
+
+// videoMetadata is Gemini's Part.videoMetadata (protobuf duration offsets, fps,
+// and contentLayers: TRANSCRIPT | FRAMES | AUDIO).
+type videoMetadata struct {
+	StartOffset   string   `json:"startOffset,omitempty"`
+	EndOffset     string   `json:"endOffset,omitempty"`
+	FPS           float64  `json:"fps,omitempty"`
+	ContentLayers []string `json:"contentLayers,omitempty"`
 }
 
 // toolCallSigSep separates the adapter's "<turn>_<call>" ID from the part's

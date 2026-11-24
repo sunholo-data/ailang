@@ -40,17 +40,24 @@ const (
 // A location that is not a plain lowercase name is refused rather than spliced
 // into a hostname.
 func vertexAIBaseURL(location string) (string, error) {
+	return vertexAIBaseURLVersion(location, "v1")
+}
+
+// vertexAIBaseURLVersion builds the regional Vertex AI base URL for the given
+// API version ("v1" or "v1beta1"), preserving the exact same host residency
+// mapping as vertexAIBaseURL.
+func vertexAIBaseURLVersion(location, version string) (string, error) {
 	switch location {
 	case "global":
-		return "https://aiplatform.googleapis.com/v1", nil
+		return "https://aiplatform.googleapis.com/" + version, nil
 	case "eu", "us":
-		return "https://aiplatform." + location + ".rep.googleapis.com/v1", nil
+		return "https://aiplatform." + location + ".rep.googleapis.com/" + version, nil
 	}
 	if !vertexLocationPattern.MatchString(location) {
 		return "", ai.NewProviderError("gemini", 0,
 			fmt.Sprintf("invalid Vertex AI location %q (want global, eu, us or a region such as europe-west4)", location), nil)
 	}
-	return "https://" + location + "-aiplatform.googleapis.com/v1", nil
+	return "https://" + location + "-aiplatform.googleapis.com/" + version, nil
 }
 
 // vertexLocationPattern: a Google Cloud region name (europe-west4, us-central1).

@@ -19,13 +19,23 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		return nil, rErr
 	}
 
-	// Build request — detect multimodal JSON input and construct proper parts
-	parts := buildParts(req.FullUserPrompt())
-	if len(req.InputImages) > 0 {
+	// Build request — typed InputMedia takes precedence over the legacy
+	// stringly multimodal JSON convention in buildParts.
+	var parts []part
+	switch {
+	case len(req.InputMedia) > 0:
+		var mErr error
+		parts, mErr = userMediaParts(ai.Message{Content: req.FullUserPrompt(), Media: req.InputMedia}, c.authType)
+		if mErr != nil {
+			return nil, mErr
+		}
+	case len(req.InputImages) > 0:
 		// Reference-conditioned image generation (#1496): the prompt text
 		// part, then one inlineData part per reference image — the same
 		// encoding the step() vision-input path uses.
 		parts = userImageParts(ai.Message{Content: req.FullUserPrompt(), Images: req.InputImages})
+	default:
+		parts = buildParts(req.FullUserPrompt())
 	}
 	apiReq := generateRequest{
 		Contents: []content{
@@ -68,8 +78,9 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		applyReasoning(apiReq.GenerationConfig, reasoning)
 	}
 
-	// Build URL based on auth type
-	url, err := c.buildURL(req.Model)
+	// Build URL based on auth type (Vertex uses v1beta1 when slicing/media
+	// metadata is requested, on the exact same regional/EU host).
+	url, err := c.buildURLForRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +247,20 @@ func buildParts(userPrompt string) []part {
 
 // buildURL constructs the API URL based on auth type.
 func (c *Client) buildURL(model string) (string, error) {
+	return c.buildURLVersion(model, "v1")
+}
+
+// buildURLForRequest selects Vertex v1beta1 when the request carries slicing or
+// per-part media metadata, keeping Vertex v1 for all other requests.
+func (c *Client) buildURLForRequest(req *ai.Request) (string, error) {
+	version := "v1"
+	if requestNeedsVertexBeta(req) {
+		version = "v1beta1"
+	}
+	return c.buildURLVersion(req.Model, version)
+}
+
+func (c *Client) buildURLVersion(model, vertexVersion string) (string, error) {
 	// Use custom base URL if set (for testing)
 	if c.baseURL != "" {
 		return fmt.Sprintf("%s/models/%s:generateContent", c.baseURL, model), nil
@@ -249,18 +274,22 @@ func (c *Client) buildURL(model string) (string, error) {
 		return fmt.Sprintf("%s/models/%s:generateContent", aiStudioBaseURL, model), nil
 
 	case AuthADC:
-		// Vertex AI: https://{host}/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
-		// with the host chosen by location (vertexAIBaseURL).
-		return c.vertexModelURL(model, "generateContent")
+		// Vertex AI: https://{host}/{v1|v1beta1}/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
+		// with the host chosen by location (vertexAIBaseURLVersion).
+		return c.vertexModelURLVersion(model, "generateContent", vertexVersion)
 
 	default:
 		return "", ai.NewProviderError("gemini", 0, "unknown auth type", nil)
 	}
 }
 
-// vertexModelURL is a Vertex AI model method URL on the host for c.location.
+// vertexModelURL is a Vertex AI v1 model method URL on the host for c.location.
 func (c *Client) vertexModelURL(model, method string) (string, error) {
-	base, err := vertexAIBaseURL(c.location)
+	return c.vertexModelURLVersion(model, method, "v1")
+}
+
+func (c *Client) vertexModelURLVersion(model, method, version string) (string, error) {
+	base, err := vertexAIBaseURLVersion(c.location, version)
 	if err != nil {
 		return "", err
 	}
@@ -275,6 +304,18 @@ func (c *Client) vertexModelURL(model, method string) (string, error) {
 //
 // Used by StreamStep (M-AI-STEP-STREAMING v0.18.7).
 func (c *Client) buildStreamURL(model string) (string, error) {
+	return c.buildStreamURLVersion(model, "v1")
+}
+
+func (c *Client) buildStreamURLForRequest(req *ai.Request) (string, error) {
+	version := "v1"
+	if requestNeedsVertexBeta(req) {
+		version = "v1beta1"
+	}
+	return c.buildStreamURLVersion(req.Model, version)
+}
+
+func (c *Client) buildStreamURLVersion(model, vertexVersion string) (string, error) {
 	if c.baseURL != "" {
 		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", c.baseURL, model), nil
 	}
@@ -282,7 +323,7 @@ func (c *Client) buildStreamURL(model string) (string, error) {
 	case AuthAPIKey:
 		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", aiStudioBaseURL, model), nil
 	case AuthADC:
-		return c.vertexModelURL(model, "streamGenerateContent?alt=sse")
+		return c.vertexModelURLVersion(model, "streamGenerateContent?alt=sse", vertexVersion)
 	default:
 		return "", ai.NewProviderError("gemini", 0, "unknown auth type", nil)
 	}

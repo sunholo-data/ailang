@@ -17,8 +17,21 @@
       "tier": "experimental"
     },
     {
+      "name": "MediaCallResult",
+      "alias": "{input_tokens: int, output_tokens: int, text: string}",
+      "tier": "experimental"
+    },
+    {
+      "name": "MediaPart",
+      "ctors": [
+        "File({mime: string, options: string, resolution: string, uri: string})",
+        "Image({mime: string, resolution: string, source: string})"
+      ],
+      "tier": "experimental"
+    },
+    {
       "name": "Message",
-      "alias": "{content: string, images: list[ImagePart], role: string, tool_call_id: string, tool_calls: list[ToolCall]}",
+      "alias": "{content: string, media: list[MediaPart], role: string, tool_call_id: string, tool_calls: list[ToolCall]}",
       "tier": "experimental"
     },
     {
@@ -493,6 +506,65 @@
       "ifc": {
         "params": [
           {
+            "name": "prompt",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "media",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "options",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "callMediaResult",
+      "type": "(string,list[MediaPart],string)-\u003eResult[{input_tokens: int, output_tokens: int, text: string},{code: string, message: string, retryable: bool}]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": false,
+      "tier": "experimental"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "input",
             "label": {
               "constants": [],
@@ -763,7 +835,7 @@
         "declassify": []
       },
       "name": "step",
-      "type": "(string,list[Message],list[ToolSchema])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, media: list[MediaPart], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -834,7 +906,7 @@
         "declassify": []
       },
       "name": "stepWithCache",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, media: list[MediaPart], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -917,7 +989,7 @@
         "declassify": []
       },
       "name": "stepWithStream",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, media: list[MediaPart], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -1000,7 +1072,7 @@
         "declassify": []
       },
       "name": "stepWithStreamRecorded",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003e{chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]}!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003e{chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, media: list[MediaPart], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]}!{AI}",
       "effects": [
         "AI"
       ],

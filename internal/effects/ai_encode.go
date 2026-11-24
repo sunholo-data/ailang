@@ -52,18 +52,33 @@ func makeOkStringResult(s string) eval.Value {
 	}
 }
 
+// makeOkMediaCallResult builds Ok(MediaCallResult record) — for callMediaResult.
+func makeOkMediaCallResult(resp *ai.Response) eval.Value {
+	rec := &eval.RecordValue{
+		Fields: map[string]eval.Value{
+			"text":          &eval.StringValue{Value: resp.Text},
+			"input_tokens":  &eval.IntValue{Value: resp.InputTokens},
+			"output_tokens": &eval.IntValue{Value: resp.OutputTokens},
+		},
+	}
+	return &eval.TaggedValue{
+		CtorName: "Ok",
+		Fields:   []eval.Value{rec},
+	}
+}
+
 // makeOkStepResult builds Ok(StepResult record) — for step.
 func makeOkStepResult(resp *ai.Response) eval.Value {
 	// Build the assistant Message record. Every field of the closed
 	// std/ai.Message type must be present (#572): responses carry no
-	// vision input, so images is always the empty list.
+	// media input, so media is always the empty list.
 	msgRec := &eval.RecordValue{
 		Fields: map[string]eval.Value{
 			"role":         &eval.StringValue{Value: "assistant"},
 			"content":      &eval.StringValue{Value: resp.Text},
 			"tool_calls":   encodeToolCalls(resp.ToolCalls),
 			"tool_call_id": &eval.StringValue{Value: ""},
-			"images":       &eval.ListValue{Elements: []eval.Value{}},
+			"media":        &eval.ListValue{Elements: []eval.Value{}},
 		},
 	}
 	stepResult := &eval.RecordValue{

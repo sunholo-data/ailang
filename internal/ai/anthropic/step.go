@@ -244,6 +244,9 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 
 		case "user":
 			if m.ToolCallID != "" {
+				if _, mediaErr := ai.ExtractLegacyImages("anthropic", ai.Message{Role: "tool", Media: m.Media, Images: m.Images}); mediaErr != nil {
+					return nil, mediaErr
+				}
 				// User-with-ToolCallID is a tool result message.
 				block := stepContentBlock{
 					Type:      "tool_result",
@@ -257,7 +260,9 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 						fmt.Sprintf("anthropic: failed to marshal tool_result content for messages[%d]: %v", i, err), false)
 				}
 				apiReq.Messages = append(apiReq.Messages, stepMessage{Role: "user", Content: raw})
-			} else if len(m.Images) > 0 {
+			} else if imgs, mediaErr := ai.ExtractLegacyImages("anthropic", m); mediaErr != nil {
+				return nil, mediaErr
+			} else if len(imgs) > 0 {
 				// Vision input (M-STD-AI-VISION-INPUT): emit a content array with
 				// an optional leading text block followed by one image block per
 				// image. Anthropic requires raw base64 in data with media_type
@@ -266,7 +271,7 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 				if m.Content != "" {
 					blocks = append(blocks, stepContentBlock{Type: "text", Text: m.Content})
 				}
-				for _, img := range m.Images {
+				for _, img := range imgs {
 					mediaType, data := splitDataURI(img.Source, img.Mime)
 					blocks = append(blocks, stepContentBlock{
 						Type: "image",
@@ -293,6 +298,9 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 			}
 
 		case "tool":
+			if _, mediaErr := ai.ExtractLegacyImages("anthropic", m); mediaErr != nil {
+				return nil, mediaErr
+			}
 			// Tool-result feedback — Anthropic models this as a user message
 			// with a content array containing a tool_result block.
 			block := stepContentBlock{

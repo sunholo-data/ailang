@@ -90,6 +90,11 @@ type Request struct {
 	// never silently dropped. Nil = text-only prompt, wire-identical to before.
 	InputImages []ImagePart
 
+	// InputMedia carries typed media attachments (Image or File with optional
+	// server-side slicing controls) for single-shot callMediaResult calls
+	// (M-STD-AI-GEMINI-FILE-SLICING, #2458). Nil = text-only prompt.
+	InputMedia []MediaPart
+
 	// Options contains provider-specific options
 	Options map[string]any
 
@@ -285,11 +290,31 @@ type Message struct {
 	Content    string
 	ToolCalls  []ToolCall
 	ToolCallID string
-	// Images is the optional vision-input attachment list (M-STD-AI-VISION-INPUT,
-	// v0.30.0). Empty = a text-only message, wire-identical to pre-vision. Each
-	// provider adapter maps these to its native image block (Anthropic image
-	// content block, OpenAI image_url, Gemini inline_data, Ollama images[]).
+	// Media is the ordered typed media attachment list (Image or File parts,
+	// M-STD-AI-GEMINI-FILE-SLICING, v0.60.7). Empty = text-only message.
+	Media []MediaPart
+	// Images is the legacy Go-side vision attachment list (M-STD-AI-VISION-INPUT,
+	// v0.30.0), retained for Go-level caller/test compatibility. Providers read
+	// EffectiveMedia() so both Media and Images flow through one path.
 	Images []ImagePart
+}
+
+// EffectiveMedia returns the message's ordered media attachments, combining
+// Media with any legacy Go-side Images entries.
+func (m Message) EffectiveMedia() []MediaPart {
+	if len(m.Images) == 0 {
+		return m.Media
+	}
+	out := make([]MediaPart, 0, len(m.Media)+len(m.Images))
+	out = append(out, m.Media...)
+	for _, img := range m.Images {
+		out = append(out, MediaPart{
+			Kind:   MediaKindImage,
+			Source: img.Source,
+			Mime:   img.Mime,
+		})
+	}
+	return out
 }
 
 // ImagePart is one vision-input image attached to a Message. Source is a

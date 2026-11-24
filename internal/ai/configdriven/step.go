@@ -22,7 +22,14 @@ func (p *Provider) Step(ctx context.Context, req *ai.Request) (*ai.Response, err
 	// in the [[ai_provider]] v1 schema. Surface a clear typed error rather than
 	// silently dropping the image (per the feature request).
 	for _, m := range req.Messages {
-		if len(m.Images) > 0 {
+		media := m.EffectiveMedia()
+		if len(media) > 0 {
+			for _, mp := range media {
+				if mp.Kind == ai.MediaKindFile || mp.Resolution != "" || mp.HasSlicingOptions() {
+					return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
+						"configdriven: File media parts, resolution, and slicing options are not supported in [[ai_provider]] v1", false)
+				}
+			}
 			return nil, ai.NewAIError(ai.CodeModelNoVision,
 				"configdriven: this provider does not support image (vision) input; the [[ai_provider]] v1 schema has no image-block mapping", false)
 		}

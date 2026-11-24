@@ -111,6 +111,7 @@ var builtinHomes = map[string]string{
 	"TerminalEvent":     "std/terminal",
 	"TerminalError":     "std/terminal",
 	"StreamChunk":       "std/ai",
+	"MediaPart":         "std/ai",
 	"Verdict":           "std/stream/bridge",
 	"BridgeFrame":       "std/stream/bridge",
 	"BridgeEnd":         "std/stream/bridge",

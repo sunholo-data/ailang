@@ -42,7 +42,7 @@ export pure func renderCacheStats(r: StepResult) -> string {
 
 export func main() -> () ! {AI, IO} {
   let breakpoints: [CacheBreakpoint] = [{ position: "system", ttl: "ephemeral" }]
-  let messages: [Message] = [{ role: "system", content: systemPrompt(), tool_calls: [], tool_call_id: "", images: [] }, { role: "user", content: "Compose a haiku about prompt caching.", tool_calls: [], tool_call_id: "", images: [] }]
+  let messages: [Message] = [{ role: "system", content: systemPrompt(), tool_calls: [], tool_call_id: "", media: [] }, { role: "user", content: "Compose a haiku about prompt caching.", tool_calls: [], tool_call_id: "", media: [] }]
   let result = stepWithCache("", messages, [], breakpoints)
   match result {
     Ok(r) => {

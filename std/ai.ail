@@ -80,11 +80,27 @@ export type AIError = { code: string, message: string, retryable: bool }
 -- parameters schema.
 export type ToolCall = { id: string, name: string, arguments: string }
 
--- ImagePart is one vision-input image attached to a Message
--- (M-STD-AI-VISION-INPUT, v0.30.0).
---   source : base64 payload or data-URI (local-path sources are a follow-up)
+-- ImagePart is one reference image for image-generation calls
+-- (callImageWithRefs / callImageBase64WithRefs, M-STD-AI-VISION-INPUT).
+--   source : base64 payload or data-URI
 --   mime   : IANA media type, e.g. "image/png", "image/jpeg"
 export type ImagePart = { source: string, mime: string }
+
+-- MediaPart is one typed media INPUT attachment on a Message or
+-- callMediaResult call (M-STD-AI-GEMINI-FILE-SLICING, v0.60.7, #2458).
+--   resolution   : "" | "low" | "medium" | "high" ("" = provider default;
+--                  any other value fails with Err(SchemaValidation)).
+--   Image.source : base64 payload or data-URI.
+--   File.uri     : gs://bucket/object | https://... | data:... | raw base64.
+--                  gs:// and https:// map to server-side fileData (no inline
+--                  copy — preserves Vertex EU data residency); data:/base64
+--                  map to inlineData.
+--   File.options : JSON string, "" or "{}" = no slicing (whole artifact).
+--                  Keys are strictly validated per MIME class at the effect
+--                  boundary; unknown keys fail with Err(SchemaValidation).
+export type MediaPart =
+  Image({ source: string, mime: string, resolution: string })
+| File({ uri: string, mime: string, resolution: string, options: string })
 
 -- Message is one entry in a multi-turn conversation.
 --   role         : "user" | "assistant" | "tool" | "system"
@@ -92,9 +108,13 @@ export type ImagePart = { source: string, mime: string }
 --                  is non-empty
 --   tool_calls   : assistant only — invocations the model emitted
 --   tool_call_id : "tool" role only — references a prior ToolCall.id
---   images       : vision-input images for this message; [] = text-only
+--   media        : ordered media attachments for this message; [] = text-only
 --                  (required field — AILANG records are closed)
-export type Message = { role: string, content: string, tool_calls: [ToolCall], tool_call_id: string, images: [ImagePart] }
+export type Message = { role: string, content: string, tool_calls: [ToolCall], tool_call_id: string, media: [MediaPart] }
+
+-- MediaCallResult is the single-shot return shape of callMediaResult, pairing
+-- the generated text with provider-reported token counts for metering.
+export type MediaCallResult = { text: string, input_tokens: int, output_tokens: int }
 
 -- ToolSchema declares one tool the model may call. Parameters is the raw
 -- JSON Schema string (same shape as Request.ResponseSchema).
@@ -158,6 +178,15 @@ export func callJsonResult(input: string, schema: string) -> Result[string, AIEr
 -- transient provider 5xx returns a catchable Err(AIError{retryable}) instead
 -- of crashing the host with an uncaught {AI} effect error.
 export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI} = _ai_call_json_simple_result(input)
+
+-- callMediaResult: Single-shot call with typed media attachments (images,
+-- documents, spreadsheets, audio/video) and per-call token usage metering.
+--   prompt  : user prompt text
+--   media   : ordered list of MediaPart (Image(...) | File(...))
+--   options : call-level JSON options (optional "model" override), "" for none.
+--             Slicing controls live per-part on File.options.
+export func callMediaResult(prompt: string, media: [MediaPart], options: string) -> Result[MediaCallResult, AIError] ! {AI} =
+  _ai_call_media_result(prompt, media, options)
 
 -- ============================================================================
 -- Text-to-speech (#1495)
@@ -368,7 +397,7 @@ func dispatchToolCalls(calls: [ToolCall], dispatch: ToolCall -> string) -> [Mess
     [] => [],
     [call, ...rest] => {
       let result = dispatch(call)
-      let msg: Message = { role: "tool", content: result, tool_calls: [], tool_call_id: call.id, images: [] };
+      let msg: Message = { role: "tool", content: result, tool_calls: [], tool_call_id: call.id, media: [] };
       [msg] ++ dispatchToolCalls(rest, dispatch)
     }
   }

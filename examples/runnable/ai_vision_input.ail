@@ -1,26 +1,27 @@
 -- ai_vision_input.ail — vision (image) INPUT on std/ai (M-STD-AI-VISION-INPUT, v0.30.0)
 --
 -- Shows how to feed an image INTO a vision-capable model via std/ai.step.
--- Images live on the Message record as `images: [ImagePart]`, so every
--- step / stepWithCache / stepWithStream caller gets vision — no new API.
+-- Images live on the Message record as `media: [MediaPart]` (Image(...) | File(...)),
+-- so every step / stepWithCache / stepWithStream caller gets vision and file input.
 --
--- ImagePart = { source: string, mime: string }
---   source : base64 payload OR a data-URI ("data:image/png;base64,....")
---   mime   : media type, e.g. "image/png"
+-- MediaPart = Image({ source: string, mime: string, resolution: string })
+--           | File({ uri: string, mime: string, resolution: string, options: string })
+--   source     : base64 payload OR a data-URI ("data:image/png;base64,....")
+--   mime       : media type, e.g. "image/png"
+--   resolution : "" | "low" | "medium" | "high" ("" = provider default)
 --
--- Text-only messages use `images: []` (the field is required — AILANG records
+-- Text-only messages use `media: []` (the field is required — AILANG records
 -- are closed). This is distinct from callImage/callImageBase64, which GENERATE
 -- images rather than read them.
 --
 -- Run with a vision model, e.g.:
 --   ailang run --caps IO,AI --ai gemini-2-5-flash --entry main examples/runnable/ai_vision_input.ail
 --
--- Structured-output grading note: a one-call `callJsonResultVision(input, images,
--- schema)` helper is a planned follow-up. Until then, the grading pattern is to
--- ask for JSON in the prompt and decode the assistant text yourself (as below).
+-- Structured-output grading note: for single-shot media calls with token
+-- metering, see std/ai.callMediaResult (examples/runnable/ai_file_slicing.ail).
 
 module examples/runnable/ai_vision_input
-import std/ai (step, ImagePart, Message)
+import std/ai (step, MediaPart, Image, Message)
 import std/io (println)
 
 -- A tiny 2x2 red PNG, base64-encoded (illustrative — swap for your own image,
@@ -30,11 +31,11 @@ export func redPixelPng() -> string {
 }
 
 export func main() -> () ! {AI, IO} {
-  let img: ImagePart = { source: redPixelPng(), mime: "image/png" }
+  let img: MediaPart = Image({ source: redPixelPng(), mime: "image/png", resolution: "" })
   -- Vision + structured output via prompt-level schema. The assistant text is
   -- expected to be JSON like {"color":"...","confidence":"..."}.
   let prompt = "Look at the image. Respond ONLY with JSON matching {\"color\": string, \"confidence\": string}. No prose."
-  let msgs: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [img] }]
+  let msgs: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", media: [img] }]
   match step("", msgs, []) {
     Ok(result) => println("vision JSON: ${result.message.content}"),
     Err(e) => println("vision failed (${e.code}): ${e.message}")

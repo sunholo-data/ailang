@@ -34,14 +34,25 @@ func decodeMessages(list *eval.ListValue) ([]ai.Message, error) {
 			}
 			msg.ToolCalls = calls
 		}
-		// images is a list[ImagePart] (M-STD-AI-VISION-INPUT). Empty/absent =
-		// text-only message, wire-identical to pre-vision (Images stays nil).
-		if imgList, ok := rec.Fields["images"].(*eval.ListValue); ok && len(imgList.Elements) > 0 {
-			images, err := decodeImageParts(imgList)
+		// media is a list[MediaPart] (M-STD-AI-GEMINI-FILE-SLICING, v0.60.7).
+		// Empty/absent = text-only message.
+		if mediaList, ok := rec.Fields["media"].(*eval.ListValue); ok && len(mediaList.Elements) > 0 {
+			media, err := decodeMediaParts(mediaList)
 			if err != nil {
 				return nil, fmt.Errorf("messages[%d]: %w", i, err)
 			}
-			msg.Images = images
+			msg.Media = media
+		}
+		// Legacy Go-test fallback: tolerate "images" if a Go unit test constructs
+		// a pre-v0.60.7 RecordValue directly.
+		if len(msg.Media) == 0 {
+			if imgList, ok := rec.Fields["images"].(*eval.ListValue); ok && len(imgList.Elements) > 0 {
+				images, err := decodeImageParts(imgList)
+				if err != nil {
+					return nil, fmt.Errorf("messages[%d]: %w", i, err)
+				}
+				msg.Images = images
+			}
 		}
 		out = append(out, msg)
 	}
@@ -61,6 +72,55 @@ func decodeToolCalls(list *eval.ListValue) ([]ai.ToolCall, error) {
 			Name:      getStringField(rec, "name"),
 			Arguments: getStringField(rec, "arguments"),
 		})
+	}
+	return out, nil
+}
+
+// decodeMediaParts decodes an AILANG list[MediaPart] into []ai.MediaPart and
+// validates every part (resolution enum, required source/mime, per-MIME slicing
+// options JSON) at the effect boundary.
+func decodeMediaParts(list *eval.ListValue) ([]ai.MediaPart, error) {
+	out := make([]ai.MediaPart, 0, len(list.Elements))
+	for i, elem := range list.Elements {
+		tv, ok := elem.(*eval.TaggedValue)
+		if !ok {
+			return nil, ai.NewAIError(ai.CodeSchemaValidation,
+				fmt.Sprintf("media[%d]: expected MediaPart ADT (Image or File), got %T", i, elem), false)
+		}
+		if len(tv.Fields) != 1 {
+			return nil, ai.NewAIError(ai.CodeSchemaValidation,
+				fmt.Sprintf("media[%d]: %s constructor expected 1 record payload, got %d", i, tv.CtorName, len(tv.Fields)), false)
+		}
+		rec, ok := tv.Fields[0].(*eval.RecordValue)
+		if !ok {
+			return nil, ai.NewAIError(ai.CodeSchemaValidation,
+				fmt.Sprintf("media[%d]: %s payload expected record, got %T", i, tv.CtorName, tv.Fields[0]), false)
+		}
+		var part ai.MediaPart
+		switch tv.CtorName {
+		case "Image":
+			part = ai.MediaPart{
+				Kind:       ai.MediaKindImage,
+				Source:     getStringField(rec, "source"),
+				Mime:       getStringField(rec, "mime"),
+				Resolution: getStringField(rec, "resolution"),
+			}
+		case "File":
+			part = ai.MediaPart{
+				Kind:       ai.MediaKindFile,
+				Source:     getStringField(rec, "uri"),
+				Mime:       getStringField(rec, "mime"),
+				Resolution: getStringField(rec, "resolution"),
+				Options:    getStringField(rec, "options"),
+			}
+		default:
+			return nil, ai.NewAIError(ai.CodeSchemaValidation,
+				fmt.Sprintf("media[%d]: unknown MediaPart constructor %q (want Image or File)", i, tv.CtorName), false)
+		}
+		if err := ai.ValidateMediaPart(&part, fmt.Sprintf("media[%d]", i)); err != nil {
+			return nil, err
+		}
+		out = append(out, part)
 	}
 	return out, nil
 }

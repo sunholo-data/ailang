@@ -24,7 +24,7 @@ func TestMakeOkStepResult_MessageMatchesDeclaredType(t *testing.T) {
 	msg := tagged.Fields[0].(*eval.RecordValue).Fields["message"].(*eval.RecordValue)
 
 	// Must match std/ai.ail `type Message` and builtins.messageRecordType.
-	want := []string{"content", "images", "role", "tool_call_id", "tool_calls"}
+	want := []string{"content", "media", "role", "tool_call_id", "tool_calls"}
 	got := make([]string, 0, len(msg.Fields))
 	for k := range msg.Fields {
 		got = append(got, k)
@@ -39,11 +39,11 @@ func TestMakeOkStepResult_MessageMatchesDeclaredType(t *testing.T) {
 		}
 	}
 
-	images, ok := msg.Fields["images"].(*eval.ListValue)
+	media, ok := msg.Fields["media"].(*eval.ListValue)
 	if !ok {
-		t.Fatalf("images = %T, want *eval.ListValue", msg.Fields["images"])
+		t.Fatalf("media = %T, want *eval.ListValue", msg.Fields["media"])
 	}
-	if len(images.Elements) != 0 {
-		t.Errorf("images len = %d, want 0 (responses carry no vision input)", len(images.Elements))
+	if len(media.Elements) != 0 {
+		t.Errorf("media len = %d, want 0 (responses carry no media input)", len(media.Elements))
 	}
 }

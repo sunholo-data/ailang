@@ -55,7 +55,7 @@ export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
 }
 
 export func main() -> () ! {AI, IO} {
-  let messages: [Message] = [{ role: "system", content: "You are a terse haiku composer. Reply with exactly three lines, 5-7-5 syllables, no preamble.", tool_calls: [], tool_call_id: "", images: [] }, { role: "user", content: "Compose a haiku about streaming tokens.", tool_calls: [], tool_call_id: "", images: [] }]
+  let messages: [Message] = [{ role: "system", content: "You are a terse haiku composer. Reply with exactly three lines, 5-7-5 syllables, no preamble.", tool_calls: [], tool_call_id: "", media: [] }, { role: "user", content: "Compose a haiku about streaming tokens.", tool_calls: [], tool_call_id: "", media: [] }]
   -- Cache the system prompt — works seamlessly with streaming on Anthropic
   -- and Anthropic-via-OpenRouter routes.
   let breakpoints: [CacheBreakpoint] = [{ position: "system", ttl: "ephemeral" }]

@@ -377,11 +377,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 			om.ToolCallID = m.ToolCallID
 		}
 		// Vision input: Ollama's native chat API takes an "images" field on a
-		// message = an array of base64-encoded images. Only attach when images
-		// are present so a text-only message marshals byte-for-byte as before
-		// (images field omitted via omitempty).
-		if len(m.Images) > 0 {
-			om.Images = toOllamaImages(m.Images)
+		// message = an array of base64-encoded images. Fail closed on File parts,
+		// explicit resolution, or non-user media attachments.
+		imgs, mediaErr := ai.ExtractLegacyImages("ollama", m)
+		if mediaErr != nil {
+			return nil, mediaErr
+		}
+		if len(imgs) > 0 {
+			om.Images = toOllamaImages(imgs)
 		}
 		// Assistant message that issued tool calls: re-attach them so the model
 		// sees its own prior calls in the running conversation.

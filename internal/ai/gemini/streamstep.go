@@ -53,12 +53,12 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 		return nil, rErr
 	}
 
-	apiReq, buildErr := buildStepRequest(req, reasoning)
+	apiReq, buildErr := buildStepRequestWithAuth(req, reasoning, c.authType)
 	if buildErr != nil {
 		return nil, buildErr
 	}
 
-	url, urlErr := c.buildStreamURL(req.Model)
+	url, urlErr := c.buildStreamURLForRequest(req)
 	if urlErr != nil {
 		return nil, ai.ClassifyError(urlErr)
 	}

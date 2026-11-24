@@ -82,6 +82,9 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	if ai.RequestsImage(req) {
 		return nil, ai.NewProviderError("openai", 0, "image generation not supported by provider \"openai\" (model: "+req.Model+") — use a Gemini image model", nil)
 	}
+	if err := ai.RejectUnsupportedInputMedia("openai", req); err != nil {
+		return nil, err
+	}
 	apiType := c.detectAPIType(req.Model)
 
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling or
