@@ -118,21 +118,21 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 	// Parse parameters - support curried sugar \x y z. body
 	var params []*ast.Param
 
-	// Keep consuming identifiers or irrefutable tuple patterns until we hit DOT
+	// Keep consuming identifiers or irrefutable tuple/record patterns until we hit DOT
 	for {
 		var param *ast.Param
-		if p.peekTokenIs(lexer.LPAREN) {
-			p.nextToken() // move onto LPAREN
+		if p.peekTokenIs(lexer.LPAREN) || p.peekTokenIs(lexer.LBRACE) {
+			p.nextToken() // move onto LPAREN or LBRACE
 			patPos := p.curPos()
 			pat := p.parsePattern()
-			if !isIrrefutableTuplePattern(pat) {
+			if !isIrrefutableLetPattern(pat) {
 				p.errors = append(p.errors, NewSuggestionError(
 					"PAR_LAMBDA_PATTERN",
 					patPos,
 					p.curToken,
-					"only irrefutable tuple patterns like '\\(a, b). ...' are allowed in lambda parameters",
+					"only irrefutable tuple/record patterns like '\\(a, b). ...' or '\\{a, b}. ...' are allowed in lambda parameters",
 					[]string{
-						"Use variables, '_', and nested tuples: \\(a, (b, _)). a + b",
+						"Use variables, '_', and nested tuples/records: \\(a, (b, _)). a + b  or  \\{name, ...}. name",
 						"For refutable patterns (constructors, literals, lists), use '\\x. match x { ... }'",
 					},
 					"https://ailang.sunholo.com/docs/reference/language-syntax",
@@ -155,7 +155,7 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 		}
 		params = append(params, param)
 
-		// Check if next token is DOT (end of params) or another param (IDENT or LPAREN)
+		// Check if next token is DOT (end of params) or another param (IDENT, LPAREN, or LBRACE)
 		if p.peekTokenIs(lexer.DOT) {
 			break
 		} else if p.peekTokenIs(lexer.ARROW) {
@@ -167,7 +167,7 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 			}
 			p.errors = append(p.errors, fmt.Errorf("lambda body separator is '.' not '->' at %s\n\t\twrite: \\%s. <body>", p.curToken.Position(), lastParam))
 			return nil
-		} else if !p.peekTokenIs(lexer.IDENT) && !p.peekTokenIs(lexer.LPAREN) {
+		} else if !p.peekTokenIs(lexer.IDENT) && !p.peekTokenIs(lexer.LPAREN) && !p.peekTokenIs(lexer.LBRACE) {
 			p.errors = append(p.errors, fmt.Errorf("expected '.' after lambda parameter at %s", p.peekToken.Position()))
 			return nil
 		}

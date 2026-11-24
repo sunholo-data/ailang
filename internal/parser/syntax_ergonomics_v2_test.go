@@ -23,6 +23,10 @@ export pure func f(xs: [(int, (int, int))]) -> [int] = map(\(a, (b, _)). a + b, 
 export pure func f(p: (int, int), q: (int, int)) -> int = (\(a, b) (c, d). a + b + c + d)(p, q)`},
 		{"tuple_with_record_inside", `module m
 export pure func f(xs: [(int, {x: int, y: int})]) -> [int] = map(\(id, {x, ...}). id + x, xs)`},
+		{"record_lambda_closed", `module m
+export pure func f(xs: [{name: string, age: int}]) -> [int] = map(\{name, age}. age, xs)`},
+		{"record_lambda_rest_and_acc", `module m
+export pure func f(xs: [{x: int, y: int}]) -> int = foldl(\acc {x, ...}. acc + x, 0, xs)`},
 	}
 
 	for _, tc := range cases {

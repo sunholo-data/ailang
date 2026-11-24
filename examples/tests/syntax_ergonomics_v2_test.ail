@@ -60,3 +60,9 @@ test "E5 record destructuring let-in form" {
 test "E6 top-level let with trailing semicolon" {
   assert normMod(1000000010) == 3
 }
+
+test "E4b lambda record destructuring with map and foldl" {
+  let people = [{name: "Ada", age: 36}, {name: "Grace", age: 85}]
+  assert map(\{name, age}. age, people) == [36, 85]
+  assert foldl(\acc {age, ...}. acc + age, 0, people) == 121
+}

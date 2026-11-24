@@ -82,7 +82,7 @@ var rtCorpus = map[string][]string{
 		`a && b || c`, `a ++ b`, `xs ++ [1]`, `"a" ++ "b"`, `a ^ b`, `a << 2`, `a >> 1`, `(if c then [1] else [2]) ++ ys`},
 	"UnaryOp":    {`-x`, `!b`, `-(if c then 1 else 2)`},
 	"FuncCall":   {`f()`, `f(1, 2)`, `f(g(x))`, `x :: xs`, `1 :: 2 :: []`, `f(x :: xs)`, `(x :: xs) ++ ys`, `length(identity(x :: xs)) == 2`, `(\f. f)(g)(8)`, `f(1)(2)`, `(if true then 1 else 2) :: [5] == [1, 5]`, `x :: (if c then [] else [1])`},
-	"Lambda":     {`\x. x + 1`, `\x y. x`, `\(a, b). a + b`, `\acc (k, v). acc + v`},
+	"Lambda":     {`\x. x + 1`, `\x y. x`, `\(a, b). a + b`, `\acc (k, v). acc + v`, `\{a, b}. a + b`},
 	"FuncLit":    {`func(x: int) -> int { x }`, `func(x: int) -> int ! {IO} { x }`},
 	"Let":        {`{ let x = 1; x }`, `let y = 2 in y`},
 	"LetPattern": {`{ let (a, b) = (1, 2); a + b }`, `let (x, y) = p in x + y`, `{ let {a, b} = r; a + b }`, `let {a, ...} = r in a`},
