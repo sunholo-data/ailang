@@ -460,3 +460,31 @@ a v0.60.3 binary reports no errors. That is the same check the image's warm step
 **Rig:** `~/dev/mk-20261027` is still at `597a6fbf`. It fails the same check once the rig installs
 ≥ v0.60.3. Fast-forward it (`git merge --ff-only 2c2f9c8d`, clean tree, no motoko run live) before or
 with that install. That is left to the motoko owner.
+
+## 19. Docker pin moved to `809921f0` (2026-11-24): std/ai `Message.media`; rig NOT moved
+
+**Why:** v0.61.0 (#2458) replaced `std/ai` `Message.images: [ImagePart]` with `Message.media: [MediaPart]`.
+At `2c2f9c8d` (and at the branch tip `35ea0660`), `src/core/compaction.ail:143` fails with "record field
+mismatch". That broke `build-agent-motoko` in dev build `37a4a4e5` and would have failed every v0.61.x
+release build.
+
+**What:** fork PR [#12](https://github.com/sunholo-voight-kampff/motoko_agent/pull/12), branch
+`fix/std-ai-message-media` off `sunholo/main-dst-20261027` @ `35ea0660`, head `809921f0`.
+`docker/Dockerfile.agent-motoko` `MOTOKO_COMMIT` → `809921f0be3b43fcf220486d1951e31e45873b73`.
+**Merge the PR with a merge commit, not a squash,** so the pinned SHA stays reachable from the branch.
+- The journal's on-disk key stays `"images"`, and a default-resolution Image encodes and frames exactly as
+  an ImagePart did. The new shapes are additive.
+
+**Verified (v0.61.1):**
+- `ailang check src/core/supervisor.ail`: no errors.
+- Every `.ail` under `src/`, `scripts/` and `packages/`: 144 files fixed, 0 new failures. The 100 that still
+  fail fail identically at `35ea0660` on v0.60.6.
+- `canonical_message_frame` and `message_json` for an image message are byte-identical to `35ea0660` on
+  v0.60.6.
+- The `ailang test` rows listed in the PR pass.
+
+**Not verified:** `gmake check_core`, the DST suite, a banked eval row.
+
+**Rig:** `~/dev/mk-20261027` is at `597a6fbf`, which also predates §18's fix. It fails this check under
+any AILANG ≥ v0.61.0, and the rig installed v0.61.1 on 2026-11-24. Moving it to `809921f0` (clean tree, no
+motoko run live) is left to the motoko owner.
