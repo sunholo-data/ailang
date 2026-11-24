@@ -1,7 +1,8 @@
 ---
 title: Strict Fallbacks (STRICT_FALLBACK_001)
 sidebar_label: Strict Fallbacks
-reviewBy: 2027-01-04
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 # Strict Fallbacks — `STRICT_FALLBACK_001`
@@ -18,6 +19,8 @@ A `Result`-returning function whose `Ok` branch carries an empty or zero value
 can't be distinguished from a populated success by the caller:
 
 ```ailang
+import std/json (Json, get, jo)
+
 export func getDoc(o: Json) -> Result[Json, string] =
   match get(o, "fields") {
     Some(fields) => Ok(fields),
@@ -29,10 +32,13 @@ Downstream, the caller takes the `Ok` arm with empty data instead of falling
 through to its error handler:
 
 ```ailang
-match getDoc(doc) {
-  Ok(fields) => useFields(fields),  -- silently sees {} — no error signal
-  Err(e)     => handleError(e)      -- never reached
-}
+import std/json (Json, encode)
+
+func inspectDoc(res: Result[Json, string]) -> string =
+  match res {
+    Ok(fields) => encode(fields),     -- silently sees {} — no error signal
+    Err(e)     => "error: ${e}"       -- never reached
+  }
 ```
 
 This exact shape shipped in a production package (`firestore/client@0.7.1`) and
@@ -84,6 +90,8 @@ If an empty-`Ok` is genuinely correct (e.g. an empty collection is a valid
 result), annotate the function with a **required rationale string**:
 
 ```ailang
+import std/json (Json, get, jo)
+
 @allow_empty_ok("missing 'documents' key means an empty collection")
 export func listDocs(o: Json) -> Result[Json, string] =
   match get(o, "documents") {
@@ -101,7 +109,13 @@ why the empty-`Ok` is intentional.
 Prefer returning an error with a descriptive message:
 
 ```ailang
-None => Err("response has no 'fields' key")
+import std/json (Json, get)
+
+export func getDocStrict(o: Json) -> Result[Json, string] =
+  match get(o, "fields") {
+    Some(fields) => Ok(fields),
+    None         => Err("response has no 'fields' key")
+  }
 ```
 
 Only reach for `@allow_empty_ok` when the empty result is semantically a success.

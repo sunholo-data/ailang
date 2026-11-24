@@ -1,7 +1,8 @@
 ---
 title: Type System
 sidebar_position: 2
-reviewBy: 2026-11-09
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 # Type System Architecture
@@ -118,18 +119,20 @@ AILANG uses Algorithm W (Hindley-Milner) with constraints:
 Records and effects use row polymorphism for extensibility:
 
 ```ailang
-type Person = { name: string, age: int | r }  -- Open row type
-type Employee = { name: string, age: int, id: int }  -- Extends Person
+type Employee = { name: string, age: int, id: int }
+
+-- Open row type: accepts any record with at least `name` and `age`
+func personName[r](p: { name: string, age: int | r }) -> string = p.name
 ```
 
 Effect rows track side effects:
 
-```ailang
-readFile : string -> ! {IO | e} string
+```not-ailang
+readFile : string -> string ! {FS | e}
 ```
 
-The effect row `{IO | e}` means:
-- Requires `IO` capability
+The effect row `{FS | e}` means:
+- Requires `FS` capability
 - May have additional effects `e` (polymorphic)
 
 ## Effect System
@@ -138,12 +141,12 @@ The effect row `{IO | e}` means:
 
 Effects are tracked in function types and enforced at runtime:
 
-```ailang
+```not-ailang
 -- Pure function (no effects)
-add : int -> int -> int
+add : (int, int) -> int
 
 -- Effectful function (requires IO capability)
-println : string -> ! {IO} unit
+println : string -> () ! {IO}
 ```
 
 ### Effect Checking
@@ -164,7 +167,7 @@ Current implementation has hardcoded type class instances (Num, Eq, Ord, Show).
 
 Type class constraints are resolved via dictionary-passing transformation:
 
-```ailang
+```not-ailang
 -- Surface syntax
 add : forall a. Num a => a -> a -> a
 

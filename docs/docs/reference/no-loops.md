@@ -266,7 +266,9 @@ Loops can hide arbitrary effects. AILANG makes effects **explicit and trackable*
 ### Example: Pure Iteration
 
 ```ailang
-map(\x. x * 2, xs)  -- Type: [int] -> [int]
+import std/list (map)
+
+pure func doubleAll(xs: [int]) -> [int] = map(\x. x * 2, xs)
 ```
 
 No `! {E}` in signature → **guaranteed pure** (no I/O, no network, no mutation).
@@ -310,12 +312,16 @@ The `! {FS}` effect propagates through the recursive structure.
 
 **Naive (two passes)**:
 ```ailang
-map(\x. x * 2, map(\x. x + 1, xs))
+import std/list (map)
+
+pure func twoPass(xs: [int]) -> [int] = map(\x. x * 2, map(\x. x + 1, xs))
 ```
 
 **Fused (one pass)**:
 ```ailang
-map(\x. (x + 1) * 2, xs)
+import std/list (map)
+
+pure func fused(xs: [int]) -> [int] = map(\x. (x + 1) * 2, xs)
 ```
 
 Compiler applies **map fusion law** automatically.
@@ -324,7 +330,9 @@ Compiler applies **map fusion law** automatically.
 
 **Sequential fold**:
 ```ailang
-foldl(\acc x. acc + x, 0, xs)
+import std/list (foldl)
+
+pure func sumAll(xs: [int]) -> int = foldl(\acc x. acc + x, 0, xs)
 ```
 
 For associative operators, future versions may support parallel reduction.

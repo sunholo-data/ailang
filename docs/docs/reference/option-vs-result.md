@@ -1,5 +1,6 @@
 ---
-reviewBy: 2026-12-07
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 # Option vs Result: which to use when
@@ -47,41 +48,48 @@ This is the part that bites people. The same operation in two different stdlib m
 
 ## Common mistake
 
-```ailang
+```ailang parse
 -- ❌ WRONG: matches Option with Result constructors
-match getString(json, "model") {
-  Err(_) => "fallback",         -- Err is from Result, not Option
-  Ok(m)  => m
-}
--- v0.18.10: error: match arm constructor 'Err' belongs to ADT 'Result',
--- not 'Option' (the scrutinee's type).
---   Option's constructors are: None, Some
---   Result's constructors are: Err, Ok
---   Suggestion: did you mean one of: None, Some?
+import std/json (Json, getString)
+
+func wrongModel(json: Json) -> string =
+  match getString(json, "model") {
+    Err(_) => "fallback",         -- Err is from Result, not Option
+    Ok(m)  => m
+  }
 ```
 
 ```ailang
 -- ✓ CORRECT: matches Option with its own constructors
-match getString(json, "model") {
-  None => "fallback",
-  Some(m) => m
-}
+import std/json (Json, getString)
+
+func getModel(json: Json) -> string =
+  match getString(json, "model") {
+    None => "fallback",
+    Some(m) => m
+  }
 ```
 
-```ailang
+```ailang parse
 -- ❌ WRONG: matches Result with Option constructors
-match decode(input) {
-  Some(json) => process(json),  -- Some is from Option
-  None => error
-}
+import std/json (decode, encode)
+
+func wrongDecode(input: string) -> string =
+  match decode(input) {
+    Some(json) => encode(json),   -- Some is from Option, not Result
+    None => "error"
+  }
 ```
 
 ```ailang
 -- ✓ CORRECT
-match decode(input) {
-  Ok(json) => process(json),
-  Err(msg) => "parse failed: ${msg}"
-}
+import std/json (decode, encode)
+
+func parseAndEncode(input: string) -> string =
+  match decode(input) {
+    Ok(json) => encode(json),
+    Err(msg) => "parse failed: ${msg}"
+  }
 ```
 
 ## Converting between them

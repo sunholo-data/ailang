@@ -1,7 +1,8 @@
 ---
 sidebar_position: 7
 title: motoko Extension Author Workflow
-reviewBy: 2026-12-07
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 # motoko Extension Author Workflow
@@ -74,13 +75,14 @@ Switch back to a registry version (`{ version = "0.2.3" }`) when you're ready to
 
 Every extension package the scaffold generates ships with a `_smoke.ail` file containing 3-5 assertions that exercise the basic shape of the extension:
 
-```ailang
+```ailang parse
 module sunholo/motoko_ext_foo/_smoke
 
 import std/io (println)
+import std/list (length)
 import sunholo/motoko_ext_foo/register (register_with_config)
 
-export func main() -> Unit ! {IO, Env, FS} {
+export func main() -> () ! {IO, Env, FS} {
   let hooks = register_with_config({});
   let names = hooks.provided_tools;
   let count = length(names);
@@ -172,33 +174,41 @@ The scaffold seeds placeholder schemas with `'{"type":"object","required":[],"pr
 **Command-execution tool** (a `language` + `code` pair):
 
 ```ailang
-{ name: "CodeExecute",
+let codeExecuteTool = {
+  name: "CodeExecute",
   description: "Execute a code snippet in a sandboxed runtime",
-  parameters: '{"type":"object","required":["language","code"],"properties":{"language":{"type":"string","enum":["python","node","go"]},"code":{"type":"string"}}}' }
+  parameters: "{\"type\":\"object\",\"required\":[\"language\",\"code\"],\"properties\":{\"language\":{\"type\":\"string\",\"enum\":[\"python\",\"node\",\"go\"]},\"code\":{\"type\":\"string\"}}}"
+}
 ```
 
 **Search tool** (a single `query`):
 
 ```ailang
-{ name: "KBSearch",
+let kbSearchTool = {
+  name: "KBSearch",
   description: "Search the KB for relevant chunks",
-  parameters: '{"type":"object","required":["query"],"properties":{"query":{"type":"string"},"top_k":{"type":"integer","default":5}}}' }
+  parameters: "{\"type\":\"object\",\"required\":[\"query\"],\"properties\":{\"query\":{\"type\":\"string\"},\"top_k\":{\"type\":\"integer\",\"default\":5}}}"
+}
 ```
 
 **Fetch tool** (a structured URL):
 
 ```ailang
-{ name: "PageFetch",
+let pageFetchTool = {
+  name: "PageFetch",
   description: "Fetch a URL and return rendered text",
-  parameters: '{"type":"object","required":["url"],"properties":{"url":{"type":"string","format":"uri"}}}' }
+  parameters: "{\"type\":\"object\",\"required\":[\"url\"],\"properties\":{\"url\":{\"type\":\"string\",\"format\":\"uri\"}}}"
+}
 ```
 
 **Structured-data tool** (free-form object):
 
 ```ailang
-{ name: "RecordIngest",
+let recordIngestTool = {
+  name: "RecordIngest",
   description: "Append a record to the structured log",
-  parameters: '{"type":"object","required":["record"],"properties":{"record":{"type":"object","additionalProperties":true}}}' }
+  parameters: "{\"type\":\"object\",\"required\":[\"record\"],\"properties\":{\"record\":{\"type\":\"object\",\"additionalProperties\":true}}}"
+}
 ```
 
 The model's tool-calling layer reads these schemas verbatim. They drive both the **what arguments the model knows to pass** and **the JSON-schema validation the provider runs on the model's output** before the call reaches your `on_tool_handle`.

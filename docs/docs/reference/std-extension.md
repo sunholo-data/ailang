@@ -1,5 +1,6 @@
 ---
-reviewBy: 2027-01-18
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 # std/extension — helpers for AILANG extension packages
@@ -18,8 +19,11 @@ The shape AILANG extensions converge on (canonical example: `motoko_ext_omnigrap
 
 ```ailang
 import std/extension (requireWorkdirFile)
-import std/result (Result, Ok, Err)
 import std/env (getEnvOr)
+
+type ExtensionHooks = { id: string, provided_tools: [string] }
+
+func provided_tools() -> [string] = ["omnigraph_query"]
 
 func enabled_in(workdir: string) -> bool ! {FS} =
   match requireWorkdirFile(workdir, "omnigraph/omnigraph.yaml") {
@@ -27,14 +31,13 @@ func enabled_in(workdir: string) -> bool ! {FS} =
     Err(_) => false
   }
 
-export func register_with_config(_cfg: a) -> ExtensionHooks ! {Env, FS} {
+export func register_with_config[a](_cfg: a) -> ExtensionHooks ! {Env, FS} {
   let workdir = getEnvOr("MOTOKO_WORKDIR", ".");
   let active = enabled_in(workdir);
   let tools = if active then provided_tools() else [];
   {
     id: "omnigraph",
-    provided_tools: tools,
-    -- ... rest of hooks unchanged
+    provided_tools: tools
   }
 }
 ```
@@ -51,11 +54,13 @@ Returns `Ok(())` when `<workdir>/<rel>` exists, `Err(message)` otherwise.
 
 ```ailang
 import std/extension (requireWorkdirFile)
-import std/result (Ok, Err)
+import std/io (println)
 
-match requireWorkdirFile("/tmp", "missing-config.yaml") {
-  Ok(_)  => println("found"),
-  Err(e) => println("not found: ${e}")
+func checkConfig() -> () ! {FS, IO} {
+  match requireWorkdirFile("/tmp", "missing-config.yaml") {
+    Ok(_)  => println("found"),
+    Err(e) => println("not found: ${e}")
+  }
 }
 -- Output: not found: required workdir file not found: /tmp/missing-config.yaml
 ```
@@ -79,10 +84,13 @@ match requireWorkdirFile("/tmp", "missing-config.yaml") {
 When you only want to know whether an input exists (not read it):
 
 ```ailang
-match requireWorkdirFile(workdir, "config.yaml") {
-  Ok(_)  => active_hooks(workdir),
-  Err(_) => disabled_hooks
-}
+import std/extension (requireWorkdirFile)
+
+func selectTools(workdir: string) -> [string] ! {FS} =
+  match requireWorkdirFile(workdir, "config.yaml") {
+    Ok(_)  => ["my_tool"],
+    Err(_) => []
+  }
 ```
 
 ### Existence + read
@@ -92,12 +100,12 @@ When you also need the file contents:
 ```ailang
 import std/extension (requireWorkdirFile)
 import std/fs (readFile)
-import std/result (Ok, Err)
 
-let cfg = match requireWorkdirFile(workdir, "config.yaml") {
-  Ok(_)  => readFile("${workdir}/config.yaml"),  -- safe: existence already verified
-  Err(_) => ""
-};
+func readOptionalConfig(workdir: string) -> string ! {FS} =
+  match requireWorkdirFile(workdir, "config.yaml") {
+    Ok(_)  => readFile("${workdir}/config.yaml"),  -- safe: existence already verified
+    Err(_) => ""
+  }
 ```
 
 ### Multiple required inputs
@@ -105,13 +113,16 @@ let cfg = match requireWorkdirFile(workdir, "config.yaml") {
 When the extension needs several files all present:
 
 ```ailang
-let all_present = match requireWorkdirFile(workdir, "schema.yaml") {
-  Err(_) => false,
-  Ok(_) => match requireWorkdirFile(workdir, "policy.yaml") {
+import std/extension (requireWorkdirFile)
+
+func hasAllRequired(workdir: string) -> bool ! {FS} =
+  match requireWorkdirFile(workdir, "schema.yaml") {
     Err(_) => false,
-    Ok(_) => true
+    Ok(_) => match requireWorkdirFile(workdir, "policy.yaml") {
+      Err(_) => false,
+      Ok(_) => true
+    }
   }
-};
 ```
 
 (A future helper could fold a list of required files; for now the nested-match is explicit.)
