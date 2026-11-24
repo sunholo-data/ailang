@@ -1238,9 +1238,20 @@
         "latest"
       ],
       "notes": "Contracts: correct the Z3 fragment — floats verify as Real, recursion bounded/inconclusive, HOFs and bitwise skipped, requires unchecked at call sites, int overflow not modelled"
+    },
+    "v0.16.18": {
+      "file": "prompts/v0.16.18.md",
+      "hash": "019b64f6dcf934c6d2d8d345d08db7ef7978e1b78adb2b1296cb4f237dd19cc3",
+      "description": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly",
+      "created": "2026-11-24",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly"
     }
   },
-  "active": "v0.16.17",
+  "active": "v0.16.18",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
