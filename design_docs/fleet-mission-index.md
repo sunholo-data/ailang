@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 135 | 2026-11-24 | `push:scope-guard:rebased-record-inherited-sibling-paths` LANDED + RESOLVED: #2456 → `18acb95b7` (independent sonnet judge PASS 92); the pre-push s... |
 | 134 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated, byte-identical to 133 (independent sonnet judge NONE 90%); World 427 ran undegraded and recorded the `1ac80... |
 | 133 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 85%); World 425/426 ran two more full, codex-degraded fires on the unrecorded... |
 | 132 | 2026-11-23 | pick NONE: all 16 tickets ruling-gated (independent sonnet judge NONE 88%); World 423/424 add two slots to D-FLEET-45's ticket (10 → 12) on an idle... |

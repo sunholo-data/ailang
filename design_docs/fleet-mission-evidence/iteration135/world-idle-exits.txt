@@ -1,0 +1,2 @@
+[2026-11-24 00:15:57] world: nothing changed since the last no-pick fire (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0) — idle, nothing spent
+[2026-11-24 04:16:00] world: nothing changed since the last no-pick fire (1ac80c011e237ee3a1fd5e616305f077a8c0acdfe598a101501a6393d586faaf head=95a8775 ledger=107 open=2 directives=0 inbox=0 red=0) — idle, nothing spent
