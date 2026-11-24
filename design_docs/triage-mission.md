@@ -43,11 +43,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-24 — ITERATION 54: cross-vendor queue review and new dev vulnerability-gate failure [ADMIN]
+
 ## STATUS 2026-11-21 — ITERATION 52: cross-vendor queue review and aged card holds [ADMIN]
 
 ## STATUS 2026-11-20 — ITERATION 51: historical digest recovered, two PR findings recorded [ADMIN]
-
-## STATUS 2026-11-20 — ITERATION 50: 16 independent reviews, one fix confirmed, nine issue labels, fixture soak held [ADMIN]
 
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
