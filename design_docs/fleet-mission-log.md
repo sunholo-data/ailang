@@ -2507,3 +2507,72 @@ Each replied to its filer.
 - Judge independence: cross-vendor (planner and executor are OpenAI codex; the judge is Anthropic sonnet).
 - Driver routing note verbatim: (empty).
 - Cost: metered $0 (Anthropic and codex subscriptions only).
+
+## 137 — 2026-11-24 — pick NONE: 20 open tickets, none routable (independent sonnet judge NONE 90%); triage 55 filed three of dev's required reds as tickets, all outside fleet Authority and already named in D-FLEET-48; dev's required `lint`, `test`, `checks` still red at `ea6d2f28f`, so #2463 stays unmerged [ADMIN]
+
+**Pick**: NONE. The queue went from 17 to 20 open tickets ([tickets](fleet-mission-evidence/iteration137/tickets.json), [diff](fleet-mission-evidence/iteration137/ticket-diff.txt)): triage iteration 55 filed `ci:verify-gap-map-workflow-wiring`, `ci:agy-pin-test-home-isolation` and `ci:modelreg-qwen-slug-pricing-mismatch` at 16:06Z (blocking none, 1 slot each). None left the queue. Each of the three is one of dev's required-check reds:
+- The fixes land in `.github/workflows/**` or `internal/cihygiene` (gap-map wiring; the target is `make/code-health.mk:349`), `internal/executor/agy/pin_test.go:36`, and `internal/modelreg/models.yml`.
+- All three paths are refused by the guard (`tools/launchd/githooks/pre-push`; `make/test.mk` is the only allowed make file).
+- No fix begins with an in-scope step, so "screen by step" does not apply.
+- The pricing one would also need owner evidence on vendor rates.
+- D-FLEET-48 option A already names all three. They are queued as rows 71–73 under it; no new decision is filed.
+
+The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queue rows, or built and waiting (#2463).
+- 0 allowlisted directives on #2445 (6 comments) or `-prev` #2341 (29); no watermark files, so both were read whole.
+- Self-notices rc 1 on the same single crash notice (`…#issuecomment-7063993188`, 11-21) and transcript notice (fire `fleet-1795100889-10927`) as 125–136, both already credited. Control 852:10. No new death.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=openrouter google` (no role used those buckets).
+- Skill drift: SKILL.md and all 13 resources match origin/dev, per file, in both the resolved symlink copy and the pin copy. Pin HEAD = origin/dev = `ea6d2f28f`.
+- Blocked-PR rule: #2463's branch carries log entry 136, while origin/dev's log ends at 135. This record is stacked on that branch.
+- Died-mid-flight traces:
+  - The only open `fleet/*` PR is #2463 (known).
+  - `.fleet-i136-wt` is clean at the PR head `48eae22ab`.
+  - Older fleet worktrees hold only historical residue.
+  - The main checkout's uncommitted `.agents/skills/sprint-*` sync is still present (noted in 136).
+- **Dev CI red at `ea6d2f28f`** (26 check-runs, 11 not green; [excerpts](fleet-mission-evidence/iteration137/dev-ci.txt)). Required contexts, read from branch protection: `test`, `lint`, `build`, `docs-gate`, `checks`.
+  - Red, same causes as at `16d168f19`:
+    - `lint`: `internal/ai/gemini/generate.go:287` unused `vertexModelURL`.
+    - `test`: `TestVerifyTargetsAreWiredIntoAWorkflow`, `TestModels_PricingIsSlugConsistent`, `TestQuorumArtifactShellSuite`, `TestBuiltinTypes_GoldenSnapshot`.
+    - `checks`: hand-rolled HOME.
+  - Green: `build` and `docs-gate`.
+  - `launchd drivers (bash 3.2)` is still red on the stale `.agents` sprint mirrors, which #2463 fixes.
+  - The V1 loop is still disabled (`mission-control.disabled` present).
+
+**Did**: no design, plan, build or merge.
+- Evidence directory `iteration137/`: tickets, ticket diff and dev CI excerpts.
+- Queue rows 71–73 added. A measurement was appended to D-FLEET-48.
+- Judge: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only, 77,520 tok), first attempt. The brief carried the ticket queue, the charter and the CI evidence, not the controller's verdict.
+  - Verdict **NONE, 90%**. [Report](fleet-mission-evidence/iteration137/judge.md).
+  - It re-derived the ticket diff, the OPEN-row set, the guard allowlist and the four OPEN rows' defaults.
+  - It read the required-context list from the API; the controller re-read the same list first-party.
+  - It confirmed that #2463's reds are dev's, not the diff's: 0 `.go` files, the same lint and HOME annotations. The PR head is MERGEABLE.
+  - Its cautions match this record: no admin merge, and no self-sourced fix for the untracked lint red.
+
+**Ruled out**:
+- Building any of the three new tickets: all are outside Authority.
+- Splitting #2463's mirror-regeneration commit into its own PR: it would face the same three required reds.
+- Admin-merging #2463: that is D-FLEET-48 option B, Mark's call.
+- Filing a separate decision for the new tickets: D-FLEET-48 A already covers them.
+
+**Retro lane**: none. No new friction this iteration. Iteration 136's sandbox-blind `/tmp` defect stays at one instance, below the ≥2 bar.
+
+**Progress**: 20 open tickets (17 → 20). Goal unmoved.
+- Clause 1 UNMEASURED; clause 2 UNMET, not moved (#2463 waits on dev; three new tickets need an owner outside fleet scope); clause 3 MET (every escalation is in `mission-fleet`); clause 4 met by its letter (tickets are open); clause 5 preserved (nothing landed).
+- Harness share, last 20 log headlines (118–137): 11/20, all 20 tagged. This is the fleet's own work, which is harness by charter.
+- Last 3 landings (126, 135, and none in 136 or 137): 135 moved clause 2.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid (after edits).
+- STATUS rotation: ITERATION 134 moved to the archive (archive count 1; control ITERATION 133 ≥1). Charter +3 lines net: stamp +4, moved −4, queue rows +3; D-FLEET-48 edited in place. Queue-row control `62. [PARKED` still present.
+- Live log 39 entries, so no rotation.
+
+**Next**: re-measure dev's required checks. If green: rebase #2463, run a SHA-pinned poll, merge with `--match-head-commit`, run the done-gate dry-runs and resolve its ticket. Otherwise pick NONE again unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives.
+
+**Routing evidence**: base=`ea6d2f28fe9d2bbe3456c9c3b167e2051eb6b9c7`@2026-11-24T20:07:16Z (Gate 4; Gate 1 read the same SHA at 20:02:58Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer, planner, executor: **not spawned**, because no ticket was routable (pick NONE, judged). This is a routing outcome, not a spawn failure. Rotation pointer unchanged. The operator's standing request to spawn roles was met for the one role a NONE pick needs: the judge.
+- Evaluator: resolver `agent-tool sonnet` (`MISSION_EVALUATOR_MODEL=sonnet`, path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (77,520 tok).
+- Judge independence: the controller is opus and the judge is sonnet. They share a vendor, which is the configured evaluator for this mission. No generator role ran.
+- Driver routing note verbatim: (empty).
+- Cost: metered $0 (Anthropic subscription only).
