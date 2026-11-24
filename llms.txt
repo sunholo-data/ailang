@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-11-23T14:51:54Z
+Last updated: 2026-11-24T08:08:12Z
 
 ---
 
@@ -1402,9 +1402,9 @@ current teaching prompt and `ailang check file.ail` for diagnostics.
 
 ---
 
-# AI Teaching Prompt (Latest: v0.16.17)
+# AI Teaching Prompt (Latest: v0.16.18)
 
-# AILANG v0.16.17 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.18 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1438,12 +1438,16 @@ export func main() -> () ! {IO} {
 | `print` | YES (`import std/io (print)`) | NO newline |
 
 ```ailang
--- println works without import (prelude provides it)
-println("A"); println("B")  -- Output: A\nB\n
-
--- print requires import for no-newline output
+module examples/print_demo
 import std/io (print)
-print("A"); print("B")      -- Output: AB
+
+export func main() -> () ! {IO} {
+  -- println works without import in entry modules (prelude provides it)
+  println("A"); println("B");  -- Output: A\nB\n
+
+  -- print requires import for no-newline output
+  print("A"); print("B")       -- Output: AB
+}
 ```
 
 **Use `println` for most output.** Use `print` ONLY when building output on one line.
@@ -1454,8 +1458,11 @@ an explicit `flush()`. C-style escapes `\xHH` / `\u{..}` / `\e` / `\0` work in s
 
 ```ailang
 import std/io (print, flush)
-print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
-flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
+
+func showProgress() -> () ! {IO} {
+  print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
+  flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
+}
 ```
 Runs under `--caps IO,Clock` — no `FS`. `eprint`/`eprintln` (std/io) write to stderr (unbuffered).
 
@@ -1642,15 +1649,17 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 **Rule: Inside `{ }` blocks, one `let` per line (no `in`). With `=` bodies, use `in`.**
 
 ```ailang
+import std/io (println)
+
 -- Block style: curly braces, one statement per line (canonical `ailang fmt` form)
-export func main() -> () ! {IO} {
+func blockStyle() -> () ! {IO} {
   let x = 1
   let y = 2
   println(show(x + y))
 }
 
 -- `;` between block statements is also accepted (fmt removes it)
-export func main() -> () ! {IO} {
+func semicolonStyle() -> () ! {IO} {
   let x = 1;
   let y = 2;
   println(show(x + y))
@@ -1664,11 +1673,13 @@ pure func bump(r: {a: int}) -> {a: int} {
 }
 
 -- Expression style: equals + in
-export func main() -> () ! {IO} =
+func exprStyle() -> () ! {IO} =
   let x = 1 in
   let y = 2 in
   println(show(x + y))
+```
 
+```not-ailang
 -- WRONG: Using `in` inside `{ }` block causes scope errors
 export func main() -> () ! {IO} {
   let x = 1 in   -- DON'T use `in` inside blocks!
@@ -1686,12 +1697,12 @@ export func main() -> () ! {IO} {
 ```ailang
 -- MULTI-ARG FUNC: Call with commas f(a, b)
 func add(a: int, b: int) -> int = a + b
-let result = add(3, 4)      -- CORRECT: 7
+let result1 = add(3, 4)     -- CORRECT: 7
 -- let bad = add(3)(4)      -- WRONG: arity mismatch!
 
 -- CURRIED LAMBDA: Call with chained f(a)(b)
 let addC = \a. \b. a + b
-let result = addC(3)(4)     -- CORRECT: 7
+let result2 = addC(3)(4)    -- CORRECT: 7
 let add10 = addC(10)        -- Partial application!
 -- let bad = addC(3, 4)     -- WRONG: arity mismatch!
 ```
@@ -1734,14 +1745,17 @@ export func main() -> () ! {IO} {
 
 **foldl syntax options:**
 ```ailang
--- RECOMMENDED: space-separated multi-param lambda (concise)
-foldl(\acc x. acc + x, 0, xs)
+import std/list (foldl)
 
--- VERBOSE: inline func with explicit types (also works)
-foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
-
--- ALSO WORKS: curried lambda (longer; prefer the multi-param form)
-foldl(\acc. \x. acc + x, 0, xs)
+pure func sumOptions(xs: [int]) -> (int, int, int) {
+  -- RECOMMENDED: space-separated multi-param lambda (concise)
+  let a = foldl(\acc x. acc + x, 0, xs)
+  -- VERBOSE: inline func with explicit types (also works)
+  let b = foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
+  -- ALSO WORKS: curried lambda (longer; prefer the multi-param form)
+  let c = foldl(\acc. \x. acc + x, 0, xs);
+  (a, b, c)
+}
 ```
 
 **For callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc., write `\a b. body`**
@@ -1875,6 +1889,11 @@ Direct record/list/tuple literals still only store callback values.
 
 
 ```ailang
+import std/io (println, readLine, exit)
+import std/fs (readFile)
+import std/net (httpGet)
+import std/env (getArgs)
+
 -- Pure (no effects) - use `pure func` or omit effect annotation.
 -- `pure` means `! {}`: `pure func f() -> () ! {IO}` is a type error (drop `pure` or the row).
 pure func add(x: int, y: int) -> int = x + y
@@ -1895,32 +1914,31 @@ func process(path: string) -> () ! {IO, FS} {
 }
 
 -- Main function typically needs effects
-export func main() -> () ! {IO} {
+func mainHello() -> () ! {IO} {
   println("Hello, World!")
 }
 
 -- Exit with explicit code (for CLI tools)
-import std/io (println, exit)
-export func main() -> () ! {IO} {
+func mainExit() -> () ! {IO} {
   println("error: invalid argument");
   exit(1)
 }
 
 -- Main with file system access
-export func main() -> () ! {IO, FS} {
+func mainFS() -> () ! {IO, FS} {
   let content = readFile("data.txt");
   println(content)
 }
 
 -- Main with network
-export func main() -> () ! {IO, Net} {
+func mainNet() -> () ! {IO, Net} {
   let body = httpGet("https://example.com");
   println(body)
 }
 
 -- Main with CLI arguments (getArgs returns [string], needs Env)
 -- Run: ailang run --caps IO,FS,Env --entry main program.ail -- arg1 arg2
-export func main() -> () ! {IO, FS, Env} {
+func mainArgs() -> () ! {IO, FS, Env} {
   let args = getArgs();
   match args {
     filename :: _ => {
@@ -1965,9 +1983,12 @@ Error: Effect checking failed for function 'main'
 ```
 
 **Fix:** Add the missing effect to your function signature:
-```ailang
+```not-ailang
 -- WRONG: missing IO effect
 export func main() -> () { println("hi") }
+```
+```ailang
+module examples/io_fix
 
 -- CORRECT: declare IO effect
 export func main() -> () ! {IO} { println("hi") }
@@ -2032,7 +2053,10 @@ See [Parameterised Effects guide](https://ailang.sunholo.com/docs/guides/paramet
 
 **AI modes (v0.15.0+):**
 
-```ailang
+```ailang parse
+module examples/ai_modes_demo
+import std/ai (call)
+
 -- Bare !{AI} desugars to !{AI[mode=fixed]} (direct provider call).
 func summarize(text: string) -> string ! {AI} = call(text)
 
@@ -2053,6 +2077,8 @@ Rules:
 
 ```ailang
 import std/debug (log, check)
+import std/string (length)
+import std/net (httpGet)
 
 -- No ! {Debug} needed — ghost effect is invisible to callers
 func process(data: string) -> string ! {Net} {
@@ -2063,11 +2089,14 @@ func process(data: string) -> string ! {Net} {
 ```
 
 Or use the `sunholo/logging` package for structured JSON logging:
-```ailang
+```ailang parse
+module examples/structured_logging
+
 import pkg/sunholo/logging/logger (info, warn, infoWith)
 import std/json (kv, js, jnum)
+import std/net (httpGet)
 
-func handleRequest(path: string) -> Response ! {Net} {
+func handleRequest(path: string) -> string ! {Net} {
   infoWith("Request", [kv("path", js(path))]);
   httpGet("https://api.example.com${path}")
 }
@@ -2168,17 +2197,21 @@ All effectful combinators are **effect-polymorphic** — they work with any effe
 
 **Prefer `map`/`filter`/`foldl` over manual recursion:**
 ```ailang
+import std/io (println)
 import std/list (map, filter, foldl, mapE, filterE, foldlE)
 
--- Pure: use map/filter/foldl
-let doubled = map(\x. x * 2, [1, 2, 3])  -- [2, 4, 6]
-let evens = filter(\x. x % 2 == 0, [1, 2, 3, 4])  -- [2, 4]
-let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])  -- 6
+func demoCombinators() -> int ! {IO} {
+  -- Pure: use map/filter/foldl
+  let doubled = map(\x. x * 2, [1, 2, 3])  -- [2, 4, 6]
+  let evens = filter(\x. x % 2 == 0, [1, 2, 3, 4])  -- [2, 4]
+  let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])  -- 6
 
--- Effectful: use mapE/filterE/foldlE (replaces hand-rolled recursion!)
-let results = mapE(\x. { println("processing ${show(x)}"); x * 2 }, [1, 2, 3]);
-let checked = filterE(\x. { println("checking ${show(x)}"); x > 2 }, [1, 2, 3, 4]);
-let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
+  -- Effectful: use mapE/filterE/foldlE (replaces hand-rolled recursion!)
+  let results = mapE(\x. { println("processing ${show(x)}"); x * 2 }, [1, 2, 3]);
+  let checked = filterE(\x. { println("checking ${show(x)}"); x > 2 }, [1, 2, 3, 4]);
+  let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
+  sum + total
+}
 ```
 
 **Note on foldlE:** Write the callback as `\acc x. ...` (or `func(acc: T, x: U) -> T ! {Effect} { ... }` when it needs annotations).
@@ -2261,6 +2294,8 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 
 *Multi-source example:*
 ```ailang
+module examples/multi_source_stream
+
 import std/stream (asyncReadStdinLines, asyncExecProcess, selectEvents,
                    StreamEvent, SourceText, SourceBytes)
 import std/bytes (toString)
@@ -2278,6 +2313,8 @@ export func main() -> unit ! {Stream, Process, IO} {
 
 *Subprocess stdin writing example (v0.9.0 Phase 3):*
 ```ailang
+module examples/process_stdin
+
 import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/bytes (fromString)
 import std/result (Result, Ok, Err)
@@ -2371,13 +2408,16 @@ pure func validateAge(age: int) -> Option[int] =
 import std/option (Option, Some, None, getOrElse, isSome, map)
 import std/string (stringToInt)
 
--- Idiomatic: getOrElse instead of pattern match
-let n = getOrElse(stringToInt("42"), 0);              -- 42
-let bad = getOrElse(stringToInt("oops"), -1);          -- -1
+pure func optionHelpers() -> (int, int, Option[int], Option[int]) {
+  -- Idiomatic: getOrElse instead of pattern match
+  let n = getOrElse(stringToInt("42"), 0)              -- 42
+  let bad = getOrElse(stringToInt("oops"), -1)          -- -1
 
--- map: transform the value inside Some
-let doubled = map(\x. x * 2, Some(21));                -- Some(42)
-let stillNone = map(\x. x * 2, None);                  -- None
+  -- map: transform the value inside Some
+  let doubled = map(\x. x * 2, Some(21))                -- Some(42)
+  let stillNone = map(\x. x * 2, None);                  -- None
+  (n, bad, doubled, stillNone)
+}
 ```
 
 ## Error Handling with Result Type
@@ -2471,6 +2511,8 @@ export func main() -> () ! {IO} {
 - `sleep(ms: int) -> () ! {Clock}` - Sleep for N milliseconds
 
 ```ailang
+module examples/clock_demo
+
 import std/clock (now, sleep)
 import std/io (println)
 
@@ -2490,6 +2532,8 @@ export func main() -> () ! {Clock, IO} {
 - Parsing: `parseISODate(s) -> Option[int]`, `parseRFC3339(s) -> Option[int]`
 
 ```ailang
+module examples/datetime_demo
+
 import std/clock (now)
 import std/datetime (formatRFC3339, year, addDays, makeDate)
 import std/io (println)
@@ -2513,8 +2557,11 @@ Pure hashing primitives (no capability needed):
 ```ailang
 import std/crypto (sha256Hex, hmacSha256)
 
-let h = sha256Hex("hello");                          -- 64-char hex digest
-let mac = hmacSha256("payload", "secret-key");        -- HMAC hex
+pure func hashDemo() -> (string, string) {
+  let h = sha256Hex("hello")                          -- 64-char hex digest
+  let mac = hmacSha256("payload", "secret-key");      -- HMAC hex
+  (h, mac)
+}
 ```
 
 ## Arrays — Construction Primitives (std/array)
@@ -2573,17 +2620,20 @@ prefer these single-pass O(n) builtins from `std/string`:
 | `startsWithIgnoreCase(s, p)` | Case-insensitive prefix check (header parsing) |
 
 ```ailang
-import std/string (replaceMany, foldSlices, mapSlicesJoin)
+import std/string (replaceMany, foldSlices, mapSlicesJoin, length, toUpper)
 
--- Decode 23 HTML entities in one pass
-let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
+pure func fastStringOps(raw: string, text: string, csv: string) -> (string, int, string) {
+  -- Decode 23 HTML entities in one pass
+  let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
 
--- Sum line lengths without materializing the list of lines
-let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
+  -- Sum line lengths without materializing the list of lines
+  let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
 
--- Uppercase each CSV field. The pieces are joined with NO separator:
--- mapSlicesJoin("a,b,c", ",", toUpper) == "ABC". Re-add the delimiter yourself if needed.
-let upper = mapSlicesJoin(csv, ",", \field. "${toUpper(field)},")
+  -- Uppercase each CSV field. The pieces are joined with NO separator:
+  -- mapSlicesJoin("a,b,c", ",", toUpper) == "ABC". Re-add the delimiter yourself if needed.
+  let upper = mapSlicesJoin(csv, ",", \field. "${toUpper(field)},");
+  (html, total, upper)
+}
 ```
 
 `substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
@@ -2625,12 +2675,13 @@ Let-bound lambdas using only `<`/`>`/`<=`/`>=`/`==`/`!=` are now properly
 polymorphic — they no longer monomorphize to `Int`. This works:
 
 ```ailang
-let max = \x. \y. if x > y then x else y in {
-  let a = max(3.14)(2.71);   -- Float
-  let b = max(10)(20);        -- Int
-  let c = max("foo")("bar");  -- String
-  ...
-}
+pure func polyMaxDemo() -> (float, int, string) =
+  let max = \x. \y. if x > y then x else y in {
+    let a = max(3.14)(2.71);   -- Float
+    let b = max(10)(20);        -- Int
+    let c = max("foo")("bar");  -- String
+    (a, b, c)
+  }
 ```
 
 Before v0.11.4, calling `max(3.14)(2.71)` crashed with `gt_Int: expected
@@ -2655,17 +2706,21 @@ each call site.
 
 **Bitwise operators** (int only, C-standard precedence bands):
 ```ailang
--- AND, XOR, shifts, complement
-println(show(12 & 10))   -- 8
-println(show(12 ^ 10))   -- 6
-println(show(1 << 4))    -- 16
-println(show(16 >> 2))   -- 4
-println(show(~0))         -- -1
+import std/io (println)
 
--- XOR is self-inverse (encryption pattern)
-let encrypted = 42 ^ 137
-let decrypted = encrypted ^ 137  -- 42
+func bitwiseDemo() -> int ! {IO} {
+  -- AND, XOR, shifts, complement
+  println(show(12 & 10))   -- 8
+  println(show(12 ^ 10))   -- 6
+  println(show(1 << 4))    -- 16
+  println(show(16 >> 2))   -- 4
+  println(show(~0))         -- -1
 
+  -- XOR is self-inverse (encryption pattern)
+  let encrypted = 42 ^ 137
+  let decrypted = encrypted ^ 137  -- 42
+  decrypted
+}
 -- Note: bitwise OR (|) is not an operator (conflicts with ADT syntax).
 -- Use bitwiseOr(a, b) from std/math instead.
 ```
@@ -2683,15 +2738,17 @@ let decrypted = encrypted ^ 137  -- 42
 
 **Boolean operators:**
 ```ailang
--- AND: &&
-if x > 0 && y > 0 then "both positive" else "no"
+pure func boolDemo(x: int, y: int, done: bool) -> (string, string, string) {
+  -- AND: &&
+  let a = if x > 0 && y > 0 then "both positive" else "no"
 
--- OR: ||
-if x == 0 || y == 0 then "has zero" else "no"
+  -- OR: ||
+  let b = if x == 0 || y == 0 then "has zero" else "no"
 
--- NOT: both `not` and `!` work
-if not isEmpty(list) then process(list) else []
-if !done then retry() else finish()
+  -- NOT: both `not` and `!` work (prefer `not`)
+  let c = if not done && !false then "retry" else "finish";
+  (a, b, c)
+}
 ```
 
 **Short-circuit evaluation (v0.11.3):** `&&` and `||` are lazy — the RHS is NOT
@@ -2724,23 +2781,28 @@ much more readable.
 **Use `"${expr}"` for building strings with embedded values. This is the preferred, idiomatic form.**
 
 ```ailang
--- Basic substitution: any expression inside ${...}
-let name = "Alice" in
-let age = 30 in
-println("Hello, ${name}! You are ${age} years old.")
--- → Hello, Alice! You are 30 years old.
+import std/io (println)
+import std/string (substring)
 
--- Arithmetic and function calls inside ${...}
-println("Next year: ${age + 1}, square: ${age * age}")
-println("First letter: ${substring(name, 0, 1)}")
+func interpolationDemo() -> () ! {IO} {
+  -- Basic substitution: any expression inside ${...}
+  let name = "Alice"
+  let age = 30
+  println("Hello, ${name}! You are ${age} years old.")
+  -- → Hello, Alice! You are 30 years old.
 
--- Nested braces work (record literals, field access, let-blocks)
-println("Point: ${show({x: 1, y: 2}.x)}")
-println("Squared: ${let sq = age * age in sq}")
+  -- Arithmetic and function calls inside ${...}
+  println("Next year: ${age + 1}, square: ${age * age}")
+  println("First letter: ${substring(name, 0, 1)}")
 
--- Escape with backslash to get a literal ${
-println("Use \${var} to interpolate.")
--- → Use ${var} to interpolate.
+  -- Nested braces work (record literals, field access, let-blocks)
+  println("Point: ${show({x: 1, y: 2}.x)}")
+  println("Squared: ${let sq = age * age in sq}")
+
+  -- Escape with backslash to get a literal ${
+  println("Use \${var} to interpolate.")
+  -- → Use ${var} to interpolate.
+}
 ```
 
 **How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
@@ -2754,23 +2816,28 @@ quotes them: `"${["a", "b"]}"` is `["a", "b"]`.
 `concat([parts])` from `std/string`, or `join(sep, parts)`.**
 
 ```ailang
--- Strings: use interpolation
-let msg = "Count: ${length(items)}"
-let greeting = "Hello ${name}"
-
--- Strings: concat a list of parts
+import std/list (length)
 import std/string (concat)
-let s = concat(["Hello", " ", "World"])
 
--- Lists: ++ concatenates
-let combined = [1, 2] ++ [3, 4]            -- [1, 2, 3, 4]
+pure func concatDemo(items: [int], name: string) -> (string, string, string, [int]) {
+  -- Strings: use interpolation
+  let msg = "Count: ${length(items)}"
+  let greeting = "Hello ${name}"
+
+  -- Strings: concat a list of parts
+  let s = concat(["Hello", " ", "World"])
+
+  -- Lists: ++ concatenates
+  let combined = [1, 2] ++ [3, 4];           -- [1, 2, 3, 4]
+  (msg, greeting, s, combined)
+}
 ```
 
 ## Pattern Matching
 
 **CRITICAL: When a match arm needs multiple let bindings, wrap in `{ }`:**
 
-```ailang
+```not-ailang
 -- WRONG: multiple lets without braces causes parse error
 match queue {
   [] => result,
@@ -2779,57 +2846,69 @@ match queue {
     let y = update(x);        -- ERROR: expected => got let
     recurse(rest, y)
 }
-
+```
+```ailang
 -- CORRECT: wrap multiple lets in { }
-match queue {
-  [] => result,
-  node :: rest => {
-    let x = process(node);
-    let y = update(x);
-    recurse(rest, y)
+pure func drain(queue: [int], result: int) -> int =
+  match queue {
+    [] => result,
+    node :: rest => {
+      let x = node * 2;
+      let y = result + x;
+      drain(rest, y)
+    }
   }
-}
 ```
 
 **On lists:**
 ```ailang
-match xs {
-  [] => 0,
-  x :: rest => x + sum(rest)
-}
+pure func sum(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    x :: rest => x + sum(rest)
+  }
 ```
 
 **On ADTs:**
 ```ailang
-match tree {
-  Leaf(n) => n,
-  Node(l, v, r) => countNodes(l) + 1 + countNodes(r)
-}
+type Tree = Leaf(int) | Node(Tree, int, Tree)
+
+pure func countNodes(tree: Tree) -> int =
+  match tree {
+    Leaf(n) => n,
+    Node(l, v, r) => countNodes(l) + 1 + countNodes(r)
+  }
 ```
 
 **On Option:**
 ```ailang
-match result {
-  Some(x) => x,
-  None => defaultValue
-}
+import std/option (Option, Some, None)
+
+pure func unwrap(result: Option[int], defaultValue: int) -> int =
+  match result {
+    Some(x) => x,
+    None => defaultValue
+  }
 ```
 
 **On Records (destructuring):**
 ```ailang
-match person {
-  {name, age} => "${name} is ${show(age)}"
-}
+pure func describePerson(person: {name: string, age: int}) -> string =
+  match person {
+    {name, age} => "${name} is ${show(age)}"
+  }
 
 -- Record with renaming
-match config {
-  {host, port: p} => "${host}:${show(p)}"
-}
+pure func formatHost(config: {host: string, port: int}) -> string =
+  match config {
+    {host, port: p} => "${host}:${show(p)}"
+  }
 
 -- Nested record patterns (`...` ignores the other fields at each level)
-match data {
-  {user: {email: e, ...}, ...} => e
-}
+pure func getEmail(data: {user: {email: string, id: int}, active: bool}) -> string =
+  match data {
+    {user: {email: e, ...}, ...} => e
+  }
 ```
 
 **Record pattern syntax:**
@@ -2899,15 +2978,19 @@ export func main() -> () ! {IO} {
 Single-constructor ADTs wrapping a record support direct field access:
 
 ```ailang
+import std/list (map)
+
 type Item = Item({name: string, value: int})
 
-let item = Item({name: "hello", value: 42})
-let n = item.name    -- "hello" (auto-unwraps the ADT wrapper)
+pure func newtypeDemo() -> (string, [string]) {
+  let item = Item({name: "hello", value: 42})
+  let n = item.name    -- "hello" (auto-unwraps the ADT wrapper)
 
--- Works with map too:
-import std/list (map)
-let items = [Item({name: "a", value: 1}), Item({name: "b", value: 2})]
-let names = map(\t. t.name, items)  -- ["a", "b"]
+  -- Works with map too:
+  let items = [Item({name: "a", value: 1}), Item({name: "b", value: 2})]
+  let names = map(\t. t.name, items);  -- ["a", "b"]
+  (n, names)
+}
 ```
 
 **Note:** This only works for single-constructor ADTs with exactly one record field. For multi-constructor ADTs, use pattern matching to access fields.
@@ -3061,12 +3144,16 @@ let arr = encode(ja([jnum(1.0), jnum(2.0), jnum(3.0)]))
 
 **Decode JSON (returns Result):**
 ```ailang
+import std/io (print)
 import std/json (decode, Json, JObject, JString)
+import std/result (Ok, Err)
 
-let result = decode("{\"name\":\"Alice\"}");
-match result {
-  Ok(json) => print(show(json)),
-  Err(msg) => print("Parse error: ${msg}")
+func decodeDemo() -> () ! {IO} {
+  let result = decode("{\"name\":\"Alice\"}");
+  match result {
+    Ok(json) => print(show(json)),
+    Err(msg) => print("Parse error: ${msg}")
+  }
 }
 ```
 `decode` takes exactly ONE JSON value (whitespace around it is fine); text after it is `Err`.
@@ -3123,31 +3210,34 @@ func printNames(items: [Json]) -> () ! {IO} =
 
 **Access JSON values (IMPORTANT for parsing tasks):**
 ```ailang
+import std/io (print)
 import std/json (decode, get, has, getOr, asString, asNumber, asBool, asArray)
 import std/option (Option, Some, None)
+import std/result (Ok, Err)
 
 -- Decode and extract values
-match decode("{\"name\":\"Alice\",\"age\":30}") {
-  Ok(obj) => {
-    -- get(obj, key) -> Option[Json]
-    match get(obj, "name") {
-      Some(j) => match asString(j) {
-        Some(name) => print("Name: ${name}"),
-        None => print("name is not a string")
-      },
-      None => print("no name field")
-    };
-    -- asNumber returns Option[float]
-    match get(obj, "age") {
-      Some(j) => match asNumber(j) {
-        Some(age) => print("Age: ${show(age)}"),
-        None => print("age is not a number")
-      },
-      None => print("no age field")
-    }
-  },
-  Err(msg) => print("Parse error: ${msg}")
-}
+func accessJsonDemo() -> () ! {IO} =
+  match decode("{\"name\":\"Alice\",\"age\":30}") {
+    Ok(obj) => {
+      -- get(obj, key) -> Option[Json]
+      match get(obj, "name") {
+        Some(j) => match asString(j) {
+          Some(name) => print("Name: ${name}"),
+          None => print("name is not a string")
+        },
+        None => print("no name field")
+      };
+      -- asNumber returns Option[float]
+      match get(obj, "age") {
+        Some(j) => match asNumber(j) {
+          Some(age) => print("Age: ${show(age)}"),
+          None => print("age is not a number")
+        },
+        None => print("no age field")
+      }
+    },
+    Err(msg) => print("Parse error: ${msg}")
+  }
 ```
 
 **JSON convenience functions (RECOMMENDED for parsing):**
@@ -3201,27 +3291,31 @@ export func main() -> () ! {IO} =
 Extract typed arrays from JSON with two variants: permissive (skip non-matching) and strict (fail on mismatch).
 
 ```ailang
-import std/json (decode, getArray, filterStrings, allStrings, getStringArrayOrEmpty)
+import std/io (println)
+import std/json (decode, getArray, filterStrings, allStrings, getStringArrayOrEmpty, JString, JNumber)
+import std/list (length)
 import std/option (Some, None)
 import std/result (Ok, Err)
 
--- Permissive: filterStrings skips non-strings
-let mixed = [JString("a"), JNumber(1.0), JString("b")];
-filterStrings(mixed)  -- ["a", "b"]
+func arrayExtractionDemo() -> () ! {IO} {
+  -- Permissive: filterStrings skips non-strings
+  let mixed = [JString("a"), JNumber(1.0), JString("b")]
+  let _filtered = filterStrings(mixed)  -- ["a", "b"]
 
--- Strict: allStrings fails if ANY element is not a string
-allStrings(mixed)               -- None (has JNumber)
-allStrings([JString("a"), JString("b")])  -- Some(["a", "b"])
+  -- Strict: allStrings fails if ANY element is not a string
+  let _none = allStrings(mixed)               -- None (has JNumber)
+  let _some = allStrings([JString("a"), JString("b")])  -- Some(["a", "b"])
 
--- Convenience wrappers for common patterns:
-match decode("{\"tags\": [\"a\", \"b\"]}") {
-  Ok(obj) => {
-    -- getStringArrayOrEmpty: returns [] if missing or invalid
-    let tags = getStringArrayOrEmpty(obj, "tags");  -- ["a", "b"]
-    let missing = getStringArrayOrEmpty(obj, "nope");  -- []
-    println("Got ${show(length(tags))} tags")
-  },
-  Err(e) => println("Error: ${e}")
+  -- Convenience wrappers for common patterns:
+  match decode("{\"tags\": [\"a\", \"b\"]}") {
+    Ok(obj) => {
+      -- getStringArrayOrEmpty: returns [] if missing or invalid
+      let tags = getStringArrayOrEmpty(obj, "tags")  -- ["a", "b"]
+      let missing = getStringArrayOrEmpty(obj, "nope")  -- []
+      println("Got ${show(length(tags))} tags (missing: ${show(length(missing))})")
+    },
+    Err(e) => println("Error: ${e}")
+  }
 }
 ```
 
@@ -3230,23 +3324,31 @@ match decode("{\"tags\": [\"a\", \"b\"]}") {
 **Simple GET/POST** (return body string directly):
 ```ailang
 import std/net (httpGet, httpPost)
-let body = httpGet("https://example.com")       -- returns string
-let resp = httpPost("https://api.example.com", jsonData)  -- returns string
+
+func simpleHttp(jsonData: string) -> (string, string) ! {Net} {
+  let body = httpGet("https://example.com")                 -- returns string
+  let resp = httpPost("https://api.example.com", jsonData); -- returns string
+  (body, resp)
+}
 ```
 
 **Advanced with headers** (returns `Result[HttpResponse, NetError]`):
 ```ailang
-import std/net (httpRequest)
-import std/json (decode)
+import std/net (httpRequest, Transport)
+import std/json (Json, decode)
+import std/result (Result, Ok, Err)
+
 -- httpRequest returns Result[HttpResponse, NetError]
 -- HttpResponse = {status: int, headers: [...], body: string, ok: bool}
 -- IMPORTANT: Ok(resp) captures the FULL HttpResponse record
 -- Use resp.body to get the body string, NOT resp directly
-let headers = [{name: "Authorization", value: "Bearer token"}];
-match httpRequest("POST", url, headers, body) {
-  Ok(resp) => decode(resp.body),          -- resp.body is the string
-  Err(Transport(msg)) => Err("Error: ${msg}"),
-  Err(_) => Err("Other error")
+func postWithAuth(url: string, body: string) -> Result[Json, string] ! {Net} {
+  let headers = [{name: "Authorization", value: "Bearer token"}];
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) => decode(resp.body),          -- resp.body is the string
+    Err(Transport(msg)) => Err("Error: ${msg}"),
+    Err(_) => Err("Other error")
+  }
 }
 ```
 
@@ -3272,10 +3374,17 @@ func ask_person(prompt: string) -> string ! {AI} =
 
 **Parse JSON responses** with `std/json.decode`:
 ```ailang
-let raw = callJsonSimple("Return a JSON array");
-match decode(raw) {
-  Ok(json) => println("Valid JSON!")
-  Err(msg) => println("Parse error: ${msg}")
+import std/ai (callJsonSimple)
+import std/io (println)
+import std/json (decode)
+import std/result (Ok, Err)
+
+func parseAiJson() -> () ! {AI, IO} {
+  let raw = callJsonSimple("Return a JSON array");
+  match decode(raw) {
+    Ok(_json) => println("Valid JSON!"),
+    Err(msg) => println("Parse error: ${msg}")
+  }
 }
 ```
 
@@ -3370,19 +3479,24 @@ Run: `ailang run --entry main --caps IO,FS file.ail`
 Native reading of `.tar`, `.tar.gz`, and raw gzip streams. No shell-out, no temp files. Matches `std/zip` conventions: binary data crosses as base64.
 
 ```ailang
+import std/io (println)
 import std/tar (readFromGzip, extractAll)
 import std/gzip (decompress, decompressFile)
+import std/list (length)
+import std/result (Ok, Err)
 
--- Pull one file straight from a .tar.gz (primary use: arXiv bundles)
-match readFromGzip("paper.tar.gz", "main.tex") {
-  Ok(tex) => println(tex),
-  Err(msg) => println("read failed: ${msg}")
-}
+func tarDemo() -> () ! {FS, IO} {
+  -- Pull one file straight from a .tar.gz (primary use: arXiv bundles)
+  match readFromGzip("paper.tar.gz", "main.tex") {
+    Ok(tex) => println(tex),
+    Err(msg) => println("read failed: ${msg}")
+  };
 
--- Safe extraction: rejects ../ entries, symlinks, absolute paths
-match extractAll("archive.tar", "./dest") {
-  Ok(paths) => println("wrote ${show(length(paths))} files"),
-  Err(msg) => println("blocked: ${msg}")
+  -- Safe extraction: rejects ../ entries, symlinks, absolute paths
+  match extractAll("archive.tar", "./dest") {
+    Ok(paths) => println("wrote ${show(length(paths))} files"),
+    Err(msg) => println("blocked: ${msg}")
+  }
 }
 ```
 
@@ -3396,13 +3510,15 @@ For raw zlib/deflate streams *without* the gzip or zip wrapper. Use this for **P
 
 ```ailang
 import std/deflate (inflateZlib)
+import std/io (println)
 import std/result (Result, Ok, Err)
 
 -- Decode a PDF FlateDecode payload (zlib-wrapped, RFC 1950)
-match inflateZlib(b64_of_objstm) {
-  Ok(decompressedB64) => println(decompressedB64),
-  Err(msg)            => println("inflate failed: ${msg}")
-}
+func decodeObjStm(b64_of_objstm: string) -> () ! {IO} =
+  match inflateZlib(b64_of_objstm) {
+    Ok(decompressedB64) => println(decompressedB64),
+    Err(msg)            => println("inflate failed: ${msg}")
+  }
 ```
 
 - **All four functions are pure** (no effect row): `inflate(b64)`, `inflateZlib(b64)`, `deflate(b64, level)`, `deflateZlib(b64, level)`
@@ -3457,17 +3573,22 @@ export func main() -> () ! {IO} {
 
 **Combine ZIP + XML to parse .docx files:**
 ```ailang
+import std/io (println)
+import std/list (length)
+import std/result (Ok, Err)
+
 -- Read XML from inside a .docx (which is a ZIP archive)
-match _zip_readEntry("report.docx", "word/document.xml") {
-  Ok(xml) => match _xml_parse(xml) {
-    Ok(doc) => {
-      let paragraphs = _xml_findAll(doc, "w:p");
-      println("Found ${show(length(paragraphs))} paragraphs")
+func countDocxParagraphs() -> () ! {FS, IO} =
+  match _zip_readEntry("report.docx", "word/document.xml") {
+    Ok(xml) => match _xml_parse(xml) {
+      Ok(doc) => {
+        let paragraphs = _xml_findAll(doc, "w:p");
+        println("Found ${show(length(paragraphs))} paragraphs")
+      },
+      Err(e) => println("XML error: ${e}")
     },
-    Err(e) => println("XML error: ${e}")
-  },
-  Err(e) => println("ZIP error: ${e}")
-}
+    Err(e) => println("ZIP error: ${e}")
+  }
 ```
 
 ## Streaming XML / Bounded Folds (v0.10.1, v0.11.3)
@@ -3480,31 +3601,33 @@ import std/xml (parseFold, getText, getAttr)
 import std/zip (scanFold)
 import std/iter (FoldStep, Continue, Stop)
 import std/option (Some, None)
+import std/result (Result)
 
 -- Pure: fold over rows in an XML string
-let total = parseFold(xml, "row", 0, \acc node.
-  acc + 1
-)
+pure func countRows(xml: string) -> Result[int, string] =
+  parseFold(xml, "row", 0, \acc _node. acc + 1)
 
 -- Effectful: fold over rows directly from a ZIP entry (never materializes XML)
-let count = scanFold("data.xlsx", "xl/sharedStrings.xml", "si", 0,
-  \acc node. acc + 1
-)
+func countSharedStrings() -> Result[int, string] ! {FS} =
+  scanFold("data.xlsx", "xl/sharedStrings.xml", "si", 0, \acc _node. acc + 1)
 ```
 
 **Bounded prefix scans (v0.11.3):** When you only need the first N rows of a
 50K-row sheet, return `Stop(acc)` to halt the scan immediately:
 
 ```ailang
-import std/xml (parseFoldStep)
+import std/xml (parseFoldStep, getText)
 import std/iter (FoldStep, Continue, Stop)
+import std/list (length)
+import std/result (Result)
 
 -- Take first 5000 rows then stop — the rest of the document isn't scanned
-let first5k = parseFoldStep(xml, "row", [], \acc node.
-  if length(acc) >= 5000
-    then Stop(acc)
-    else Continue(acc ++ [getText(node)])
-)
+pure func first5kRows(xml: string) -> Result[[string], string] =
+  parseFoldStep(xml, "row", [], \acc node.
+    if length(acc) >= 5000
+      then Stop(acc)
+      else Continue(acc ++ [getText(node)])
+  )
 ```
 
 `parseFoldStep` and `scanFoldStep` mirror `parseFold`/`scanFold` but the
@@ -3519,23 +3642,28 @@ unit, and tuples, records and ADT constructors of those, so `M.lookup(m, (r, c))
 list key is a runtime error). Example: `ailang examples show map_tuple_record_keys`.
 
 ```ailang
+import std/io (println)
 import std/map as M
+import std/option (Some, None)
 
-let m0 = M.empty()
-let m1 = M.insert(m0, "alice", 30)
-let m2 = M.insert(m1, "bob", 25)
+func mapDemo() -> () ! {IO} {
+  let m0 = M.empty()
+  let m1 = M.insert(m0, "alice", 30)
+  let m2 = M.insert(m1, "bob", 25)
 
-match M.lookup(m2, "alice") {
-  Some(age) => println(show(age)),  -- 30
-  None      => println("missing")
+  match M.lookup(m2, "alice") {
+    Some(age) => println(show(age)),  -- 30
+    None      => println("missing")
+  };
+
+  println(show(M.size(m2)))          -- 2
+  println(show(M.member(m2, "bob"))) -- true
+
+  -- Iteration is sorted (deterministic)
+  let xs = M.toList(m2)              -- [("alice", 30), ("bob", 25)]
+  let m3 = M.fromList([("c", 1), ("d", 2)])
+  println("${show(xs)} ${show(M.size(m3))}")
 }
-
-println(show(M.size(m2)))          -- 2
-println(show(M.member(m2, "bob")))  -- true
-
--- Iteration is sorted (deterministic)
-let xs = M.toList(m2)               -- [("alice", 30), ("bob", 25)]
-let m3 = M.fromList([("c", 1), ("d", 2)])
 ```
 
 Builtins: `empty`, `insert`, `lookup`, `member`, `remove`, `size`,
@@ -3547,27 +3675,32 @@ come out lexically: `M.keys(M.fromList([(9, "a"), (10, "b"), (2, "c")]))` is `[1
 Pure JWT parsing and RS256 signature verification (e.g., Firebase ID tokens):
 
 ```ailang
+import std/io (println)
 import std/jwt (decodeJWT, verifyRS256, verifyWithKid, isExpired, checkIssuer)
-import std/json (encode, jo, kv, js)
+import std/json (Json, encode, jo, kv, js)
+import std/result (Result, Ok, Err)
 
--- Decode without verification (for inspection). The Ok value is a record
--- {header: Json, payload: Json, signature: bytes, signed: string}; use field access
--- (or a pattern that names all four fields / ends with `...`).
-match decodeJWT(token) {
-  Ok(jwt) => println(encode(jwt.payload)),
-  Err(msg) => println("decode failed: ${msg}")
+func jwtDemo(token: string, pemPublicKey: string, nowUnix: int) -> Result[Json, string] ! {IO} {
+  -- Decode without verification (for inspection). The Ok value is a record
+  -- {header: Json, payload: Json, signature: bytes, signed: string}; use field access
+  -- (or a pattern that names all four fields / ends with `...`).
+  match decodeJWT(token) {
+    Ok(jwt) => println(encode(jwt.payload)),
+    Err(msg) => println("decode failed: ${msg}")
+  };
+
+  -- Verify RS256 signature against a PEM public key
+  let status = match verifyRS256(token, pemPublicKey) {
+    Ok(claims) => if isExpired(claims, nowUnix) then "expired" else "valid",
+    Err(msg)   => "invalid: ${msg}"
+  }
+  println(status)
+
+  -- Firebase/OAuth pattern: select the key by the token's 'kid' header.
+  -- The second argument is a Json OBJECT mapping kid -> PEM string (not a function).
+  let keys = jo([kv("key-2026", js(pemPublicKey))])
+  verifyWithKid(token, keys)   -- Result[Json, string]; an unknown kid is Err
 }
-
--- Verify RS256 signature against a PEM public key
-match verifyRS256(token, pemPublicKey) {
-  Ok(claims) => if isExpired(claims, nowUnix) then "expired" else "valid",
-  Err(msg)   => "invalid: ${msg}"
-}
-
--- Firebase/OAuth pattern: select the key by the token's 'kid' header.
--- The second argument is a Json OBJECT mapping kid -> PEM string (not a function).
-let keys = jo([kv("key-2026", js(pemPublicKey))])
-verifyWithKid(token, keys)   -- Result[Json, string]; an unknown kid is Err
 ```
 
 Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
@@ -3580,7 +3713,12 @@ JWT functions are pure — fetch keys yourself via `std/net`.
 Emit OTEL-compatible spans and events from AILANG code. Requires `Trace` effect:
 
 ```ailang
+import std/list (length)
 import std/trace (spanStart, spanEnd, event)
+
+type Item = { id: string }
+
+pure func doWork(items: [Item]) -> int = length(items)
 
 export func processBatch(items: [Item]) -> int ! {Trace, IO} {
   spanStart("batch.process");
@@ -3602,11 +3740,21 @@ events live (function_enter/exit, effect, contract_check, budget_delta).
 exit code. Required for CLI tools that need to signal failure:
 
 ```ailang
-import std/io (println, exit)
+module examples/cli_exit
 
-export func main() -> () ! {IO} {
-  match validate(args) {
-    Ok(())   => println("ok"),
+import std/env (getArgs)
+import std/io (println, exit)
+import std/result (Result, Ok, Err)
+
+pure func validate(args: [string]) -> Result[(), string] =
+  match args {
+    [] => Err("missing argument"),
+    _ => Ok(())
+  }
+
+export func main() -> () ! {Env, IO} {
+  match validate(getArgs()) {
+    Ok(_)    => println("ok"),
     Err(msg) => {
       println("error: ${msg}");
       exit(1)
@@ -3683,30 +3831,33 @@ func sum(xs: [int]) -> int =
 
 **List index access:**
 ```ailang
+import std/io (print)
 import std/list (nth, last, any, findIndex)
 import std/option (Some, None)
 
-let xs = [10, 20, 30];
+func listIndexDemo() -> () ! {IO} {
+  let xs = [10, 20, 30];
 
--- nth: get element by index (0-based)
-match nth(xs, 1) {
-  Some(x) => print("Element at 1: ${show(x)}"),  -- 20
-  None => print("Index out of bounds")
-};
+  -- nth: get element by index (0-based)
+  match nth(xs, 1) {
+    Some(x) => print("Element at 1: ${show(x)}"),  -- 20
+    None => print("Index out of bounds")
+  };
 
--- last: get last element
-match last(xs) {
-  Some(x) => print("Last: ${show(x)}"),  -- 30
-  None => print("Empty list")
-};
+  -- last: get last element
+  match last(xs) {
+    Some(x) => print("Last: ${show(x)}"),  -- 30
+    None => print("Empty list")
+  };
 
--- any: check if any element matches predicate
-let hasEven = any(\x. x % 2 == 0, xs);  -- true (20 is even)
+  -- any: check if any element matches predicate
+  let _hasEven = any(\x. x % 2 == 0, xs);  -- true (20 is even)
 
--- findIndex: find index of first matching element
-match findIndex(\x. x > 15, xs) {
-  Some(i) => print("First > 15 at index: ${show(i)}"),  -- 1
-  None => print("Not found")
+  -- findIndex: find index of first matching element
+  match findIndex(\x. x > 15, xs) {
+    Some(i) => print("First > 15 at index: ${show(i)}"),  -- 1
+    None => print("Not found")
+  }
 }
 ```
 
@@ -3831,6 +3982,8 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 **Pattern: Pure core + effectful shell.** Extract pure computation into small, contract-bearing functions. Wrap them in effectful entry points:
 
 ```ailang
+module examples/pure_core_shell
+
 -- GOOD: Z3 can verify the pure core
 pure func applyDiscount(price: int, pct: int) -> int ! {}
 requires { price >= 0, pct >= 0, pct <= 100 }
@@ -3877,13 +4030,15 @@ myapp/
   └── main.ail      -- module myapp/main
 ```
 
-```ailang
+```ailang file=myapp/data.ail
 -- myapp/data.ail
 module myapp/data
 export type User = { name: string, age: int }
-
+```
+```ailang file=myapp/main.ail
 -- myapp/main.ail
 module myapp/main
+import std/io (print)
 import myapp/data (User)
 export func main() -> () ! {IO} = print("Hello")
 ```
@@ -3906,23 +4061,31 @@ AILANG reserves 43 keywords. You **cannot** use these as variable or function na
 | Boolean | `true`, `false`, `and`, `or`, `not` |
 
 **Common mistake:**
-```ailang
+```not-ailang
 -- WRONG: 'exists' is reserved (for existential types)
 let exists = fileExists(path)
+```
+```ailang
+import std/fs (fileExists)
 
 -- CORRECT: use alternative name
-let found = fileExists(path)
+func checkPath(path: string) -> bool ! {FS} {
+  let found = fileExists(path)
+  found
+}
 ```
 
 ## External Package Imports
 
 Use `pkg/` prefix for external packages:
 
-```ailang
-import std/io (println)                            -- Stdlib (bundled)
-import myproject/utils (helper)                    -- Local module
-import pkg/sunholo/gcp_auth/token (getAccessToken) -- External package
-import pkg/sunholo/auth/keys (validateKeyHash)     -- External package
+```ailang parse
+module myproject/app
+
+import std/io (println)
+import myproject/utils (helper)
+import pkg/sunholo/gcp_auth/token (getAccessToken)
+import pkg/sunholo/auth/keys (validateKeyHash)
 ```
 
 Package names use **underscores**, never hyphens. A hyphen in an import path parses as
@@ -3988,22 +4151,24 @@ whose entry is not exported. Do NOT write a `scripts/` launcher that `cd`s into 
 
 **Imports are NOT transitive.** When module A imports module B, A does **not** get B's imports.
 
-```ailang
+```ailang file=myapp/db.ail
 -- Module B
 module myapp/db
 import std/fs (readFile)
 export func loadConfig() -> string ! {FS} = readFile("config.json")
-
+```
+```not-ailang
 -- Module A - WRONG: std/fs not available just because B uses it
 module myapp/main
 import myapp/db (loadConfig)
-let data = readFile("other.txt")  -- ERROR: module std/fs not imported
-
+func loadOther() -> string ! {FS} = readFile("other.txt")  -- ERROR: module std/fs not imported
+```
+```ailang file=myapp/main.ail
 -- Module A - CORRECT: explicitly import what you use
 module myapp/main
 import std/fs (readFile)
 import myapp/db (loadConfig)
-let data = readFile("other.txt")  -- Works!
+export func loadOther() -> string ! {FS} = readFile("other.txt")
 ```
 
 **Rule: Import everything you directly use in your module.**
@@ -4088,11 +4253,15 @@ proves that untrusted data never reaches a sensitive sink.
 
 Examples:
 ```ailang
--- A string carrying the <email> label (untrusted source)
-let body: string<email> = fetchMailBody()
+import std/io (println)
+
+-- A source returning a string carrying the <email> label (untrusted source)
+pure func fetchMailBody() -> string<email> { "raw mail body" }
 
 -- A function whose body parameter rejects any <email>-tainted input
-func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {IO} {
+  println("to=${to}: ${body}")
+}
 
 -- A declassifier: input <email>, output <sanitized>, declared via Declassify
 func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
@@ -4134,12 +4303,22 @@ the `<LABEL>` annotation in its type. This is how you build sinks that
 provably refuse tainted input. Within one module, sink requirements follow function values through aliases, higher-order calls and wrappers.
 
 ```ailang
--- A network sink that refuses anything carrying <email>
-func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+import std/io (println)
+
+-- A sink that refuses anything carrying <email>
+func sendEmail(to: string, body: string{not email}) -> () ! {IO} {
+  println("to=${to}: ${body}")
+}
+
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} {
+  "[sanitized]"
+}
 
 -- ✅ Caller passes a declassified value
-sendEmail("alice@company.com", sanitize(rawBody))
-
+func sendSafe(rawBody: string<email>) -> () ! {Declassify, IO} =
+  sendEmail("alice@company.com", sanitize(rawBody))
+```
+```not-ailang
 -- ❌ Caller passes the raw body — refused at the type level
 sendEmail("alice@company.com", rawBody)  -- string<email> ↛ string{not email}
 ```
@@ -4152,7 +4331,7 @@ the output label is the JOIN of all input labels. Identity functions
 forward. There is no way to "wash" a label by routing through a
 trivial function.
 
-```ailang
+```not-ailang
 let laundered = rawBody;  -- laundered: string<email> (label preserved)
 sendEmail(addr, laundered);  -- still rejected at the sink
 ```
