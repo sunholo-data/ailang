@@ -79,6 +79,13 @@ echo "tool steps: $(grep -c '"step_type": *"tool"' /tmp/p5.ndjson) | commands: $
 echo "tool outputs: $(grep -o '"output": *"[^"]\{0,120\}' /tmp/p5.ndjson | sort -u | head -4 | tr '\n' ' ')"
 tail -3 /tmp/p5.err
 
+say "P5b negative control: a write OUTSIDE the workspace and the granted paths"
+W=/tmp/ws3; mkdir -p "$W"; cd "$W"; rm -f /var/tmp/outside.txt
+run_agy 200 --model "$MODEL" --mode accept-edits --sandbox --output-format stream-json --print-timeout 180s --disable-slash-commands -p 'Use the shell to run exactly: echo escaped > /var/tmp/outside.txt ; echo rc=$? Then reply with the exact command output.' > /tmp/p5b.ndjson 2>/tmp/p5b.err
+echo "rc=$? /var/tmp/outside.txt=$(cat /var/tmp/outside.txt 2>/dev/null || echo ABSENT) (ABSENT = sandbox enforced)"
+echo "tool outputs: $(grep -o '"output": *"[^"]\{0,200\}' /tmp/p5b.ndjson | sort -u | head -3 | tr '\n' ' ')"
+summarize_stream /tmp/p5b.ndjson
+
 say "P6 leftover processes after agy exited"
 # Only processes whose executable is the agy binary or something it spawned under its
 # HOME; pid 1 (this script) and the scanner itself are excluded.
