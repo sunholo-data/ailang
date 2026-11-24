@@ -52,10 +52,13 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/mission-evidence-secret-scan.XXXXXX") || ex
 # Input names may themselves contain values. Hand them off without using child argv.
 printf '%s\0' "$@" > "$scratch/inputs" || exit 2
 SCAN_SCRATCH="$scratch" python3 -I -B - >/dev/null <<'PYTHON' &
+import gzip
 import os
 import re
 import stat
+import tarfile
 import unicodedata
+import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -64,6 +67,8 @@ CHUNK_SIZE = 65536
 CREDENTIAL_NAME = re.compile(rb"TOKEN|KEY|SECRET|AUTH|PASSWORD|CREDENTIAL", re.IGNORECASE)
 ASSIGNMENT = re.compile(rb"(?:export[ \t]+)?([a-zA-Z_][a-zA-Z0-9_]*)=(.*)")
 NOFOLLOW = os.O_NOFOLLOW | os.O_NONBLOCK
+TAR_BLOCK = tarfile.BLOCKSIZE
+ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08", b"PK\x06\x06")
 
 
 @contextmanager
@@ -107,17 +112,74 @@ def matching_keys(data, inventory):
     return {key for value, keys in inventory.items() if value in data for key in keys}
 
 
-def match_stream(stream, inventory):
+def match_stream(stream, inventory, prefix=b"", expected_size=None):
     carry = b""
     overlap = max(map(len, inventory)) - 1
     hits = set()
+    consumed = 0
     while True:
-        chunk = stream.read(CHUNK_SIZE)
+        chunk = prefix + stream.read(CHUNK_SIZE - len(prefix))
+        prefix = b""
         if not chunk:
+            if expected_size is not None and consumed != expected_size:
+                raise ValueError("short member")
             return hits
+        consumed += len(chunk)
         data = carry + chunk
         hits.update(matching_keys(data, inventory))
         carry = data[-overlap:]
+
+
+def archive_kind(name, prefix):
+    if prefix.startswith(b"\x1f\x8b"):
+        return "gzip"
+    if prefix.startswith(ZIP_SIGNATURES):
+        return "zip"
+    if len(prefix) >= TAR_BLOCK:
+        if prefix[257:262] == b"ustar":
+            return "tar"
+        try:
+            tarfile.TarInfo.frombuf(prefix[:TAR_BLOCK], "utf-8", "surrogateescape")
+        except tarfile.HeaderError:
+            pass
+        else:
+            return "tar"
+    suffix = name.lower()
+    if suffix.endswith((b".tar.gz", b".tgz")):
+        return "gzip"
+    if suffix.endswith(b".tar"):
+        return "tar"
+    if suffix.endswith(b".zip"):
+        return "zip"
+    return None
+
+
+def validate_tar_end(stream, offset):
+    stream.seek(offset)
+    if stream.read(2 * TAR_BLOCK) != b"\0" * (2 * TAR_BLOCK):
+        raise ValueError("missing tar end records")
+    # TAR pads with zeroes. Draining also validates gzip's CRC and size trailer.
+    while True:
+        padding = stream.read(CHUNK_SIZE)
+        if not padding:
+            return
+        if padding.strip(b"\0"):
+            raise ValueError("nonzero tar padding")
+
+
+def validate_zip_end(stream):
+    # zipfile can open an EOCD whose declared comment has been truncated.
+    eocd_size = 22
+    size = stream.seek(0, os.SEEK_END)
+    stream.seek(max(0, size - 65535 - eocd_size))
+    tail = stream.read()
+    offset = tail.rfind(b"PK\x05\x06")
+    if offset < 0 or len(tail) - offset < eocd_size:
+        raise ValueError("missing ZIP end record")
+    comment_size = int.from_bytes(tail[offset + 20:offset + 22], "little")
+    if len(tail) - offset != eocd_size + comment_size:
+        raise ValueError("invalid ZIP end record length")
+    stream.seek(0)
 
 
 def safe_name(raw, inventory):
@@ -194,17 +256,72 @@ class Scan:
         )
         pending.replace(self.scratch / "status")
 
-    def record(self, path, keys):
-        self.scanned += 1
+    def record(self, path, keys, member=None, regular=True):
+        self.scanned += int(regular)
         for key in sorted(keys):
             record = b"LEAK key=" + safe_name(key, self.inventory)
             record += b" path=" + safe_name(path, self.inventory)
+            if member is not None:
+                record += b" member=" + safe_name(member, self.inventory)
             self.findings.write(record + b"\n")
             self.hits += 1
 
+    def scan_member(self, path, name, stream, size):
+        prefix = stream.read(TAR_BLOCK)
+        if archive_kind(name, prefix):
+            raise ValueError("nested archive")
+        keys = match_stream(stream, self.inventory, prefix, size)
+        self.record(path, keys | matching_keys(name, self.inventory), member=name)
+
+    def scan_tar(self, stream, path):
+        with tarfile.open(fileobj=stream, mode="r:") as archive:
+            for member in archive:
+                try:
+                    name = os.fsencode(member.name)
+                    if member.isdir() and member.size == 0:
+                        self.record(path, matching_keys(name, self.inventory), member=name, regular=False)
+                    elif member.isfile():
+                        with archive.extractfile(member) as body:
+                            self.scan_member(path, name, body, member.size)
+                    else:
+                        raise ValueError("unsupported tar member")
+                except Exception:
+                    self.failed = True
+            validate_tar_end(stream, archive.offset)
+
+    def scan_zip(self, stream, path):
+        validate_zip_end(stream)
+        with zipfile.ZipFile(stream) as archive:
+            for member in archive.infolist():
+                try:
+                    encoding = "utf-8" if member.flag_bits & 0x800 else "cp437"
+                    name = member.orig_filename.encode(encoding)
+                    kind = stat.S_IFMT(member.external_attr >> 16)
+                    if member.flag_bits & 1 or kind not in (0, stat.S_IFREG, stat.S_IFDIR):
+                        raise ValueError("unsupported ZIP member")
+                    if member.is_dir() or kind == stat.S_IFDIR or member.external_attr & 0x10:
+                        if member.file_size:
+                            raise ValueError("nonempty ZIP directory")
+                        self.record(path, matching_keys(name, self.inventory), member=name, regular=False)
+                    else:
+                        with archive.open(member) as body:
+                            self.scan_member(path, name, body, member.file_size)
+                except Exception:
+                    self.failed = True
+
     def scan_file(self, parent, name, path):
         with open_regular(name, parent) as stream:
-            self.record(path, match_stream(stream, self.inventory))
+            kind = archive_kind(name, stream.read(TAR_BLOCK))
+            stream.seek(0)
+            if kind == "gzip":
+                with gzip.GzipFile(fileobj=stream) as uncompressed:
+                    self.scan_tar(uncompressed, path)
+            elif kind == "tar":
+                self.scan_tar(stream, path)
+            elif kind == "zip":
+                self.scan_zip(stream, path)
+            else:
+                self.record(path, match_stream(stream, self.inventory))
 
     def scan_entry(self, parent, name, path):
         try:

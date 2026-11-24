@@ -74,6 +74,7 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 LAUNCHD_JOBS ?= 4
 LAUNCHD_SUITES := \
 	tools/launchd/test_transcript_secret_scan.sh \
+	scripts/test_mission_evidence_secret_scan.sh \
 	tools/launchd/test_driver_notify.sh \
 	tools/launchd/test_mission_workdir_sync.sh \
 	scripts/test_mission_pi_run.sh \
@@ -137,6 +138,8 @@ LAUNCHD_SERIAL_SUITES := \
 	tools/eval/test_motoko_connection_probe.sh
 
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
+	@/bin/bash -n scripts/mission_evidence_secret_scan.sh
+	@/bin/bash -n scripts/test_mission_evidence_secret_scan.sh
 	@/bin/bash -n scripts/mission_ledger_provenance.sh
 	@/bin/bash -n scripts/test_mission_ledger_provenance.sh
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/cloud_branch_sync.sh

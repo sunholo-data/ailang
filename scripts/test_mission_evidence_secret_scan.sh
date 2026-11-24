@@ -319,8 +319,192 @@ PYTHON
   if kill -0 "$worker_pid" 2>/dev/null; then fail worker-reaped; else worker_pid=''; fi
 }
 
+write_archive_fixtures() {
+  python3 -I -B - "$fixture" "$1" <<'PYTHON'
+import gzip
+import io
+import sys
+import tarfile
+import warnings
+import zipfile
+from pathlib import Path
+
+root = Path(sys.argv[1])
+scenario = sys.argv[2]
+exports = dict(line.split(b"=", 1) for line in (root / "exports").read_bytes().splitlines())
+secret = exports[b"CONTROL_TOKEN"]
+
+
+def make_tar(entries):
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        for name, data in entries:
+            member = tarfile.TarInfo(name)
+            member.size = len(data)
+            archive.addfile(member, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def make_zip(entries):
+    buffer = io.BytesIO()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)  # Duplicate records are intentional.
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, data in entries:
+                archive.writestr(name, data)
+    return buffer.getvalue()
+
+
+leaking = ("earlier.txt", secret)
+if scenario == "tar":
+    (root / "bundle.tar").write_bytes(
+        make_tar([("name with spaces.txt", secret), ("name with spaces.txt", b"clean")])
+    )
+    (root / "renamed.bin").write_bytes(make_tar([("header-only", b"clean")]))
+elif scenario == "tgz":
+    crossing = (b"\0" * (65536 - 5)) + secret
+    (root / "cross.TGZ").write_bytes(gzip.compress(make_tar([("leading bytes.bin", crossing)])))
+    (root / "bundle.tar.gz").write_bytes(
+        gzip.compress(make_tar([("secret.txt", secret), ("safe.txt", b"clean")]))
+    )
+elif scenario == "zip":
+    (root / "bundle.zip").write_bytes(
+        make_zip([("name with spaces.txt", secret * 25), ("name with spaces.txt", b"clean")])
+    )
+elif scenario == "nested":
+    (root / "by-name.tar").write_bytes(make_tar([leaking, ("nested.TgZ", b"opaque")]))
+    (root / "by-header.tar").write_bytes(
+        make_tar([
+            leaking,
+            ("renamed-zip.bin", make_zip([("safe.txt", b"clean")])),
+            ("renamed-tar.bin", make_tar([("safe.txt", b"clean")])),
+            ("renamed-gzip.bin", gzip.compress(make_tar([("safe.txt", b"clean")]))),
+        ])
+    )
+elif scenario == "bad":
+    (root / "bad.tar").write_bytes(b"not an archive")
+    (root / "short-end.tar").write_bytes(make_tar([leaking])[:1536])
+    # Put the trailer beyond the gzip reader's prefetch from the last member.
+    complete = gzip.compress(make_tar([leaking]) + b"\0" * 65536)
+    (root / "bad-trailer.tgz").write_bytes(complete[:-8] + bytes([complete[-8] ^ 1]) + complete[-7:])
+    (root / "missing-trailer.tgz").write_bytes(complete[:-8])
+    zip_data = make_zip([leaking])
+    (root / "missing-end.zip").write_bytes(zip_data[:-4])
+    central = zip_data.index(b"PK\x01\x02")
+    corrupted = zip_data[:central + 16] + bytes([zip_data[central + 16] ^ 1]) + zip_data[central + 17:]
+    (root / "crc.zip").write_bytes(corrupted)
+elif scenario == "member-name":
+    name = "label-" + exports[b"PATH_TOKEN"].decode("ascii")
+    (root / "labels.tar").write_bytes(make_tar([(name, b"clean")]))
+    (root / "labels.zip").write_bytes(make_zip([(name, b"clean")]))
+elif scenario == "links":
+    with tarfile.open(root / "link.tar", "w") as archive:
+        member = tarfile.TarInfo("link")
+        member.type = tarfile.SYMTYPE
+        member.linkname = "elsewhere"
+        archive.addfile(member)
+    with zipfile.ZipFile(root / "link.zip", "w") as archive:
+        member = zipfile.ZipInfo("link")
+        member.create_system = 3
+        member.external_attr = 0o120777 << 16
+        archive.writestr(member, b"elsewhere")
+else:
+    raise AssertionError("unknown archive fixture")
+PYTHON
+}
+
+arm_tar() {
+  begin_case
+  control_export
+  write_archive_fixtures tar || exit 2
+  run_helper bundle.tar renamed.bin
+  expected_rc tar-rc 1
+  finding tar-member-finding 'LEAK key=CONTROL_TOKEN path=bundle.tar member=name with spaces.txt'
+  verdict tar-record-count LEAK 1 3 1 ok
+}
+
+arm_tgz() {
+  begin_case
+  control_export
+  write_archive_fixtures tgz || exit 2
+  run_helper cross.TGZ bundle.tar.gz
+  expected_rc tgz-rc 1
+  finding tgz-boundary-finding 'LEAK key=CONTROL_TOKEN path=cross.TGZ member=leading bytes.bin'
+  finding tar-gz-member-finding 'LEAK key=CONTROL_TOKEN path=bundle.tar.gz member=secret.txt'
+  verdict tgz-member-count LEAK 1 3 2 ok
+}
+
+arm_zip() {
+  if ! command -v unzip >/dev/null; then
+    printf 'SKIP %s/unzip-unavailable\n' "$arm"
+    arm_skipped=1
+    return
+  fi
+  begin_case
+  control_export
+  write_archive_fixtures zip || exit 2
+  unzip -tqq "$fixture/bundle.zip" >/dev/null 2>&1 || { fail deflated-zip-fixture; return; }
+  run_helper bundle.zip
+  expected_rc zip-rc 1
+  finding zip-member-finding 'LEAK key=CONTROL_TOKEN path=bundle.zip member=name with spaces.txt'
+  verdict zip-member-count LEAK 1 2 1 ok
+}
+
+arm_nested_archive() {
+  local archive
+  for archive in by-name.tar by-header.tar; do
+    begin_case
+    control_export
+    write_archive_fixtures nested || exit 2
+    run_helper "$archive"
+    expected_rc "nested-$archive-rc" 2
+    finding "nested-$archive-prior-leak" "LEAK key=CONTROL_TOKEN path=$archive member=earlier.txt"
+    verdict "nested-$archive-precedence" instrument-failure 1 1 1 ok
+    finish_case
+  done
+}
+
+arm_bad_archive() {
+  local archive scanned hits
+  for archive in bad.tar short-end.tar bad-trailer.tgz missing-trailer.tgz missing-end.zip crc.zip; do
+    begin_case
+    control_export
+    write_archive_fixtures bad || exit 2
+    case "$archive" in
+      short-end.tar|*-trailer.tgz) scanned=1; hits=1 ;;
+      *) scanned=0; hits=0 ;;
+    esac
+    run_helper "$archive"
+    expected_rc "invalid-$archive-rc" 2
+    verdict "invalid-$archive-verdict" instrument-failure 1 "$scanned" "$hits" ok
+    finish_case
+  done
+}
+
+arm_member_name() {
+  begin_case
+  control_export
+  printf 'PATH_TOKEN=%s\n' "$hidden" >> "$exports"
+  write_archive_fixtures member-name || exit 2
+  run_helper labels.tar labels.zip
+  expected_rc member-name-rc 1
+  finding redacted-tar-member 'LEAK key=PATH_TOKEN path=labels.tar member=[redacted]'
+  finding redacted-zip-member 'LEAK key=PATH_TOKEN path=labels.zip member=[redacted]'
+  verdict member-name-verdict LEAK 2 2 2 ok
+}
+
+arm_archive_links() {
+  begin_case
+  control_export
+  write_archive_fixtures links || exit 2
+  run_helper link.tar link.zip
+  expected_rc archive-link-rc 2
+  verdict archive-link-verdict instrument-failure 1 0 0 ok
+}
+
 arms=(clean-dir file-value env-only make-dump short-value zero-values control
-  unreadable-path invalid-inputs output-guard interrupted)
+  unreadable-path invalid-inputs output-guard interrupted tar tgz zip nested-archive
+  bad-archive member-name archive-links)
 failures=0
 ran=0
 for arm in "${arms[@]}" broken-matcher; do
@@ -329,10 +513,11 @@ for arm in "${arms[@]}" broken-matcher; do
   fi
   before=$failures
   rc=2
+  arm_skipped=0
   assertions_done=1
   "arm_${arm//-/_}"
   if [ "$assertions_done" -eq 0 ]; then finish_case; fi
-  if [ "$failures" -eq "$before" ]; then printf 'PASS %s\n' "$arm"; fi
+  if [ "$failures" -eq "$before" ] && [ "$arm_skipped" -eq 0 ]; then printf 'PASS %s\n' "$arm"; fi
   ran=$((ran + 1))
 done
 [ "$ran" -gt 0 ] || { printf 'FAIL unknown-arm rc=2\n' >&2; exit 2; }
