@@ -111,6 +111,12 @@ func encodeMathCall(name string, args []core.CoreExpr) (string, bool, error) {
 		enc[i] = e
 	}
 	x := enc[0]
+	switch name { // NaN at runtime (M4, D4 b′)
+	case mathSqrt:
+		addNaNObligation(fmt.Sprintf("(>= %s 0.0)", x))
+	case mathLog:
+		addNaNObligation(fmt.Sprintf("(> %s 0.0)", x))
+	}
 	floor := func(v string) string { return fmt.Sprintf("(to_real (to_int %s))", v) }
 	switch name {
 	case mathFloor:

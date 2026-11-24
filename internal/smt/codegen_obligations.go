@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -48,6 +49,11 @@ var (
 type CallObligation struct {
 	Callee string
 	SMTLib string
+	// DependsOnUninterpreted: a fact carrying this obligation mentions an
+	// uninterpreted builtin, so a model may rest on a value the real function
+	// never returns. Otherwise the clauses involve only exact terms and a sat
+	// is a genuine violation.
+	DependsOnUninterpreted bool
 }
 
 func reqOkSymbol(callee string) string { return reqOkPrefix + callee }
@@ -176,4 +182,21 @@ func leakedObligation(decls []string) error {
 		}
 	}
 	return nil
+}
+
+// obligationDependsOn reports whether any fact carrying callee's obligation
+// mentions one of the uninterpreted symbols.
+func obligationDependsOn(facts []string, callee string, uninterpreted []string) bool {
+	ok := regexp.MustCompile(regexp.QuoteMeta(reqOkSymbol(callee)) + `[\s)]`)
+	for _, f := range facts {
+		if !ok.MatchString(f) {
+			continue
+		}
+		for _, u := range uninterpreted {
+			if strings.Contains(f, u+" ") || strings.Contains(f, u+")") {
+				return true
+			}
+		}
+	}
+	return false
 }

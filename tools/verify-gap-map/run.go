@@ -22,6 +22,7 @@ type row struct {
 	Reason          string   `json:"reason,omitempty"`
 	RequiresCallees []string `json:"requires_callees,omitempty"`
 	RequiresChecked []string `json:"requires_checked,omitempty"`
+	Caveats         []string `json:"caveats,omitempty"` // caveat kinds
 	Replayed        bool     `json:"witness_replayed,omitempty"`
 }
 
@@ -48,13 +49,16 @@ type verifyOutput struct {
 		Reason          string   `json:"reason"`
 		RequiresCallees []string `json:"requires_callees"`
 		RequiresChecked []string `json:"requires_checked"`
-		WitnessReplayed bool     `json:"witness_replayed"`
+		Caveats         []struct {
+			Kind string `json:"kind"`
+		} `json:"caveats"`
+		WitnessReplayed bool `json:"witness_replayed"`
 	} `json:"results"`
 }
 
 // runAll verifies every file with `ailang verify --json --relax-modules`, run
 // from the corpus root as its authors run it, jobs at a time.
-func runAll(bin string, jobs []job, workers int, timeout time.Duration, progress func(done, total int)) ([]row, []fileFailure) {
+func runAll(bin string, extra []string, jobs []job, workers int, timeout time.Duration, progress func(done, total int)) ([]row, []fileFailure) {
 	var (
 		mu       sync.Mutex
 		rows     []row
@@ -68,7 +72,7 @@ func runAll(bin string, jobs []job, workers int, timeout time.Duration, progress
 		go func() {
 			defer wg.Done()
 			for j := range ch {
-				rs, fail := runOne(bin, j, timeout)
+				rs, fail := runOne(bin, extra, j, timeout)
 				mu.Lock()
 				rows = append(rows, rs...)
 				if fail != nil {
@@ -90,10 +94,11 @@ func runAll(bin string, jobs []job, workers int, timeout time.Duration, progress
 	return rows, failures
 }
 
-func runOne(bin string, j job, timeout time.Duration) ([]row, *fileFailure) {
+func runOne(bin string, extra []string, j job, timeout time.Duration) ([]row, *fileFailure) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "verify", "--json", "--relax-modules", j.file)
+	args := append(append([]string{"verify", "--json", "--relax-modules"}, extra...), j.file)
+	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = j.corpus.Root
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -118,6 +123,7 @@ func runOne(bin string, j job, timeout time.Duration) ([]row, *fileFailure) {
 			Corpus: j.corpus.Name, File: filepath.ToSlash(j.file), Function: r.Function,
 			Status: st, ReasonCode: r.ReasonCode, Reason: truncate(r.Reason, 240),
 			RequiresCallees: r.RequiresCallees, RequiresChecked: r.RequiresChecked, Replayed: r.WitnessReplayed,
+			Caveats: caveatKinds(r.Caveats),
 		})
 	}
 	return rows, nil
@@ -139,4 +145,14 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+func caveatKinds(cs []struct {
+	Kind string `json:"kind"`
+}) []string {
+	var out []string
+	for _, c := range cs {
+		out = append(out, c.Kind)
+	}
+	return out
 }

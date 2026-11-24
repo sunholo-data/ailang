@@ -14,6 +14,9 @@ func encodeApp(app *core.App) (string, error) {
 	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
 		// Standard builtins (direct op mapping)
 		smtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]
+		if isBuiltin && intArithBuiltins[vg.Ref.Name] {
+			return encodeIntArith(smtOp, app.Args)
+		}
 		if isBuiltin {
 			return encodeBuiltinOp(smtOp, app.Args)
 		}
@@ -67,6 +70,9 @@ func encodeApp(app *core.App) (string, error) {
 			allArgs = append(allArgs, app.Args...)
 
 			smtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]
+			if isBuiltin && intArithBuiltins[vg.Ref.Name] {
+				return encodeIntArith(smtOp, allArgs)
+			}
 			if isBuiltin {
 				return encodeBuiltinOp(smtOp, allArgs)
 			}

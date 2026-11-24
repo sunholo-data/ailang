@@ -21,7 +21,7 @@
 | M0 (gap map) | **Landed on dev.** `make verify-gap-map` (`tools/verify-gap-map/`) verifies every contracted file in the `tools/downstream/corpora.yaml` corpora (the same inventory as `make downstream-check`), buckets status / normalised reason / blamed callee, type and builtin, reports the D1 blast radius from the new per-result `requires_callees` field, banks a snapshot and diffs against the last one. A status change in a file whose content hash changed is drift, never a regression. Snapshots bank to `~/.ailang/state/verify-gaps/`, not the repo: docparse, email-parse and daneel are private and a snapshot names their functions. See §M0 baseline |
 | M5 (concat, honest skips) | **Landed on dev.** `std/list.concat` = `seq.++` (an empty operand takes the other's sort); undeclarable records skip instead of erroring; tuple types render as AILANG in skip reasons. First gap-map diff: error 1 → 0, nothing else moved. The ten `concat`-blamed functions are large parsers whose next blockers are `foldChars` (8), `bytes`/`Option` helper signatures, and effects: coverage there needs generic callees, not more builtins |
 | M3 (call-site requires) | **Landed on dev.** D1 ruled (a). Each call in a verified body must meet its callee's `requires` (path-scoped through the call-facts channel); a possible break is `counterexample` / `requires_violation`. Lambdas, recursion, helper bodies and contracts not yet checked. Gap map: no verdict changed; all 11 verified results that call a function with a `requires` had every such call checked. Design: [m-verify-call-site-requires.md](m-verify-call-site-requires.md) |
-| M4 | Not started (D2, D4) |
+| M4 (numeric model) | **Landed on dev.** D2 (a′): int64 overflow obligations, a caveat by default and a violation under `--int-model=int64`. D4 (b′): float `/`, `%` by zero, `sqrt` of a negative and `log` of a non-positive are violations; float inputs assumed non-NaN (caveat). Default-mode gap map: no verdict changed; 56 overflow notes. Design: [m-verify-numeric-model.md](m-verify-numeric-model.md) |
 
 **Five-repo corpus, 2026-11-23 (1,840 obligations):**
 - Verified: 698 → **748**.
@@ -132,8 +132,8 @@ operations are checked, each as a path-scoped obligation.
   from ordinary inputs) changes **0** proofs in either corpus: the divisors are already guarded.
   Option (b) as written (any comparison on an unguarded float input is unproved) would reach up to
   the 36 float-parameter proofs; (a) IEEE was not measured.
-- [ ] D2 ruled (blocks M4's int half)
-- [ ] D4 ruled (blocks M4's float half)
+- [x] D2 ruled 2026-11-24 by Mark: **(a′)**: int64 overflow obligations, reported on the VERIFIED result (`caveats`, kind `int_overflow`) by default; `--int-model=int64` makes them violations. The default flips to (a) once downstream packages carry bounds
+- [x] D4 ruled 2026-11-24 by Mark: **(b′)**: operations that make NaN/±Inf from ordinary inputs (float `/` and `%` by a possible zero, `sqrt` of a negative, `log` of a non-positive) are checked, and a possible one is a violation (`float_nan_or_inf`); every float result notes that its inputs are assumed non-NaN. M4 design: [m-verify-numeric-model.md](m-verify-numeric-model.md)
 - [x] D3: agent latitude, default (a)
 
 ## Solution Design
@@ -271,7 +271,7 @@ After:   ✓ VERIFIED incrementAll  (bounded: depth 2)
 - [ ] M2: `hof_verify.ail` re-pinned to VERIFIED
 - [ ] M2: `hof_verify.ail` VERIFIED; a `[record]`-list `filter` with a field-named `let` never reaches a Z3 error; gap-map HOF-attributed skips ≤ 50
 - [x] M3: the S1 probe flips (`caller` VIOLATION, `requires_violation`); the gap-map flip list is empty
-- [ ] M4: per D2, the S2 probe reports `overflow`; per D4, the S3 probe (`x == x` on float) is no longer a bare VERIFIED
+- [x] M4: per D2 (a′) the S2 probe carries an `int_overflow` caveat (a violation under `--int-model=int64`); per D4 (b′) the S3 probe carries `float_inputs_assumed_non_nan`, and NaN-producing operations are violations
 - [ ] Each milestone: contracts guide, limitations page and prompt "open gaps" lines updated; changelog fragment
 - [ ] `make test-core`, `make verify-examples`, `make check-doc-samples` green
 

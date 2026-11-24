@@ -10,7 +10,11 @@ var statusOrder = []string{"verified", "counterexample", "inconclusive", "unknow
 
 // report prints the gap map and the diff, and returns the number of regressions.
 func report(w io.Writer, cur, prev *snapshot, prevPath string, n int) int {
-	fmt.Fprintf(w, "verify-gap-map — %s — %s\n\n", cur.Ailang, cur.Taken)
+	model := ""
+	if cur.IntModel != "" {
+		model = " — --int-model=" + cur.IntModel
+	}
+	fmt.Fprintf(w, "verify-gap-map — %s — %s%s\n\n", cur.Ailang, cur.Taken, model)
 
 	fmt.Fprintln(w, "Corpora")
 	for _, c := range cur.Corpora {
@@ -56,6 +60,10 @@ func report(w io.Writer, cur, prev *snapshot, prevPath string, n int) int {
 	section(w, "Skips blamed on a callee signature: callee", top(a.Callees, n))
 	section(w, "Skips blamed on a callee signature: type", top(a.Types, n))
 	section(w, "Unsupported applications", top(a.Builtins, n))
+
+	if cc := caveatCounts(cur.Rows); len(cc) > 0 {
+		section(w, "Verified results with caveats (kind)", top(cc, n))
+	}
 
 	fmt.Fprintf(w, "\nCall-site requires (D1): %d results reach a callee with a requires\n", cur.D1.Results)
 	fmt.Fprintf(w, "  %-15s %5s %10s\n", "", "all", "unchecked")

@@ -626,7 +626,7 @@ func EncodeFunction(
 		q := append(append([]string(nil), lines[:preamble]...), requiresAssertions...)
 		q = append(q, obligationAssertions(callFacts, callees, g)...)
 		q = append(q, "", CheckSat(), GetModel())
-		result.Obligations = append(result.Obligations, CallObligation{Callee: g, SMTLib: strings.Join(q, "\n")})
+		result.Obligations = append(result.Obligations, CallObligation{Callee: g, SMTLib: strings.Join(q, "\n"), DependsOnUninterpreted: obligationDependsOn(callFacts, g, result.Uninterpreted)})
 	}
 	return result, nil
 }

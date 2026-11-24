@@ -40,6 +40,7 @@ func run() int {
 		jobs     = flag.Int("jobs", 4, "files verified in parallel")
 		timeout  = flag.Duration("timeout", 10*time.Minute, "per-file verify timeout")
 		topN     = flag.Int("top", 12, "rows per ranked table")
+		intModel = flag.String("int-model", "", "pass --int-model to ailang verify (unbounded|int64; default: verify's)")
 	)
 	flag.Parse()
 	if *jobs < 1 || flag.NArg() > 0 {
@@ -98,7 +99,12 @@ func run() int {
 		return 3
 	}
 	fmt.Fprintf(os.Stderr, "verifying %d files with %s (%d jobs)\n", len(work), snap.Ailang, *jobs)
-	snap.Rows, snap.Failures = runAll(*bin, work, *jobs, *timeout, func(done, total int) {
+	var extra []string
+	if *intModel != "" {
+		extra = append(extra, "--int-model="+*intModel)
+	}
+	snap.IntModel = *intModel
+	snap.Rows, snap.Failures = runAll(*bin, extra, work, *jobs, *timeout, func(done, total int) {
 		if done%25 == 0 || done == total {
 			fmt.Fprintf(os.Stderr, "  %d/%d\n", done, total)
 		}

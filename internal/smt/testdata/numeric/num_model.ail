@@ -1,0 +1,38 @@
+module num_model
+import std/math (sqrt)
+
+type Box = { n: int }
+
+export pure func inc(x: int) -> int
+  requires { x >= 0 }
+  ensures { result > x }
+{ x + 1 }
+
+export pure func incBounded(x: int) -> int
+  requires { x >= 0 && x < 1000 }
+  ensures { result > x }
+{ x + 1 }
+
+-- A field operand is an int64 value; only the operation is checked.
+export pure func fieldCopy(b: Box) -> int
+  ensures { result == b.n }
+{ b.n * 1 }
+
+export pure func ratio(a: float, b: float) -> float
+  requires { b > 0.0 }
+  ensures { result * b == a }
+{ a / b }
+
+export pure func ratioBad(a: float, b: float) -> float
+  requires { b >= 0.0 }
+  ensures { b == 0.0 || result * b == a }
+{ a / b }
+
+export pure func root(x: float) -> float
+  requires { x >= 0.0 }
+  ensures { result >= 0.0 }
+{ sqrt(x) }
+
+export pure func rootBad(x: float) -> float
+  ensures { result >= 0.0 || result < 0.0 }
+{ sqrt(x) }

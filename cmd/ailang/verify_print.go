@@ -28,7 +28,7 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 	if z3ver := smt.Z3Version(); z3ver != "" {
 		fmt.Printf("  Solver: %s\n", z3ver)
 	}
-	fmt.Printf("  Scope: verifier reported verified under the encoded model; %s\n", verification.EncodedEvidence().Summary())
+	fmt.Printf("  Scope: verifier reported verified under the encoded model; %s\n", reportEvidence(report).Summary())
 	fmt.Println()
 
 	hasBounded := false
@@ -41,9 +41,10 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 			} else {
 				fmt.Printf("  %s %s  %s\n", green("✓ VERIFIED"), bold(r.Function), dim(r.Duration.String()))
 			}
+			printCaveats(r.Caveats)
 		case "counterexample":
 			fmt.Printf("  %s %s\n", red("✗ VIOLATION"), bold(r.Function))
-			if r.WitnessReplayed || r.ReasonCode == verification.RequiresViolation {
+			if r.Reason != "" {
 				// Say how this one was decided: by running the function (the
 				// bounded model alone was inconclusive), or at a call whose
 				// callee's requires the inputs break.
@@ -200,7 +201,7 @@ func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verificati
 	}{
 		CompileErrors:  compileErrors,
 		Imported:       imported,
-		Evidence:       verification.EncodedEvidence(),
+		Evidence:       reportEvidence(report),
 		File:           filename,
 		Outcome:        verification.Classify(t),
 		Obligations:    t.Obligations,
@@ -221,4 +222,26 @@ func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verificati
 		os.Exit(1)
 	}
 	fmt.Println(string(data))
+}
+
+// reportEvidence is the report's evidence, or the default model's when absent.
+func reportEvidence(report *smt.VerifyReport) verification.Evidence {
+	if report != nil && report.Evidence.NumericModel != nil {
+		return report.Evidence
+	}
+	return verification.EncodedEvidence()
+}
+
+// printCaveats prints a verified result's int64-overflow notes. The float
+// inputs note is on the Scope line; it is in --json per result.
+func printCaveats(cs []smt.Caveat) {
+	for _, c := range cs {
+		if c.Kind == smt.CaveatFloatInputs {
+			continue
+		}
+		fmt.Printf("    %s %s\n", yellow("note:"), dim(c.Detail))
+		for _, b := range c.Model {
+			fmt.Printf("      %s: %s = %s\n", b.Name, b.Sort, b.Value)
+		}
+	}
 }

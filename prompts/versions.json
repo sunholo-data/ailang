@@ -1237,11 +1237,17 @@
         "production",
         "latest"
       ],
-      "notes": "Contracts: correct the Z3 fragment — floats verify as Real, recursion bounded/inconclusive, HOFs and bitwise skipped, requires unchecked at call sites, int overflow not modelled"
+      "notes": "Contracts: correct the Z3 fragment — floats verify as Real, recursion bounded/inconclusive, HOFs and bitwise skipped, requires unchecked at call sites, int overflow not modelled",
+      "frozen": {
+        "at": "2026-11-24",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.18": {
       "file": "prompts/v0.16.18.md",
-      "hash": "d16f699547c7602e954529c24432d5dbc6c245b6ad6795e1ca04eac237fef56c",
+      "hash": "183c347f006bd437ccbda0fb022ab8300a498b43f1fa7a11b8af26b1c910d5e9",
       "description": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly",
       "created": "2026-11-24",
       "tags": [

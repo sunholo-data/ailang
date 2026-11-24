@@ -14,6 +14,12 @@ import (
 
 func verifySource(t *testing.T, filename, source string) (*smt.VerifyReport, pipeline.Result) {
 	t.Helper()
+	return verifySourceWith(t, filename, source, smt.VerifyOptions{})
+}
+
+// verifySourceWith is verifySource with options (Timeout and CoreTI are filled in).
+func verifySourceWith(t *testing.T, filename, source string, opts smt.VerifyOptions) (*smt.VerifyReport, pipeline.Result) {
+	t.Helper()
 	if !smt.Z3Available() {
 		t.Skip("Z3 unavailable")
 	}
@@ -39,7 +45,8 @@ func verifySource(t *testing.T, filename, source string) (*smt.VerifyReport, pip
 	}
 	// CoreTI as the CLI passes it (cmd/ailang/verify.go): the encoder reads
 	// elaborated types from it (operand sorts, HOF specialisation signatures).
-	report := smt.Verify(result.Artifacts.Core, result.Artifacts.AST, modules, smt.VerifyOptions{Timeout: 5 * time.Second, CoreTI: result.Artifacts.CoreTI})
+	opts.Timeout, opts.CoreTI = 5*time.Second, result.Artifacts.CoreTI
+	report := smt.Verify(result.Artifacts.Core, result.Artifacts.AST, modules, opts)
 	for meta, pure := range before {
 		if meta.IsPure != pure {
 			t.Fatalf("verification mutated purity of %s", meta.Name)

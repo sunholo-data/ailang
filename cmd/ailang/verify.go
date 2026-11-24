@@ -27,10 +27,12 @@ func verifyCommand() {
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 	packageFlag := fs.String("package", "", "Verify every exported module of the package at this directory (M-PKG-QUALITY-LADDER)")
 	wallCapFlag := fs.Duration("wall-cap", 0, "With --package: whole-package time cap (0 = unbounded)")
+	intModelFlag := fs.String("int-model", verification.IntModelUnbounded, intModelFlagHelp)
 
 	parseInterspersed(fs, os.Args[2:])
 	policy := verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag}
 	refuseContradictoryPolicy(policy)
+	intModel := validIntModel(*intModelFlag)
 
 	if *packageFlag != "" {
 		verifyPackageCommand(*packageFlag, verifyPackageOptions{
@@ -38,6 +40,7 @@ func verifyCommand() {
 			RecursiveDepth: *recursiveDepthFlag,
 			Verbose:        *verboseFlag,
 			WallCap:        *wallCapFlag,
+			IntModel:       intModel,
 		}, *jsonFlag, policy)
 		return
 	}
@@ -56,6 +59,7 @@ func verifyCommand() {
 		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
 		fmt.Println("  --package <dir>   Verify every exported module of a package (flat or canonical layout)")
 		fmt.Println("  --wall-cap        With --package: whole-package time cap (default: unbounded)")
+		fmt.Println("  --int-model       " + intModelFlagHelp)
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
 		fmt.Println("Exit 0: every contract proved, or some proved + some skipped (skips listed on stderr), or no ensures to prove.")
@@ -147,6 +151,7 @@ func verifyCommand() {
 		RecursiveDepth: *recursiveDepthFlag,
 		Verbose:        *verboseFlag,
 		Replay:         witnessReplayer(filename, surfaceAST, *timeoutFlag),
+		IntModel:       intModel,
 	})
 	t := report.Tally()
 
@@ -233,4 +238,17 @@ func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut bool, p
 	if code := verification.ExitCode(t, policy); code != 0 {
 		os.Exit(code)
 	}
+}
+
+const intModelFlagHelp = "int64 overflow of int + - *: unbounded (default; reported as a caveat on the verified result) or int64 (a violation, reason int_overflow)"
+
+// validIntModel returns the --int-model value, exiting on an unknown one.
+func validIntModel(v string) string {
+	switch v {
+	case verification.IntModelUnbounded, verification.IntModelInt64:
+		return v
+	}
+	fmt.Fprintf(os.Stderr, "%s: --int-model must be %s or %s, got %q\n", red("Error"), verification.IntModelUnbounded, verification.IntModelInt64, v)
+	os.Exit(2)
+	return ""
 }

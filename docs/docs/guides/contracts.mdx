@@ -70,19 +70,33 @@ is enabled. A static result is separate evidence; it does not establish that a
 runtime assertion or a generated property test ran. Checked APIs should guard
 bad inputs in ordinary execution rather than rely on that opt-in flag.
 
-**A `requires` clause is an unchecked assumption by default.** The verifier
-assumes a function's precondition while proving that function's `ensures`, and
-it never checks the precondition where the function is called. `ailang run`
-does not check it either unless `--verify-contracts` is given. So a `VERIFIED`
-result means "the `ensures` holds whenever the `requires` holds", and nothing
-stops a caller from passing an argument that breaks the `requires`.
+**A `requires` clause is assumed by the function and checked at verified calls.**
+The verifier assumes a function's precondition while proving that function's
+`ensures`. When a verified function calls it, each call in that function's body
+must meet it: a call that may not is a VIOLATION (`requires_violation`). Calls
+inside a lambda passed to `map`/`filter`/`foldl`, inside recursion or inside a
+helper's body are not checked yet, and an unverified caller is never checked.
+`ailang run` checks `requires` only with `--verify-contracts`. So a `VERIFIED`
+result means "the `ensures` holds whenever the `requires` holds"; guard inputs
+that come from unverified code.
 
-The verifier encodes floats as SMT `Real` and integers as `Int`. Its results do
-not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety or
-cross-architecture byte equality. Concretely: `ensures { result > x } { x + 1 }`
-is VERIFIED, yet `inc(9223372036854775807)` wraps to `-9223372036854775808` at
-runtime, because the runtime `int` is a wrapping 64-bit integer and Z3's `Int` is
-unbounded. Every `verify` run prints this model on its `Scope:` line and in the
+The verifier encodes floats as SMT `Real` and integers as `Int`, and checks the
+operations where that differs from the runtime:
+
+- **int64 overflow.** Every int `+ - *` in a verified body must keep in-range
+  operands in range. `ensures { result > x } { x + 1 }` is VERIFIED with a note
+  (`caveats: int_overflow`) and the input that shows it, `x = 9223372036854775807`,
+  where the runtime wraps to `-9223372036854775808`. Bound the input in `requires`
+  (`x < 1000000`) to remove the note. `ailang verify --int-model=int64` makes it a
+  VIOLATION (`int_overflow`).
+- **NaN and ±Infinity.** Float `/` and `%` by a possible zero, `sqrt` of a possible
+  negative and `log` of a possible non-positive are VIOLATIONS (`float_nan_or_inf`).
+  Float inputs are assumed to be ordinary numbers (`caveats:
+  float_inputs_assumed_non_nan`); a float product overflowing to ±Infinity is not
+  modelled.
+
+Results still do not establish IEEE-754 rounding or cross-architecture byte
+equality. Every `verify` run prints this model on its `Scope:` line and in the
 JSON `numeric_model` field. Bounded recursion results carry their actual
 `bounded_depth`; a missing depth is not an inductive proof.
 
@@ -224,7 +238,7 @@ The message includes:
 ## Static Verification with Z3
 
 :::tip Compile-Time Proofs
-`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all inputs that satisfy `requires`**, under the encoded model (unbounded `Int`, real-valued `float`). That covers every case a test suite would sample, but not int64 overflow or NaN — see [Reading verification evidence](#reading-verification-evidence). Each call a verified function makes is also checked against the callee's `requires`.
+`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all inputs that satisfy `requires`**, under the encoded model (unbounded `Int`, real-valued `float`). That covers every case a test suite would sample. Each call a verified function makes is also checked against the callee's `requires`, int overflow is reported, and float operations that could produce NaN are checked — see [Reading verification evidence](#reading-verification-evidence).
 :::
 
 ### Quick Start
@@ -956,9 +970,9 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 
 **On dev (2026-11-24)** — Call-site preconditions:
 - ✅ A call that may break its callee's `requires` is a VIOLATION (`requires_violation`); calls in lambdas, recursion and helper bodies are not yet checked
+- ✅ int64 overflow of `+ - *` reported on the verified result (`--int-model=int64` makes it a violation); float division by zero, `sqrt` of a negative and `log` of a non-positive are violations
 
 **Open gaps** (measured at v0.60.6, 2026-11-23):
-- `int` is verified as unbounded `Int`, so int64 overflow is not caught; floats have no NaN
 - `map`/`filter`/`foldl`/`any`/`flatMap` callers are bounded like recursion beyond depth 3, except map/filter length relations
 - Recursive functions are inconclusive unless `requires` bounds their depth — full induction is future work
 - Option/ADT inputs are not yet replayed

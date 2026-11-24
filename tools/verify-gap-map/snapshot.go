@@ -13,6 +13,7 @@ import (
 type snapshot struct {
 	Taken    string            `json:"taken"` // RFC 3339
 	Ailang   string            `json:"ailang"`
+	IntModel string            `json:"int_model,omitempty"` // --int-model passed to verify ("" = its default)
 	Corpora  []corpusInfo      `json:"corpora"`
 	Totals   map[string]int    `json:"totals"` // status → count
 	D1       d1Radius          `json:"d1"`
@@ -225,4 +226,18 @@ func readSnapshot(path string) (*snapshot, string, error) {
 		return nil, "", err
 	}
 	return &s, path, nil
+}
+
+// caveatCounts counts caveat kinds on verified results.
+func caveatCounts(rows []row) map[string]int {
+	c := map[string]int{}
+	for _, r := range rows {
+		if r.Status != "verified" {
+			continue
+		}
+		for _, k := range r.Caveats {
+			c[k]++
+		}
+	}
+	return c
 }

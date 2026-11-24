@@ -111,6 +111,10 @@ func applyBinaryOp(smtOp, left, right string) string {
 	if smtOp == smtIntDivTrunc || smtOp == smtIntModTrunc {
 		return encodeTruncDivMod(smtOp == smtIntModTrunc, left, right)
 	}
+	if smtOp == "/" || smtOp == smtRealModTrunc {
+		// Real x / 0.0 and x % 0.0 are ±Inf or NaN at runtime (M4, D4 b′).
+		addNaNObligation(fmt.Sprintf("(not (= %s 0.0))", right))
+	}
 	if smtOp == smtRealModTrunc {
 		return encodeRealMod(left, right)
 	}
@@ -172,6 +176,9 @@ func encodeDictApp(da *core.DictApp) (string, error) {
 	}
 
 	if smtOp, ok := sortAgnostic[da.Method]; ok {
+		if intArithMethods[da.Method] && dictSort(da) == sortInt {
+			return encodeIntArith(smtOp, da.Args)
+		}
 		return encodeBuiltinOp(smtOp, da.Args)
 	}
 	sort := dictSort(da)

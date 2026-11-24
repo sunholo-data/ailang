@@ -122,3 +122,14 @@ func TestD1SeparatesCheckedFromUnchecked(t *testing.T) {
 		t.Fatalf("d1 = %+v", d)
 	}
 }
+
+func TestCaveatCountsOnlyVerified(t *testing.T) {
+	c := caveatCounts([]row{
+		{Status: "verified", Caveats: []string{"int_overflow"}},
+		{Status: "verified", Caveats: []string{"int_overflow", "float_inputs_assumed_non_nan"}},
+		{Status: "counterexample", Caveats: []string{"int_overflow"}},
+	})
+	if c["int_overflow"] != 2 || c["float_inputs_assumed_non_nan"] != 1 {
+		t.Fatalf("caveatCounts = %v", c)
+	}
+}

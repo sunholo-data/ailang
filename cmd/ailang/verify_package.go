@@ -29,6 +29,7 @@ type verifyPackageOptions struct {
 	RecursiveDepth int
 	Verbose        bool
 	WallCap        time.Duration // whole-package cap; zero = unbounded
+	IntModel       string        // verification.IntModel*; "" = unbounded
 }
 
 // verifyPackage compiles and verifies each exported module in sorted order.
@@ -45,7 +46,7 @@ func verifyPackage(dir string, opts verifyPackageOptions) (*pkg.PackageVerifyRep
 	}
 
 	report := &pkg.PackageVerifyReport{
-		Evidence: verification.EncodedEvidence(),
+		Evidence: verification.EncodedEvidenceFor(opts.IntModel),
 		Schema:   pkg.PackageVerifySchema,
 		Package:  manifest.Package.Name,
 		Version:  manifest.Package.Version,
@@ -113,6 +114,7 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 		RecursiveDepth: opts.RecursiveDepth,
 		Verbose:        opts.Verbose,
 		Replay:         witnessReplayer(file, result.Artifacts.AST, opts.Timeout),
+		IntModel:       opts.IntModel,
 	})
 	mr.Verified, mr.Counterexample, mr.Inconclusive, mr.Skipped, mr.Errors, mr.Uncontracted =
 		vr.Verified, vr.Counterexample, vr.Inconclusive, vr.Skipped, vr.Errors, vr.Uncontracted

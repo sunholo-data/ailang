@@ -42,6 +42,9 @@ type VerifyResult struct {
 	// not here is reached only where calls are not yet checked (a helper's
 	// body, a HOF lambda, unrolled recursion, a contract).
 	RequiresChecked []string `json:"requires_checked,omitempty"`
+	// Caveats qualify a result without changing its status (int64 overflow
+	// under the default int model, float inputs assumed non-NaN).
+	Caveats []Caveat `json:"caveats,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
@@ -67,6 +70,9 @@ type VerifyOptions struct {
 	// function with runtime contract checking (witness.go). A confirmed
 	// violation becomes a counterexample; anything else stays inconclusive.
 	Replay WitnessReplayer
+	// IntModel is verification.IntModelUnbounded (default: int64 overflow is
+	// a caveat) or verification.IntModelInt64 (overflow is a violation).
+	IntModel string
 }
 
 // VerifyReport is the outcome of Verify over one program.
@@ -191,7 +197,7 @@ func CountObligations(coreProg *core.Program) int {
 // (Z3Available) — the caller checks that up front so it can say how to
 // install it.
 func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]VerifyModule, opts VerifyOptions) *VerifyReport {
-	report := &VerifyReport{Evidence: verification.EncodedEvidence()}
+	report := &VerifyReport{Evidence: verification.EncodedEvidenceFor(opts.IntModel)}
 
 	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
 	adtResult := ExtractADTTypesWithRecords(surfaceAST)
@@ -625,8 +631,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			vr = uninterpretedUndecided(vr, encResult.Uninterpreted)
 		}
 		if vr.Status == "verified" && len(encResult.Obligations) > 0 {
-			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts.Verbose)
+			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts)
 		}
+		vr = floatCaveat(vr, encResult.SMTLib)
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)
 		}

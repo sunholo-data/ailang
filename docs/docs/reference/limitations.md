@@ -324,12 +324,15 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
   branch and `let` that reach them. Not yet checked: calls inside a helper's body (checked when that
   helper is itself verified), inside a lambda passed to `map`/`filter`/`foldl`, inside a recursive
   function's unrolled body, and inside `requires`/`ensures`.
-- **int64 overflow.** `inc(x) requires { x >= 0 } ensures { result > x } { x + 1 }` is `✓ VERIFIED`;
-  `ailang run` of `inc(9223372036854775807)` prints `-9223372036854775808`. `int` is proved as Z3's
-  unbounded `Int`. Every run says so on its `Scope:` line (`int=Int`, `runtime equivalence
-  not_established`).
-- **NaN.** `selfEq(x: float) ensures { result == true } { x == x }` is `✓ VERIFIED`; at runtime
-  `NaN == NaN` is false. `float` is Z3's `Real`.
+- **int64 overflow (reported on dev, 2026-11-24).** `inc(x) requires { x >= 0 } ensures { result > x }
+  { x + 1 }` is `✓ VERIFIED` with a note (`caveats: int_overflow`) showing `x = 9223372036854775807`;
+  `ailang run` of that input prints `-9223372036854775808`. By default the note does not change the
+  verdict or exit code; `ailang verify --int-model=int64` makes it a VIOLATION (`int_overflow`).
+  Arithmetic inside lambdas, recursion, helper bodies and contracts is not checked yet.
+- **NaN (partly closed on dev, 2026-11-24).** Float `/` and `%` by a possible zero, `sqrt` of a
+  possible negative and `log` of a possible non-positive are VIOLATIONS (`float_nan_or_inf`). Float
+  inputs are still assumed non-NaN: `selfEq(x: float) ensures { result == true } { x == x }` is
+  `✓ VERIFIED` (with caveat `float_inputs_assumed_non_nan`), while at runtime `NaN == NaN` is false.
 - **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1 (on dev, a *buggy* recursive or HOF function now gets a VIOLATION by witness replay; a correct unbounded one stays inconclusive).
   There is no induction: a recursive function is proved only when `requires` bounds its depth
   within the unrolling limit.
