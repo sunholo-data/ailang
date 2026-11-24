@@ -95,3 +95,37 @@ func TestDescribeASTType(t *testing.T) {
 		}
 	}
 }
+
+// TestExtractNestedRecordDecls: an inline record in a constructor payload is
+// declared wherever it sits in the field's type — directly, in a list (Json's
+// JObject([{key, value}])), in a type argument, or inside another record.
+// Before, only a field whose type WAS a record was declared, so Json failed
+// with `sort "Record_key_value" referenced in declaration of "Json" is not
+// declared` and every function touching Json skipped.
+func TestExtractNestedRecordDecls(t *testing.T) {
+	rec := func(fields ...*ast.RecordField) *ast.RecordType { return &ast.RecordType{Fields: fields} }
+	field := func(name string, ty ast.Type) *ast.RecordField { return &ast.RecordField{Name: name, Type: ty} }
+	simple := func(n string) ast.Type { return &ast.SimpleType{Name: n} }
+	ctor := func(name string, ty ast.Type) *ast.Constructor {
+		return &ast.Constructor{Name: name, Fields: []*ast.ConstructorField{{Type: ty}}}
+	}
+	file := &ast.File{Decls: []ast.Node{
+		&ast.TypeDecl{Name: "J", Definition: &ast.AlgebraicType{Constructors: []*ast.Constructor{
+			ctor("JObj", &ast.ListType{Element: rec(field("key", simple("string")), field("value", simple("J")))}),
+			ctor("JOpt", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{rec(field("n", simple("int")))}}),
+			ctor("JNest", rec(field("inner", rec(field("deep", simple("bool")))))),
+		}}},
+	}}
+	got := ExtractADTTypesWithRecords(file).RecordDecls
+	for _, want := range []string{"Record_key_value", "Record_n", "Record_inner", "Record_deep"} {
+		found := false
+		for _, d := range got {
+			if ExtractSortNameFromDecl(d) == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no declaration for %s in %v", want, got)
+		}
+	}
+}

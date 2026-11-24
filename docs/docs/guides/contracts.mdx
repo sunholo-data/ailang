@@ -713,6 +713,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 **Currently supported:**
 - `int`, `float` (as a mathematical real, not IEEE-754), `bool`, `string`, list, and enum/ADT parameters and return types
 - Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
+- Records nested anywhere in an ADT payload, including a list of records that refers back to the ADT, as in `std/json`'s `Json` (`JObject([{ key: string, value: Json }])`)
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=` — a contract is type-checked like a function body, so `==`/`!=` on an enum or other ADT needs `deriving (Eq)` on the type (`type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)`); without it `check` reports TC_CONTRACT_001 naming the type to change
 - Logical: `&&`, `||`, `!`

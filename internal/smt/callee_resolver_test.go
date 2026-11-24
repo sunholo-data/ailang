@@ -360,3 +360,42 @@ func TestIsSMTEncodableForCallee_Recursive(t *testing.T) {
 		t.Error("expected recursive function to NOT be encodable")
 	}
 }
+
+// The callee lists are sorted, so the same program always reports the same
+// cycle (A1). Before, collectCalleeCallsFromRoots and collectDirectCalls
+// returned map order and the downstream gap map named a different cycle for
+// 4-6 unchanged functions on every run.
+func TestCalleeCollection_DeterministicCycle(t *testing.T) {
+	call := func(name string, arg int64) core.CoreExpr {
+		return &core.App{Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "test", Name: name}}, Args: []core.CoreExpr{&core.Lit{Kind: core.IntLit, Value: arg}}}
+	}
+	pair := func(x, y core.CoreExpr) core.CoreExpr {
+		return &core.App{Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "add_Int"}}, Args: []core.CoreExpr{x, y}}
+	}
+	// root calls a, b, c, d; each calls the next two, closing several cycles.
+	bodies := map[string]core.CoreExpr{
+		"a": pair(call("b", 1), call("c", 1)),
+		"b": pair(call("c", 1), call("d", 1)),
+		"c": pair(call("d", 1), call("a", 1)),
+		"d": pair(call("a", 1), call("b", 1)),
+	}
+	metas := map[string]*core.DeclMeta{"a": pureMeta(), "b": pureMeta(), "c": pureMeta(), "d": pureMeta()}
+	prog := makeTestProgram(bodies, metas)
+	root := pair(pair(call("d", 1), call("c", 1)), pair(call("b", 1), call("a", 1)))
+	var first string
+	for i := 0; i < 50; i++ {
+		callees := collectCalleeCallsFromRoots([]core.CoreExpr{root}, "root", prog, nil)
+		_, err := topoSort(callees, "root", prog, nil)
+		if err == nil {
+			t.Fatal("expected a circular call error")
+		}
+		if i == 0 {
+			first = err.Error()
+		} else if err.Error() != first {
+			t.Fatalf("run %d reported %q, run 0 reported %q", i, err.Error(), first)
+		}
+	}
+	if !strings.Contains(first, "a → b → c → a") {
+		t.Errorf("sorted order should report a → b → c → a first, got %q", first)
+	}
+}

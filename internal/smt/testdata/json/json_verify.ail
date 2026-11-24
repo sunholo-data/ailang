@@ -1,0 +1,55 @@
+module json_verify
+
+-- std/json's Json holds JObject([{ key: string, value: Json }]): a record
+-- nested in a list that refers back to Json (TestJsonVerifies).
+
+import std/json (Json, JNull, JObject, JArray, JInt, asString, get)
+import std/string (length)
+import std/list (length as listLength)
+
+pure func nameOr(j: Json) -> string
+  ensures { length(result) >= 0 }
+{
+  match asString(j) { Some(s) => s, None => "" }
+}
+
+pure func nameBad(j: Json) -> string
+  ensures { length(result) > 0 }
+{
+  match asString(j) { Some(s) => s, None => "" }
+}
+
+pure func isNull(j: Json) -> bool
+  ensures { result == (j == JNull) }
+{
+  match j { JNull => true, _ => false }
+}
+
+pure func isNullBad(j: Json) -> bool
+  ensures { result == (j == JNull) }
+{
+  match j { JNull => true, JObject(_) => true, _ => false }
+}
+
+pure func emptyObjKey(j: Json) -> string
+  ensures { result != "x" }
+{
+  match j { JObject(kvs) => if listLength(kvs) == 0 then "" else "x", _ => "" }
+}
+
+-- A user ADT of the same shape.
+type Tree = Leaf(int) | Node([{ k: string, t: Tree }])
+
+pure func leafOr(t: Tree) -> int
+  requires { true }
+  ensures { result >= 0 || result < 0 }
+{
+  match t { Leaf(n) => n, Node(_) => 0 }
+}
+
+-- get walks the object with findIndex, which has no encoding yet.
+pure func hasA(j: Json) -> int
+  ensures { result >= 0 }
+{
+  match get(j, "a") { Some(_) => 1, None => 0 }
+}

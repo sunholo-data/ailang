@@ -73,10 +73,9 @@ func ExtractADTTypesWithRecords(file *ast.File) ADTExtraction {
 					Name: fieldName,
 					Sort: sortName,
 				})
-				// If this field is an inline record type, collect its declaration
-				if recType, ok := field.Type.(*ast.RecordType); ok {
-					collectRecordDeclFromAST(recType, &result, recordsSeen)
-				}
+				// Declare every inline record type in the field, including one
+				// nested in a list or type argument (Json's [{key, value}]).
+				collectNestedRecordDecls(field.Type, &result, recordsSeen)
 			}
 			variants = append(variants, variant)
 		}
@@ -111,11 +110,43 @@ func collectNamedRecordAlias(name string, recType *ast.RecordType, result *ADTEx
 		}
 	}
 
-	// Also check if any field is itself an inline record type that needs declaration
+	// Also declare inline record types inside its fields, at any depth.
 	for _, f := range recType.Fields {
-		if innerRec, ok := f.Type.(*ast.RecordType); ok {
-			collectRecordDeclFromAST(innerRec, result, seen)
+		collectNestedRecordDecls(f.Type, result, seen)
+	}
+}
+
+// collectNestedRecordDecls declares every inline record type that occurs in t:
+// t itself, a list or array element, a type argument, a tuple element, or a
+// field of another inline record. Cycle-safe: AST types are finite trees and
+// named types are not expanded.
+func collectNestedRecordDecls(t ast.Type, result *ADTExtraction, seen map[string]bool) {
+	switch ty := t.(type) {
+	case nil, *ast.SimpleType, *ast.TypeVar, *ast.FuncType:
+		return
+	case *ast.RecordType:
+		collectRecordDeclFromAST(ty, result, seen)
+		for _, f := range ty.Fields {
+			if f != nil {
+				collectNestedRecordDecls(f.Type, result, seen)
+			}
 		}
+	case *ast.ListType:
+		collectNestedRecordDecls(ty.Element, result, seen)
+	case *ast.ArrayType:
+		collectNestedRecordDecls(ty.Element, result, seen)
+	case *ast.TypeApp:
+		for _, a := range ty.Args {
+			collectNestedRecordDecls(a, result, seen)
+		}
+	case *ast.TupleType:
+		for _, e := range ty.Elements {
+			collectNestedRecordDecls(e, result, seen)
+		}
+	case *ast.LabelledType:
+		collectNestedRecordDecls(ty.Base, result, seen)
+	default:
+		panic(fmt.Sprintf("collectNestedRecordDecls: unhandled ast.Type %T", t))
 	}
 }
 

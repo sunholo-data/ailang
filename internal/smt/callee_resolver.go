@@ -334,11 +334,9 @@ func collectCalleeCallsFromRoots(roots []core.CoreExpr, selfName string, prog *c
 	for _, root := range roots {
 		collectCalleeCallsInner(root, selfName, prog, imported, seen, 0)
 	}
-	result := make([]string, 0, len(seen))
-	for name := range seen {
-		result = append(result, name)
-	}
-	return result
+	// Sorted, not map order: the callee order decides which cycle a skip
+	// names and the order define-funs are emitted (A1 determinism).
+	return sortedKeys(seen)
 }
 
 func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program, seen map[string]bool, xmodDepth int) {
@@ -502,11 +500,7 @@ func topoSort(callees []string, rootFunc string, prog *core.Program, imported ma
 func collectDirectCalls(body core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program) []string {
 	seen := make(map[string]bool)
 	collectDirectCallsInner(body, selfName, prog, imported, seen)
-	var result []string
-	for name := range seen {
-		result = append(result, name)
-	}
-	return result
+	return sortedKeys(seen)
 }
 
 func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program, seen map[string]bool) {
