@@ -18,7 +18,8 @@
 | M6 (witness replay) | **Landed on dev.** Each inconclusive model's inputs are run through the real function, using the property-test harness. A runtime ensures failure, with every requires holding, is a confirmed VIOLATION. Int/float/bool/string/list/record inputs are replayed; Option/ADT inputs are not yet. Corpus: 2 of 25 inconclusives became genuine violations (crew_core `ruleSource`: a missing `requires { label != "" }`; `yieldsOf`: `length(result) <= 4` is false for scenarios with more than four yields per recipe). 8 replays hit the contracts holding; 13 models were not convertible (let-terms, unsupported sorts). Induction is still open |
 | M5 (cont.) | **Landed on dev.** std/math: floor/ceil/round/abs/PI exact; sqrt/exp/pow/log/sin/cos uninterpreted with per-call IEEE-true facts, and a model over them is inconclusive (77 false counterexamples avoided in the corpus). take/drop encoded (they had never been reachable). `[]` under `let` is typed from the return sort. Replay reads let-terms and enum constructors. Corpus: **verified 748 → 840** |
 | M5 (strings) | **Landed on dev.** std/string trim/toLower/toUpper/split/chars/join/repeat/replace (uninterpreted, rune-exact facts) and charAt (exact). Encoder hygiene: `[]` sorted from its use, helper/unrolled parameters bound as `$a_`. An undecidable string/math encoding is a skip. Replay found docparse `csvParseLine` (`split("", "")` is `[]`). Corpus: **verified 840 → 872**, errors 5 → 2 |
-| M0, M3, M4 | Not started |
+| M0 (gap map) | **Landed on dev.** `make verify-gap-map` (`tools/verify-gap-map/`) verifies every contracted file in the `tools/downstream/corpora.yaml` corpora (the same inventory as `make downstream-check`), buckets status / normalised reason / blamed callee, type and builtin, reports the D1 blast radius from the new per-result `requires_callees` field, banks a snapshot and diffs against the last one. A status change in a file whose content hash changed is drift, never a regression. Snapshots bank to `~/.ailang/state/verify-gaps/`, not the repo: docparse, email-parse and daneel are private and a snapshot names their functions. See §M0 baseline |
+| M3, M4 | Not started (D1, D2, D4) |
 
 **Five-repo corpus, 2026-11-23 (1,840 obligations):**
 - Verified: 698 → **748**.
@@ -133,6 +134,24 @@ It banks `.ailang/state/verify-gaps/<date>.json` and diffs against the previous 
 shape as `make simplicity-audit`. This is the measurement every later milestone is accepted against.
 It also reports the D1 blast radius ahead of M3: the count of call sites whose callee has a `requires`.
 
+**M0 baseline (2026-11-24, v0.60.6-185, 8 corpora, 255 files).** This is the inventory corpus, not
+the ad-hoc five-repo corpus of the earlier rows (that one counted four worktree copies of docparse
+and a repo outside the inventory), so its numbers are not comparable with them. 765 contracted
+results: verified 590, counterexample 17, inconclusive 3, unknown 1, error 1, skipped 125,
+missing-postcondition 28; 880 uncontracted exports. All 16 counterexamples not confirmed by replay
+are deliberate (`examples/runnable/contracts` `broken*` demos and world's `refuted.ail` fixture); the
+17th is docparse `csvParseLine` (fix: ailang-parse#171). Largest skip buckets: a callee signature
+with a type variable or Option/Result (35), a callee whose own encoding is inadmissible (11), effects
+(10), and the S7 gate refusing stdlib name collisions such as `std/list.concat` against
+`std/bytes.concat` (12).
+
+**D1 blast radius, measured.** 20 results reach a callee whose `requires` is assumed: 11 VERIFIED,
+9 already skipped. Seven of the 11 are repo examples. The four downstream ones (deontic
+`interestFor`, `penaltyFor`; docparse `pdfTextLayerSparseCore`; daneel `offsetFor`) were read by
+hand: in each the caller's own `requires` (or the guarding branch) implies the callee's, so under
+D1(a) all four would still verify. D1(a) adds a checked obligation; on today's corpus it is not
+expected to flip any downstream proof.
+
 **M1 — Honesty fixes (1.5d; S7 is P0).**
 - S7 + S4, one systemic fix: key every callee lookup by `(module, name)` rather than the bare name. Sites:
   - `collectCalleeCallsInner` (`callee_resolver.go:252`, `seen[vg.Ref.Name]`)
@@ -227,7 +246,7 @@ After:   ✓ VERIFIED incrementAll  (bounded: depth 2)
 
 ## Success Criteria
 
-- [ ] M0: `make verify-gap-map` reproduces this doc's table (±5%) and banks a snapshot
+- [x] M0: `make verify-gap-map` banks a snapshot and diffs against the previous one. Re-based on the corpora.yaml inventory rather than reproducing the earlier ad-hoc corpus table (see §M0 baseline)
 - [ ] M1: the S7 two-module probe is VIOLATION ×20; the S4/S5/S6 probes and a sorted-order test pass; each is mutation-tested (revert the fix, watch its test fail)
 - [ ] M1: `make verify-examples` pins current verdicts and stays green. A mutation that changes any pinned verdict (e.g. makes `finance.ail`'s `brokenDiscount` SKIP) turns it red
 - [ ] M2: `hof_verify.ail` re-pinned to VERIFIED

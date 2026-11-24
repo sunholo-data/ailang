@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: worktree-sweep worktree-sweep-apply check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
+.PHONY: worktree-sweep worktree-sweep-apply check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast verify-gap-map perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint install-hooks
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -345,6 +345,10 @@ simplicity-audit: ## Weekly: re-measure, diff vs last banked snapshot, exit 2 on
 
 simplicity-audit-fast: ## Same, without the timed test-core run
 	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh --fast
+
+verify-gap-map: ## What `ailang verify` proves/skips across the downstream corpora; diff vs last snapshot, exit 2 on regression (AILANG=<bin> CORPORA=a,b ADD=name=dir JOBS= NOBANK=1)
+	@go build -o bin/verify-gap-map ./tools/verify-gap-map
+	@bin/verify-gap-map --ailang "$(or $(AILANG),ailang)" $(if $(CORPORA),--only "$(CORPORA)") $(if $(ADD),--add "$(ADD)") $(if $(JOBS),--jobs $(JOBS)) $(if $(NOBANK),--no-bank)
 
 check-architecture-closure: ## Check ARCHITECTURE.md's generated language-closure section is current (CI gate)
 	@/bin/bash scripts/gen_architecture_closure.sh --check

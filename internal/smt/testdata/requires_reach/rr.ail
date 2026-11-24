@@ -1,0 +1,50 @@
+module rr
+
+-- D1 blast radius fixture (M-VERIFY-SOUNDNESS-COVERAGE M0): which contracted
+-- functions reach a callee whose requires the verifier does not check.
+
+export pure func half(n: int) -> int
+  requires { n >= 0 }
+  ensures { result >= 0 }
+{
+  n / 2
+}
+
+export pure func double(n: int) -> int
+  ensures { result == n * 2 }
+{
+  n * 2
+}
+
+-- Direct call to a callee with a requires.
+export pure func direct(n: int) -> int
+  requires { n >= 10 }
+  ensures { result >= 5 }
+{
+  half(n)
+}
+
+-- Reaches half only through wrap.
+pure func wrap(n: int) -> int = half(n) + 1
+
+export pure func indirect(n: int) -> int
+  requires { n >= 0 }
+  ensures { result >= 1 }
+{
+  wrap(n)
+}
+
+-- Calls only a callee without a requires.
+export pure func plain(n: int) -> int
+  ensures { result == n * 2 + 1 }
+{
+  double(n) + 1
+}
+
+-- The requires-carrying callee appears only in the contract.
+export pure func inContract(n: int) -> int
+  requires { n >= 0 }
+  ensures { result >= half(n) }
+{
+  n
+}

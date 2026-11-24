@@ -33,6 +33,10 @@ type VerifyResult struct {
 	// WitnessReplayed marks a counterexample confirmed by running the function
 	// on the solver's inputs (its bounded model alone was inconclusive).
 	WitnessReplayed bool `json:"witness_replayed,omitempty"`
+	// RequiresCallees lists the reachable callees that have a requires clause,
+	// which the verifier assumes but does not check at the call (S1). It
+	// measures what decision D1 could change; it does not affect Status.
+	RequiresCallees []string `json:"requires_callees,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
@@ -649,6 +653,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		report.Uncontracted++
 	}
 
+	annotateRequiresCallees(report, coreProg, importedPrograms)
 	return report
 }
 
