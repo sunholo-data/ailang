@@ -115,6 +115,23 @@ real contracts that reach a verdict roughly doubles.
 ### Design Freeze
 
 - [x] D1 ruled 2026-11-24 by Mark: **(a)**, a checked obligation; a possible violation is a `counterexample` with reason code `requires_violation`. M3 design: [m-verify-call-site-requires.md](m-verify-call-site-requires.md)
+
+**D2/D4 measurements (2026-11-24, throwaway prototype on the M3 obligation channel, not committed).**
+Parameters are assumed valid for their type (an `int` is an int64; a `float` is not NaN), and only
+operations are checked, each as a path-scoped obligation.
+- *D2(a), int64:* every `int` `+ - *` must stay in [-2^63, 2^63-1]. Inventory (8 corpora): **64 of
+  590 VERIFIED change** (56 → counterexample, 7 → unknown, 1 → skipped), in every corpus: examples
+  21, daneel 11, world 10, ailang-parse 8, docparse 5, ailang-packages 5, motoko-fork 2, email-parse 2.
+  Stapledons physics (one copy per file): 4 of 55. Read by hand, each is a real wrap only at absurd
+  inputs (`pagesWithText * 10` at 9.2e17 pages; `price * ratePct` at a 4.6e18 price;
+  `day - deadline` at the int64 extremes); the fix is an upper bound in `requires`. A first run
+  without the parameter bound gave 71: unbounded `Int` parameters inflate the count.
+- *D4, floats:* the inventory has 12 verified results touching `Real` and none with a `float`
+  parameter. Stapledons: 38 of 55 unique verified results use floats, 36 take a float parameter,
+  28 divide. Checking float division by a possibly-zero divisor (the operation that makes ±Inf/NaN
+  from ordinary inputs) changes **0** proofs in either corpus: the divisors are already guarded.
+  Option (b) as written (any comparison on an unguarded float input is unproved) would reach up to
+  the 36 float-parameter proofs; (a) IEEE was not measured.
 - [ ] D2 ruled (blocks M4's int half)
 - [ ] D4 ruled (blocks M4's float half)
 - [x] D3: agent latitude, default (a)
