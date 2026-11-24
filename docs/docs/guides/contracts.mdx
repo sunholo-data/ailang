@@ -781,9 +781,11 @@ This overrides the global `--verify-recursive-depth` flag for that specific func
 When `map`, `filter`, or `foldl` are called with **literal lambda arguments**, the verifier automatically inlines them into recursive functions and applies bounded unrolling:
 
 ```ailang
+import std/list (map, length)
+
 export func incrementAll(xs: [int]) -> [int] ! {}
-ensures { listLength(result) >= 0 }
-{ map(\x -> x + 1, xs) }
+ensures { length(result) >= 0 }
+{ map(\x. x + 1, xs) }
 ```
 
 The lambda `\x -> x + 1` is specialized into a recursive `_map_spec_incrementAll` function over the list's real element sort, then unrolled three levels for Z3. `map`, `filter`, `foldl`, `any` and `flatMap` are specialized this way, over any element type (`[string]`, `[float]`, records).
@@ -829,6 +831,8 @@ Adding SMT verification to a mainstream language like Go or Python is extremely 
 In AILANG, every function declares its effects: `! {}` means pure, `! {IO}` means it does I/O. The SMT encoder checks one flag to know if a function is verifiable:
 
 ```ailang
+import std/io (println)
+
 -- Pure: SMT can verify this
 export func tax(income: int) -> int ! {}
 requires { income >= 0 }
@@ -839,7 +843,7 @@ ensures { result >= 0 }
 export func logAndTax(income: int) -> int ! {IO}
 requires { income >= 0 }
 ensures { result >= 0 }
-{ println(income); income * 20 / 100 }
+{ println(show(income)); income * 20 / 100 }
 ```
 
 In Go or Python, determining whether a function is pure requires **whole-program analysis** — tracing through every call to check for global writes, I/O, or mutation. This analysis is unsolvable in general for those languages. In AILANG, it's a single field lookup.

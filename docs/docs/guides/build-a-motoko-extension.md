@@ -146,7 +146,7 @@ ailang check types.ail   # should print "✓ No errors found!"
 
 Create `openkb.ail`:
 
-```ailang
+```ailang parse
 module sunholo/motoko_ext_openkb/openkb
 
 import std/process (exec, ProcessOutput)
@@ -188,7 +188,7 @@ export func make_hooks(workdir: string) -> ExtensionHooks ! {Env, FS} {
   {
     id: "openkb",                              -- becomes the dispatch key
     provided_tools: ["OpenKBSearch"],          -- tools your extension contributes
-    on_describe_tools: \_ . [/* tool schema */],
+    on_describe_tools: \_ . [],
     on_build_system_prompt: func(_ctx: ExtCtx) -> PromptPatch { { prepend: [], append: [] } },
     on_budget_plan: func(_ctx: ExtCtx, _plan: a) -> BudgetPatch ! {Env, FS} {
       { requested_total: None, requested_solver: None, requested_verifier: None }
@@ -209,7 +209,7 @@ export func make_hooks(workdir: string) -> ExtensionHooks ! {Env, FS} {
 
 Create `register.ail`:
 
-```ailang
+```ailang parse
 module sunholo/motoko_ext_openkb/register
 
 import std/env (getEnvOr)

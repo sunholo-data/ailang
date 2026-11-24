@@ -2,7 +2,8 @@
 sidebar_position: 2
 title: Vision
 description: AILANG as a symbolic reasoning kernel for neural program synthesis
-reviewBy: 2026-11-09
+reviewed: 2026-11-24
+reviewBy: 2027-05-24
 ---
 
 import Icon from '@site/src/components/Icon';
@@ -72,13 +73,18 @@ AILANG's design rests on five pillars that together form a coherent system for t
 
 **AILANG:**
 ```ailang
--- The type signature constrains what this function CAN do
-let processUser: User -> ! {DB} UserRecord =
-  \user. dbWrite(transformUser(user))
+import std/fs (writeFile)
+import std/string (toUpper)
 
--- This CANNOT compile - no DB capability granted
-let pureTransform: User -> UserRecord =
-  \user. dbWrite(user)  -- ERROR: Effect mismatch
+type User = { name: string }
+
+-- The type signature constrains what this function CAN do
+func saveUser(user: User) -> () ! {FS} {
+  writeFile("user.txt", toUpper(user.name))
+}
+
+-- Pure functions cannot perform FS or Net effects (type error if attempted)
+pure func formatUser(user: User) -> string = toUpper(user.name)
 ```
 
 **Why this matters for AI:**
@@ -143,11 +149,16 @@ ailang run --emit-trace jsonl --quiet --caps IO --entry main program.ail 2>/dev/
 AILANG eliminates ambient authority. Every capability must be explicitly declared:
 
 ```ailang
+import std/fs (readFile)
+import std/io (println)
+import std/string (toUpper)
+
 -- Declare: this function needs IO and FS, with bounded IO usage
-export func process(path: string) -> string ! {IO @limit=3, FS} =
-  let data = readFile(path)      -- FS capability required
-  let _ = println("Processing")  -- IO capability, budget: 1 of 3
-  transform(data)                -- Pure: no capability needed
+export func process(path: string) -> string ! {IO @limit=3, FS} {
+  let data = readFile(path);      -- FS capability required
+  println("Processing");          -- IO capability, budget: 1 of 3
+  toUpper(data)                   -- Pure: no capability needed
+}
 ```
 
 **Budget enforcement:**

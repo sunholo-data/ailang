@@ -17,12 +17,14 @@ Use `std/yaml` when a program needs to read a YAML source — a config file, a t
 Converts a YAML string to an equivalent JSON string. Returns `Ok(jsonString)` on success, `Err(message)` on failure.
 
 ```ailang
+import std/io (println)
 import std/yaml (yamlToJson)
-import std/result (Ok, Err)
 
-match yamlToJson("a: 1\nb: [x, y]\n") {
-  Ok(j)  => println(j),          -- {"a":1,"b":["x","y"]}
-  Err(e) => println("err: ${e}")
+func yamlToJsonDemo() -> () ! {IO} {
+  match yamlToJson("a: 1\nb: [x, y]\n") {
+    Ok(j)  => println(j),          -- {"a":1,"b":["x","y"]}
+    Err(e) => println("err: ${e}")
+  }
 }
 ```
 
@@ -31,17 +33,18 @@ match yamlToJson("a: 1\nb: [x, y]\n") {
 Decodes a YAML string into the `std/json` `Json` ADT. Equivalent to `yamlToJson` followed by `std/json.decode`, so the entire `std/json` accessor surface (`get`, `getString`, `getInt`, `asNumber`, …) works on the result.
 
 ```ailang
+import std/io (println)
 import std/yaml (decode)
 import std/json (getString)
-import std/option (Some, None)
-import std/result (Ok, Err)
 
-match decode("title: Fysik A\nyear: 2026\n") {
-  Ok(cat) => match getString(cat, "title") {
-    Some(t) => println("title: ${t}"),
-    None    => println("no title")
-  },
-  Err(e) => println("parse failed: ${e}")
+func decodeYamlDemo() -> () ! {IO} {
+  match decode("title: Fysik A\nyear: 2026\n") {
+    Ok(cat) => match getString(cat, "title") {
+      Some(t) => println("title: ${t}"),
+      None    => println("no title")
+    },
+    Err(e) => println("parse failed: ${e}")
+  }
 }
 ```
 

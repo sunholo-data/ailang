@@ -77,11 +77,15 @@ This means you can:
 Side effects are the #1 source of bugs in production systems. AILANG makes them visible:
 
 ```ailang
-let processFile: string -> ! {FS, IO} string =
-  \path.
-    let content = readFile(path)
-    let _ = print("Processing: ${path}")
-    transform(content)
+import std/fs (readFile)
+import std/io (print)
+import std/string (toUpper)
+
+export func processFile(path: string) -> string ! {FS, IO} {
+  let content = readFile(path);
+  print("Processing: ${path}");
+  toUpper(content)
+}
 ```
 
 The type signature tells you **exactly** what this function can do:
@@ -138,19 +142,18 @@ distinction part of the type:
 
 ```ailang
 -- Untrusted source, marked at the type level
-func fetchMail() -> string<email> ! {FS}
+func fetchMail() -> string<email> ! {FS} = "raw email body"
 
 -- Sink that refuses anything labelled <email>
-func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net} = ()
 
 -- Explicit declassifier — the only way to lower a label
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
-
--- ❌ Refused by the type system: <email> ↛ {not email}
-sendEmail(addr, fetchMail())
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} = "[sanitized]"
 
 -- ✅ Accepted: declassification is explicit and grep-able
-sendEmail(addr, sanitize(fetchMail()))
+-- (Passing fetchMail() directly to sendEmail is refused: <email> ↛ {not email})
+func forwardMail(addr: string) -> () ! {FS, Net, Declassify} =
+  sendEmail(addr, sanitize(fetchMail()))
 ```
 
 **Labels are open identifiers**, not a fixed vocabulary: `<pii>`, `<sql>`,

@@ -44,14 +44,22 @@ AILANG's semantic cache is designed for **decision/tool/result memoization** - a
 Two of these patterns in code — tool-result caching:
 
 ```ailang
+import std/bytes (toString)
+import std/clock (now)
+import std/process (exec)
+import std/sem (make_frame_at, store_frame, load_frame)
+
 -- Cache expensive tool results with SimHash key
-func cached_git_diff(commit: string) -> string ! {IO, SharedMem, SharedIndex} {
+func cached_git_diff(commit: string) -> string ! {Process, Clock, SharedMem} {
   let key = "tool:git_diff:${commit}";
   match load_frame(key) {
     Some(frame) => _bytes_to_string(frame.opaque),
     None => {
-      let result = _shell("git diff ${commit}");
-      let _ = store_frame(key, make_frame_at(key, "git diff ${commit}", _bytes_from_string(result), _clock_now(())));
+      let result = match exec("git", ["diff", commit]) {
+        Ok(out) => toString(out.stdout),
+        Err(_) => ""
+      };
+      let _ = store_frame(key, make_frame_at(key, "git diff ${commit}", _bytes_from_string(result), now()));
       result
     }
   }
@@ -61,15 +69,18 @@ func cached_git_diff(commit: string) -> string ! {IO, SharedMem, SharedIndex} {
 and atomic claim via CAS:
 
 ```ailang
-match update_frame("claim:${issue_sig}", \frame.
-  if frame.content == "unclaimed" then
-    {frame | content: "claimed:${agent_id}"}
-  else
-    frame  -- Already claimed, no change
-) {
-  Updated(_) => proceed_with_fix(),
-  Conflict(_) => skip_already_claimed(),
-  Missing => create_and_claim()
+import std/sem (update_frame, CASSuccess, CASConflict)
+
+func claim_issue(issue_sig: string, agent_id: string) -> bool ! {SharedMem} {
+  match update_frame("claim:${issue_sig}", \frame.
+    if frame.content == "unclaimed" then
+      {frame | content: "claimed:${agent_id}"}
+    else
+      frame  -- Already claimed, no change
+  , 3) {
+    CASSuccess => true,
+    CASConflict => false
+  }
 }
 ```
 
