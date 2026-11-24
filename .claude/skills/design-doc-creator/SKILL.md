@@ -486,9 +486,8 @@ The script creates a comprehensive template. Fill in:
 - Show before/after code or workflows
 - Make examples concrete and runnable
 
-**Success Criteria:**
-- Checkboxes for acceptance tests
-- Include "All tests passing" and "Documentation updated"
+**Success Criteria + Testing Strategy:**
+- Testing Strategy is a `TST-<TAG>-NN` table (level, Given/When/Then); each criterion names the IDs that prove it — rules in [resources/design_doc_structure.md](resources/design_doc_structure.md#testing-strategy)
 
 **Timeline:**
 - Week-by-week breakdown

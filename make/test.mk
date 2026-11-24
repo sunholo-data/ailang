@@ -100,6 +100,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_agy_lane.sh \
 	tools/launchd/test_pi_controller_note.sh \
 	.claude/skills/sprint-evaluator/scripts/test_ci_gate.sh \
+	.claude/skills/sprint-evaluator/scripts/test_check_acceptance_criteria.sh \
 	tools/launchd/test_mission_lane_check.sh \
 	tools/launchd/test_mission_routing.sh \
 	tools/launchd/test_spawn_pin_hook.sh \
@@ -142,6 +143,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh
 	@/bin/bash -n .claude/skills/sprint-planner/scripts/create_sprint_json.sh
 	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
+	@/bin/bash -n .claude/skills/sprint-evaluator/scripts/check_acceptance_criteria.sh
+	@/bin/bash -n .claude/skills/sprint-evaluator/scripts/test_check_acceptance_criteria.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
 	@/bin/bash -n tools/ci/require_checks.sh

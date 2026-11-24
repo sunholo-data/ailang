@@ -371,8 +371,8 @@ RegisterEffectBuiltin(BuiltinSpec{
 ```markdown
 ## Success Criteria
 
-- [ ] All builtins migrated to new registry
-- [ ] `ailang doctor builtins` validates registration
+- [ ] All builtins migrated to new registry — TST-BREG-01, TST-BREG-02
+- [ ] `ailang doctor builtins` validates registration — TST-BREG-03
 - [ ] Type Builder DSL reduces construction from 35→10 LOC
 - [ ] Development time measured at <3 hours for new builtin
 - [ ] All tests passing (90%+ coverage on new code)
@@ -385,6 +385,8 @@ RegisterEffectBuiltin(BuiltinSpec{
 **Tips:**
 - Use checkboxes
 - Make criteria objective and testable
+- Name the `TST-<TAG>-NN` IDs (from Testing Strategy) that prove each behavioural criterion —
+  a criterion that names an ID is checked by running that test; prose is scored as unverifiable
 - Include test coverage requirements
 - Always include "All tests passing"
 - Always include "Documentation updated"
@@ -471,35 +473,45 @@ a regression, not an intentional change.
 ```markdown
 ## Testing Strategy
 
-**Unit tests:**
-- Registry validation (invalid specs rejected)
-- Type Builder DSL (all type combinations)
-- Each builtin impl (hermetic, mocked effects)
+| ID | Level | Given / When / Then |
+|----|-------|---------------------|
+| TST-BREG-01 | unit | Given a spec with a missing arity, when it is registered, then registration fails naming the builtin |
+| TST-BREG-02 | unit | Given every builtin, when the registry loads, then each type built by the DSL equals its hand-written type |
+| TST-BREG-03 | integration | Given an unregistered impl, when `ailang doctor builtins` runs, then it exits 1 and names it |
+| TST-BREG-04 | integration | Given a pure builtin, when called 20× with map-shaped input, then output is identical every time (determinism) |
+| TST-BREG-05 | e2e | *(regression surface)* Given `examples/runnable/builtins_demo.ail` from v0.X, when run, then output is byte-identical |
 
-**Integration tests:**
-- End-to-end builtin calls from REPL
-- Cross-module builtin usage
-- Error propagation
-
-**Regression-surface tests** (REQUIRED if Conflict Surface section was filled in):
-- One test per "Programs that MUST still work" entry. Pin the exact
-  parse/typecheck/eval output (or AST snapshot). Failures here are
-  regressions, not test churn.
+**Regression-surface rows** (REQUIRED if Conflict Surface section was filled in):
+one ID per "Programs that MUST still work" entry, pinning the exact
+parse/typecheck/eval output (or AST snapshot). Failures here are regressions, not test churn.
 
 **Manual testing:**
 - Add new builtin in <3 hours
-- Run `ailang doctor builtins`
 - Check REPL `:type` output
 ```
 
-**Purpose**: Ensure quality and catch regressions.
+**Purpose**: Make every promised behaviour traceable from the doc to a test that can be run.
+The chain is: **TST row → test carrying the ID → acceptance criterion naming the ID →
+sprint-evaluator runs that test** (`check_acceptance_criteria.sh` greps the ID, finds the
+enclosing Go `Test*` function, runs it with `go test -run`). Adopted from the blueprint-spec
+`TST_*` tables (2026-11-24) — only this piece; we do not keep a global ID registry.
+
+**ID rules:**
+- `TST-<TAG>-NN`. TAG is 3–12 capitals/digits, unique to this doc — check
+  `grep -rn "TST-<TAG>-" .` is empty before claiming it. Number rows `01`, `02`, … and never
+  renumber; a dropped row leaves a gap.
+- The test carries the ID in a comment: `// TST-BREG-01` on the line above `func Test…` (Go),
+  `-- TST-BREG-01` in `.ail`, `# TST-BREG-01` in shell. One test may carry several IDs.
+- Manual checks get no ID — the evaluator cannot run them, so they must not be acceptance
+  criteria on their own.
 
 **Tips:**
-- Break into unit/integration/manual
-- List what each test level covers
-- Include acceptance tests
-- Specify coverage targets
-- Mention test files to create
+- **Write the surprising rule as the "then"**: "taking the last admin is allowed",
+  "unknown option key → `Err(SchemaValidation)`", "cancelled invite does not block a new one".
+  Those are what implementers get wrong and reviewers miss.
+- One observable outcome per row. If the "then" has an "and", it is probably two rows.
+- Level is `unit` / `integration` / `e2e` (e2e = a real `ailang run` or CLI invocation).
+- Specify coverage targets and test files to create alongside the table if useful
 
 ### Non-Goals
 

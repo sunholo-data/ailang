@@ -140,7 +140,7 @@ For each feature in sprint JSON:
 1. Read `acceptance_criteria` array
 2. Verify `passes: true` for each feature
 3. For file-related criteria, verify files exist
-4. For test-related criteria, verify test functions exist
+4. For criteria naming `TST-<TAG>-NN` IDs, find the test carrying each ID and run it (Go: the enclosing `Test*` via `go test -run`; `ACCEPTANCE_RUN_TESTS=0` falls back to the suite result). An ID no test carries is `missing`. Also lists design-doc TST rows no test carries yet (informational)
 5. Score: `(criteria_met / total_criteria) * 30 points`
 
 **HARD FAIL if fewer than 50% of acceptance criteria are met.**

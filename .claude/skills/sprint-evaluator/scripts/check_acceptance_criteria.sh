@@ -10,6 +10,8 @@
 #   - "make test ... pass"              → read AUTOMATED_TESTS_PASS env
 #   - "<file>.go has <X>"               → grep the file
 #   - "git tag present"                 → git tag | grep
+#   - names TST-<TAG>-NN IDs            → find the test carrying each ID, run it
+#                                         (Go: enclosing Test* via go test -run)
 #   - prose criteria with no verifiable anchor → "unverifiable"
 #
 # Each criterion becomes one of:
@@ -28,6 +30,8 @@ SPRINT_ID="${1:-}"
 # Optional env inputs from evaluate_sprint.sh:
 AUTOMATED_TESTS_PASS="${AUTOMATED_TESTS_PASS:-unknown}"
 AUTOMATED_LINT_CLEAN="${AUTOMATED_LINT_CLEAN:-unknown}"
+# 1 = run each Go test that carries a criterion's TST ID; 0 = trust AUTOMATED_TESTS_PASS.
+ACCEPTANCE_RUN_TESTS="${ACCEPTANCE_RUN_TESTS:-1}"
 
 if [ -z "$SPRINT_ID" ]; then
     echo "Usage: $0 <sprint-id>"
@@ -35,6 +39,7 @@ if [ -z "$SPRINT_ID" ]; then
     echo "Environment:"
     echo "  AUTOMATED_TESTS_PASS=true|false   (from evaluate_sprint.sh)"
     echo "  AUTOMATED_LINT_CLEAN=true|false   (from evaluate_sprint.sh)"
+    echo "  ACCEPTANCE_RUN_TESTS=1|0          (run tests named by TST IDs; default 1)"
     exit 1
 fi
 
@@ -52,6 +57,80 @@ echo "Mode: evaluator does NOT trust sprint JSON 'passes' field"
 echo ""
 
 # ────────────────────────────────────────────────────────────────
+# TST traceability (design doc Testing Strategy → test → criterion).
+# A test "carries" an ID by mentioning it, normally `// TST-X-01` above
+# `func TestX`. Doc/state trees are excluded so a plan that merely quotes
+# the ID does not count as a test. --untracked: a sprint's new tests may not
+# be committed yet when the evaluator runs.
+# ────────────────────────────────────────────────────────────────
+TST_ID_RE='TST-[A-Z][A-Z0-9]{2,11}-[0-9]{2,3}'
+TST_CACHE=$(mktemp)
+trap 'rm -f "$TST_CACHE"' EXIT
+
+tst_carriers() {  # <id> → "file:line" per carrying line
+    git grep --untracked -n -w -F -e "$1" -- . \
+        ':!design_docs' ':!docs' ':!changelogs' ':!.ailang' 2>/dev/null \
+        | cut -d: -f1,2 || true
+}
+
+# <file> <line> → name of the Go test the ID belongs to. A comment line
+# labels the next func (within 3 lines); an ID inside a body (t.Run name,
+# assertion message) belongs to the nearest func above it.
+go_test_for_line() {
+    awk -v L="$2" '
+        NR == L { is_comment = ($0 ~ /^[ \t]*\/\//) }
+        NR <= L && match($0, /^func Test[A-Za-z0-9_]*\(/) { before = substr($0, 6, RLENGTH - 6) }
+        NR > L && NR <= L + 3 && after == "" && match($0, /^func Test[A-Za-z0-9_]*\(/) { after = substr($0, 6, RLENGTH - 6) }
+        END { if (is_comment && after != "") print after; else print before }
+    ' "$1"
+}
+
+# <dir> <TestName> → met|missing, cached so a test shared by several IDs runs once.
+run_go_test() {
+    local key="$1|$2" hit
+    hit=$(grep -F "$key=" "$TST_CACHE" | head -1 | sed 's/.*=//' || true)
+    if [ -n "$hit" ]; then echo "$hit"; return; fi
+    local res=missing
+    if (cd "$1" && go test -count=1 -timeout 300s -run "^$2\$" . >/dev/null 2>&1); then res=met; fi
+    echo "$key=$res" >> "$TST_CACHE"
+    echo "$res"
+}
+
+# <id> → "met|<evidence>" / "missing|<evidence>" / "unverifiable|<evidence>"
+verify_tst_id() {
+    local id="$1" carriers first file line name dir res
+    carriers=$(tst_carriers "$id")
+    if [ -z "$carriers" ]; then
+        echo "missing|$id: no test carries it"
+        return
+    fi
+    # Prefer a Go test carrier; it is the one the checker can run.
+    first=$(echo "$carriers" | grep -E '_test\.go:' | head -1 || true)
+    if [ -n "$first" ] && [ "$ACCEPTANCE_RUN_TESTS" = "1" ]; then
+        file="${first%%:*}"; line="${first##*:}"
+        name=$(go_test_for_line "$file" "$line")
+        if [ -z "$name" ]; then
+            echo "unverifiable|$id: in $file:$line but no enclosing func Test*"
+            return
+        fi
+        dir=$(dirname "$file")
+        res=$(run_go_test "$dir" "$name")
+        if [ "$res" = "met" ]; then
+            echo "met|$id: $name passed (./$dir)"
+        else
+            echo "missing|$id: $name FAILED (./$dir)"
+        fi
+        return
+    fi
+    first=$(echo "$carriers" | head -1)
+    case "$AUTOMATED_TESTS_PASS" in
+        true)  echo "met|$id: carried by $first; suite green" ;;
+        false) echo "missing|$id: carried by $first; suite red" ;;
+        *)     echo "unverifiable|$id: carried by $first; not run here and no suite result" ;;
+    esac
+}
+
+# ────────────────────────────────────────────────────────────────
 # Criterion verification — returns one of: met / missing / unverifiable
 # plus a short evidence string.
 #
@@ -62,6 +141,26 @@ verify_criterion() {
     local c="$1"
     local lc
     lc=$(echo "$c" | tr '[:upper:]' '[:lower:]')
+
+    # ── TST traceability: the strongest anchor, checked first ──────
+    # Every named ID must be carried by a passing test.
+    local tst_ids
+    tst_ids=$(echo "$c" | grep -oE "$TST_ID_RE" | sort -u || true)
+    if [ -n "$tst_ids" ]; then
+        local any_missing=false any_unver=false ev="" r
+        while IFS= read -r tid; do
+            r=$(verify_tst_id "$tid")
+            case "${r%%|*}" in
+                missing) any_missing=true ;;
+                unverifiable) any_unver=true ;;
+            esac
+            ev="$ev ${r#*|};"
+        done <<< "$tst_ids"
+        if $any_missing; then echo "missing|$ev"
+        elif $any_unver; then echo "unverifiable|$ev"
+        else echo "met|$ev"; fi
+        return
+    fi
 
     # ── File existence claims ──────────────────────────────────────
     # "examples/foo.ail created", "examples/foo.ail and bar.ail created"
@@ -419,6 +518,32 @@ if [ "$CRITERIA_UNVERIFIABLE" -gt 0 ]; then
     echo ""
 fi
 
+# TST coverage (informational, not scored): rows promised in the design
+# doc's Testing Strategy that no test carries yet.
+DESIGN_DOC=$(jq -r '.design_doc // empty' "$SPRINT_FILE")
+TST_DECLARED=0
+TST_UNCOVERED_JSON=""
+if [ -n "$DESIGN_DOC" ] && [ -f "$DESIGN_DOC" ]; then
+    DOC_IDS=$(grep -oE "$TST_ID_RE" "$DESIGN_DOC" | sort -u || true)
+    if [ -n "$DOC_IDS" ]; then
+        UNCOVERED=""
+        while IFS= read -r tid; do
+            TST_DECLARED=$((TST_DECLARED + 1))
+            if [ -z "$(tst_carriers "$tid")" ]; then
+                UNCOVERED="$UNCOVERED $tid"
+                TST_UNCOVERED_JSON="$TST_UNCOVERED_JSON${TST_UNCOVERED_JSON:+,}\"$tid\""
+            fi
+        done <<< "$DOC_IDS"
+        echo "  TST coverage: $TST_DECLARED ID(s) in $DESIGN_DOC"
+        if [ -n "$UNCOVERED" ]; then
+            echo "    no test carries:$UNCOVERED"
+        else
+            echo "    every ID is carried by a test"
+        fi
+        echo ""
+    fi
+fi
+
 echo "--- CRITERIA_JSON_START ---"
 cat <<EOF
 {
@@ -434,6 +559,8 @@ cat <<EOF
   "criteria_pct": $CRITERIA_PCT,
   "criteria_score": $CRITERIA_SCORE,
   "hard_fail": $HARD_FAIL,
+  "tst_declared": $TST_DECLARED,
+  "tst_uncovered": [$TST_UNCOVERED_JSON],
   "features": [$FEATURE_JSON_FRAGS]
 }
 EOF

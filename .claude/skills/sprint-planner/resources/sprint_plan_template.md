@@ -46,8 +46,8 @@ For every implementable milestone, record the `ailang pkg search` terms, package
 - Day 3: [Specific actionable task]
 
 **Acceptance Criteria:**
-- [ ] [Measurable success criteria]
-- [ ] [Measurable success criteria]
+- [ ] [Behaviour] — TST-TAG-01, TST-TAG-02   ← IDs from the design doc's Testing Strategy table
+- [ ] [Measurable success criteria with a file/symbol/command anchor]
 - [ ] All tests passing
 - [ ] Linting clean
 

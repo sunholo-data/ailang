@@ -362,7 +362,8 @@ Task(
 
     **Step 2: Write FAILING tests FIRST**
     For each acceptance criterion in the milestone:
-    - Write a test that captures the expected behavior
+    - Write a test that captures the expected behavior; when the criterion names a `TST-<TAG>-NN`
+      ID, put `// TST-<TAG>-NN` on the line above the Go `func Test…` (the evaluator greps for it and runs that test)
     - Run the new tests (`go test ./<pkg>/... -run <Name>`) — confirm they FAIL
     - Do NOT proceed to implementation until you have failing tests
 

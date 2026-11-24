@@ -365,23 +365,30 @@ Before implementation begins, these must be resolved:
 
 ## Success Criteria
 
-- [ ] Criterion 1 (with acceptance test)
-- [ ] Criterion 2 (with acceptance test)
-- [ ] Criterion 3 (with acceptance test)
+- [ ] Criterion 1 — TST-TAG-01, TST-TAG-02
+- [ ] Criterion 2 — TST-TAG-03
 - [ ] All tests passing
 - [ ] Documentation updated
 - [ ] Examples added
 
 ## Testing Strategy
 
-**Unit tests:**
-- [What to test]
+<!-- Each behaviour gets a stable ID. The test that proves it carries the ID in a comment;
+     acceptance criteria name IDs, and sprint-evaluator finds and runs those tests.
+     TAG = 3-12 caps/digits, unique: `grep -rn "TST-TAG-" .` must be empty before you claim it.
+     State surprising rules outright ("an empty list is allowed", "unknown key → Err"). -->
 
-**Integration tests:**
-- [What to test]
+| ID | Level | Given / When / Then |
+|----|-------|---------------------|
+| TST-TAG-01 | unit | Given [state], when [action], then [observable result] |
+| TST-TAG-02 | integration | Given [state], when [action], then [observable result] |
+| TST-TAG-03 | e2e | Given [state], when [action], then [observable result] |
+
+**Regression surface** (required if the Conflict Surface section lists anything): one row per
+program that must still work.
 
 **Manual testing:**
-- [What to verify manually]
+- [What to verify manually — no ID; the evaluator cannot run it]
 
 ## Deferred Decisions
 
