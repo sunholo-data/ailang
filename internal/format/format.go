@@ -494,7 +494,7 @@ func startsWithStatementStarter(e ast.Expr) bool {
 // token of e when emitted at parentPrec.
 func startsWithStatementStarterAt(e ast.Expr, parentPrec int) bool {
 	switch n := e.(type) {
-	case *ast.Let, *ast.LetRec, *ast.If, *ast.Match, *ast.Identifier:
+	case *ast.Let, *ast.LetPattern, *ast.LetRec, *ast.If, *ast.Match, *ast.Identifier:
 		return true
 	case *ast.BinaryOp:
 		prec := binaryPrecedence(n.Op)
@@ -537,6 +537,9 @@ func (p *printer) blockStatement(e ast.Expr) error {
 	if let, ok := e.(*ast.Let); ok && let.Body == nil {
 		return p.statementLet(let)
 	}
+	if lp, ok := e.(*ast.LetPattern); ok && lp.Body == nil {
+		return p.statementLetPattern(lp)
+	}
 	if lr, ok := e.(*ast.LetRec); ok && lr.Body == nil {
 		return p.statementLetRec(lr)
 	}
@@ -554,6 +557,23 @@ func (p *printer) statementLet(let *ast.Let) error {
 	}
 	p.w.write(" = ")
 	return p.expr(let.Value, precLowest)
+}
+
+func (p *printer) statementLetPattern(lp *ast.LetPattern) error {
+	pat, err := p.patternString(lp.Pattern)
+	if err != nil {
+		return err
+	}
+	p.w.write("let " + pat)
+	if lp.Type != nil {
+		ts, err := p.typeString(lp.Type)
+		if err != nil {
+			return err
+		}
+		p.w.write(": " + ts)
+	}
+	p.w.write(" = ")
+	return p.expr(lp.Value, precLowest)
 }
 
 func (p *printer) statementLetRec(lr *ast.LetRec) error {

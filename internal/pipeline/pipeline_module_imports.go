@@ -195,6 +195,7 @@ func resolveModuleImports(
 
 		// Handle module alias: import std/list as List
 		// Add all exports with qualified names (List.map, List.filter, etc.)
+		// and all exported types with qualified names (S.Set, J.Json, M.Map, etc., M-SYNTAX-ERGONOMICS-V1 E2).
 		if imp.ModuleAlias != "" {
 			for name, item := range depIface.Exports {
 				qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, name)
@@ -205,6 +206,25 @@ func resolveModuleImports(
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Module alias %s.%s -> %s\n", imp.ModuleAlias, name, key)
 				}
+			}
+			for name := range depIface.Types {
+				qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, name)
+				imports.ExplicitTypes[qualifiedName] = types.TypeRef{Module: depIface.Module, Name: name}
+			}
+			for aliasName, aliasTarget := range depIface.TypeAliases {
+				importIfaceAlias(imports, depIface, aliasName, aliasTarget)
+				qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, aliasName)
+				if _, exists := imports.ExplicitTypes[qualifiedName]; !exists {
+					imports.ExplicitTypes[qualifiedName] = types.TypeRef{Module: depIface.Module, Name: aliasName}
+				}
+			}
+			// Builtin module-less collection types (Map, Array) live conceptually in std/map, std/array
+			// even though they are not declared via `export type` in those .ail files.
+			switch depIface.Module {
+			case "std/map":
+				imports.ExplicitTypes[imp.ModuleAlias+".Map"] = types.TypeRef{Module: "", Name: "Map"}
+			case "std/array":
+				imports.ExplicitTypes[imp.ModuleAlias+".Array"] = types.TypeRef{Module: "", Name: "Array"}
 			}
 		}
 	}

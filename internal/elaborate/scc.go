@@ -275,6 +275,10 @@ func findFreeReferences(expr ast.Expr, bound map[string]bool) []string {
 		refs = append(refs, findFreeReferences(ex.Value, bound)...)
 		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, ex.Name))...)
 
+	case *ast.LetPattern:
+		refs = append(refs, findFreeReferences(ex.Value, bound)...)
+		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, astPatternBinders(ex.Pattern)...))...)
+
 	case *ast.LetRec:
 		// A bodyless module letrec must retain its self-edge for LetRec emission.
 		scope := bound

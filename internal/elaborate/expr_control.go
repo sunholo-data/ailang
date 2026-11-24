@@ -207,6 +207,46 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 	}
 }
 
+// normalizeLetPattern desugars `let (a, b) = value in body` into a single-arm
+// core.Match on the elaborated tuple pattern (M-SYNTAX-ERGONOMICS-V1 E1).
+func (e *Elaborator) normalizeLetPattern(lp *ast.LetPattern) (core.CoreExpr, error) {
+	scrutinee, binds, err := e.normalizeToAtomic(lp.Value)
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := e.elaboratePattern(lp.Pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	var body core.CoreExpr
+	if lp.Body == nil {
+		body = &core.Lit{
+			CoreNode: e.makeNode(lp.Position()),
+			Kind:     core.UnitLit,
+			Value:    "()",
+		}
+	} else {
+		e.pushScope(corePatternBinders(pattern)...)
+		body, err = e.normalize(lp.Body)
+		e.popScope()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	matchExpr := &core.Match{
+		CoreNode:  e.makeNode(lp.Position()),
+		Scrutinee: scrutinee,
+		Arms: []core.MatchArm{{
+			Pattern: pattern,
+			Body:    body,
+		}},
+		Exhaustive: true,
+	}
+	return e.wrapWithBindings(matchExpr, binds), nil
+}
+
 // normalizeLetRec handles recursive let bindings
 // Syntax: letrec name = value in body
 func (e *Elaborator) normalizeLetRec(letrec *ast.LetRec) (core.CoreExpr, error) {
@@ -314,6 +354,28 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 				}
 			}
 			result = letNode
+		} else if lpExpr, ok := expr.(*ast.LetPattern); ok && lpExpr.Body == nil {
+			// Statement-form tuple destructuring inside a block (`let (a, b) = expr; <rest>`):
+			// desugar to a single-arm core.Match wrapping the rest of the block.
+			e.scope[frame] = boundBefore[i]
+			scrutinee, binds, err := e.normalizeToAtomic(lpExpr.Value)
+			if err != nil {
+				return nil, err
+			}
+			pattern, err := e.elaboratePattern(lpExpr.Pattern)
+			if err != nil {
+				return nil, err
+			}
+			matchExpr := &core.Match{
+				CoreNode:  e.makeNode(lpExpr.Position()),
+				Scrutinee: scrutinee,
+				Arms: []core.MatchArm{{
+					Pattern: pattern,
+					Body:    result,
+				}},
+				Exhaustive: true,
+			}
+			result = e.wrapWithBindings(matchExpr, binds)
 		} else if letrecExpr, ok := expr.(*ast.LetRec); ok && letrecExpr.Body == nil {
 			// Statement-form letrec inside a block (`letrec f = ...; <rest>`):
 			// thread the recursive binding into the continuation so the bound
@@ -398,6 +460,14 @@ func blockScopeSets(exprs []ast.Expr) []map[string]bool {
 		case *ast.Let:
 			if st.Body == nil {
 				name = st.Name
+			}
+		case *ast.LetPattern:
+			if st.Body == nil {
+				for _, b := range astPatternBinders(st.Pattern) {
+					if b != "" && b != "_" {
+						cur = withName(cur, b)
+					}
+				}
 			}
 		case *ast.LetRec:
 			if st.Body == nil {

@@ -386,6 +386,12 @@ func PrintAILANGSource(expr ast.Expr) string {
 		}
 		return fmt.Sprintf("let %s = %s in\n%s",
 			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	case *ast.LetPattern:
+		if e.Body == nil {
+			return fmt.Sprintf("let %s = %s", e.Pattern, PrintAILANGSource(e.Value))
+		}
+		return fmt.Sprintf("let %s = %s in\n%s",
+			e.Pattern, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
 	case *ast.LetRec:
 		if e.Body == nil {
 			return fmt.Sprintf("letrec %s = %s", e.Name, PrintAILANGSource(e.Value))

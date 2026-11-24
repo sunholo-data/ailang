@@ -37,6 +37,8 @@ func FoldBodyExprs(exprs []Expr) Expr {
 		case *Let:
 			// Clone to avoid mutating the parser's AST in place.
 			result = &Let{Name: e.Name, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
+		case *LetPattern:
+			result = &LetPattern{Pattern: e.Pattern, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
 		case *LetRec:
 			result = &LetRec{Name: e.Name, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
 		default:
@@ -183,6 +185,8 @@ func FoldTestBody(exprs []Expr) (Expr, []FoldedCheck) {
 			result = &If{Condition: e.Condition, Then: result, Else: intLit(ordinals[i], e.Pos), Pos: e.Pos}
 		case *Let:
 			result = &Let{Name: e.Name, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
+		case *LetPattern:
+			result = &LetPattern{Pattern: e.Pattern, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
 		case *LetRec:
 			result = &LetRec{Name: e.Name, Type: e.Type, Value: e.Value, Body: result, Pos: e.Pos}
 		default:
@@ -202,7 +206,7 @@ func FoldTestBody(exprs []Expr) (Expr, []FoldedCheck) {
 func hasBareNonFinal(exprs []Expr) bool {
 	for _, e := range exprs[:len(exprs)-1] {
 		switch e.(type) {
-		case *Let, *LetRec, *AssertStmt:
+		case *Let, *LetPattern, *LetRec, *AssertStmt:
 			continue
 		default:
 			return true
@@ -232,7 +236,7 @@ func containsAssertStmt(exprs []Expr) bool {
 // body, and a trailing `let` is a degenerate body with no value to check.
 func isCheck(e Expr) bool {
 	switch e.(type) {
-	case *Let, *LetRec:
+	case *Let, *LetPattern, *LetRec:
 		return false
 	default:
 		return true

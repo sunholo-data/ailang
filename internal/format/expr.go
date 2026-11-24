@@ -48,6 +48,8 @@ func (p *printer) expr(e ast.Expr, parentPrec int) error {
 		// (as a value expression) means it is an explicit let..in with a Body, or
 		// a malformed tree. Explicit let..in binds loosely, like a lambda.
 		return p.wrap(parentPrec, precLambda, func() error { return p.letIn(n) })
+	case *ast.LetPattern:
+		return p.wrap(parentPrec, precLambda, func() error { return p.letPatternIn(n) })
 	case *ast.LetRec:
 		return p.wrap(parentPrec, precLambda, func() error { return p.letRecIn(n) })
 	case *ast.Block:
@@ -262,6 +264,30 @@ func (p *printer) funcLit(n *ast.FuncLit) error {
 //     multi-line, one binding per line, interleaving the attached comments at their
 //     boundaries. The `in` is written BEFORE any trailing comment so a `--` comment
 //     cannot swallow syntax.
+func (p *printer) letPatternIn(n *ast.LetPattern) error {
+	pat, err := p.patternString(n.Pattern)
+	if err != nil {
+		return err
+	}
+	p.w.write("let " + pat)
+	if n.Type != nil {
+		ts, err := p.typeString(n.Type)
+		if err != nil {
+			return err
+		}
+		p.w.write(": " + ts)
+	}
+	p.w.write(" = ")
+	if err := p.expr(n.Value, precLowest); err != nil {
+		return err
+	}
+	if n.Body != nil {
+		p.w.write(" in ")
+		return p.expr(n.Body, precLowest)
+	}
+	return nil
+}
+
 func (p *printer) letIn(n *ast.Let) error {
 	if n.Body != nil && (p.hasAnyAttachment(n) || p.exceedsWidth(n, prefixLetIn)) {
 		return p.letChainMultiline(n)

@@ -85,7 +85,7 @@ func f(xs: [int]) -> int = match xs {
 func TestLetTupleDestructuringSuggestion(t *testing.T) {
 	input := `module test
 func f(p: (int, int)) -> int {
-  let (a, b) = p
+  letrec (a, b) = p
   a + b
 }`
 	p := New(lexer.New(input, "test.ail"))
@@ -98,6 +98,6 @@ func f(p: (int, int)) -> int {
 		}
 	}
 	if !found {
-		t.Errorf("expected PAR_LET_TUPLE with match suggestion; got: %v", p.Errors())
+		t.Errorf("expected PAR_LET_TUPLE with match suggestion for letrec tuple; got: %v", p.Errors())
 	}
 }

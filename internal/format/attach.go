@@ -245,6 +245,13 @@ func (a *attacher) walkExpr(e ast.Expr) {
 		}
 	case *ast.Let:
 		a.registerLetChainAndRecurse(v, -1)
+	case *ast.LetPattern:
+		if v.Value != nil {
+			a.walkExpr(v.Value)
+		}
+		if v.Body != nil {
+			a.walkExpr(v.Body)
+		}
 	case *ast.LetRec:
 		if v.Value != nil {
 			a.walkExpr(v.Value)

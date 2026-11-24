@@ -54,10 +54,11 @@ func (p *Parser) parseInfixTail(leftExp ast.Expr, precedence int) ast.Expr {
 			return leftExp
 		}
 
-		// M-GAP2: Break the infix loop when LPAREN appears on a new line
-		// This prevents `expr\n(next)` from being parsed as `expr(next)`
-		// The LPAREN on a new line should start a new statement, not continue the previous one
-		if p.peekToken.Type == lexer.LPAREN && p.peekToken.Line > p.curToken.Line {
+		// M-GAP2 / M-SYNTAX-ERGONOMICS-V1 (E3): Break the infix loop when LPAREN or UNIT
+		// appears on a new line. This prevents `expr\n(next)` or `expr\n()` from being
+		// parsed as a curried/zero-arg call; on a new line they begin a new statement
+		// (e.g. a block-ending tuple `(a, b)`, parenthesized expr, or unit `()`).
+		if (p.peekToken.Type == lexer.LPAREN || p.peekToken.Type == lexer.UNIT) && p.peekToken.Line > p.curToken.Line {
 			return leftExp
 		}
 
@@ -112,17 +113,7 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	}
 
 	if p.peekTokenIs(lexer.LPAREN) {
-		p.errors = append(p.errors, NewSuggestionError(
-			"PAR_LET_TUPLE",
-			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
-			p.peekToken,
-			"tuple destructuring in 'let' bindings (let (a, b) = ...) is not supported",
-			[]string{
-				"Use pattern matching instead: match expr { (a, b) => ... }",
-			},
-			"https://ailang.sunholo.com/docs/reference/language-syntax",
-		))
-		return nil
+		return p.parseLetTuplePattern(let.Pos)
 	}
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
@@ -179,6 +170,86 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	return let
 }
 
+// parseLetTuplePattern parses `let (p1, p2, ...) = value [in body]`
+// (M-SYNTAX-ERGONOMICS-V1 E1). Only irrefutable tuple patterns (identifiers,
+// wildcards, and nested tuples of those) are accepted; refutable patterns
+// direct the user to `match`.
+func (p *Parser) parseLetTuplePattern(startPos ast.Pos) ast.Expr {
+	p.nextToken() // move onto LPAREN
+	patPos := p.curPos()
+	pat := p.parsePattern()
+	if !isIrrefutableTuplePattern(pat) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_LET_PATTERN",
+			patPos,
+			p.curToken,
+			"only irrefutable tuple patterns like 'let (a, b) = ...' are allowed in 'let' bindings",
+			[]string{
+				"Use variables, '_', and nested tuples: let (a, (b, _)) = expr",
+				"For refutable patterns (constructors, literals, lists), use 'match expr { ... }'",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
+
+	lp := &ast.LetPattern{
+		Pattern: pat,
+		Pos:     startPos,
+	}
+
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken()
+		p.nextToken()
+		lp.Type = p.parseType()
+		if lp.Type == nil {
+			lp.Type = &ast.SimpleType{Name: "unknown", Pos: p.curPos()}
+		}
+	}
+
+	if !p.expectPeek(lexer.ASSIGN) {
+		return lp
+	}
+	p.nextToken()
+	lp.Value = p.parseExpression(LOWEST)
+	if lp.Value == nil {
+		lp.Value = &ast.Error{Pos: p.curPos()}
+	}
+
+	if p.peekTokenIs(lexer.IN) {
+		p.nextToken()
+		p.nextToken()
+		lp.Body = p.parseExpression(LOWEST)
+		if lp.Body == nil {
+			lp.Body = &ast.Error{Pos: p.curPos()}
+		}
+	}
+
+	return lp
+}
+
+// isIrrefutableTuplePattern reports whether pat is a tuple pattern of ≥2 elements
+// whose elements are all irrefutable (identifiers, wildcards, or nested tuples).
+func isIrrefutableTuplePattern(pat ast.Pattern) bool {
+	tp, ok := pat.(*ast.TuplePattern)
+	if !ok || len(tp.Elements) < 2 {
+		return false
+	}
+	for _, el := range tp.Elements {
+		switch el.(type) {
+		case *ast.Identifier, *ast.WildcardPattern:
+			continue
+		case *ast.TuplePattern:
+			if !isIrrefutableTuplePattern(el) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (p *Parser) parseLetRecExpression() ast.Expr {
 	letrec := &ast.LetRec{
 		Pos: p.curPos(),
@@ -189,9 +260,9 @@ func (p *Parser) parseLetRecExpression() ast.Expr {
 			"PAR_LET_TUPLE",
 			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
 			p.peekToken,
-			"tuple destructuring in 'let' bindings (let (a, b) = ...) is not supported",
+			"tuple destructuring in 'letrec' bindings is not supported",
 			[]string{
-				"Use pattern matching instead: match expr { (a, b) => ... }",
+				"Use 'let (a, b) = expr' for non-recursive tuple destructuring, or 'match expr { (a, b) => ... }'",
 			},
 			"https://ailang.sunholo.com/docs/reference/language-syntax",
 		))
@@ -366,6 +437,18 @@ func (p *Parser) parseCase() *ast.Case {
 				[]string{
 					"Wrap the match arm body in braces: pattern => { let x = ...; ... }",
 					"Or use an expression body with 'in': pattern => let x = ... in ...",
+				},
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
+			))
+		} else if lpExpr, ok := c.Body.(*ast.LetPattern); ok && lpExpr.Body == nil {
+			p.errors = append(p.errors, NewSuggestionError(
+				"PAR_MATCH_ARM_BLOCK",
+				lpExpr.Pos,
+				p.curToken,
+				"multi-statement match arm requires braces '{ ... }' (or 'let ... in ...')",
+				[]string{
+					"Wrap the match arm body in braces: pattern => { let (a, b) = ...; ... }",
+					"Or use an expression body with 'in': pattern => let (a, b) = ... in ...",
 				},
 				"https://ailang.sunholo.com/docs/reference/language-syntax",
 			))

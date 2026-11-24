@@ -1,0 +1,58 @@
+module examples/tests/syntax_ergonomics_v1_test
+
+import std/list (mapAccumL)
+import std/map as M
+import std/set as S
+
+-- E1 + E3: let (a, b) = expr + block-ending tuple/record without ';'
+pure func swapPair(p: (int, string)) -> (string, int) {
+  let (n, s) = p
+  (s, n)
+}
+
+pure func nestedTuple(t: (int, (int, int))) -> int {
+  let (a, (b, _)) = t
+  a + b
+}
+
+pure func exprFormTuple(p: (int, int)) -> int =
+  let (x, y) = p in x * 10 + y
+
+pure func bumpRecord(r: {a: int, b: int}) -> {a: int, b: int} {
+  let next = r.a + 1
+  {r | a: next}
+}
+
+-- E2: Module-qualified type names S.Set[int] and M.Map[string, int]
+pure func addScore(m: M.Map[string, int], k: string, v: int) -> M.Map[string, int] =
+  M.insert(m, k, v)
+
+pure func addPoint(seen: S.Set[(int, int)], pt: (int, int)) -> S.Set[(int, int)] =
+  S.insert(seen, pt)
+
+test "let tuple destructuring block form" {
+  swapPair((42, "ok")) == ("ok", 42)
+}
+
+test "let tuple destructuring nested with wildcard" {
+  nestedTuple((10, (20, 99))) == 30
+}
+
+test "let tuple destructuring expression in form" {
+  exprFormTuple((3, 7)) == 37
+}
+
+test "let tuple destructuring with mapAccumL" {
+  let (prefix, total) = mapAccumL(\acc x. (acc + x, acc + x), 0, [1, 2, 3])
+  total == 6 && prefix == [1, 3, 6]
+}
+
+test "newline block record update without semicolon" {
+  bumpRecord({a: 4, b: 9}).a == 5
+}
+
+test "qualified type names S.Set and M.Map" {
+  let m = addScore(M.empty(), "alice", 10)
+  let s = addPoint(S.empty(), (1, 2))
+  M.size(m) == 1 && S.member(s, (1, 2))
+}

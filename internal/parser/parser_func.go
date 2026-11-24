@@ -402,7 +402,24 @@ func (p *Parser) peekStartsNewlineBlockStatement() bool {
 	if p.peekToken.Line <= p.curToken.Line {
 		return false
 	}
-	return p.peekStartsBlockStatement() || p.peekIsLiteralStatementStart()
+	return p.peekStartsBlockStatement() || p.peekIsLiteralStatementStart() || p.peekIsDelimiterStatementStart()
+}
+
+// peekIsDelimiterStatementStart reports whether the peek token is a composite
+// literal / grouping opener that cannot continue the previous expression across
+// a newline (M-SYNTAX-ERGONOMICS-V1 E3):
+//   - `(` / `()` — parseInfixTail breaks on newline LPAREN/UNIT, so a new-line
+//     `(a, b)`, `(a + b) * c`, or `()` is unambiguously a new statement.
+//   - `{` / `[` — neither is an infix operator in AILANG, so a new-line record
+//     literal `{a: 1}`, record update `{r | a: x}`, block, or list `[1, 2]`
+//     unambiguously starts a new statement.
+func (p *Parser) peekIsDelimiterStatementStart() bool {
+	switch p.peekToken.Type {
+	case lexer.LPAREN, lexer.UNIT, lexer.LBRACE, lexer.LBRACKET:
+		return true
+	default:
+		return false
+	}
 }
 
 // peekIsLiteralStatementStart reports whether the peek token is a literal that can

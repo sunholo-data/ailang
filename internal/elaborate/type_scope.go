@@ -2,6 +2,7 @@ package elaborate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -81,6 +82,11 @@ func (e *Elaborator) typeCon(name string, pos ast.Pos) *types.TCon {
 		e.ensureTypeScope(nil)
 	}
 	r, err := e.typeScope.Lookup(name)
+	// A module-qualified type (`Alias.Type`, M-SYNTAX-ERGONOMICS-V1 E2) must resolve
+	// through an imported module alias; never silently turn it into an opaque local type.
+	if err == nil && e.typeScopeImports && strings.Contains(name, ".") && !e.typeScope.Declares(name) {
+		err = fmt.Errorf("TC_UNKNOWN_QUALIFIED_TYPE: unknown qualified type '%s' (check module alias import and exported type name)", name)
+	}
 	// Only an installed scope knows the imports; a file-derived one cannot
 	// tell an imported type from a value, so it reports nothing.
 	if err == nil && e.typeScopeImports && isLowerName(name) && !e.typeScope.Declares(name) {

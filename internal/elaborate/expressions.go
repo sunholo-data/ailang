@@ -101,6 +101,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Let:
 		return e.normalizeLet(ex)
 
+	case *ast.LetPattern:
+		return e.normalizeLetPattern(ex)
+
 	case *ast.LetRec:
 		return e.normalizeLetRec(ex)
 

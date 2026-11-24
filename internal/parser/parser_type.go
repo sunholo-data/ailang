@@ -20,14 +20,25 @@ func (p *Parser) parseType() ast.Type {
 		return p.parseRecordTypeExpr()
 
 	case lexer.IDENT:
-		// Simple type or type variable
+		// Simple type, module-qualified type (Alias.Type), or type variable
 		name := p.curToken.Literal
 		startPos := p.curPos()
+		qualified := false
+		if p.peekTokenIs(lexer.DOT) {
+			p.nextToken() // move to DOT
+			if !p.expectPeek(lexer.IDENT) {
+				return nil
+			}
+			name = name + "." + p.curToken.Literal
+			qualified = true
+		}
 
-		// Check for type application: List[int], Array[T], Option[a], etc.
+		// Check for type application: List[int], Array[T], Option[a], S.Set[int], etc.
 		if p.peekTokenIs(lexer.LBRACKET) {
-			// A type parameter cannot be applied (no higher-kinded types).
-			p.checkTypeParamNotApplied(name, startPos)
+			if !qualified {
+				// A type parameter cannot be applied (no higher-kinded types).
+				p.checkTypeParamNotApplied(name, startPos)
+			}
 			p.nextToken() // consume IDENT
 			p.nextToken() // consume LBRACKET
 
@@ -64,6 +75,11 @@ func (p *Parser) parseType() ast.Type {
 			goto checkArrow
 		}
 
+		// A qualified type (Alias.Type) is always a concrete type constructor, never a type var.
+		if qualified {
+			typ = &ast.SimpleType{Name: name, Pos: startPos}
+			goto checkArrow
+		}
 		// A type variable or a type: decided by scope, not by case
 		// (parser_type_names.go, #2211/#2240).
 		typ = p.typeNameNode(name, startPos)
