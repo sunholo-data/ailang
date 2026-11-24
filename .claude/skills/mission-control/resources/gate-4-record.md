@@ -8,6 +8,8 @@ For every public bucket, repository, or issue/PR comment or attachment, scan the
 bytes in its own tool call with `/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_evidence_secret_scan.sh" <paths>`.
 Use the pinned driver root from sibling repositories and scratch worktrees too. Scan the staged
 or committed Git evidence bytes, the final saved GitHub prose you will submit, or the finished archive.
+The scan matches literal values only (excluding encoded, split, or base64 values) and scans only tar,
+tar.gz/tgz, and zip archives, failing closed on other compressed formats.
 Read the exit status and final line. Require rc 0, `verdict=clean`, `hits=0`, and `control=ok`
 before a separate, later publish call. Rescan after any byte change. Withhold publication on a
 missing helper, rc 1 or 2, a missing verdict, or a failed control. Report only safe status and

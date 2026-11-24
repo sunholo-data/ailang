@@ -69,6 +69,12 @@ ASSIGNMENT = re.compile(rb"(?:export[ \t]+)?([a-zA-Z_][a-zA-Z0-9_]*)=(.*)")
 NOFOLLOW = os.O_NOFOLLOW | os.O_NONBLOCK
 TAR_BLOCK = tarfile.BLOCKSIZE
 ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08", b"PK\x06\x06")
+UNSUPPORTED_SIGNATURES = (
+    b"BZh",  # bzip2
+    b"\xfd7zXZ\x00",  # xz
+    b"\x28\xb5\x2f\xfd",  # zstd
+    b"7z\xbc\xaf\x27\x1c",  # 7z
+)
 
 
 @contextmanager
@@ -131,6 +137,8 @@ def match_stream(stream, inventory, prefix=b"", expected_size=None):
 
 
 def archive_kind(name, prefix):
+    if prefix.startswith(UNSUPPORTED_SIGNATURES):
+        raise ValueError("unsupported compression")
     if prefix.startswith(b"\x1f\x8b"):
         return "gzip"
     if prefix.startswith(ZIP_SIGNATURES):
@@ -326,6 +334,7 @@ class Scan:
 
     def scan_entry(self, parent, name, path):
         try:
+            self.record(path, matching_keys(name, self.inventory), regular=False)
             metadata = os.stat(name, dir_fd=parent, follow_symlinks=False)
             if stat.S_ISDIR(metadata.st_mode):
                 self.scan_directory(parent, name, path)

@@ -298,8 +298,37 @@ arm_output_guard() {
   run_helper "name-$hidden" $'line\nbreak'
   expected_rc output-guard-rc 1
   finding redacted-path 'LEAK key=CONTROL_TOKEN path=[redacted]'
+  finding redacted-name 'LEAK key=PATH_TOKEN path=[redacted]'
   finding escaped-path 'LEAK key=CONTROL_TOKEN path=line\u000abreak'
-  verdict output-guard-verdict LEAK 2 2 2 ok
+  verdict output-guard-verdict LEAK 2 2 3 ok
+}
+
+# Kills skipping filesystem entry name matching while still scanning file contents.
+arm_name_value() {
+  begin_case
+  control_export
+  printf 'PATH_TOKEN=%s\n' "$hidden" >> "$exports"
+  mkdir -p "$fixture/dn" "$fixture/tree/sub-$hidden" || exit 2
+  : > "$fixture/f-$hidden"
+  : > "$fixture/dn/f-$hidden"
+  : > "$fixture/tree/sub-$hidden/clean"
+
+  run_helper "f-$hidden"
+  expected_rc input-name-rc 1
+  finding input-name-finding 'LEAK key=PATH_TOKEN path=[redacted]'
+  verdict input-name-verdict LEAK 2 1 1 ok
+  finish_case
+
+  run_helper dn
+  expected_rc child-file-name-rc 1
+  finding child-file-name-finding 'LEAK key=PATH_TOKEN path=[redacted]'
+  verdict child-file-name-verdict LEAK 2 1 1 ok
+  finish_case
+
+  run_helper tree
+  expected_rc child-directory-name-rc 1
+  finding child-directory-name-finding 'LEAK key=PATH_TOKEN path=[redacted]'
+  verdict child-directory-name-verdict LEAK 2 1 1 ok
 }
 
 arm_interrupted() {
@@ -355,6 +384,8 @@ write_archive_fixtures() {
   python3 -I -B - "$fixture" "$1" <<'PYTHON'
 import gzip
 import io
+import shutil
+import subprocess
 import sys
 import tarfile
 import warnings
@@ -413,6 +444,24 @@ elif scenario == "nested":
             ("renamed-gzip.bin", gzip.compress(make_tar([("safe.txt", b"clean")]))),
         ])
     )
+elif scenario == "compressed-unsupported":
+    plain_tar = make_tar([leaking])
+    for tool, suffix, magic in [("bzip2", "bz2", b"BZh"), ("xz", "xz", b"\xfd7zXZ\x00")]:
+        compressor = shutil.which(tool)
+        for name, payload in [("plain", secret * 64), ("bundle.tar", plain_tar)]:
+            if compressor:
+                data = subprocess.run(
+                    [compressor, "-c"], input=payload, check=True, capture_output=True
+                ).stdout
+            else:
+                data = magic + payload
+            (root / f"{name}.{suffix}").write_bytes(data)
+    (root / "frame.zst").write_bytes(b"\x28\xb5\x2f\xfdopaque")
+    (root / "archive.7z").write_bytes(b"7z\xbc\xaf\x27\x1copaque")
+    renamed = (root / "plain.xz").read_bytes()
+    (root / "renamed.bin").write_bytes(renamed)
+    (root / "member.tar").write_bytes(make_tar([("renamed.bin", renamed)]))
+    (root / "member.zip").write_bytes(make_zip([("renamed.bin", renamed)]))
 elif scenario == "bad":
     (root / "bad.tar").write_bytes(b"not an archive")
     (root / "short-end.tar").write_bytes(make_tar([leaking])[:1536])
@@ -496,6 +545,21 @@ arm_nested_archive() {
   done
 }
 
+# Kills dropping the unsupported-compression magic check from archive detection.
+arm_compressed_unsupported() {
+  local artifact
+  begin_case
+  control_export
+  write_archive_fixtures compressed-unsupported || exit 2
+  for artifact in plain.bz2 plain.xz bundle.tar.bz2 bundle.tar.xz frame.zst archive.7z \
+    renamed.bin member.tar member.zip; do
+    run_helper "$artifact"
+    expected_rc "unsupported-$artifact-rc" 2
+    verdict "unsupported-$artifact-verdict" instrument-failure 1 0 0 ok
+    finish_case
+  done
+}
+
 arm_bad_archive() {
   local archive scanned hits
   for archive in bad.tar short-end.tar bad-trailer.tgz missing-trailer.tgz missing-end.zip crc.zip; do
@@ -535,8 +599,8 @@ arm_archive_links() {
 }
 
 arms=(clean-dir file-value env-only make-dump short-value zero-values control
-  unreadable-path symlinked-prefix invalid-inputs output-guard interrupted tar tgz zip nested-archive
-  bad-archive member-name archive-links)
+  unreadable-path symlinked-prefix invalid-inputs output-guard name-value interrupted tar tgz zip
+  nested-archive compressed-unsupported bad-archive member-name archive-links)
 failures=0
 ran=0
 for arm in "${arms[@]}" broken-matcher; do
