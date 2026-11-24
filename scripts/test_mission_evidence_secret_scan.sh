@@ -219,6 +219,38 @@ arm_unreadable_path() {
   verdict missing-path-precedence instrument-failure 1 1 1 ok
 }
 
+arm_symlinked_prefix() {
+  begin_case
+  control_export
+  mkdir "$fixture/real" || exit 2
+  printf 'clean\n' > "$fixture/real/clean.txt"
+  printf '%s\n' "$control" > "$fixture/real/leak.txt"
+  ln -s real "$fixture/alias" || exit 2
+
+  # Kills restoring O_NOFOLLOW on prefix components (prefix would return 2).
+  run_helper alias/clean.txt
+  expected_rc symlinked-prefix-clean-rc 0
+  verdict symlinked-prefix-clean clean 1 1 0 ok
+  finish_case
+
+  run_helper alias/leak.txt
+  expected_rc symlinked-prefix-leak-rc 1
+  finding symlinked-prefix-leak-finding 'LEAK key=CONTROL_TOKEN path=alias/leak.txt'
+  verdict symlinked-prefix-leak LEAK 1 1 1 ok
+  finish_case
+
+  # Kills following the final component (link would return 0).
+  ln -s clean.txt "$fixture/alias/link.txt" || exit 2
+  run_helper alias/link.txt
+  expected_rc final-symlink-rc 2
+  verdict final-symlink instrument-failure 1 0 0 ok
+  finish_case
+
+  run_helper real/
+  expected_rc in-tree-symlink-rc 2
+  verdict in-tree-symlink instrument-failure 1 2 1 ok
+}
+
 arm_invalid_inputs() {
   begin_case
   control_export
@@ -503,7 +535,7 @@ arm_archive_links() {
 }
 
 arms=(clean-dir file-value env-only make-dump short-value zero-values control
-  unreadable-path invalid-inputs output-guard interrupted tar tgz zip nested-archive
+  unreadable-path symlinked-prefix invalid-inputs output-guard interrupted tar tgz zip nested-archive
   bad-archive member-name archive-links)
 failures=0
 ran=0

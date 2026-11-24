@@ -199,13 +199,14 @@ def safe_name(raw, inventory):
 
 @contextmanager
 def input_parent(path):
-    # Walk explicit path components too, so a symlink cannot hide in a prefix.
+    # Follow the explicit parent prefix as the publisher does, pinning each directory.
+    # The final name is still checked and opened without following symlinks.
     root = b"/" if path.startswith(b"/") else b"."
     parts = [part for part in path.split(b"/") if part]
     fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
     try:
         for part in parts[:-1]:
-            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | NOFOLLOW, dir_fd=fd)
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NONBLOCK, dir_fd=fd)
             os.close(fd)
             fd = child
         yield fd, parts[-1] if parts else root
