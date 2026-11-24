@@ -98,6 +98,22 @@ export pure func range(start: int, end: int) -> [int] = _list_range(start, end)
 -- Delegates to the iterative builtin to avoid recursion-depth failures on large n.
 export pure func drop[a](n: int, xs: [a]) -> [a] = _list_drop(n, xs)
 
+-- takeWhile: Take the longest prefix of xs whose elements satisfy p.
+-- Iterative O(n) via _list_findIndex + _list_take (short-circuits on first false).
+export pure func takeWhile[a](p: a -> bool, xs: [a]) -> [a] =
+  match _list_findIndex(\x. not p(x), xs) {
+    Some(i) => _list_take(i, xs),
+    None => xs
+  }
+
+-- dropWhile: Drop the longest prefix of xs whose elements satisfy p.
+-- Iterative O(n) via _list_findIndex + _list_drop (short-circuits on first false).
+export pure func dropWhile[a](p: a -> bool, xs: [a]) -> [a] =
+  match _list_findIndex(\x. not p(x), xs) {
+    Some(i) => _list_drop(i, xs),
+    None => []
+  }
+
 -- contains: Is x an element of xs?
 -- Delegates to the _list_contains builtin, which the contract verifier encodes
 -- as SMT sequence membership — so `ensures { contains(allowed, result) }`

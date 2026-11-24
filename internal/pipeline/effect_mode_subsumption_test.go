@@ -40,6 +40,13 @@ export func f() -> int ! {Rand[mode=os]} = g(())`, true, "Effect mode mismatch: 
 		{"c8", `module c8
 export func g() -> int ! {Rand[mode=crypto]} = 42
 export func f() -> int ! {Rand} = g(())`, true, "Effect mode mismatch: Rand requires mode=crypto; declaration provides mode=os"},
+		{"ai_routeable_calls_std_ai", `module ai_routeable_calls_std_ai
+import std/ai (call)
+export func summarize_routed(s: string) -> string ! {AI[mode=routeable]} = call(s)`, false, ""},
+		{"ai_fixed_cannot_call_routeable", `module ai_fixed_cannot_call_routeable
+import std/ai (call)
+export func routed(s: string) -> string ! {AI[mode=routeable]} = call(s)
+export func fixed_caller(s: string) -> string ! {AI} = routed(s)`, true, "Effect mode mismatch: AI requires mode=routeable; declaration provides mode=fixed"},
 	}
 
 	for _, tc := range tests {

@@ -15,6 +15,7 @@ type subsumptionEdge struct {
 var subsumptionEdges = []subsumptionEdge{
 	{Effect: "Rand", Declared: "seeded", Required: "os"},
 	{Effect: "Rand", Declared: "crypto", Required: "os"},
+	{Effect: "AI", Declared: "routeable", Required: "fixed"},
 }
 
 // narrowingParam is an effect parameter that restricts the DECLARING frame's
