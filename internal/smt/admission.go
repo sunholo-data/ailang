@@ -22,7 +22,7 @@ func (e inadmissibleCalleeError) Unwrap() error { return ErrUnsupportedConstruct
 func unsupportedConstructHint(err error) string {
 	var callee inadmissibleCalleeError
 	if errors.As(err, &callee) {
-		return fmt.Sprintf("Mark %q `pure` or declare `! {}` (or only `! {Declassify}`): a callee is admitted only by its declaration, so an unannotated func is refused even when it performs no effects.", callee.callee)
+		return fmt.Sprintf("%q declares effects, or has no `!` clause and takes a function-typed parameter (its effects could come from the callback). Give it `! {}` (or only `! {Declassify}`) if it is pure, or inline its logic into the caller.", callee.callee)
 	}
 	return "Match on list patterns (x :: rest), string patterns, and similar unsupported constructs are outside the decodable fragment. Rewrite using length/element access on lists, or verify a version without the unsupported construct."
 }
@@ -30,13 +30,20 @@ func unsupportedConstructHint(err error) string {
 // smtAdmissible is deliberately distinct from interface/runtime purity:
 // Declassify changes IFC labels but does not prevent encoding a contract.
 // Callers without surface provenance retain keyword-only admission.
+//
+// A function with no `!` clause and no keyword is admitted when no parameter
+// type mentions a function type. Effect checking rejects every undeclared
+// effect in such a body (IO, Clock, ...; Debug is ambient, as it is for
+// `pure` and `! {}`), so it has exactly the guarantees of `! {}`. A function
+// parameter could carry a callback's row into the function's own (a latent
+// row), so it keeps the rowless function out.
 func smtAdmissible(meta *core.DeclMeta, decl ...*ast.FuncDecl) bool {
 	if meta == nil {
 		return false
 	}
 	if len(decl) > 0 && decl[0] != nil {
 		fd := decl[0]
-		return fd.IsPure || rowAdmissible(fd.Effects)
+		return fd.IsPure || rowAdmissible(fd.Effects) || (fd.Effects == nil && !hasFunctionParam(fd))
 	}
 	return meta.IsPure
 }
@@ -53,4 +60,56 @@ func rowAdmissible(effects []ast.EffectAnnotation) bool {
 		}
 	}
 	return true
+}
+
+// hasFunctionParam reports whether any parameter type of fd mentions a
+// function type, at any depth of the written type.
+func hasFunctionParam(fd *ast.FuncDecl) bool {
+	for _, p := range fd.Params {
+		if p != nil && mentionsFunctionType(p.Type) {
+			return true
+		}
+	}
+	return false
+}
+
+// mentionsFunctionType walks a written (AST) type. Cycle-safe: AST types are
+// finite trees; named types are not expanded.
+func mentionsFunctionType(t ast.Type) bool {
+	switch ty := t.(type) {
+	case nil:
+		return false
+	case *ast.FuncType:
+		return true
+	case *ast.SimpleType, *ast.TypeVar:
+		return false
+	case *ast.ListType:
+		return mentionsFunctionType(ty.Element)
+	case *ast.ArrayType:
+		return mentionsFunctionType(ty.Element)
+	case *ast.TupleType:
+		return anyMentionsFunctionType(ty.Elements)
+	case *ast.TypeApp:
+		return anyMentionsFunctionType(ty.Args)
+	case *ast.RecordType:
+		for _, f := range ty.Fields {
+			if f != nil && mentionsFunctionType(f.Type) {
+				return true
+			}
+		}
+		return false
+	case *ast.LabelledType:
+		return mentionsFunctionType(ty.Base)
+	default:
+		panic(fmt.Sprintf("mentionsFunctionType: unhandled ast.Type %T", t))
+	}
+}
+
+func anyMentionsFunctionType(ts []ast.Type) bool {
+	for _, t := range ts {
+		if mentionsFunctionType(t) {
+			return true
+		}
+	}
+	return false
 }

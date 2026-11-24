@@ -1254,11 +1254,17 @@
         "production",
         "latest"
       ],
-      "notes": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly"
+      "notes": "Burn down all 53 doc-sample failures in teaching prompt so every example compiles cleanly",
+      "frozen": {
+        "at": "2026-11-24",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.19": {
       "file": "prompts/v0.16.19.md",
-      "hash": "7dd5ebaef996297788c3f6d1c017fadf98e5c6c66969c98d00797f979d887cb3",
+      "hash": "f435927d97f7637bdca7f019c28c7da022bb114558e61e3fee007f64348ce06b",
       "description": "Document let (a, b) tuple destructuring, module-qualified types (S.Set[T], M.Map[K, V]), newline block delimiters, and std/list takeWhile/dropWhile",
       "created": "2026-11-24",
       "tags": [

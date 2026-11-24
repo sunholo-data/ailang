@@ -721,7 +721,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums, ADTs, and **records** (field destructuring)
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
-- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be `pure`, `! {}` or `! {Declassify}`; a callee whose signature has a type variable, a tuple, a function type or `bytes` makes the caller SKIPPED
+- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be pure by the rule below; a callee whose signature has a type variable, a tuple, a function type or `bytes` makes the caller SKIPPED
 - Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
 - **Higher-order functions**: `map`, `filter`, `foldl`, `any`, `flatMap` with a **lambda or a named top-level function**, over any element type, specialized and unrolled (depth 3) — see [below](#higher-order-function-verification)
 - **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs)
@@ -729,7 +729,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
 - Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → truncation toward zero (as at runtime)
 - `std/math`: `floor`, `ceil`, `round` (half away from zero), `absFloat`, `absInt`, `PI()`, `E()` are encoded exactly. `sqrt`, `exp`, `pow`, `log`, `sin`, `cos` are uninterpreted: each call contributes only facts the IEEE result always satisfies (`x >= 0 ⇒ sqrt(x) >= 0`, `sqrt` maps [0,1] into [0,1], `exp(x) >= 0`, `pow(x, 0) == 1`, `-1 <= sin(x) <= 1`, …). So `ensures { result >= 0.0 }` on `sqrt(dx*dx + dy*dy)` is proved, while `sqrt(2.0) * sqrt(2.0) == 2.0` is not. A model that rests on these functions is reported INCONCLUSIVE (the solver may have picked a value the real function never returns), and witness replay then confirms real violations
-- Must be pure (`pure func`, or an explicit `! {}`), or declare only `! {Declassify}` (a declassification gate). `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
+- Must be pure (`pure func`, an explicit `! {}`, or no `!` clause at all when no parameter has a function type), or declare only `! {Declassify}` (a declassification gate). The same rule applies to every helper it calls. A function with no `!` clause already fails `ailang check` if it performs an undeclared effect; one taking a function-typed parameter is excluded because the callback's effects could flow into it. `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
 
 **Currently skipped (with hints):**
 

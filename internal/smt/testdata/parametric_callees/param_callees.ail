@@ -77,6 +77,7 @@ pure func useHalf(f: float) -> float
   match half(f) { Some(h) => h, None => 0.0 }
 }
 
+-- No keyword, no effect row, no function parameter: admitted like ! {}.
 func plain(n: int) -> Option[int] { if n > 0 then Some(n) else None }
 
 pure func usePlain(n: int) -> int
@@ -94,4 +95,20 @@ pure func useTuple(x: int) -> int
   ensures { result >= 0 }
 {
   fst(twice(x))
+}
+
+-- A contracted function with no keyword and no row is admitted too.
+func rowlessCaller(n: int) -> int
+  ensures { result >= 0 }
+{
+  match plain(n) { Some(k) => k, None => 0 }
+}
+
+-- A helper that declares an effect other than Declassify is refused.
+func traced(n: int) -> Option[int] ! {Debug} { if n > 0 then Some(n) else None }
+
+pure func useTraced(n: int) -> int
+  ensures { result >= 0 }
+{
+  match traced(n) { Some(k) => k, None => 0 }
 }

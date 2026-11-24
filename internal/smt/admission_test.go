@@ -13,7 +13,7 @@ func TestSMTAdmissionRows(t *testing.T) {
 		pure, want bool
 	}{
 		{"keyword", nil, true, true},
-		{"missing", nil, false, false},
+		{"missing", nil, false, true}, // rowless, no function parameter: same guarantees as ! {}
 		{"empty", []ast.EffectAnnotation{}, false, true},
 		{"declassify", []ast.EffectAnnotation{{Name: "Declassify"}}, false, true},
 		{"scoped", []ast.EffectAnnotation{{Name: "Declassify", Params: []ast.EffectParam{{Key: "label", Value: "x"}}}}, false, true},
@@ -63,5 +63,40 @@ func TestSMTCalleeAdmissionCannotUseContractFallback(t *testing.T) {
 	defs, err := resolveCalleesFromRoots("caller", []core.CoreExpr{body}, prog, nil, nil, nil, declarations)
 	if err == nil || len(defs) != 0 {
 		t.Fatalf("inadmissible callee fell back to contract: defs=%+v err=%v", defs, err)
+	}
+}
+
+// A rowless function (no keyword, no `!`) is admitted unless a parameter type
+// mentions a function type anywhere: a callback could carry its effect row
+// into the function's own.
+func TestSMTAdmissionRowlessCallbackParams(t *testing.T) {
+	fn := &ast.FuncType{Params: []ast.Type{&ast.SimpleType{Name: "int"}}, Return: &ast.SimpleType{Name: "int"}}
+	for _, tc := range []struct {
+		name  string
+		param ast.Type
+		want  bool
+	}{
+		{"int", &ast.SimpleType{Name: "int"}, true},
+		{"named", &ast.SimpleType{Name: "Json"}, true},
+		{"Option[int]", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, true},
+		{"callback", fn, false},
+		{"list of callbacks", &ast.ListType{Element: fn}, false},
+		{"array of callbacks", &ast.ArrayType{Element: fn}, false},
+		{"Option[callback]", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{fn}}, false},
+		{"tuple with callback", &ast.TupleType{Elements: []ast.Type{&ast.SimpleType{Name: "int"}, fn}}, false},
+		{"record field callback", &ast.RecordType{Fields: []*ast.RecordField{{Name: "act", Type: fn}}}, false},
+		{"labelled callback", &ast.LabelledType{Base: fn}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			meta := &core.DeclMeta{Contracts: []*core.Contract{{Kind: core.EnsuresKind}}}
+			fd := &ast.FuncDecl{Params: []*ast.Param{{Name: "p", Type: tc.param}}}
+			if got := smtAdmissible(meta, fd); got != tc.want {
+				t.Fatalf("rowless f(p: %s) admitted=%v, want %v", tc.name, got, tc.want)
+			}
+			fd.Effects = []ast.EffectAnnotation{}
+			if !smtAdmissible(meta, fd) {
+				t.Fatalf("f(p: %s) ! {} refused: an explicit row is admitted whatever the params", tc.name)
+			}
+		})
 	}
 }

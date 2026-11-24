@@ -11,10 +11,11 @@ import (
 
 // Helpers whose signatures carry a parametric ADT at a concrete type
 // (Option[int], Result[int, DivErr], a user Box[int]) are inlined like any
-// other helper. Before, every caller here except usePlain and useTuple was
-// SKIPPED by the callee-sort gate. A type variable, tuple, function type or
-// bytes in a helper's signature still skips, and an unannotated helper is
-// refused with a hint naming the fix.
+// other helper. Before, every caller here except useTuple was SKIPPED by the
+// callee-sort gate (and usePlain/rowlessCaller by admission: a function with
+// no keyword and no row was refused). A type variable, tuple, function type or
+// bytes in a helper's signature still skips, and a helper declaring an effect
+// is refused with a hint naming the fix.
 func TestParametricCallees(t *testing.T) {
 	path := filepath.Join("testdata", "parametric_callees", "param_callees.ail")
 	src, err := os.ReadFile(path)
@@ -36,7 +37,9 @@ func TestParametricCallees(t *testing.T) {
 		"callNeedsSome": {"counterexample", verification.RequiresViolation, "call to needsSome"},
 		"useBox":        {"verified", "", ""},
 		"useHalf":       {"verified", "", ""},
-		"usePlain":      {"skipped", verification.UnsupportedEncoding, "Mark \"plain\" `pure`"},
+		"usePlain":      {"verified", "", ""},
+		"rowlessCaller": {"verified", "", ""},
+		"useTraced":     {"skipped", verification.UnsupportedEncoding, "\"traced\" declares effects"},
 		"useTuple":      {"skipped", verification.UnsupportedEncoding, "unencodable type \"(int, int)\""},
 	}
 	report, _ := verifySource(t, path, string(src))
