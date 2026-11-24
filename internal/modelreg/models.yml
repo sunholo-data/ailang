@@ -6541,6 +6541,54 @@ models:
       v0.32.10 flips the repeat_penalty default 1.1 -> 1.0, v0.32.4 changes Qwen3
       MoE decoding, v0.32.6 changes the /v1 streaming wire format).
 
+  # ---------------------------------------------------------------------------
+  # INKLING 2 MINI SCREEN (2026-11-24, local-model-onboarding step 2). Candidate
+  # replacement for the rig incumbent qwen3.8:27b-mxfp8 (DENSE 27B). Inkling 2 Mini
+  # (Thinking Machines, 2026-11-20, Apache-2.0) is a looped MoE: 26.4B total /
+  # 3.4B active (5.4B effective with its 3 loop passes), ~20 GB native NVFP4+MXFP8,
+  # on Ollama as inkling-2-mini:26b-a5b — the low-active shape the bandwidth-bound
+  # rig prefers. Paired pi arms via OpenRouter, same harness, same window, same
+  # work gate, so the MODEL is the only variable. Caps are non-binding on purpose
+  # (the 3.0M token gate decides, as on the local pi rows). Attended screen only —
+  # NOT for OS_FILLER_MODELS. Both ids must exist in ~/.pi/agent/models.json's
+  # openrouter block (added 2026-11-24).
+  # ---------------------------------------------------------------------------
+  pi-or-inkling-2-mini:
+    api_name: "thinkingmachines/inkling-2-mini"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — reasoning is on by default; effort left at the vendor default (pi sends no --thinking)
+    description: "Inkling 2 Mini (26.4B/3.4B-active looped MoE) via pi+OpenRouter — on-device replacement screen vs pi-or-qwen3-8-27b"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/thinkingmachines/inkling-2-mini"
+    model_family: "inkling-2"
+    max_output_tokens: 65536  # = the endpoint's max_completion_tokens (OpenRouter, 2026-11-24)
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter /api/v1/models, verified 2026-11-24)
+      output_per_1k: 0.0003   # $0.30 per 1M (same source)
+    budgets:
+      max_tokens_per_bench: 3000000  # = pi-qwen3-8-27b (the local incumbent's work gate)
+      max_cost_usd: 1.00             # non-binding: 3M tokens cost < $0.50 at these rates
+      hard_timeout_secs: 3600        # = pi-qwen3-8-27b
+
+  pi-or-qwen3-8-27b:
+    api_name: "qwen/qwen3.8-27b"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — effort left at the vendor default (pi sends no --thinking)
+    description: "Qwen3.8 27B (DENSE) via pi+OpenRouter — the control arm of the Inkling 2 Mini screen (same weights as the rig incumbent, hosted)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/qwen/qwen3.8-27b"
+    model_family: "qwen3-8-27b"
+    max_output_tokens: 65536  # = or-qwen3-8-27b (TestModels_SameAPINameSameWireBudget)
+    pricing:
+      input_per_1k: 0.000035  # $0.035 per 1M (OpenRouter /api/v1/models, verified 2026-11-24)
+      output_per_1k: 0.0015   # $1.50 per 1M (same source)
+    budgets:
+      max_tokens_per_bench: 3000000  # = pi-or-inkling-2-mini
+      max_cost_usd: 3.00             # non-binding: price-scaled from the Inkling arm (5x output price)
+      hard_timeout_secs: 3600
+
   or-qwen3-8-flash:
     api_name: "qwen/qwen3.8-flash"
     provider: "openrouter"
