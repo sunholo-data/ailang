@@ -283,11 +283,6 @@ func (c *Client) buildURLVersion(model, vertexVersion string) (string, error) {
 	}
 }
 
-// vertexModelURL is a Vertex AI v1 model method URL on the host for c.location.
-func (c *Client) vertexModelURL(model, method string) (string, error) {
-	return c.vertexModelURLVersion(model, method, "v1")
-}
-
 func (c *Client) vertexModelURLVersion(model, method, version string) (string, error) {
 	base, err := vertexAIBaseURLVersion(c.location, version)
 	if err != nil {
