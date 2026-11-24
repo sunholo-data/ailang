@@ -277,6 +277,10 @@ steps:
           --push \
           .
     waitFor: ['build-agent-base']
+    # New lane (M-AGY-CLOUD), first built 2026-11-24 with no local docker to try it:
+    # like motoko, a broken DEV build must not block the other images. Drop this
+    # once agent-agy has built green; the release pipeline gives it no such pass.
+    allowFailure: true
   - id: build-agent-opencode
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -411,6 +415,10 @@ steps:
           --push \
           .
     waitFor: ['build-agent-agy']
+    # New lane (M-AGY-CLOUD), first built 2026-11-24 with no local docker to try it:
+    # like motoko, a broken DEV build must not block the other images. Drop this
+    # once agent-agy has built green; the release pipeline gives it no such pass.
+    allowFailure: true
   - id: build-agent-eval-go
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
