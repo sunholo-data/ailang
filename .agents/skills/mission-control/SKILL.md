@@ -6,11 +6,11 @@ description: 'Run ONE outer-loop iteration of a long-running mission (default: t
 # Mission Control — one outer-loop iteration
 
 Run ONE iteration of the mission defined in [`design_docs/v1-mission.md`](../../../design_docs/v1-mission.md)
-(or the mission doc passed as argument). The gates run in order and are not skippable; earlier
-gates are cheap and prevent expensive mistakes. This is the outer loop around the four honed
-inner-loop skills — it does not duplicate them.
+(or the mission doc passed as argument). The gates run in order and are not skippable; earlier gates are cheap and prevent expensive mistakes.
+This is the outer loop around the four honed inner-loop skills — it does not duplicate them.
 
 **Read the environment by NAME, never by value — before anything else in this file** (fleet iterations 51 and 52 printed `CLAUDE_CODE_OAUTH_TOKEN`; World iteration 332 did it again while reading the sections below, before Gate 0's copy of this rule was in view; fleet iteration 78's first command read values too). List names with `env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)' | sort`, then `echo` only the specific non-secret variables you need. A `CLAUDE_CODE_` prefix matches `CLAUDE_CODE_OAUTH_TOKEN`, and a key-only filter misses `*_TOKEN`, `*_SECRET` and `*_AUTH*`.
+**Before any public write in any gate**, follow [Public publish](resources/gate-4-record.md#public-publish). Include its named-file assembly instruction in every designer brief that asks for evidence.
 
 ## Repo Profile (M-MISSION-PORTABILITY M2)
 
