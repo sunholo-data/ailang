@@ -273,8 +273,8 @@ func TestEncodeFunction_ReturnOnlyRecord(t *testing.T) {
 	if !strings.Contains(result.SMTLib, "mk_") {
 		t.Errorf("expected mk_ constructor in SMT-LIB:\n%s", result.SMTLib)
 	}
-	// Should NOT contain "unknown record type" error
-	if strings.Contains(result.SMTLib, "unknown record type") {
-		t.Errorf("unexpected 'unknown record type' in SMT-LIB:\n%s", result.SMTLib)
+	// Should NOT contain "no declared record type" error
+	if strings.Contains(result.SMTLib, "no declared record type") {
+		t.Errorf("unexpected 'no declared record type' in SMT-LIB:\n%s", result.SMTLib)
 	}
 }

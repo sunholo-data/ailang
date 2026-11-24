@@ -203,16 +203,7 @@ func encodeLetValue(let *core.Let) (string, error) {
 func emptyListSortFromUse(name string, body core.CoreExpr) string {
 	found := ""
 	var walk func(e core.CoreExpr)
-	sortOf := func(other core.CoreExpr) string {
-		if t := hofExprType(other); t != nil {
-			if s, err := MapType(t); err == nil {
-				if _, isSeq := seqElemSort(s); isSeq {
-					return s
-				}
-			}
-		}
-		return ""
-	}
+	sortOf := seqSortOf
 	pair := func(a, b core.CoreExpr) {
 		if found != "" {
 			return
@@ -268,4 +259,17 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 	}
 	walk(body)
 	return found
+}
+
+// seqSortOf returns expr's SMT sequence sort from its elaborated type, or ""
+// when it has none or is not a list (an empty list literal is typed [α]).
+func seqSortOf(expr core.CoreExpr) string {
+	if t := hofExprType(expr); t != nil {
+		if s, err := MapType(t); err == nil {
+			if _, isSeq := seqElemSort(s); isSeq {
+				return s
+			}
+		}
+	}
+	return ""
 }

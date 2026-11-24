@@ -399,11 +399,19 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 		return "", fmt.Errorf("list builtin %q expects at least 2 args, got %d", spec.Op, len(args))
 	}
 
-	left, err := EncodeExpr(args[0])
+	// seq.++ takes two sequences of one sort: an empty-list operand (typed
+	// [α], which would default to (Seq Int)) takes the other operand's sort.
+	hint := ""
+	if spec.Op == "seq.++" {
+		if hint = seqSortOf(args[0]); hint == "" {
+			hint = seqSortOf(args[1])
+		}
+	}
+	left, err := encodeExprWithSortHint(args[0], hint)
 	if err != nil {
 		return "", err
 	}
-	right, err := EncodeExpr(args[1])
+	right, err := encodeExprWithSortHint(args[1], hint)
 	if err != nil {
 		return "", err
 	}

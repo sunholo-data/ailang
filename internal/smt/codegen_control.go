@@ -244,7 +244,7 @@ func encodeRecordPattern(rp *core.RecordPattern) (string, error) {
 			names = append(names, name)
 		}
 		sort.Strings(names)
-		return "", fmt.Errorf("record pattern: unknown record type with fields %v", names)
+		return "", fmt.Errorf("%w: record pattern: no declared record type has fields %v", ErrUnsupportedConstruct, names)
 	}
 
 	// Encode each field's sub-pattern in alphabetical (sorted) order

@@ -75,6 +75,8 @@ func TestDescribeASTType(t *testing.T) {
 		{&ast.TypeApp{Constructor: "Result", Args: []ast.Type{&ast.SimpleType{Name: "float"}, &ast.SimpleType{Name: "string"}}}, "Result[float, string]"},
 		{&ast.ListType{Element: &ast.SimpleType{Name: "int"}}, "[int]"},
 		{&ast.TypeVar{Name: "a"}, "a"},
+		// Tuples were rendered with %T ("*ast.TupleType") in user-facing skip reasons.
+		{&ast.TupleType{Elements: []ast.Type{&ast.SimpleType{Name: "int"}, &ast.SimpleType{Name: "string"}}}, "(int, string)"},
 	}
 	for _, tt := range tests {
 		if got := describeASTType(tt.typ); got != tt.want {

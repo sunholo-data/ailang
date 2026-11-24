@@ -292,7 +292,7 @@ func describeASTType(t ast.Type) string {
 	case *ast.TypeVar:
 		return ty.Name
 	default:
-		return fmt.Sprintf("%T", t)
+		return t.String() // tuples, function types: AILANG syntax, never a Go type name
 	}
 }
 

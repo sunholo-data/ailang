@@ -1,0 +1,25 @@
+module concat
+import std/list (concat, length)
+import std/bytes (fromString)
+
+type Item = { name: string, qty: int }
+
+export func c1(xs: [int], ys: [int]) -> [int] ! {}
+ensures { length(result) == length(xs) + length(ys) } {
+  concat(xs, ys)
+}
+
+export func c2(xs: [Item], x: Item) -> [Item] ! {}
+ensures { length(result) >= 1 } {
+  concat(xs, [x])
+}
+
+export func c3(xs: [string]) -> [string] ! {}
+ensures { result == xs } {
+  concat([], xs)
+}
+
+export func cBad(xs: [int], ys: [int]) -> [int] ! {}
+ensures { length(result) == length(xs) } {
+  concat(xs, ys)
+}

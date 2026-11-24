@@ -430,6 +430,10 @@ var StdlibListToSMT = map[string]string{
 	"take":     "_list_take",
 	"drop":     "_list_drop",
 	"contains": "_list_contains",
+	// concat = xs ++ ys: (seq.++ xs ys), sort-polymorphic. Before this every
+	// caller was skipped (a generic callee signature), and the bare-name callee
+	// lookup collided with std/bytes.concat.
+	"concat": "concat_List",
 	// Defaulted element access (listDefaultedAccess): sort-polymorphic in Z3's
 	// sequence theory, so their generic signatures never need monomorphising.
 	"nthOr":   listNthOr,

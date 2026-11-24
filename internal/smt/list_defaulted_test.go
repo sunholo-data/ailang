@@ -3,6 +3,7 @@ package smt_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -78,6 +79,27 @@ func TestTakeDropVerify(t *testing.T) {
 	for fn, w := range want {
 		if got[fn] != w {
 			t.Errorf("%s: status %q, want %q", fn, got[fn], w)
+		}
+	}
+}
+
+// std/list.concat is (seq.++ xs ys) over any element sort. With std/bytes also
+// loaded (it defines its own concat) the call is still the list one.
+func TestConcatVerify(t *testing.T) {
+	path := filepath.Join("testdata", "stdlib", "concat.ail")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, _ := verifySource(t, path, string(src))
+	want := map[string]string{"c1": "verified", "c2": "verified", "c3": "verified", "cBad": "counterexample"}
+	got := map[string]string{}
+	for _, r := range report.Results {
+		got[r.Function] = r.Status + " " + r.Reason
+	}
+	for fn, w := range want {
+		if !strings.HasPrefix(got[fn], w+" ") {
+			t.Errorf("%s: %q, want %q", fn, got[fn], w)
 		}
 	}
 }

@@ -260,7 +260,7 @@ func inferTypeFromExpr(expr core.CoreExpr) types.Type {
 func encodeRecord(rec *core.Record) (string, error) {
 	info := lookupRecordByFields(rec.Fields)
 	if info == nil {
-		return "", fmt.Errorf("record construction: unknown record type with fields %v (not declared in function signature)", fieldNamesFromExprMap(rec.Fields))
+		return "", fmt.Errorf("%w: record construction: no declared record type has fields %v (a field type, e.g. a tuple, may not be encodable)", ErrUnsupportedConstruct, fieldNamesFromExprMap(rec.Fields))
 	}
 
 	// Encode field values in sorted order

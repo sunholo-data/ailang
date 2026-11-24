@@ -187,8 +187,8 @@ func TestEncodePattern_RecordPattern_UnknownType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown record pattern, got nil")
 	}
-	if !strings.Contains(err.Error(), "unknown record type") {
-		t.Errorf("expected 'unknown record type' error, got: %v", err)
+	if !strings.Contains(err.Error(), "no declared record type") {
+		t.Errorf("expected 'no declared record type' error, got: %v", err)
 	}
 }
 
