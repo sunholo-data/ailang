@@ -119,6 +119,8 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 - Use **arrays** (use lists instead)
 - Expect values from `trim`/`toLower`/`toUpper`/`split`/`chars`/`join`/`repeat`/`replace`: they are known only by facts (trim never lengthens, case keeps length, `split(s, ",")` has ≥ 1 part, …), so `result == "abc"` after `trim` is not provable. Unsupported: `words`, `foldChars`, `replaceMany`, datetime builtins (`addDays`, …)
 
+- Recursive **helpers you call** are unrolled to depth 3 (a self-recursive index scanner works; mutual recursion is skipped). A counterexample through one is inconclusive until witness replay confirms it
+
 ### What VERIFIED does NOT cover
 
 - **Call-site preconditions, partly**: a callee's `requires` IS checked at each call in the verified function's body (a possible break is a VIOLATION, `requires_violation`), but not at calls inside HOF lambdas, recursion or helper bodies

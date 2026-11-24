@@ -1,0 +1,33 @@
+module recursive_callee
+import std/string (length, charAt, substring)
+
+pure func isDigit(c: string) -> bool
+  ensures { result == false || length(c) == 1 }
+= c == "0" || c == "1" || c == "2"
+
+pure func allDigitsFrom(s: string, i: int) -> bool =
+  if i >= length(s) then true
+  else isDigit(charAt(s, i)) && allDigitsFrom(s, i + 1)
+
+export pure func allDigits(s: string) -> bool
+  ensures { length(s) > 0 || result == false }
+{ if length(s) == 0 then false else allDigitsFrom(s, 0) }
+
+pure func countUp(n: int, i: int) -> int = if i >= n then 0 else 1 + countUp(n, i + 1)
+
+export pure func useCount(n: int) -> int
+  requires { n >= 0 && n <= 2 }
+  ensures { result >= 0 }
+{ countUp(n, 0) }
+
+-- False: countUp(2, 0) == 2.
+export pure func useCountBad(n: int) -> int
+  requires { n >= 0 && n <= 2 }
+  ensures { result <= 1 }
+{ countUp(n, 0) }
+
+-- Needs a fact deeper than the unrolling: stays inconclusive, never VERIFIED.
+export pure func useCountDeep(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == n }
+{ countUp(n, 0) }

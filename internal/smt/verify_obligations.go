@@ -3,6 +3,7 @@ package smt
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/verification"
 )
@@ -123,5 +124,16 @@ func floatCaveat(vr VerifyResult, smtlib string) VerifyResult {
 	if vr.Status == "verified" && realSort.MatchString(smtlib) {
 		vr.Caveats = append(vr.Caveats, Caveat{Kind: CaveatFloatInputs, Detail: "float inputs are assumed to be ordinary numbers (not NaN or ±Infinity); float operations that could produce them are checked"})
 	}
+	return vr
+}
+
+// unrolledUndecided reports a solver unknown (often a timeout on nonlinear
+// arithmetic) reached through unrolled recursive helpers as a skip: those
+// callers were skipped before the helpers were encoded, and an undecided
+// approximation is not a new failure.
+func unrolledUndecided(vr VerifyResult, callees []string) VerifyResult {
+	vr.Status = "skipped"
+	vr.ReasonCode = verification.UnsupportedEncoding
+	vr.Reason = fmt.Sprintf("the solver could not decide this contract through the bounded unrolling of %s (%s)", strings.Join(callees, ", "), vr.Reason)
 	return vr
 }

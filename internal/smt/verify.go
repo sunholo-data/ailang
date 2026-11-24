@@ -624,6 +624,11 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			boundedDepth = encResult.HOFBoundedDepth // map/filter/foldl specialisations are bounded unrollings too
 		}
 		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
+		if vr.ReasonCode == verification.BoundedInconclusive && !IsRecursiveFunc(innerBody, funcName) {
+			// The bound is in a recursive helper or a map/filter/foldl it calls,
+			// not in a frontier of funcName itself.
+			vr.Reason = boundedCalleeInconclusiveReason(boundedDepth)
+		}
 		if vr.Status == "counterexample" && len(encResult.Uninterpreted) > 0 {
 			vr = uninterpretedInconclusive(vr, funcName, encResult.Uninterpreted, solveResult, opts.Verbose)
 		}
@@ -634,6 +639,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts)
 		}
 		vr = floatCaveat(vr, encResult.SMTLib)
+		if vr.Status == "unknown" && len(encResult.UnrolledCallees) > 0 {
+			vr = unrolledUndecided(vr, encResult.UnrolledCallees)
+		}
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, solveResult.Model, encResult.SMTLib, opts.Replay)
 		}
@@ -758,6 +766,15 @@ func boundedInconclusiveReason(name string, depth int) string {
 		"the unrolling frontier (%s_0), so it is neither a proof nor a confirmed violation; "+
 		"raising --verify-recursive-depth can decide this only if a requires clause bounds the recursion depth "+
 		"of the inputs — for unbounded inputs it cannot", depth, name)
+}
+
+// boundedCalleeInconclusiveReason is boundedInconclusiveReason when the
+// unrolling is in a callee: a recursive helper, or a map/filter/foldl/any/
+// flatMap specialisation.
+func boundedCalleeInconclusiveReason(depth int) string {
+	return fmt.Sprintf("bounded unrolling exhausted at depth %d in a recursive helper or map/filter/foldl it calls: "+
+		"the solver's candidate model may depend on that unrolling's frontier, so it is neither a proof nor a "+
+		"confirmed violation (witness replay decides when the inputs can be replayed)", depth)
 }
 
 func encodingErrorReason(err error) verification.ReasonCode {

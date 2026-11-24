@@ -473,7 +473,7 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 
 **Limitations:**
 - Callees must also be in the decidable fragment (pure, encodable types)
-- Recursive callees are unrolled to the bounded depth (default 2, `--verify-recursive-depth N`); see [Bounded Recursion](#bounded-recursion-verification) above
+- A self-recursive callee (an index scanner like `allFrom(s, i) = i >= length(s) || (ok(charAt(s, i)) && allFrom(s, i + 1))`) is unrolled to depth 3 below an uninterpreted stub. A proof through it holds for every value the stub could return, so it is a real proof, labelled `bounded: depth 3`; a counterexample through it is inconclusive until witness replay confirms it. Mutually recursive helpers are still skipped. See [Bounded Recursion](#bounded-recursion-verification) above
 - A callee's `requires` **is** checked at each call in the verified function's body, under the branch and `let` that reach the call: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` is a `✗ VIOLATION` with reason `requires_violation`. Calls inside a lambda passed to `map`/`filter`/`foldl`, inside recursion, or inside a helper's body are not yet checked
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 

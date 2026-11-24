@@ -40,6 +40,8 @@ type CalleeDef struct {
 	// Each call in the contracted body must meet it (codegen_obligations.go).
 	RequiresName        string
 	UncheckableRequires string
+	// Unrolled: a self-recursive callee encoded by unrollRecursiveCallee.
+	Unrolled bool
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -149,8 +151,11 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		if !smtAdmissible(meta, declarations[meta]) {
 			return nil, fmt.Errorf("%w: callee %q has an inadmissible effect row", ErrUnsupportedConstruct, calleeName)
 		}
-		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
-		if !encodable {
+		encodable, rejections := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
+		// A self-recursive callee with no ensures has no contract to stand in
+		// for it: unroll it instead of dropping it (callers were skipped).
+		unrollSelf := !encodable && onlyRecursive(rejections) && len(BuildContractSpec(calleeName, meta, params, returnSort).Ensures) == 0
+		if !encodable && !unrollSelf {
 			// Publish only a typed UF declaration and the original template.
 			// Actual arguments and selected-path facts are instantiated by the caller.
 			spec := BuildContractSpec(calleeName, meta, params, returnSort)
@@ -192,6 +197,29 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				hofDepth = defaultHOFInlineDepth
 			}
 		}
+		if unrollSelf {
+			smtDef, defParams, uerr := unrollRecursiveCallee(calleeName, params, innerBody, returnSort)
+			if activeADTContext != nil {
+				activeADTContext.ti = previousTI
+			}
+			if uerr != nil {
+				continue // as for any callee body we cannot encode
+			}
+			if len(hofDecls) > 0 {
+				smtDef = strings.Join(hofDecls, "\n") + "\n" + smtDef
+			}
+			reqName, reqUncheckable := calleeRequiresDef(calleeName, meta, params, defParams, &smtDef)
+			defs = append(defs, CalleeDef{
+				Name:                calleeName,
+				SMTLib:              smtDef,
+				HOFBoundedDepth:     defaultCalleeUnrollDepth,
+				Unrolled:            true,
+				RequiresName:        reqName,
+				UncheckableRequires: reqUncheckable,
+			})
+			resolvedSoFar[calleeName] = true
+			continue
+		}
 		var bodyExpr, bodyFacts string
 		defParams, _, err := withArgRenames(params, func() (string, error) {
 			var encErr error
@@ -219,16 +247,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		}
 		// The callee's requires, over the same renamed parameters: each call in
 		// the contracted body must meet it (codegen_obligations.go).
-		var reqName, reqUncheckable string
-		if reqs := requiresContracts(meta); len(reqs) > 0 {
-			_, reqBody, reqErr := withArgRenames(params, func() (string, error) { return encodeRequiresBody(reqs) })
-			if reqErr != nil {
-				reqUncheckable = reqErr.Error()
-			} else {
-				reqName = "$req_" + calleeName
-				smtDef += "\n" + buildDefineFun(reqName, defParams, "Bool", reqBody)
-			}
-		}
+		reqName, reqUncheckable := calleeRequiresDef(calleeName, meta, params, defParams, &smtDef)
 		defs = append(defs, CalleeDef{
 			Name:                calleeName,
 			SMTLib:              smtDef,
@@ -624,7 +643,9 @@ func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.Cor
 		})
 	}
 
-	// Must be non-recursive
+	// Must be non-recursive to inline. resolveCalleesFromRoots then uses the
+	// callee's contract when it has an ensures, and otherwise unrolls a
+	// self-recursive callee to a bounded depth (unrollRecursiveCallee).
 	if isRecursive(body, funcName) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectRecursive,
@@ -674,4 +695,56 @@ func IsUserDefinedCall(app *core.App, prog *core.Program) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// defaultCalleeUnrollDepth bounds a self-recursive callee's unrolling, as
+// defaultHOFInlineDepth bounds a HOF specialisation.
+const defaultCalleeUnrollDepth = defaultHOFInlineDepth
+
+// unrollRecursiveCallee encodes a self-recursive callee as a bounded unrolling
+// (name_0 … name_N, name_0 an uninterpreted stub) plus a define-fun `name` over
+// name_N, so call sites encode exactly as for any inline callee. Any proof
+// through it is bounded: the caller reports HOFBoundedDepth, and a sat is
+// inconclusive until witness replay decides it. Facts are not collected inside
+// the unrolled levels (they would escape their define-funs); dropping them only
+// weakens what the solver knows.
+func unrollRecursiveCallee(name string, params []FunctionParam, body core.CoreExpr, returnSort string) (string, []FunctionParam, error) {
+	savedFacts := activeCallFacts
+	activeCallFacts = nil
+	defer func() { activeCallFacts = savedFacts }()
+	unrolled, err := UnrollRecursiveFunction(UnrollConfig{FuncName: name, Params: params, Body: body, ReturnSort: returnSort, Depth: defaultCalleeUnrollDepth})
+	if err != nil {
+		return "", nil, err
+	}
+	defParams, _, _ := withArgRenames(params, func() (string, error) { return "", nil })
+	args := make([]string, len(defParams))
+	for i, p := range defParams {
+		args[i] = p.Name
+	}
+	top := unrolled.TopLevelName
+	if len(args) > 0 {
+		top = fmt.Sprintf("(%s %s)", top, strings.Join(args, " "))
+	}
+	return strings.Join(unrolled.Declarations, "\n") + "\n" + buildDefineFun(name, defParams, returnSort, top), defParams, nil
+}
+
+// calleeRequiresDef appends to *smtDef the Bool define-fun holding the
+// callee's requires (M3), returning its name, or why it could not be encoded.
+func calleeRequiresDef(name string, meta *core.DeclMeta, params, defParams []FunctionParam, smtDef *string) (string, string) {
+	reqs := requiresContracts(meta)
+	if len(reqs) == 0 {
+		return "", ""
+	}
+	_, reqBody, err := withArgRenames(params, func() (string, error) { return encodeRequiresBody(reqs) })
+	if err != nil {
+		return "", err.Error()
+	}
+	reqName := "$req_" + name
+	*smtDef += "\n" + buildDefineFun(reqName, defParams, "Bool", reqBody)
+	return reqName, ""
+}
+
+// onlyRecursive reports whether recursion is the callee's only rejection.
+func onlyRecursive(reasons []SMTRejectionReason) bool {
+	return len(reasons) == 1 && reasons[0].Code == RejectRecursive
 }

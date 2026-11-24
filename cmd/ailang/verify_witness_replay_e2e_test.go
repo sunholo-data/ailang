@@ -38,3 +38,22 @@ func TestVerify_WitnessReplay(t *testing.T) {
 		t.Errorf("sumOk: reason %q should say the replayed input satisfied the contracts", rows["sumOk"].Reason)
 	}
 }
+
+// A false contract that holds only through a self-recursive helper (unrolled
+// to a bounded depth) is inconclusive in the solver and confirmed by replay.
+func TestVerify_RecursiveCalleeReplay(t *testing.T) {
+	requireZ3(t)
+	bin := buildAilang(t)
+	stdout, stderr, code := runAilangBin(t, bin, "verify", "--json", "--relax-modules", "cmd/ailang/testdata/verify_replay/recursive_callee.ail")
+	var c boundedCounters
+	if err := json.Unmarshal([]byte(stdout), &c); err != nil {
+		t.Fatalf("verify --json: invalid JSON (exit %d): %v\n%s\n%s", code, err, stdout, stderr)
+	}
+	rows := c.byFunc()
+	if r := rows["useCountBad"]; r.Status != "counterexample" || !strings.Contains(r.Reason, "witness replayed at runtime") {
+		t.Errorf("useCountBad: %s %q, want a replay-confirmed counterexample", r.Status, r.Reason)
+	}
+	if r := rows["useCount"]; r.Status != "verified" {
+		t.Errorf("useCount: %s %q, want verified", r.Status, r.Reason)
+	}
+}

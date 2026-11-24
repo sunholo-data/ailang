@@ -97,6 +97,10 @@ type EncodeResult struct {
 	// Obligations check each callee's requires at its calls in the body
 	// (one query per callee). Run only when SMTLib verifies.
 	Obligations []CallObligation
+	// UnrolledCallees are the self-recursive callees encoded as a bounded
+	// unrolling. A solver that cannot decide through them reports a skip, as
+	// before they were encoded, not a new unknown.
+	UnrolledCallees []string
 }
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
@@ -251,6 +255,9 @@ func EncodeFunction(
 		}
 		if def.UncheckableRequires != "" {
 			activeUncheckableRequires[def.Name] = def.UncheckableRequires
+		}
+		if def.Unrolled {
+			result.UnrolledCallees = append(result.UnrolledCallees, def.Name)
 		}
 		if def.Contract != nil {
 			activeContractSpecs[def.Name] = def.Contract
