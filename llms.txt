@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-11-24T12:00:51Z
+Last updated: 2026-11-24T11:46:40Z
 
 ---
 
@@ -1402,9 +1402,9 @@ current teaching prompt and `ailang check file.ail` for diagnostics.
 
 ---
 
-# AI Teaching Prompt (Latest: v0.16.18)
+# AI Teaching Prompt (Latest: v0.16.19)
 
-# AILANG v0.16.18 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.19 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1639,7 +1639,7 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `f(a)(b)` for multi-arg func | `f(a, b)` - multi-arg funcs use commas |
 | `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
-| `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
+| `let Some(x) = opt` (refutable `let`) | Use `match opt { Some(x) => ..., None => ... }` (tuple `let (a, b) = pair` IS supported) |
 | `\(a, b). body` or `\a, b. body` | Inline: `\a b. body` (space-separated, called `f(a, b)`). Named: `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
 | `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
@@ -1667,11 +1667,16 @@ func semicolonStyle() -> () ! {IO} {
   println(show(x + y))
 }
 
--- ONE place `;` is required: a block whose final expression starts with `{`
--- (a record update or literal). Without it the parser reads `{` as continuing the let.
+-- Block-ending record updates, tuples, and lists work directly on a new line (no `;` needed)
 pure func bump(r: {a: int}) -> {a: int} {
-  let x = 1;
+  let x = 1
   {r | a: x}
+}
+
+-- Tuple destructuring in let (block style or `in` style; nested tuples and `_` supported)
+pure func swap(p: (int, string)) -> (string, int) {
+  let (n, s) = p
+  (s, n)
 }
 
 -- Expression style: equals + in
@@ -2133,11 +2138,10 @@ import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
 import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, decodeFloatArray)
-import std/list (map, filter, foldl, length, concat, sortBy, take, drop, range, nth, last, any, findIndex, flatMap, zipWith, mapAccumL, mapE, filterE, foldlE, flatMapE, forEachE)
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, takeWhile, dropWhile, range, nth, last, any, findIndex, flatMap, zipWith, mapAccumL, mapE, filterE, foldlE, flatMapE, forEachE)
 -- range(start, end): TWO args, end exclusive. range(n) is an arity error.
-import std/map as M    -- O(1) lookup, O(n) insert: see "Cost Model"
-import std/set as S    -- Set[a], e.g. a visited Set[(int, int)]: empty, fromList, insert, remove, member, size, toList, union, intersect, difference
-import std/set (Set)   -- needed to WRITE the type Set[a] in a signature (`S.Set[...]` does not parse)
+import std/map as M    -- M.Map[k, v], O(1) lookup, O(n) insert: see "Cost Model"
+import std/set as S    -- S.Set[a] (module-qualified types like S.Set[(int, int)] and M.Map[string, int] work directly): empty, fromList, insert, remove, member, size, toList, union, intersect, difference
 import std/regex as R  -- compile, isMatch, findFirst, findAll, replaceAll, split (qualified: split clashes with std/string)
 -- [float] vector math, native loops (never foldl(zipWith(...)) for a dot product):
 import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance)
@@ -2173,6 +2177,8 @@ import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag
 - `sortBy(cmp, xs)` - Sort with comparator
 - `take(n, xs)` - Take first n elements
 - `drop(n, xs)` - Drop first n elements
+- `takeWhile(p, xs)` - Take longest prefix where `p` holds
+- `dropWhile(p, xs)` - Drop longest prefix where `p` holds
 - `nth(xs, idx) -> Option[a]` - Get element at index (0-based), None if out of bounds
 - `last(xs) -> Option[a]` - Get last element, None if empty
 - `any(p, xs) -> bool` - Check if any element satisfies predicate
