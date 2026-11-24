@@ -86,6 +86,15 @@ func WithLocation(location string) ClientOption {
 	}
 }
 
+// VertexTarget is the project and location a Vertex (ADC) client calls, i.e. the
+// project that is billed; both are "" for an AI Studio key client.
+func (c *Client) VertexTarget() (project, location string) {
+	if c.authType != AuthADC {
+		return "", ""
+	}
+	return c.projectID, c.location
+}
+
 // WithBaseURL sets a custom base URL (useful for testing).
 func WithBaseURL(url string) ClientOption {
 	return func(c *Client) {

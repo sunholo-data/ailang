@@ -54,6 +54,7 @@ type options struct {
 	apiKeyEnv    string
 	baseURL      string
 	gcpProject   string
+	gcpLocation  string
 	noADC        bool
 	configDriven func(name string) ai.Provider
 	frozen       *frozenConfiguration
@@ -78,6 +79,12 @@ func WithEndpoint(u string) Option { return func(o *options) { o.baseURL = u } }
 // is billed (mission/quorum reviewers). Empty means ADC with the gcloud
 // default project, then the key from the environment.
 func WithGCPProject(p string) Option { return func(o *options) { o.gcpProject = p } }
+
+// WithGCPLocation pins the Vertex AI location for Google's ADC lane (a models.yml
+// gcp_location), over GOOGLE_CLOUD_LOCATION. Empty is a no-op.
+func WithGCPLocation(l string) Option {
+	return func(o *options) { o.gcpLocation = strings.TrimSpace(l) }
+}
 
 // WithNoADC disables Google's Application Default Credentials lane (#1499):
 // the key from WithAPIKey or the environment is the only credential, and its
@@ -332,6 +339,9 @@ func (o *options) geminiOpts() []gemini.ClientOption {
 	}
 	if o.frozen != nil {
 		opts = append(opts, o.frozen.vertex)
+	}
+	if o.gcpLocation != "" {
+		opts = append(opts, gemini.WithLocation(o.gcpLocation))
 	}
 	return opts
 }

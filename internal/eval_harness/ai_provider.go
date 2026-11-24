@@ -59,7 +59,10 @@ const defaultMaxTokens = 4096
 // incident). An Anthropic model failing THIS function while also being run
 // via --agent is expected for the warm-up call (cmd/ailang/eval_cache_warmup.go)
 // and is not evidence the agent executor is broken.
-func newProviderAdapter(model string, explicitProvider ai.ProviderType) (*providerAdapter, error) {
+//
+// opts reach ai/factory unchanged; NewAIAgent uses them to pin the Vertex project
+// and location a models.yml row declares (vertexPinFor).
+func newProviderAdapter(model string, explicitProvider ai.ProviderType, opts ...factory.Option) (*providerAdapter, error) {
 	providerType := explicitProvider
 	if providerType == "" {
 		providerType = ai.GuessProvider(model)
@@ -68,7 +71,7 @@ func newProviderAdapter(model string, explicitProvider ai.ProviderType) (*provid
 		return nil, fmt.Errorf("unsupported provider for model: %s", model)
 	}
 
-	client, err := factory.New(string(providerType))
+	client, err := factory.New(string(providerType), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("%w (required for model: %s)", err, model)
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 )
 
 // AIAgent generates code using LLM APIs.
@@ -28,11 +29,18 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 		return nil, fmt.Errorf("failed to resolve model: %w", err)
 	}
 
+	var cfg *modelreg.ModelConfig
+	if modelreg.GlobalModelsConfig != nil {
+		if c, lookupErr := modelreg.GlobalModelsConfig.GetModel(model); lookupErr == nil {
+			cfg = c
+		}
+	}
+
 	// Create unified provider adapter (credential resolved inside, failing
 	// before any spend). Pass the explicit provider from models.yml so
 	// api_names without provider-identifying prefixes (e.g. "gemma4:26b")
 	// route correctly.
-	adapter, err := newProviderAdapter(apiName, ai.ProviderFromString(provider))
+	adapter, err := newProviderAdapter(apiName, ai.ProviderFromString(provider), vertexPinFor(provider, cfg)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
@@ -40,17 +48,15 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	// Wire max_output_tokens from models.yml. Reasoning models (Gemini 3.x,
 	// GPT-5, Claude 4.x thinking) need this to avoid burning the whole 4K
 	// default budget on hidden thoughts and returning empty content.
-	if modelreg.GlobalModelsConfig != nil {
-		if cfg, lookupErr := modelreg.GlobalModelsConfig.GetModel(model); lookupErr == nil {
-			if cfg.MaxOutputTokens > 0 {
-				adapter.setMaxTokens(cfg.MaxOutputTokens)
-			}
-			if cfg.ReasoningMaxTokens > 0 {
-				adapter.setReasoningMaxTokens(cfg.ReasoningMaxTokens)
-			}
-			if cfg.ReasoningEffort != "" {
-				adapter.setReasoningEffort(cfg.ReasoningEffort)
-			}
+	if cfg != nil {
+		if cfg.MaxOutputTokens > 0 {
+			adapter.setMaxTokens(cfg.MaxOutputTokens)
+		}
+		if cfg.ReasoningMaxTokens > 0 {
+			adapter.setReasoningMaxTokens(cfg.ReasoningMaxTokens)
+		}
+		if cfg.ReasoningEffort != "" {
+			adapter.setReasoningEffort(cfg.ReasoningEffort)
 		}
 	}
 
@@ -202,4 +208,25 @@ func (a *AIAgent) SetCorrelation(chainID, benchmarkID, tier string) {
 		SessionID: chainID,
 		Trace:     trace,
 	})
+}
+
+// vertexPinFor pins the Vertex project and location a Google row declares
+// (models.yml gcp_project / gcp_location). Standard mode used to ignore both, so
+// every row saying gcp_project "ailang-dev" billed whatever config.CloudProject
+// resolved — prod ailang-multivac on the rig (billing export, 2026-11-23: the
+// Gemini 4 placement runs). Agent mode already honoured the row (agent_task.go).
+// A pinned project makes Vertex the only lane: no silent fall back to a key that
+// bills elsewhere (factory.WithGCPProject).
+func vertexPinFor(provider string, cfg *modelreg.ModelConfig) []factory.Option {
+	if cfg == nil || ai.ProviderFromString(provider) != ai.ProviderGoogle {
+		return nil
+	}
+	var opts []factory.Option
+	if cfg.GCPProject != "" {
+		opts = append(opts, factory.WithGCPProject(cfg.GCPProject))
+	}
+	if cfg.GCPLocation != "" {
+		opts = append(opts, factory.WithGCPLocation(cfg.GCPLocation))
+	}
+	return opts
 }
