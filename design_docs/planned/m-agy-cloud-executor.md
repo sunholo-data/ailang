@@ -1,6 +1,6 @@
 # M-AGY-CLOUD: agy on the cloud executor plane, on the Google AI subscription
 
-**Status**: Phase 0 in progress. D1–D3 ratified by Mark 2026-11-24 ("ok lets do this"), as recommended. Quorum blocked twice; every objection accepted and closed in text, round-1 fixes unreviewed (see Quorum). Phase 0 is a measurement spike that needs one human sign-in; Phases 1–3 are gated on it.
+**Status**: Phase 0 closed; Phase 1 built (ailang `02c18742b`, `ff384843b`); Phase 2 written (ailang-multivac `fa693ed`, NOT pushed). **Rollout waits for the next ailang release** (Mark, 2026-11-24: "lots of updates to do in the next release"). After that tag: (1) confirm `agent-agy`/`agent-agy-go` built in the dev and release pipelines; (2) `terraform import` the hand-made dev secret (command in multivac `terraform/secrets.tf`); (3) `enable_agy = true` in multivac `environments/dev/terraform.tfvars`, push multivac dev; (4) dev smoke: one task on an agy agent; (5) Phase 3 (D6): sprint-planner / sprint-executor onto agy. Do NOT push multivac `fa693ed` before the release: promote-to-prod refuses versions without the agy images.
 **Target**: v0.60.x
 **Priority**: P1
 **Estimated**: Phase 0 ~1 day incl. sign-in tooling (one cloud sign-in by Mark); Phase 1 ~2 days; Phase 2 ~1 day (multivac terraform + images); Phase 3 is a routing decision, not work
