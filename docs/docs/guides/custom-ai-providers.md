@@ -26,6 +26,8 @@ auth = { type = "none" }
 Then call it from AILANG:
 
 ```ailang
+module examples/custom_ai
+
 import std/ai (call)
 
 export func main() -> string ! {AI} = call("Hello!")

@@ -6,12 +6,12 @@ import std/fs (readFile)
 import std/io (println)
 
 func summarize(content: string) -> string ! {AI} = {
-  let prompt = "Summarize in 3-5 bullet points:\n\n" ++ content
+  let prompt = "Summarize in 3-5 bullet points:\n\n${content}"
   call(prompt)
 }
 
 export func main(path: string) -> () ! {IO, FS, AI} = {
-  println("Reading: " ++ path)
+  println("Reading: ${path}")
   let content = readFile(path)
   println("Generating summary...")
   let summary = summarize(content)

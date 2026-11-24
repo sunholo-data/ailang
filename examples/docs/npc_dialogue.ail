@@ -6,7 +6,7 @@ import std/io (println)
 
 -- Build dialogue prompt for an NPC
 pure func makePrompt(npcName: string, role: string, personality: string, topic: string) -> string =
-  "You are " ++ npcName ++ ", a " ++ role ++ " in a fantasy RPG. " ++ "Personality: " ++ personality ++ ". " ++ "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
+  "You are ${npcName}, a ${role} in a fantasy RPG. Personality: ${personality}. Generate ONE short line of dialogue (1-2 sentences) about: ${topic}"
 
 -- Generate NPC dialogue using AI
 func askNpc(npcName: string, role: string, personality: string, topic: string) -> string ! {AI} = {
@@ -21,5 +21,5 @@ export func main() -> () ! {IO, AI} = {
   println("[At the Forge]")
   println("Player: Can you forge me an enchanted sword?")
   let response = askNpc("Grimnar", "blacksmith", "gruff but kind", "forging an enchanted sword")
-  println("Grimnar: " ++ response)
+  println("Grimnar: ${response}")
 }

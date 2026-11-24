@@ -151,10 +151,17 @@ Hint: Ensure the function actually performs at least 1 IO operation(s)
 Use both annotations to specify a valid range:
 
 ```ailang
+import std/net (httpRequest)
+import std/result (Ok, Err)
+
 -- Must call API at least once, but no more than 5 times
-func fetchWithRetry(url: string) -> string ! {Net @min=1 @limit=5} {
-  -- At least 1 call required, up to 5 allowed for retries
-  ...
+func fetchWithRetry(url: string, attemptsLeft: int) -> string ! {Net @min=1 @limit=5} {
+  match httpRequest("GET", url, [], "") {
+    Ok(resp) => resp.body,
+    Err(_) =>
+      if attemptsLeft > 1 then fetchWithRetry(url, attemptsLeft - 1)
+      else "request failed"
+  }
 }
 ```
 

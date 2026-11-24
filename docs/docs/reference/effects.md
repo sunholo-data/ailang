@@ -676,9 +676,9 @@ The type checker verifies effect declarations:
 ```ailang parse
 import std/fs (readFile)
 
--- Error: readFile requires FS but not declared
+-- Error: readFile requires FS, which is not declared in ! {IO}
 func badFunction() -> string ! {IO} {
-  readFile("data.txt")  -- Compile error!
+  readFile("data.txt")
 }
 ```
 

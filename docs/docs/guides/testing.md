@@ -214,7 +214,7 @@ Each case runs as its own test, named `<function>_test_<n>` (`square_test_1`, `a
 
 Property tests verify that an invariant holds for many generated inputs:
 
-```ailang
+```not-ailang
 property "name" {
   forall(param: type, ...) => predicate
 }

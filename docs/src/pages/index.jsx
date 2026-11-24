@@ -85,6 +85,8 @@ function HeroSection() {
 {`-- hello.ail
 module examples/hello
 
+import std/io (print)
+
 export func main() -> () ! {IO} =
   print("Hello, AILANG!")`}
           </pre>

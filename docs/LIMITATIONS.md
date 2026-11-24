@@ -55,19 +55,22 @@ AILANG is not layout-sensitive, so a multi-statement `if`/`else` branch must be 
 Without them, only the first `let` is parsed as the branch and you get
 "if-else branches require explicit braces when using let bindings":
 
-```ailang
--- ❌ fails
+```not-ailang
+-- ❌ fails (missing braces around multi-statement else branch)
 if x > maxX then [] else
     let v = x * 2;
     let rest = buildList(x + 1, maxX);
     v :: rest
+```
 
+```ailang
 -- ✅ works
-if x > maxX then [] else {
+func buildList(x: int, maxX: int) -> [int] =
+  if x > maxX then [] else {
     let v = x * 2;
     let rest = buildList(x + 1, maxX);
     v :: rest
-}
+  }
 ```
 
 Single-expression branches don't need braces. See the

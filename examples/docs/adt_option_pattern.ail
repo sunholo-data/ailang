@@ -21,8 +21,8 @@ pure func mapInt(opt: IntOption, f: int -> int) -> IntOption = match opt {
 export func main() -> () ! {IO} = {
   let some = SomeInt(42)
   let none = NoneInt
-  println("Some value: " ++ show(unwrapOrInt(some, 0)))
-  println("None value: " ++ show(unwrapOrInt(none, -1)))
+  println("Some value: ${show(unwrapOrInt(some, 0))}")
+  println("None value: ${show(unwrapOrInt(none, -1))}")
   let doubled = mapInt(some, \x. x * 2)
-  println("Doubled: " ++ show(unwrapOrInt(doubled, 0)))
+  println("Doubled: ${show(unwrapOrInt(doubled, 0))}")
 }

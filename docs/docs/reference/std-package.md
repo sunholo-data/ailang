@@ -97,14 +97,17 @@ func run_bridge(args: [string]) -> () ! {FS, Process} =
 
 The canonical pattern for extension packages that need a bundled helper:
 
-```ailang
+```ailang parse
+module sunholo/my_ext/register
+
 import std/package (assetPath)
 import std/result (Result, Ok, Err)
 
+-- Return empty_hooks() (provided_tools: []) to self-disable if the asset is missing.
 export func register_with_config(_cfg: a) -> ExtensionHooks ! {FS} =
   match assetPath("sunholo/my_ext", "tool-runner.mjs") {
     Ok(path) => active_hooks(path),
-    Err(_)   => { provided_tools: [], ... }   -- self-disable
+    Err(_)   => empty_hooks()
   }
 ```
 

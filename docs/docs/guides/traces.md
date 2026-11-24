@@ -311,12 +311,13 @@ ailangSetTraceHandler(null);
 The `std/trace` module lets AILANG programs emit custom spans and events:
 
 ```ailang
+import std/net (httpGet)
 import std/trace (spanStart, spanEnd, event)
 
 func fetchData(url: string) -> string ! {Trace, Net} {
     spanStart("fetchData");
     event("url", url);
-    let result = perform Net.httpGet(url);
+    let result = httpGet(url);
     spanEnd("fetchData");
     result
 }

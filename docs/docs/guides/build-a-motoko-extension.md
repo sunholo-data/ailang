@@ -160,8 +160,8 @@ import pkg/sunholo/motoko_ext_abi/types (
 )
 
 -- Your tool's handler. Receives the call envelope, returns a result string.
+-- Placeholder: replace with real KB-search logic.
 func handle_search(workdir: string, query: string) -> string ! {Process} {
-  -- placeholder: replace with real KB-search logic
   "[openkb] would search '${query}' in ${workdir}/.openkb"
 }
 
@@ -172,10 +172,7 @@ export func make_hooks(workdir: string) -> ExtensionHooks ! {Env, FS} {
   let handle = func(_ctx: ExtCtx, call: { id: string, name: string, arguments: string })
     -> ToolHandleDecision ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} {
     if call.name == "OpenKBSearch"
-    then {
-      -- Decode call.arguments JSON, run handle_search, return Allow with result
-      Delegate   -- replace with actual handle invocation
-    }
+    then Delegate
     else Delegate
   };
 
@@ -186,8 +183,8 @@ export func make_hooks(workdir: string) -> ExtensionHooks ! {Env, FS} {
     -> FinalizeDecision ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} { NoDecision };
 
   {
-    id: "openkb",                              -- becomes the dispatch key
-    provided_tools: ["OpenKBSearch"],          -- tools your extension contributes
+    id: "openkb",
+    provided_tools: ["OpenKBSearch"],
     on_describe_tools: \_ . [],
     on_build_system_prompt: func(_ctx: ExtCtx) -> PromptPatch { { prepend: [], append: [] } },
     on_budget_plan: func(_ctx: ExtCtx, _plan: a) -> BudgetPatch ! {Env, FS} {

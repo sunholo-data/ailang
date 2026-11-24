@@ -10,27 +10,6 @@
 #     cannot be listed here at all.
 # Editing a listed block changes its hash, so touching a block means fixing or tagging it.
 # After a burn-down: make check-doc-samples DOC_SAMPLES_ARGS=-write-baseline
-docs/LIMITATIONS.md 64ed8b72df7b PAR017
-docs/docs/guides/build-a-motoko-extension.md ecc5ef11243e FMT_EXIT2
-docs/docs/guides/custom-ai-providers.md 783ef894c9fd MOD014
-docs/docs/guides/go-interop.md 18a47ef74050 TC_UNDEFINED_VAR
-docs/docs/guides/testing.md 8fa5e005084a PAR_UNEXPECTED_TOKEN
-docs/docs/guides/traces.md f8d4db8b9659 PAR020
-docs/docs/guides/wasm-ai-step-byo-key.md 09f95852ab2f TC_TYPE
-docs/docs/reference/capability-budgets.mdx 36843c488cc5 PAR_NO_PREFIX_PARSE
-docs/docs/reference/effects.md ec7b115b0354 FMT_EXIT2
-docs/docs/reference/errors/mod013.md 8b2f68889437 MODULE
-docs/docs/reference/errors/mod015.md 2863880e8a87 MODULE
-docs/docs/reference/std-package.md 377fee9e4276 PAR_NO_PREFIX_PARSE
-docs/docs/references/philosophical-foundations.mdx 0f58a36db072 TC_UNDEFINED_VAR
-docs/src/pages/index.jsx eebfcea32e22 TC_UNDEFINED_VAR
-examples/debug/anf_example.ail e52361a0ae52 TC_ARITY_001
-examples/docs/adt_option_pattern.ail 026675b81071 TC_TYPE
-examples/docs/lambdas_full.ail 7ac5526c3175 TC_TYPE
-examples/docs/npc_dialogue.ail 2a271c8de99d TC_TYPE
-examples/docs/records_person.ail 0dc0e095266e TC_TYPE
-examples/docs/summarize_file.ail d7c0cad7a82b TC_TYPE
-examples/reference/budget_minimum.ail 80b2236232ca TC_TYPE
 examples/runnable/secrets/sink_function_value.ail 2d220912e62b TC_TYPE
 prompt:active 0da6a89ac8a8 TC_UNDEFINED_VAR
 prompt:active 0df966f18f16 TC_UNDEFINED_VAR

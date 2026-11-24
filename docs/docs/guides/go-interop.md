@@ -190,7 +190,8 @@ Given this AILANG module:
 -- transforms/event_formatter.ail
 module transforms/event_formatter
 
-import std/string (length as strlen, substring)
+import std/list (length)
+import std/string (length as strlen, substring, split)
 
 export pure func truncate(text: string, maxLen: int) -> string =
   if maxLen == 0 || strlen(text) <= maxLen

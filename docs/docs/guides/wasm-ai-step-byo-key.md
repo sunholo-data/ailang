@@ -121,7 +121,7 @@ import std/io (println)
 
 export func ask(model: string, prompt: string) -> string ! {AI} = {
   let messages: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "" }
+    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }
   ];
   let tools: [ToolSchema] = [];
   match step(model, messages, tools) {

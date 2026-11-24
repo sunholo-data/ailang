@@ -8,7 +8,7 @@ import std/io (println)
 type Person = { name: string, age: int, city: string }
 
 pure func greet(p: Person) -> string =
-  "Hello, " ++ p.name ++ " from " ++ p.city ++ "!"
+  "Hello, ${p.name} from ${p.city}!"
 
 pure func birthday(p: Person) -> Person =
   -- Record update syntax: creates new record with updated field
@@ -20,5 +20,5 @@ export func main() -> () ! {IO} = {
   println(greet(alice));
 
   let olderAlice = birthday(alice);
-  println("After birthday: " ++ show(olderAlice.age))
+  println("After birthday: ${show(olderAlice.age)}")
 }

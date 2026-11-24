@@ -112,7 +112,8 @@ In AILANG, control flow is structural navigation:
 ```ailang
 -- The program traverses the branch where condition holds
 -- There is no "choice" — only path revelation
-if condition then do_something else skip
+func traverse[a](condition: bool, do_something: a, skip: a) -> a =
+  if condition then do_something else skip
 ```
 
 The difference is semantic, not syntactic. AILANG's type system, effect system, and trace model all assume the second interpretation.
