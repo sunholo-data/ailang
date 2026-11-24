@@ -90,31 +90,80 @@ _scope_target_is_ailang() {
   return 1
 }
 
+_scope_fail() {
+  printf 'mission scope guard: %s: %s\n' "$1" "$2" >&2
+  exit 1
+}
+
+# Collect NUL-delimited paths. The subshell keeps a failed check local to this ref.
+_scope_paths() (
+  local ref="$1" local_sha="$2" remote_sha="$3" remote_url="$4" paths="$5"
+  local base="" dev_sha advertised commits commit rewrite=0
+  local_sha=$(git rev-parse --verify "$local_sha^{commit}") ||
+    _scope_fail "$ref" 'local commit unavailable'
+  if [ -n "$remote_sha" ]; then
+    remote_sha=$(git rev-parse --verify "$remote_sha^{commit}") ||
+      _scope_fail "$ref" 'remote commit unavailable; fetch and retry'
+    if git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+      base="$remote_sha"
+    elif [ "$?" -ne 1 ]; then
+      _scope_fail "$ref" 'git merge-base --is-ancestor failed'
+    fi
+  fi
+
+  if [ -z "$base" ]; then
+    dev_sha=$(git rev-parse --verify 'refs/remotes/origin/dev^{commit}') ||
+      _scope_fail "$ref" 'refs/remotes/origin/dev unavailable; fetch origin and retry'
+    if [ -n "$remote_sha" ]; then
+      # Exempt inherited dev history only when the push target still advertises it.
+      advertised=$(GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code "$remote_url" refs/heads/dev </dev/null) ||
+        _scope_fail "$ref" 'git ls-remote could not verify refs/heads/dev; fetch origin and retry'
+      [ "$advertised" = "$dev_sha"$'\t''refs/heads/dev' ] ||
+        _scope_fail "$ref" 'stale refs/remotes/origin/dev; fetch origin and retry'
+      rewrite=1
+    fi
+    base=$(git merge-base "$local_sha" "$dev_sha") ||
+      _scope_fail "$ref" 'git merge-base with origin/dev failed; fetch origin and retry'
+  fi
+
+  git diff --name-only -z "$base" "$local_sha" -- >"$paths" ||
+    _scope_fail "$ref" 'git diff failed to enumerate push paths'
+  if [ "$rewrite" -eq 1 ]; then
+    # A later commit can hide an earlier edit from the net diff.
+    commits=$(git rev-list "$dev_sha..$local_sha") ||
+      _scope_fail "$ref" 'git rev-list failed to enumerate branch commits'
+    while IFS= read -r commit; do
+      [ -n "$commit" ] || continue
+      git diff-tree --root --no-commit-id --name-only -z -r -m --no-renames "$commit" -- >>"$paths" ||
+        _scope_fail "$ref" "git diff-tree failed to enumerate paths for $commit"
+    done <<<"$commits"
+  fi
+)
+
 _scope_main() {
   local remote_url="$2" zero=0000000000000000000000000000000000000000
-  local m="${MISSION_NAME:-}" local_ref local_sha remote_ref remote_sha base paths p why refused=0
+  local m="${MISSION_NAME:-}" _local_ref local_sha remote_ref remote_sha paths="" p why refused=0
   [ -n "$m" ] || exit 0
   _scope_target_is_ailang "$remote_url" || exit 0
-  while read -r local_ref local_sha remote_ref remote_sha; do
+  while read -r _local_ref local_sha remote_ref remote_sha; do
     [ "$local_sha" = "$zero" ] && continue            # a delete pushes no content
-    if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
-      base="$remote_sha"
-    else
-      base=$(git merge-base "$local_sha" origin/dev 2>/dev/null) || base=""
+    [ "$remote_sha" != "$zero" ] || remote_sha=""    # a new branch has no remote commit
+    if [ -z "$paths" ]; then
+      paths=$(mktemp "${TMPDIR:-/tmp}/mission-scope.XXXXXX") ||
+        _scope_fail "$remote_ref" 'could not create a temporary path list'
+      trap 'rm -f "$paths"' EXIT
     fi
-    if [ -n "$base" ]; then
-      paths=$(git diff --name-only "$base" "$local_sha")
-    else
-      paths=$(git show --name-only --format= "$local_sha")
+    if ! _scope_paths "$remote_ref" "$local_sha" "$remote_sha" "$remote_url" "$paths"; then
+      refused=1
+      continue
     fi
-    while IFS= read -r p; do
-      [ -n "$p" ] || continue
+    while IFS= read -r -d '' p; do
       why=$(_scope_verdict "$m" "$p")
       if [ -n "$why" ]; then
         echo "mission scope guard: MISSION_NAME=$m may not push $p (${why#refuse })" >&2
         refused=1
       fi
-    done <<<"$paths"
+    done <"$paths" || _scope_fail "$remote_ref" 'could not read the path list'
   done
   if [ "$refused" -ne 0 ]; then
     echo "mission scope guard: push refused (M-HARNESS-MISSION-LOOP). Tickets go to the mission-fleet inbox." >&2
