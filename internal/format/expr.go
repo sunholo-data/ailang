@@ -249,7 +249,7 @@ func (p *printer) funcLit(n *ast.FuncLit) error {
 	p.w.write(" ")
 	// A func literal body is a single expression; wrap in a braced block only if
 	// it is itself a multi-expression block.
-	return p.bodyBraced(n.Body)
+	return p.bodyBraced(n, n.Body)
 }
 
 // letIn prints an explicit `let name = value in body`.

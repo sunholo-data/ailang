@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-11-24T08:08:12Z
+Last updated: 2026-11-24T09:08:16Z
 
 ---
 
@@ -1443,10 +1443,12 @@ import std/io (print)
 
 export func main() -> () ! {IO} {
   -- println works without import in entry modules (prelude provides it)
-  println("A"); println("B");  -- Output: A\nB\n
+  println("A")
+  println("B")  -- Output: A\nB\n
 
   -- print requires import for no-newline output
-  print("A"); print("B")       -- Output: AB
+  print("A")
+  print("B")    -- Output: AB
 }
 ```
 
@@ -1460,8 +1462,8 @@ an explicit `flush()`. C-style escapes `\xHH` / `\u{..}` / `\e` / `\0` work in s
 import std/io (print, flush)
 
 func showProgress() -> () ! {IO} {
-  print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
-  flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
+  print("\r\u{1B}[92m50%\u{1B}[0m")  -- \u{1B} (or \x1b) = ESC (ANSI colour); "\x1b[2J" clears the screen
+  flush()                             -- force it to the screen NOW (no /dev/tty hack needed)
 }
 ```
 Runs under `--caps IO,Clock` — no `FS`. `eprint`/`eprintln` (std/io) write to stderr (unbuffered).
@@ -3662,7 +3664,7 @@ func mapDemo() -> () ! {IO} {
   -- Iteration is sorted (deterministic)
   let xs = M.toList(m2)              -- [("alice", 30), ("bob", 25)]
   let m3 = M.fromList([("c", 1), ("d", 2)])
-  println("${show(xs)} ${show(M.size(m3))}")
+  println("${xs} ${M.size(m3)}")
 }
 ```
 
@@ -3746,10 +3748,10 @@ import std/env (getArgs)
 import std/io (println, exit)
 import std/result (Result, Ok, Err)
 
-pure func validate(args: [string]) -> Result[(), string] =
+pure func validate(args: [string]) -> Result[bool, string] =
   match args {
     [] => Err("missing argument"),
-    _ => Ok(())
+    _ => Ok(true)
   }
 
 export func main() -> () ! {Env, IO} {

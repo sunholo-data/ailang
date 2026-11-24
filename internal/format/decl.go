@@ -99,7 +99,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) error {
 		return nil
 	}
 	// Body: `= expr` for a single expression, or a braced newline block.
-	return p.funcBody(d.Body)
+	return p.funcBody(d, d.Body)
 }
 
 // declParams prints a parameter list, canonicalising the implicit unit parameter
@@ -159,12 +159,12 @@ func (p *printer) params(params []*ast.Param) error {
 //   - A NON-Block body came from block form `{ expr }` with a single expression
 //     (parseFunctionBody unwraps a one-expression block to the bare expression).
 //     Emit a braced single-statement block so it re-parses to the same bare node.
-func (p *printer) funcBody(body ast.Expr) error {
+func (p *printer) funcBody(owner *ast.FuncDecl, body ast.Expr) error {
 	blk, isBlock := body.(*ast.Block)
 	if !isBlock {
 		// Block-form single expression: must stay braced to re-parse identically.
 		p.w.write(" ")
-		return p.bodyBraced(body)
+		return p.bodyBraced(owner, body)
 	}
 	if len(blk.Exprs) == 1 {
 		// Equation-form single expression: `= expr`.

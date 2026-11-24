@@ -176,6 +176,9 @@ func (a *attacher) walkNode(n ast.Node) {
 	switch v := n.(type) {
 	case *ast.FuncDecl:
 		if v.Body != nil {
+			if _, isBlock := v.Body.(*ast.Block); !isBlock {
+				a.registerSingleExprBody(v, v.Body)
+			}
 			a.walkExpr(v.Body)
 		}
 	case *ast.Let:
@@ -260,11 +263,29 @@ func (a *attacher) walkExpr(e ast.Expr) {
 		}
 	case *ast.FuncLit:
 		if v.Body != nil {
+			if _, isBlock := v.Body.(*ast.Block); !isBlock {
+				a.registerSingleExprBody(v, v.Body)
+			}
 			a.walkExpr(v.Body)
 		}
 	case *ast.BinaryOp:
 		a.walkExpr(v.Left)
 		a.walkExpr(v.Right)
+	}
+}
+
+// registerSingleExprBody records a 1-child list for a block-form single-expression
+// FuncDecl or FuncLit body (`func f() { expr }`), which the parser unwraps from
+// *ast.Block to the bare expression. Skipping let-chains preserves their own chain
+// boundaries (mirroring isSingleLetChainBlock for *ast.Block).
+func (a *attacher) registerSingleExprBody(owner any, body ast.Expr) {
+	if let, ok := body.(*ast.Let); ok && let.Body != nil {
+		return
+	}
+	nodes := []ast.Node{body}
+	open := a.openBraceBefore(nodes)
+	if open >= 0 && a.env.src[open] == '{' {
+		a.addList(owner, nodes, open)
 	}
 }
 

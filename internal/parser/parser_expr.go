@@ -111,6 +111,19 @@ func (p *Parser) parseLetExpression() ast.Expr {
 		Pos: p.curPos(),
 	}
 
+	if p.peekTokenIs(lexer.LPAREN) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_LET_TUPLE",
+			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+			p.peekToken,
+			"tuple destructuring in 'let' bindings (let (a, b) = ...) is not supported",
+			[]string{
+				"Use pattern matching instead: match expr { (a, b) => ... }",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
@@ -171,6 +184,19 @@ func (p *Parser) parseLetRecExpression() ast.Expr {
 		Pos: p.curPos(),
 	}
 
+	if p.peekTokenIs(lexer.LPAREN) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_LET_TUPLE",
+			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+			p.peekToken,
+			"tuple destructuring in 'let' bindings (let (a, b) = ...) is not supported",
+			[]string{
+				"Use pattern matching instead: match expr { (a, b) => ... }",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
@@ -328,6 +354,33 @@ func (p *Parser) parseCase() *ast.Case {
 		}
 	} else {
 		c.Body = p.parseExpression(LOWEST)
+		// A bare `let x = e` (without `in`) or a `;`-separated sequence in a match arm
+		// without `{ ... }` would otherwise return to parseMatchExpression and fail with
+		// a misleading "expected =>, got let" on the next line. Emit a targeted error.
+		if letExpr, ok := c.Body.(*ast.Let); ok && letExpr.Body == nil {
+			p.errors = append(p.errors, NewSuggestionError(
+				"PAR_MATCH_ARM_BLOCK",
+				letExpr.Pos,
+				p.curToken,
+				"multi-statement match arm requires braces '{ ... }' (or 'let ... in ...')",
+				[]string{
+					"Wrap the match arm body in braces: pattern => { let x = ...; ... }",
+					"Or use an expression body with 'in': pattern => let x = ... in ...",
+				},
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
+			))
+		} else if p.peekTokenIs(lexer.SEMICOLON) {
+			p.errors = append(p.errors, NewSuggestionError(
+				"PAR_MATCH_ARM_BLOCK",
+				ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+				p.peekToken,
+				"multi-statement match arm requires braces '{ ... }'",
+				[]string{
+					"Wrap the match arm body in braces: pattern => { expr1; expr2 }",
+				},
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
+			))
+		}
 	}
 
 	return c

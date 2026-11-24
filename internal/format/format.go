@@ -382,10 +382,11 @@ func (p *printer) block(b *ast.Block) error {
 	return p.blockBraced(b)
 }
 
-// bodyBraced prints a func-literal body: a braced block if it is a multi- or
-// zero-expression block, otherwise a braced single-statement block. Func-literal
-// grammar always requires braces, so even a single expression is wrapped.
-func (p *printer) bodyBraced(body ast.Expr) error {
+// bodyBraced prints a func-literal or block-form single-expression function body:
+// a braced block if it is a multi- or zero-expression block, otherwise a braced
+// single-statement block with comment attachment owned by owner (*ast.FuncDecl or
+// *ast.FuncLit).
+func (p *printer) bodyBraced(owner any, body ast.Expr) error {
 	if blk, ok := body.(*ast.Block); ok {
 		return p.blockBraced(blk)
 	}
@@ -394,8 +395,22 @@ func (p *printer) bodyBraced(body ast.Expr) error {
 	p.w.hardline()
 	var err error
 	p.w.indented(func() {
+		p.emitLeading(owner, 0)
+		if p.hasFloating(owner, 0) {
+			p.emitFloating(owner, 0)
+			p.w.hardline()
+		}
 		err = p.blockStatement(body)
+		if err != nil {
+			return
+		}
+		p.emitTrailing(owner, 0)
 		p.w.hardline()
+		if p.hasFloating(owner, 1) {
+			p.emitFloating(owner, 1)
+			p.w.hardline()
+		}
+		p.emitLeading(owner, 1)
 	})
 	if err != nil {
 		return err
