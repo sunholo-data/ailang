@@ -1,0 +1,97 @@
+module param_callees
+
+-- Helpers taking or returning a parametric ADT at a concrete type are inlined
+-- like any other helper (TestParametricCallees).
+
+type DivErr = Zero | Neg(int)
+type Box[a] = Box(a) | Empty
+
+pure func parsePos(n: int) -> Option[int] =
+  if n > 0 then Some(n) else None
+
+pure func usePos(n: int) -> int
+  ensures { result >= 0 }
+{
+  match parsePos(n) { Some(k) => k, None => 0 }
+}
+
+pure func usePosBad(n: int) -> int
+  ensures { result > 0 }
+{
+  match parsePos(n) { Some(k) => k, None => 0 }
+}
+
+pure func safeDiv(a: int, b: int) -> Result[int, DivErr] =
+  if b == 0 then Err(Zero) else if b < 0 then Err(Neg(b)) else Ok(a / b)
+
+pure func useDivOk(a: int, b: int) -> int
+  requires { a >= 0, b > -1000 }
+  ensures { result >= 0 }
+{
+  match safeDiv(a, b) { Ok(q) => q, Err(Neg(x)) => 0 - x, Err(Zero) => 0 }
+}
+
+pure func useDivBad(a: int, b: int) -> int
+  requires { a >= 0 }
+  ensures { result >= 0 }
+{
+  match safeDiv(a, b) { Ok(q) => q, Err(Neg(x)) => x, Err(Zero) => 0 }
+}
+
+pure func orZero(o: Option[int]) -> int =
+  match o { Some(x) => x, None => 0 }
+
+pure func useOrZero(n: int) -> int
+  requires { n >= 0 }
+  ensures { result >= 0 }
+{
+  orZero(Some(n))
+}
+
+pure func needsSome(o: Option[int]) -> int
+  requires { o != None }
+  ensures { result == result }
+{
+  match o { Some(x) => x, None => 0 }
+}
+
+pure func callNeedsSome(n: int) -> int
+  ensures { result == result }
+{
+  needsSome(parsePos(n))
+}
+
+pure func boxed(n: int) -> Box[int] = if n > 0 then Box(n) else Empty
+
+pure func useBox(n: int) -> int
+  ensures { result >= 0 }
+{
+  match boxed(n) { Box(k) => k, Empty => 0 }
+}
+
+pure func half(f: float) -> Option[float] = if f > 0.0 then Some(f / 2.0) else None
+
+pure func useHalf(f: float) -> float
+  ensures { result >= 0.0 }
+{
+  match half(f) { Some(h) => h, None => 0.0 }
+}
+
+func plain(n: int) -> Option[int] { if n > 0 then Some(n) else None }
+
+pure func usePlain(n: int) -> int
+  ensures { result >= 0 }
+{
+  match plain(n) { Some(k) => k, None => 0 }
+}
+
+pure func twice(x: int) -> (int, int) = (x, x)
+
+pure func fst(p: (int, int)) -> int = match p { (a, _) => a }
+
+pure func useTuple(x: int) -> int
+  requires { x >= 0 }
+  ensures { result >= 0 }
+{
+  fst(twice(x))
+}

@@ -1,26 +1,25 @@
 -- examples/runnable/contracts/unencodable_callee_skip.ail
--- Cross-function contract where a callee returns a parametric ADT over a primitive
--- (Option[float]). Static SMT verification of `gradeNumeric` is OUTSIDE the encodable
--- fragment, so `ailang verify` SKIPS it with a structured UNENCODABLE_TYPE reason
--- (naming the callee + offending type) rather than crashing Z3 — see M-SMT-CALLEE-SORT-GATE.
+-- Cross-function contract where a callee returns a tuple ((float, string)). Tuples
+-- have no SMT sort, so static verification of `gradeNumeric` is OUTSIDE the
+-- encodable fragment: `ailang verify` SKIPS it with a structured UNENCODABLE_TYPE
+-- reason (naming the callee + offending type) rather than crashing Z3 — see
+-- M-SMT-CALLEE-SORT-GATE. (An Option[float] callee used to be the example; Option,
+-- Result and other ADTs at a concrete type now verify.)
 -- Runtime contracts still hold; this program runs normally.
 module examples/runnable/contracts/unencodable_callee_skip
-import std/option (Option, Some, None)
 
--- Callee returns Option[float] — a parametric ADT application the encoder can't
--- monomorphize into a concrete SMT sort.
-export func convertTo(x: float, target: string) -> Option[float] ! {} {
-  Some(x * 2.0)
+-- Callee returns a tuple — a type with no SMT encoding.
+export func convertTo(x: float, target: string) -> (float, string) ! {} {
+  (x * 2.0, target)
 }
 
 -- Contracted caller. `ailang verify` reports: SKIPPED (UNENCODABLE_TYPE) because
--- `convertTo`'s signature uses Option[float]. It does NOT emit a Z3 error.
+-- `convertTo`'s signature uses (float, string). It does NOT emit a Z3 error.
 export func gradeNumeric(x: float) -> float ! {}
 requires { x >= 0.0 }
 ensures { result >= 0.0 } {
   match convertTo(x, "F") {
-    Some(v) => v,
-    None => 0.0
+    (v, _) => v
   }
 }
 

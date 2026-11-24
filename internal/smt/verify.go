@@ -334,16 +334,14 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	}
 
 	// Build the callee-sort gate inputs. The gate rejects a contracted function whose
-	// cross-function callee has an unencodable signature *type* (e.g. Option[float], a
-	// parametric ADT application) with a structured UNENCODABLE_TYPE reason, instead of
-	// leaking an undeclared sort into the SMT script and crashing Z3. See
-	// M-SMT-CALLEE-SORT-GATE.
+	// cross-function callee has an unencodable signature *type* (a type variable, a
+	// tuple, a parametric ADT at a non-concrete instance) with a structured
+	// UNENCODABLE_TYPE reason, instead of leaking an undeclared sort into the SMT
+	// script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
 	//
-	// We inspect the surface AST types (not the flattened SMT sort strings): a mapped
-	// sort like "Option" loses the [float] argument, and an imported parametric ADT such
-	// as Option is registered in adtTypes yet cannot be declared as a usable monomorphic
-	// sort — so a sort-string check wrongly passes it. The AST distinguishes a monomorphic
-	// enum (SimpleType) from a parametric application (TypeApp with args) and a type var.
+	// We inspect the surface AST types (not the flattened SMT sort strings): the AST
+	// distinguishes a monomorphic enum (SimpleType) from a parametric application
+	// (TypeApp with args) and a type variable.
 	calleeASTFuncs := make(map[string]*ast.FuncDecl)
 	for name, fd := range surfaceFuncs {
 		calleeASTFuncs[name] = fd
@@ -361,10 +359,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 		}
 	}
-	// declarableADTs: monomorphic (non-parametric) ADT/record names that WILL be declared
-	// as SMT sorts. Parametric ADTs (those whose TypeDecl carries type parameters) are
-	// excluded — they cannot be monomorphized by the current encoder.
-	declarableADTs := CollectMonomorphicTypeNames(allTypeFiles)
+	// declarableADTs: every declared ADT/record name and its type-parameter
+	// count; a parametric one is admitted only at a concrete instance.
+	declarableADTs := CollectDeclarableTypes(allTypeFiles)
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
@@ -442,7 +439,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			encodable = false
 		}
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
-		// unencodable signature type (e.g. Option[float]) rather than leaking an
+		// unencodable signature type (e.g. a type variable) rather than leaking an
 		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
 		// Contract predicates are gated too: their callees are resolved as define-funs
 		// (ResolveCalleesFromRoots), so an unencodable callee sort there would leak.
@@ -450,7 +447,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			rejections = append(rejections, SMTRejectionReason{
 				Code:    RejectUnencodable,
 				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
+				Hint:    "Cross-function verification cannot encode type variables, tuples, function types or bytes in a callee signature (Option/Result and other ADTs at a concrete type are fine). Give the callee a concrete signature, or inline its logic into the caller.",
 			})
 			encodable = false
 		}
@@ -587,7 +584,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 					Rejections: []SMTRejectionReason{{
 						Code:    RejectUnencodable,
 						Message: fmt.Sprintf("Function %q uses a construct the SMT encoder cannot represent", funcName),
-						Hint:    "Match on list patterns (x :: rest), string patterns, and similar unsupported constructs are outside the decodable fragment. Rewrite using length/element access on lists, or verify a version without the unsupported construct.",
+						Hint:    unsupportedConstructHint(err),
 					}},
 				})
 				report.Skipped++

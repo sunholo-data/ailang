@@ -105,7 +105,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 - Use **encodable types**: `int`, `float`, `bool`, `string`, records, enum ADTs, lists
 - Use `match` on enums, ADTs, records — nested patterns such as `Some(Some(x))` verify
 - Have `requires`/`ensures` contracts
-- Make **cross-function calls** to other pure functions (Z3 inlines them)
+- Make **cross-function calls** to other pure functions (Z3 inlines them), including ones taking or returning `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). A helper also needs `pure` or `! {}`: an unannotated `func` is not admitted. A helper with a type variable, tuple, function or `bytes` in its signature makes the caller SKIPPED
 - Are **non-recursive**, or recursive with a `requires` that bounds the depth within the unrolling limit (default 2; `@verify(depth: N)` or `--verify-recursive-depth N`). Otherwise the result is INCONCLUSIVE (exit 1)
 - Use **bounded quantifiers** (`forall i: 0..N => predicate`)
 

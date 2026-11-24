@@ -153,7 +153,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 
 		// Contract-as-spec reasoning must not bypass the declaration row gate.
 		if !smtAdmissible(meta, declarations[meta]) {
-			return nil, fmt.Errorf("%w: callee %q has an inadmissible effect row", ErrUnsupportedConstruct, calleeName)
+			return nil, inadmissibleCalleeError{calleeName}
 		}
 		encodable, rejections := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
 		// A self-recursive callee with no ensures has no contract to stand in

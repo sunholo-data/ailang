@@ -2014,10 +2014,7 @@
         "cross-function-calls",
         "unencodable-type"
       ],
-      "description": "Cross-function contract with a callee returning Option[float] \u2014 ailang verify skips gracefully (UNENCODABLE_TYPE) instead of crashing Z3",
-      "modules": [
-        "std/option"
-      ]
+      "description": "Cross-function contract with a callee returning a tuple \u2014 ailang verify skips gracefully (UNENCODABLE_TYPE) instead of crashing Z3"
     },
     {
       "path": "runnable/contracts/cross_module_functions.ail",

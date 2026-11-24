@@ -721,7 +721,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums, ADTs, and **records** (field destructuring)
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
-- Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
+- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be `pure`, `! {}` or `! {Declassify}`; a callee whose signature has a type variable, a tuple, a function type or `bytes` makes the caller SKIPPED
 - Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
 - **Higher-order functions**: `map`, `filter`, `foldl`, `any`, `flatMap` with a **lambda or a named top-level function**, over any element type, specialized and unrolled (depth 3) — see [below](#higher-order-function-verification)
 - **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs)

@@ -214,20 +214,19 @@ func ASTTypeToSMTSort(t ast.Type) string {
 
 // M-SMT-CALLEE-SORT-GATE: the caller-side encodability gate.
 
-// CollectMonomorphicTypeNames returns the set of type names (ADTs and record
-// aliases) declared WITHOUT type parameters across the given files. These are the
-// only user types that can be emitted as concrete SMT sorts. Parametric types
-// (e.g. Option[a], Result[e,a]) are excluded: the encoder cannot monomorphize them,
-// so a signature that mentions them must be gated rather than encoded.
-func CollectMonomorphicTypeNames(files []*ast.File) map[string]bool {
-	names := make(map[string]bool)
+// CollectDeclarableTypes maps every type name (ADT or record alias) declared
+// across files to its number of type parameters. A monomorphic type (0) is a
+// sort by name; a parametric one is a sort only applied to as many encodable
+// arguments. Option and Result are built in.
+func CollectDeclarableTypes(files []*ast.File) map[string]int {
+	names := map[string]int{"Option": 1, "Result": 2}
 	for _, f := range files {
 		if f == nil {
 			continue
 		}
 		for _, decl := range f.Decls {
-			if td, ok := decl.(*ast.TypeDecl); ok && len(td.TypeParams) == 0 {
-				names[td.Name] = true
+			if td, ok := decl.(*ast.TypeDecl); ok {
+				names[td.Name] = len(td.TypeParams)
 			}
 		}
 	}
@@ -235,12 +234,12 @@ func CollectMonomorphicTypeNames(files []*ast.File) map[string]bool {
 }
 
 // astTypeEncodable reports whether an AST type can appear in a callee signature
-// that the SMT encoder can handle. Primitives, lists/sequences, records, and
-// monomorphic ADTs (declared in `declarable`) are encodable. A parametric ADT
-// application (TypeApp with args, e.g. Option[float]) or a bare type variable is
-// NOT — those are exactly the shapes that leak an undeclared sort into Z3.
-// A nil type (no annotation) is treated as encodable — we only gate on what we can see.
-func astTypeEncodable(t ast.Type, declarable map[string]bool) bool {
+// that the SMT encoder can handle: primitives, lists, records, declared
+// monomorphic ADTs, and declared parametric ADTs applied to encodable
+// arguments. A bare type variable, a tuple or a function type is not — those
+// are the shapes that would leak an undeclared sort into Z3. A nil type (no
+// annotation) is treated as encodable — we only gate on what we can see.
+func astTypeEncodable(t ast.Type, declarable map[string]int) bool {
 	switch ty := t.(type) {
 	case nil:
 		return true
@@ -249,7 +248,8 @@ func astTypeEncodable(t ast.Type, declarable map[string]bool) bool {
 		case "int", "float", "bool", "string":
 			return true
 		default:
-			return declarable[ty.Name] // monomorphic user ADT/record
+			n, ok := declarable[ty.Name]
+			return ok && n == 0 // monomorphic user ADT/record
 		}
 	case *ast.ListType:
 		return astTypeEncodable(ty.Element, declarable)
@@ -258,7 +258,19 @@ func astTypeEncodable(t ast.Type, declarable map[string]bool) bool {
 		if ty.Constructor == "list" && len(ty.Args) == 1 {
 			return astTypeEncodable(ty.Args[0], declarable)
 		}
-		return false // parametric ADT application (Option[float], Result[e,a], ...)
+		// A parametric ADT applied to encodable arguments (Option[int],
+		// Result[float, string], a user Box[int]) is a concrete datatype sort:
+		// the encoder declares the ADT with Z3 binders and annotates its
+		// constructors at the instance (parametric_*.go).
+		if n := declarable[ty.Constructor]; n == 0 || n != len(ty.Args) {
+			return false
+		}
+		for _, a := range ty.Args {
+			if !astTypeEncodable(a, declarable) {
+				return false
+			}
+		}
+		return true
 	case *ast.RecordType:
 		return true // records map to declared record datatypes
 	case *ast.LabelledType:
@@ -298,8 +310,8 @@ func describeASTType(t ast.Type) string {
 
 // FirstUnencodableCalleeType walks the cross-function call graph reachable from a
 // contracted function's body and returns the first callee whose signature (a
-// parameter type or the return type) is not SMT-encodable — e.g. a parametric ADT
-// like Option[float]. Returns (calleeName, renderedType), or ("","") if all clean.
+// parameter type or the return type) is not SMT-encodable — e.g. a type variable
+// or a tuple. Returns (calleeName, renderedType), or ("","") if all clean.
 //
 // This closes a gap in the fragment gate: the smt-side checks only inspect
 // $builtin/stdlib call names, never the signature TYPES of a user cross-function
@@ -311,7 +323,7 @@ func FirstUnencodableCalleeType(
 	prog *core.Program,
 	imported map[string]*core.Program,
 	calleeASTFuncs map[string]*ast.FuncDecl,
-	declarable map[string]bool,
+	declarable map[string]int,
 ) (string, string) {
 	for _, name := range CollectCalleeNames(body, funcName, prog, imported) {
 		fd, ok := calleeASTFuncs[name]
@@ -346,7 +358,7 @@ func firstUnencodableCalleeInFunc(
 	prog *core.Program,
 	imported map[string]*core.Program,
 	calleeASTFuncs map[string]*ast.FuncDecl,
-	declarable map[string]bool,
+	declarable map[string]int,
 ) (string, string) {
 	if callee, bad := FirstUnencodableCalleeType(funcName, body, prog, imported, calleeASTFuncs, declarable); callee != "" {
 		return callee, bad

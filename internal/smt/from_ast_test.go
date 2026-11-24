@@ -7,10 +7,13 @@ import (
 )
 
 // TestAstTypeEncodable covers the M-SMT-CALLEE-SORT-GATE encodability predicate:
-// primitives, lists, records, and monomorphic ADTs are encodable; parametric ADT
-// applications (Option[float], Result[e,a]) and bare type variables are not.
+// primitives, lists, records, monomorphic ADTs and parametric ADTs at a concrete
+// instance are encodable; type variables (also as an ADT argument), a parametric
+// ADT used bare or at the wrong arity, and undeclared names are not.
 func TestAstTypeEncodable(t *testing.T) {
-	declarable := map[string]bool{"Region": true, "Grade": true}
+	declarable := map[string]int{"Region": 0, "Grade": 0, "Option": 1, "Result": 2, "Box": 1}
+	app := func(c string, args ...ast.Type) ast.Type { return &ast.TypeApp{Constructor: c, Args: args} }
+	simple := func(n string) ast.Type { return &ast.SimpleType{Name: n} }
 
 	tests := []struct {
 		name string
@@ -26,10 +29,19 @@ func TestAstTypeEncodable(t *testing.T) {
 		{"nil type", nil, true},
 		{"list of int", &ast.ListType{Element: &ast.SimpleType{Name: "int"}}, true},
 		{"list of ADT", &ast.ListType{Element: &ast.SimpleType{Name: "Region"}}, true},
-		{"list of parametric", &ast.ListType{Element: &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}}, false},
+		{"list of Option[int]", &ast.ListType{Element: app("Option", simple("int"))}, true},
 		{"list[] typeapp", &ast.TypeApp{Constructor: "list", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, true},
-		{"Option[float] parametric", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "float"}}}, false},
-		{"Result[float,string] parametric", &ast.TypeApp{Constructor: "Result", Args: []ast.Type{&ast.SimpleType{Name: "float"}, &ast.SimpleType{Name: "string"}}}, false},
+		{"Option[float]", app("Option", simple("float")), true},
+		{"Result[float, string]", app("Result", simple("float"), simple("string")), true},
+		{"Result[int, Region]", app("Result", simple("int"), simple("Region")), true},
+		{"Option[list[int]]", app("Option", app("list", simple("int"))), true},
+		{"user Box[int]", app("Box", simple("int")), true},
+		{"Option[a]", app("Option", &ast.TypeVar{Name: "a"}), false},
+		{"Option[Widget] undeclared arg", app("Option", simple("Widget")), false},
+		{"Result[(), string] tuple arg", app("Result", &ast.TupleType{}, simple("string")), false},
+		{"Box bare (parametric, no args)", simple("Box"), false},
+		{"Box[int, int] wrong arity", app("Box", simple("int"), simple("int")), false},
+		{"Widget[int] undeclared", app("Widget", simple("int")), false},
 		{"type variable", &ast.TypeVar{Name: "a"}, false},
 		{"record", &ast.RecordType{}, true},
 		{"labelled wraps base", &ast.LabelledType{Base: &ast.SimpleType{Name: "int"}}, true},
@@ -43,10 +55,9 @@ func TestAstTypeEncodable(t *testing.T) {
 	}
 }
 
-// TestCollectMonomorphicTypeNames verifies only type declarations WITHOUT type
-// parameters are treated as declarable SMT sorts. A parametric type like Box[a]
-// must be excluded — the encoder cannot monomorphize it.
-func TestCollectMonomorphicTypeNames(t *testing.T) {
+// TestCollectDeclarableTypes verifies every declared type maps to its number of
+// type parameters, with Option and Result built in.
+func TestCollectDeclarableTypes(t *testing.T) {
 	file := &ast.File{
 		Decls: []ast.Node{
 			&ast.TypeDecl{Name: "Region", TypeParams: nil},
@@ -54,12 +65,12 @@ func TestCollectMonomorphicTypeNames(t *testing.T) {
 			&ast.TypeDecl{Name: "Box", TypeParams: []string{"a"}},
 		},
 	}
-	got := CollectMonomorphicTypeNames([]*ast.File{file, nil})
-	if !got["Region"] || !got["Grade"] {
-		t.Fatalf("expected monomorphic types Region, Grade in %v", got)
-	}
-	if got["Box"] {
-		t.Fatalf("parametric type Box[a] must NOT be declarable, got %v", got)
+	got := CollectDeclarableTypes([]*ast.File{file, nil})
+	want := map[string]int{"Region": 0, "Grade": 0, "Box": 1, "Option": 1, "Result": 2}
+	for name, n := range want {
+		if m, ok := got[name]; !ok || m != n {
+			t.Errorf("%s: got (%d, %v), want %d", name, m, ok, n)
+		}
 	}
 }
 
