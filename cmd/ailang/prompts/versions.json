@@ -1258,7 +1258,7 @@
     },
     "v0.16.19": {
       "file": "prompts/v0.16.19.md",
-      "hash": "cd749bdddbf740398303074a0bd543d471703ad6a6daa5b46c265ce8f71d40d4",
+      "hash": "7dd5ebaef996297788c3f6d1c017fadf98e5c6c66969c98d00797f979d887cb3",
       "description": "Document let (a, b) tuple destructuring, module-qualified types (S.Set[T], M.Map[K, V]), newline block delimiters, and std/list takeWhile/dropWhile",
       "created": "2026-11-24",
       "tags": [
