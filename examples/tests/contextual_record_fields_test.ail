@@ -1,0 +1,24 @@
+module examples/tests/contextual_record_fields_test
+
+import std/list (length)
+
+type Requirement = { name: string, minVer: int }
+type PackageDef = { name: string, requires: [Requirement], ensures: bool }
+
+export pure func makePkg(n: string, reqs: [Requirement]) -> PackageDef =
+  { name: n, requires: reqs, ensures: true }
+
+export pure func addReq(p: PackageDef, r: Requirement) -> PackageDef =
+  { p | requires: r :: p.requires }
+
+export pure func reqCount(p: PackageDef) -> int {
+  let { requires: rs, ... } = p
+  length(rs)
+}
+
+test "contextual contract keywords work as record fields end-to-end" {
+  let p0 = makePkg("core", [])
+  let p1 = addReq(p0, { name: "json", minVer: 1 })
+  assert p1.ensures == true
+  assert reqCount(p1) == 1
+}

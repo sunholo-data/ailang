@@ -247,6 +247,26 @@ func (p *Parser) peek4TokenIs(t lexer.TokenType) bool {
 	return p.peek4Token.Type == t
 }
 
+// isContextualFieldKeyword reports whether t is a contract/test keyword that is
+// unambiguous in record field positions (e.g. `{ requires: [Req] }`, `pkg.requires`).
+// Core control/binding keywords (`if`, `let`, `with`, `recv`, etc.) stay reserved.
+func isContextualFieldKeyword(t lexer.TokenType) bool {
+	switch t {
+	case lexer.REQUIRES, lexer.ENSURES, lexer.INVARIANT, lexer.PROPERTY, lexer.TEST:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) curIsFieldName() bool {
+	return p.curTokenIs(lexer.IDENT) || isContextualFieldKeyword(p.curToken.Type)
+}
+
+func (p *Parser) peekIsFieldName() bool {
+	return p.peekTokenIs(lexer.IDENT) || isContextualFieldKeyword(p.peekToken.Type)
+}
+
 func (p *Parser) expectPeek(t lexer.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()

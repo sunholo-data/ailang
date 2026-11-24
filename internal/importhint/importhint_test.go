@@ -76,6 +76,27 @@ func TestIMP010_ClosestExportSuggestion(t *testing.T) {
 	}
 }
 
+func TestIMP010_WordOverlapSuggestion(t *testing.T) {
+	oldL, oldS := Locator, SymbolsOf
+	defer func() { Locator, SymbolsOf = oldL, oldS }()
+	Locator = func(string) []string { return nil }
+	SymbolsOf = func(mod string) []string {
+		if mod == "std/string" {
+			return []string{"length", "substring", "charAt", "chars", "split", "stringToInt", "startsWith", "endsWith"}
+		}
+		return nil
+	}
+	if got := IMP010("nthChar", "std/string"); !strings.Contains(got, "'charAt'") {
+		t.Errorf("nthChar should suggest charAt, got %q", got)
+	}
+	if got := IMP010("parseInt", "std/string"); !strings.Contains(got, "'stringToInt'") {
+		t.Errorf("parseInt should suggest stringToInt, got %q", got)
+	}
+	if got := IMP010("nope", "std/string"); got != "" {
+		t.Errorf("unrelated symbol should get no suggestion, got %q", got)
+	}
+}
+
 // M-DX-AI-DISCOVERY M3: ModuleSuggestion recovers a mistyped stdlib MODULE name.
 
 func modLocatorFixture() []string {

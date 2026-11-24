@@ -354,10 +354,22 @@ func (p *Parser) parseArrayLiteral() ast.Expr {
 		Pos: p.curPos(),
 	}
 
-	// Current token is HASH, expect LBRACKET next
-	if !p.expectPeek(lexer.LBRACKET) {
+	// Current token is HASH, expect LBRACKET next for array literal #[...]
+	if !p.peekTokenIs(lexer.LBRACKET) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_HASH_COMMENT",
+			p.curPos(),
+			p.curToken,
+			"'#' starts array literals '#[...]', not comments",
+			[]string{
+				"Use '--' (or '//') for line comments in AILANG",
+				"For array literals, write '#[1, 2, 3]' with '[' immediately after '#'",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
 		return nil
 	}
+	p.nextToken() // move onto LBRACKET
 
 	p.nextToken() // move past LBRACKET
 
@@ -416,7 +428,7 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 	// Record literals: IDENT COLON ...
 	// Record updates: IDENT PIPE ...
 	// Blocks: anything else
-	isRecordLiteral := (p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING)) && p.peekTokenIs(lexer.COLON)
+	isRecordLiteral := (p.curIsFieldName() || p.curTokenIs(lexer.STRING)) && p.peekTokenIs(lexer.COLON)
 	isRecordUpdate := p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.PIPE)
 
 	if isRecordUpdate {
@@ -439,7 +451,7 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 				Pos: p.curPos(),
 			}
 
-			if !p.curTokenIs(lexer.IDENT) {
+			if !p.curIsFieldName() {
 				p.errors = append(p.errors, fmt.Errorf("expected field name in record update, got %s", p.curToken.Type))
 				return nil
 			}
@@ -482,7 +494,7 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 				Pos: p.curPos(),
 			}
 
-			if p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING) {
+			if p.curIsFieldName() || p.curTokenIs(lexer.STRING) {
 				field.Name = p.curToken.Literal
 			} else {
 				p.errors = append(p.errors, fmt.Errorf("expected field name (identifier or quoted string), got %s", p.curToken.Type))
@@ -536,7 +548,7 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 					Pos: p.curPos(),
 				}
 
-				if !p.curTokenIs(lexer.IDENT) {
+				if !p.curIsFieldName() {
 					p.errors = append(p.errors, fmt.Errorf("expected field name in record update, got %s", p.curToken.Type))
 					return nil
 				}

@@ -10,6 +10,25 @@ import (
 func (p *Parser) parseLambda() ast.Expr {
 	pos := p.curPos()
 
+	// M-AGENT-DIAGNOSTICS-ERGONOMICS M3: detect named nested `func name(...)`
+	// inside an expression/block instead of emitting `expected (, got IDENT`.
+	if p.peekTokenIs(lexer.IDENT) {
+		p.nextToken()
+		name := p.curToken.Literal
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_LOCAL_FUNC",
+			p.curPos(),
+			p.curToken,
+			fmt.Sprintf("nested named 'func %s(...)' is not allowed inside a function body", name),
+			[]string{
+				fmt.Sprintf("Move 'func %s(...)' to module top-level", name),
+				fmt.Sprintf("Or use a local recursive binding: letrec %s = \\x. ... in ...", name),
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
+
 	// Expect opening parenthesis
 	if !p.expectPeek(lexer.LPAREN) {
 		return nil

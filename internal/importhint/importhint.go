@@ -172,7 +172,73 @@ func closestExport(want string, exports []string) string {
 			bestDist, best = d, e
 		}
 	}
+	if best != "" {
+		return best
+	}
+	// Fallback: camelCase/snake_case word-token overlap (e.g. nthChar -> charAt,
+	// parseInt -> stringToInt). Requires either a >=4-char shared word or a
+	// >=3-char exact word match on a multi-word identifier, so single unrelated
+	// words ("nope", "zzqqxx") still return "".
+	return closestByWordOverlap(want, exports)
+}
+
+// closestByWordOverlap matches compound identifiers that share meaningful
+// camelCase/snake_case word tokens with an export (e.g. nthChar -> charAt).
+func closestByWordOverlap(want string, exports []string) string {
+	wantWords := splitIdentWords(want)
+	if len(wantWords) == 0 {
+		return ""
+	}
+	best := ""
+	bestScore := 0
+	for _, e := range exports {
+		if strings.EqualFold(e, want) {
+			continue
+		}
+		expWords := splitIdentWords(e)
+		score := 0
+		for _, ww := range wantWords {
+			for _, ew := range expWords {
+				if ww == ew {
+					if len(ww) >= 4 || (len(ww) >= 3 && len(wantWords) >= 2) {
+						score += len(ww) * 2
+					}
+				} else if len(ww) >= 4 && (strings.HasPrefix(ew, ww) || strings.HasPrefix(ww, ew)) {
+					score += len(ww)
+				}
+			}
+		}
+		if score > bestScore || (score > 0 && score == bestScore && lenDiff(e, want) < lenDiff(best, want)) {
+			bestScore = score
+			best = e
+		}
+	}
 	return best
+}
+
+// splitIdentWords splits a camelCase or snake_case identifier into lowercase word tokens.
+func splitIdentWords(s string) []string {
+	var words []string
+	var cur []byte
+	flush := func() {
+		if len(cur) > 0 {
+			words = append(words, strings.ToLower(string(cur)))
+			cur = cur[:0]
+		}
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '_' || c == '-' {
+			flush()
+			continue
+		}
+		if c >= 'A' && c <= 'Z' && len(cur) > 0 {
+			flush()
+		}
+		cur = append(cur, c)
+	}
+	flush()
+	return words
 }
 
 // normaliseName folds case and drops underscores: nth_or, nthOr and NTHOR all

@@ -339,7 +339,7 @@ func (p *Parser) parseRecordTypeExpr() ast.Type {
 }
 
 func (p *Parser) parseRecordFieldDef() *ast.RecordField {
-	if !p.curTokenIs(lexer.IDENT) {
+	if !p.curIsFieldName() {
 		if lexer.IsReservedKeyword(p.curToken.Literal) {
 			p.errors = append(p.errors, reservedKeywordError(p.curToken, "PAR_FIELD_NAME_EXPECTED"))
 		} else {
