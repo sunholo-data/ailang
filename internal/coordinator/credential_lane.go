@@ -24,6 +24,11 @@ import (
 // laneCodexSubscription names the cloud codex subscription credential.
 const laneCodexSubscription = "codex-subscription"
 
+// laneAgySubscription names the cloud agy (Google AI subscription) credential: a
+// token file agy rewrites on refresh, leased exactly like codex's auth.json
+// (M-AGY-CLOUD D2: one cloud agy run at a time).
+const laneAgySubscription = "agy-subscription"
+
 // A failed task keeps its lane for its agent's timeout plus this grace (D-FLEET-39).
 //
 // The executor jobs run with maxRetries: 1, and a `failed` completion comes
@@ -52,10 +57,13 @@ const credentialLaneFailedScan = 50
 // "" when its credential is not exclusive. Every cloud codex job is on the
 // subscription: the metered codex key went with the *-apikey jobs (2026-11-10).
 func credentialLane(provider string) string {
-	if provider != "codex" {
-		return ""
+	switch provider {
+	case "codex":
+		return laneCodexSubscription
+	case "agy":
+		return laneAgySubscription
 	}
-	return laneCodexSubscription
+	return ""
 }
 
 // credentialLaneHolder returns the ID of a task other than self that occupies

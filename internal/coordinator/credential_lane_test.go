@@ -66,10 +66,15 @@ func TestFailedTaskHoldsTheLaneOnlyForItsRetryWindow(t *testing.T) {
 }
 
 func TestCredentialLane(t *testing.T) {
-	for provider, want := range map[string]string{"codex": laneCodexSubscription, "claude": "", "pi": ""} {
+	for provider, want := range map[string]string{"codex": laneCodexSubscription, "agy": laneAgySubscription, "claude": "", "pi": "", "gemini_agents": ""} {
 		if got := credentialLane(provider); got != want {
 			t.Errorf("credentialLane(%q) = %q, want %q", provider, got, want)
 		}
+	}
+	// Separate credentials, separate lanes: a running codex task must not hold
+	// back an agy task, or the reverse (M-AGY-CLOUD).
+	if laneAgySubscription == laneCodexSubscription || laneAgySubscription == "" {
+		t.Fatalf("agy lane %q must be its own non-empty lane", laneAgySubscription)
 	}
 }
 

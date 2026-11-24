@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"os"
@@ -205,27 +206,40 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 		publishCompletion("failed", provErr.Error(), "", nil, gitEvidence{}, "")
 		return provErr
 	}
-	codexCred, credErr := installCodexCredential(ctx, provider, projectID)
+	rotCred, credErr := installRotatingCredential(ctx, provider, projectID)
 	if credErr != nil {
 		publishCompletion("failed", credErr.Error(), "", nil, gitEvidence{}, "")
 		return credErr
 	}
 	// Write refreshed subscription tokens back however the task ends; a container
 	// is discarded after one task, so an unpersisted refresh is lost.
-	if codexCred != nil {
-		ctx = codexCred.ctx
+	if rotCred != nil {
+		ctx = rotCred.ctx
 		defer func() {
 			if r := recover(); r != nil {
-				codexCred.quarantine()
+				rotCred.quarantine()
 				panic(r)
 			}
-			if err := codexCred.finish(); err != nil {
+			if err := rotCred.finish(); err != nil {
 				fmt.Fprintln(os.Stderr, "execute-job: credential finalization failed:", err)
 				if returnErr == nil {
 					returnErr = err
 				}
 			}
 		}()
+	}
+	// M-AGY-CLOUD §4: an agy job checks the account's google pace line before it
+	// clones. The /quota read is itself a refresh-capable agy process, so it runs
+	// under the lease: every exit from here goes through the deferred finish()
+	// (write-back, then release), or quarantine when its termination is unproven.
+	if provider == "agy" {
+		if err := checkAgyRation(ctx); err != nil {
+			if errors.Is(err, executor.ErrProcessTerminationUnconfirmed) {
+				rotCred.quarantine()
+			}
+			publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
+			return err
+		}
 	}
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
@@ -265,7 +279,7 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 
 	// Finalize rotating credentials before reporting success. Failed executor
 	// tasks may also have refreshed; persist those before releasing ownership.
-	execErr = finalizeCodexCredential(codexCred, execErr)
+	execErr = finalizeRotatingCredential(rotCred, execErr)
 
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.

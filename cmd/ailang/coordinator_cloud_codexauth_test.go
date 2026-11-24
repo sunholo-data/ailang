@@ -19,7 +19,7 @@ import (
 
 func TestInstallCodexCredential_NonCodexProviderIsANoOp(t *testing.T) {
 	testutil.SetHomeDir(t, t.TempDir())
-	cred, err := installCodexCredential(t.Context(), "claude", "proj")
+	cred, err := installRotatingCredential(t.Context(), "claude", "proj")
 	if err != nil || cred != nil {
 		t.Fatalf("non-codex provider: got (%v, %v), want (nil, nil)", cred, err)
 	}
@@ -36,7 +36,7 @@ func TestInstallCodexCredential_NoSecretFailsLoudly(t *testing.T) {
 			t.Setenv("AILANG_CODEX_AUTH_SECRET", "")
 			t.Setenv("OPENAI_API_KEY", "sk-must-not-be-used")
 
-			_, err := installCodexCredential(t.Context(), "codex", "proj")
+			_, err := installRotatingCredential(t.Context(), "codex", "proj")
 			if err == nil || !strings.Contains(err.Error(), "AILANG_CODEX_AUTH_SECRET") {
 				t.Fatalf("want a loud error naming AILANG_CODEX_AUTH_SECRET, got %v", err)
 			}
@@ -48,7 +48,7 @@ func TestInstallCodexCredential_NoSecretFailsLoudly(t *testing.T) {
 }
 
 func TestCodexCredentialPersist_NilAndUnrefreshedAreNoOps(t *testing.T) {
-	var nilCred *codexCredential
+	var nilCred *rotatingCredential
 	_ = nilCred.finish() // must not panic
 
 	home := t.TempDir()
@@ -64,7 +64,7 @@ func TestCodexCredentialPersist_NilAndUnrefreshedAreNoOps(t *testing.T) {
 	// reachable here, so reaching one would fail the run's log, not this test —
 	// the assertion is that it returns promptly with nothing to do).
 	f := &fakeCodexLease{owner: "test"}
-	c := &codexCredential{baseline: auth, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return auth, nil }, write: func(context.Context, []byte) error { t.Fatal("unchanged credential written"); return nil }}
+	c := &rotatingCredential{spec: codexCredentialSpec, baseline: auth, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return auth, nil }, write: func(context.Context, []byte) error { t.Fatal("unchanged credential written"); return nil }}
 	if err := c.finish(); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestCodexCredentialFinishPersistsBeforeRelease(t *testing.T) {
 	next := []byte(`{"auth_mode":"chatgpt","last_refresh":"2026-09-30T10:00:00Z","tokens":{"refresh_token":"new"}}`)
 	f := &fakeCodexLease{owner: "test"}
 	written := false
-	c := &codexCredential{baseline: old, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return next, nil }, write: func(context.Context, []byte) error {
+	c := &rotatingCredential{spec: codexCredentialSpec, baseline: old, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return next, nil }, write: func(context.Context, []byte) error {
 		written = true
 		if f.owner == "" {
 			t.Fatal("release before write")
@@ -126,7 +126,7 @@ func TestCodexCredentialFailedWriteQuarantines(t *testing.T) {
 	old := []byte(`{"auth_mode":"chatgpt","last_refresh":"2026-09-30T10:00:00Z","tokens":{"refresh_token":"old"}}`)
 	next := []byte(`{"auth_mode":"chatgpt","last_refresh":"2026-10-01T10:00:00Z","tokens":{"refresh_token":"new"}}`)
 	f := &fakeCodexLease{owner: "test"}
-	c := &codexCredential{baseline: old, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return next, nil }, write: func(context.Context, []byte) error { return fmt.Errorf("offline") }}
+	c := &rotatingCredential{spec: codexCredentialSpec, baseline: old, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { return next, nil }, write: func(context.Context, []byte) error { return fmt.Errorf("offline") }}
 	if err := c.finish(); err == nil {
 		t.Fatal("failed write hidden")
 	}
@@ -136,24 +136,24 @@ func TestCodexCredentialFailedWriteQuarantines(t *testing.T) {
 }
 func TestCodexCredentialLostOwnershipCannotWrite(t *testing.T) {
 	f := &fakeCodexLease{owner: "other", lost: true}
-	c := &codexCredential{lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { t.Fatal("stale owner read auth"); return nil, nil }}
+	c := &rotatingCredential{spec: codexCredentialSpec, lease: f, owner: "test", key: "projects/p/secrets/s", read: func() ([]byte, error) { t.Fatal("stale owner read auth"); return nil, nil }}
 	if err := c.finish(); err == nil {
 		t.Fatal("ownership loss hidden")
 	}
 }
 func TestCodexLeaseKeyCanonical(t *testing.T) {
-	a, err := canonicalCodexSecret("p", "s")
+	a, err := canonicalSecretKey("p", "s")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := canonicalCodexSecret("ignored", "projects/p/secrets/s")
+	b, err := canonicalSecretKey("ignored", "projects/p/secrets/s")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a != b {
 		t.Fatal("same secret has distinct lease keys")
 	}
-	if _, err := canonicalCodexSecret("p", "projects/p/secrets/s/versions/latest"); err == nil {
+	if _, err := canonicalSecretKey("p", "projects/p/secrets/s/versions/latest"); err == nil {
 		t.Fatal("versioned secret accepted")
 	}
 }
@@ -161,7 +161,7 @@ func TestCodexLeaseKeyCanonical(t *testing.T) {
 func TestCodexCredentialHeartbeatLossCancelsExecution(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	c := &codexCredential{ctx: ctx, cancel: cancel, lease: &fakeCodexLease{lost: true}, owner: "owner", key: "projects/p/secrets/s"}
+	c := &rotatingCredential{spec: codexCredentialSpec, ctx: ctx, cancel: cancel, lease: &fakeCodexLease{lost: true}, owner: "owner", key: "projects/p/secrets/s"}
 	stop := c.heartbeat(time.Millisecond)
 	defer stop()
 	select {
@@ -174,7 +174,7 @@ func TestCodexCredentialQuarantineOnPanicKeepsOwnership(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	f := &fakeCodexLease{owner: "owner"}
-	c := &codexCredential{ctx: ctx, cancel: cancel, lease: f, owner: "owner", key: "projects/p/secrets/s"}
+	c := &rotatingCredential{spec: codexCredentialSpec, ctx: ctx, cancel: cancel, lease: f, owner: "owner", key: "projects/p/secrets/s"}
 	c.quarantine()
 	if ctx.Err() == nil || !f.quarantined || f.owner == "" {
 		t.Fatal("panic released potentially live credential owner")
@@ -183,7 +183,7 @@ func TestCodexCredentialQuarantineOnPanicKeepsOwnership(t *testing.T) {
 
 func TestCodexCredentialRestoreOnlyAfterExclusiveAcquire(t *testing.T) {
 	f := &fakeCodexLease{}
-	c := &codexCredential{lease: f, owner: "codex-execution", key: "projects/p/secrets/s"}
+	c := &rotatingCredential{spec: codexCredentialSpec, lease: f, owner: "codex-execution", key: "projects/p/secrets/s"}
 	restored := false
 	err := c.restore(t.Context(), func() ([]byte, error) {
 		if f.owner != c.owner {
@@ -195,14 +195,14 @@ func TestCodexCredentialRestoreOnlyAfterExclusiveAcquire(t *testing.T) {
 	if err != nil || !restored {
 		t.Fatalf("restore: %v", err)
 	}
-	other := &codexCredential{lease: f, owner: "codex-go-execution", key: c.key}
+	other := &rotatingCredential{spec: codexCredentialSpec, lease: f, owner: "codex-go-execution", key: c.key}
 	if err = other.restore(t.Context(), func() ([]byte, error) { t.Fatal("overlapping job fetched credential"); return nil, nil }, func([]byte) error { return nil }); err == nil {
 		t.Fatal("codex-go overlapped codex")
 	}
 }
 func TestCodexCredentialRestoreFailureReleasesWithoutRunning(t *testing.T) {
 	f := &fakeCodexLease{}
-	c := &codexCredential{lease: f, owner: "execution", key: "projects/p/secrets/s"}
+	c := &rotatingCredential{spec: codexCredentialSpec, lease: f, owner: "execution", key: "projects/p/secrets/s"}
 	err := c.restore(t.Context(), func() ([]byte, error) { return nil, fmt.Errorf("unavailable") }, func([]byte) error { t.Fatal("installed after failed read"); return nil })
 	if err == nil || f.owner != "" {
 		t.Fatal("failed restore leaked ownership")
@@ -211,9 +211,9 @@ func TestCodexCredentialRestoreFailureReleasesWithoutRunning(t *testing.T) {
 
 func TestCodexCredentialUnconfirmedTerminationQuarantinesWithoutRelease(t *testing.T) {
 	f := &fakeCodexLease{owner: "owner"}
-	c := &codexCredential{lease: f, owner: "owner", key: "projects/p/secrets/s", read: func() ([]byte, error) { t.Fatal("credential read while termination unconfirmed"); return nil, nil }}
+	c := &rotatingCredential{spec: codexCredentialSpec, lease: f, owner: "owner", key: "projects/p/secrets/s", read: func() ([]byte, error) { t.Fatal("credential read while termination unconfirmed"); return nil, nil }}
 	execErr := fmt.Errorf("executor failed: %w", codex.ErrProcessTerminationUnconfirmed)
-	if err := finalizeCodexCredential(c, execErr); !errors.Is(err, codex.ErrProcessTerminationUnconfirmed) {
+	if err := finalizeRotatingCredential(c, execErr); !errors.Is(err, codex.ErrProcessTerminationUnconfirmed) {
 		t.Fatalf("termination error hidden: %v", err)
 	}
 	if !f.quarantined || f.owner != "owner" {

@@ -125,6 +125,8 @@ func TestDockerfilesDeclareTheDispatchersProvider(t *testing.T) {
 		"go":       "agent-go",
 		"codex":    "agent-codex",
 		"codex-go": "agent-codex-go",
+		"agy":      "agent-agy",
+		"agy-go":   "agent-agy-go",
 		"opencode": "agent-opencode",
 		"pi":       "agent-pi",
 		"pi-go":    "agent-pi-go",
@@ -150,17 +152,17 @@ func TestDockerfilesDeclareTheDispatchersProvider(t *testing.T) {
 			continue
 		}
 
-		// nil means the image carries several CLIs, so provider is a choice.
-		if providers == nil {
+		// Several CLIs (listed since 2026-11-24; nil before) means a multi-CLI
+		// image, so provider is a choice.
+		if providers == nil || len(providers) > 1 {
 			if declared != multiCLIImage {
 				t.Errorf("variant %q is multi-CLI in the dispatcher but image %s declares %q, want %q",
 					variant, image, declared, multiCLIImage)
 			}
 			continue
 		}
-		if len(providers) != 1 {
-			t.Errorf("variant %q maps to %v — this test assumes single-CLI variants have exactly one",
-				variant, providers)
+		if len(providers) == 0 {
+			t.Errorf("variant %q maps to no CLI at all", variant)
 			continue
 		}
 		if declared != providers[0] {

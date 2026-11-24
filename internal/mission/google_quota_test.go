@@ -27,7 +27,7 @@ var day0 = time.Date(2026, 11, 23, 14, 0, 0, 0, time.UTC)
 
 func TestGoogleQuota_FixtureIsWithinPace(t *testing.T) {
 	now := time.Date(2026, 11, 23, 15, 30, 0, 0, time.UTC)
-	o := evaluateGoogleQuota([]byte(agyQuotaFixture), nil, "/h", 15, now)
+	o := EvaluateGoogleQuota([]byte(agyQuotaFixture), nil, "/h", 15, now)
 	// 3% used, 1h21m into the window: the pace line is ~0.84%, so the loops must wait
 	// even though attended use (the smoke gate) is what spent it — usage is ACCOUNT usage.
 	if o.State != "over" {
@@ -60,22 +60,22 @@ func TestGoogleQuota_DailyPace(t *testing.T) {
 		{"weekly exhausted", day0.Add(150 * time.Hour), "0%", "over"},
 	}
 	for _, c := range cases {
-		o := evaluateGoogleQuota(quotaAt(c.weekly, "90%", c.at), nil, "/h", 15, c.at)
+		o := EvaluateGoogleQuota(quotaAt(c.weekly, "90%", c.at), nil, "/h", 15, c.at)
 		if o.State != c.want {
 			t.Errorf("%s: state=%s want %s (%s; allowance %.2f)", c.name, o.State, c.want, o.Reason, o.Windows[0].AllowancePercent)
 		}
 	}
 	at := day0.Add(48 * time.Hour)
-	if o := evaluateGoogleQuota(quotaAt("80%", "90%", at), nil, "/h", 15, at); o.Windows[0].AllowancePercent != 30 {
+	if o := EvaluateGoogleQuota(quotaAt("80%", "90%", at), nil, "/h", 15, at); o.Windows[0].AllowancePercent != 30 {
 		t.Errorf("pace line on day 2 = %.2f, want 30", o.Windows[0].AllowancePercent)
 	}
-	if o := evaluateGoogleQuota(quotaAt("80%", "90%", at), nil, "/h", 10, at); o.State != "over" {
+	if o := EvaluateGoogleQuota(quotaAt("80%", "90%", at), nil, "/h", 10, at); o.State != "over" {
 		t.Errorf("at 10%%/day, 20%% used on day 2 must be over, got %s", o.State)
 	}
 }
 
 func TestGoogleQuota_FiveHourExhaustedBlocks(t *testing.T) {
-	o := evaluateGoogleQuota(quotaAt("90%", "0%", day0.Add(48*time.Hour)), nil, "/h", 15, day0.Add(48*time.Hour))
+	o := EvaluateGoogleQuota(quotaAt("90%", "0%", day0.Add(48*time.Hour)), nil, "/h", 15, day0.Add(48*time.Hour))
 	if o.State != "over" || !strings.Contains(o.Reason, "exhausted") {
 		t.Fatalf("state=%s reason=%s", o.State, o.Reason)
 	}
@@ -95,12 +95,12 @@ func TestGoogleQuota_FailsClosed(t *testing.T) {
 		"bad percent":    {"Gemini Models\tWeekly Limit Remaining\tlots%\t2026-11-30T14:00:00Z\n", nil, "unparseable"},
 		"no weekly row":  {"Gemini Models\tFive Hour Limit Remaining\t50%\t2026-11-23T19:00:00Z\n", nil, "no Gemini weekly row"},
 	} {
-		o := evaluateGoogleQuota([]byte(tc.out), tc.err, "/h", 15, now)
+		o := EvaluateGoogleQuota([]byte(tc.out), tc.err, "/h", 15, now)
 		if o.State != "unknown" || !o.Blocked() || !strings.Contains(o.Reason, tc.want) {
 			t.Errorf("%s: state=%s blocked=%v reason=%q (want %q)", name, o.State, o.Blocked(), o.Reason, tc.want)
 		}
 	}
-	if o := evaluateGoogleQuota(quotaAt("90%", "90%", day0), nil, "/h", 15, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); o.State != "expired" {
+	if o := EvaluateGoogleQuota(quotaAt("90%", "90%", day0), nil, "/h", 15, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); o.State != "expired" {
 		t.Errorf("a past reset must not read as ok: %s", o.State)
 	}
 }

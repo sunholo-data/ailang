@@ -1,0 +1,16 @@
+# AILANG Agent Executor — agy-go variant (agy + Go toolchain), mirroring agent-codex-go.
+# sprint-executor-shaped agents need Go to build and test.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-agy:latest
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+USER ailang
+
+COPY --from=golang:1.26.11-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/home/ailang/go"

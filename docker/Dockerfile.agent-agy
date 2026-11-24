@@ -1,0 +1,24 @@
+# AILANG Agent Executor — agy variant (Google Antigravity CLI, Google AI subscription)
+#
+# M-AGY-CLOUD (design_docs/planned/m-agy-cloud-executor.md). The job runs agy on a
+# cloud-only Google AI (Ultra) sign-in, leased from Secret Manager
+# (AILANG_AGY_AUTH_SECRET) and written back after each task. Subscription only: no
+# API key belongs in this image or its job.
+#
+# The binary is the version pinned in tools/agy/install.sh (SHA512-verified), installed
+# at $AILANG_AGY_HOME_ROOT/bin/agy — the path the executor prefers (config.AgyBinFor),
+# and one nothing self-updates (AGY_CLI_DISABLE_AUTO_UPDATE is set on every run).
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+USER root
+COPY tools/agy/install.sh /tmp/install-agy.sh
+ENV AILANG_AGY_HOME_ROOT=/home/ailang/.agy
+RUN bash /tmp/install-agy.sh --dir "${AILANG_AGY_HOME_ROOT}/bin" \
+    && rm /tmp/install-agy.sh \
+    && mkdir -p "${AILANG_AGY_HOME_ROOT}/subscription" \
+    && chown -R ailang:ailang "${AILANG_AGY_HOME_ROOT}" \
+    && chmod 700 "${AILANG_AGY_HOME_ROOT}/subscription"
+USER ailang
+ENV AGY_CLI_DISABLE_AUTO_UPDATE=true
+ENV AILANG_IMAGE_PROVIDER=agy

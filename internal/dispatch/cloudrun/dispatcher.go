@@ -95,6 +95,8 @@ var knownVariants = map[string]bool{
 	"go":       true,
 	"codex":    true,
 	"codex-go": true,
+	"agy":      true, // M-AGY-CLOUD: Dockerfile.agent-agy + job ailang-agent-executor-agy
+	"agy-go":   true, // FROM agent-agy, adds the Go toolchain
 	"opencode": true,
 	"pi":       true,
 	"pi-go":    true, // Dockerfile.agent-pi-go + job ailang-agent-executor-pi-go both exist
@@ -115,12 +117,17 @@ var providersForVariant = map[string][]string{
 	"go":       {"claude"},   // Dockerfile.agent-go: FROM agent
 	"codex":    {"codex"},    // Dockerfile.agent-codex: @openai/codex
 	"codex-go": {"codex"},    // FROM agent-codex
+	"agy":      {"agy"},      // Dockerfile.agent-agy: pinned agy (tools/agy/install.sh)
+	"agy-go":   {"agy"},      // FROM agent-agy
 	"opencode": {"opencode"}, // Dockerfile.agent-opencode: opencode-ai
 	"pi":       {"pi"},       // Dockerfile.agent-pi: @mariozechner/pi-coding-agent
 	"pi-go":    {"pi"},       // FROM agent-pi
 	"motoko":   {"motoko"},   // Dockerfile.agent-motoko
-	"eval":     nil,          // agent-eval: claude + codex + opencode + pi
-	"eval-go":  nil,          // FROM agent-eval
+	// agent-eval: the four CLIs Dockerfile.agent-eval installs. Listed rather than
+	// nil ("any provider") since 2026-11-24: nil accepted motoko and agy too, and
+	// neither binary is in the image (M-AGY-CLOUD).
+	"eval":    {"claude", "codex", "opencode", "pi"},
+	"eval-go": {"claude", "codex", "opencode", "pi"}, // FROM agent-eval
 }
 
 // binarylessProviders reach a remote API and shell out to nothing, so they are

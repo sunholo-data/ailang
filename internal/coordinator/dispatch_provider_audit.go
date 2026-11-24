@@ -22,12 +22,14 @@ var variantProviders = map[string][]string{
 	"go":       {"claude"},
 	"codex":    {"codex"},
 	"codex-go": {"codex"},
+	"agy":      {"agy"},
+	"agy-go":   {"agy"},
 	"opencode": {"opencode"},
 	"pi":       {"pi"},
 	"pi-go":    {"pi"},
 	"motoko":   {"motoko"},
-	"eval":     nil, // agent-eval carries every CLI
-	"eval-go":  nil, //   ditto (FROM agent-eval)
+	"eval":     {"claude", "codex", "opencode", "pi"}, // what Dockerfile.agent-eval installs
+	"eval-go":  {"claude", "codex", "opencode", "pi"}, //   ditto (FROM agent-eval)
 }
 
 // retiredVariants are executor_variant values whose image and Cloud Run Job no

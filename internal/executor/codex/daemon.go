@@ -13,10 +13,14 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
-// ErrProcessTerminationUnconfirmed prevents credential lease release when an owner cannot be joined.
-var ErrProcessTerminationUnconfirmed = errors.New("Codex refresh owner termination unconfirmed")
+// ErrProcessTerminationUnconfirmed prevents credential lease release when an owner
+// cannot be joined. It IS the shared executor sentinel, so errors.Is matches either
+// spelling.
+var ErrProcessTerminationUnconfirmed = executor.ErrProcessTerminationUnconfirmed
 
 type DaemonExecOptions struct {
 	Model, Directive, Workspace, Sandbox, ApprovalPolicy, Effort string

@@ -10,10 +10,10 @@
 # pipeline, which fired on THAT repo's pushes from whatever ailang dev head was
 # current — so an ailang push could not rebuild the image most agents run on.
 # Every image now has one owner: this file for dev, cloudbuild-release.yaml
-# for the `v*` tag that reaches test (same 17 images, additionally tagged
+# for the `v*` tag that reaches test (same 19 images, additionally tagged
 # :vX.Y.Z), and ailang-multivac's promote-to-prod for prod.
 #
-# The 17 images and their build DAG (children FROM the parent's :latest in
+# The 19 images and their build DAG (children FROM the parent's :latest in
 # this project's registry, so they wait on it):
 #
 #   coordinator (buildpacks)   dashboard   mcp   executor-mcp   ntfy
@@ -22,6 +22,7 @@
 #               ├─ agent-pi ────── agent-pi-go
 #               │                └─ resident-pi (BASE build-arg, context docker/resident)
 #               ├─ agent-codex ─── agent-codex-go
+#               ├─ agent-agy ───── agent-agy-go
 #               ├─ agent-eval ──── agent-eval-go
 #               ├─ agent-opencode
 #               └─ agent-motoko  (allowFailure: external fork, see below)
@@ -256,6 +257,26 @@ steps:
           .
     waitFor: ['build-agent-base']
 
+
+  # M-AGY-CLOUD: Google Antigravity CLI on the Google AI subscription (pinned via
+  # tools/agy/install.sh). Its jobs are gated off in multivac (enable_agy) until enabled.
+  - id: build-agent-agy
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-agy:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-agy:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-agy:latest" \
+          -f docker/Dockerfile.agent-agy \
+          --push \
+          .
+    waitFor: ['build-agent-base']
   - id: build-agent-opencode
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -372,6 +393,24 @@ steps:
           .
     waitFor: ['build-agent-codex']
 
+
+  - id: build-agent-agy-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-agy-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-agy:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-agy-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-agy-go:latest" \
+          -f docker/Dockerfile.agent-agy-go \
+          --push \
+          .
+    waitFor: ['build-agent-agy']
   - id: build-agent-eval-go
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -481,6 +520,7 @@ steps:
       - build-agent-go
       - build-agent-pi-go
       - build-agent-codex-go
+      - build-agent-agy-go
       - build-agent-eval-go
       - build-agent-opencode
       - build-agent-motoko

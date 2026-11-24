@@ -307,22 +307,44 @@ func (e *AgyExecutor) executeStreaming(ctx context.Context, task *executor.Task,
 	for {
 		select {
 		case waitErr := <-done:
+			// The leader exited; sweep anything it left in its process group.
+			_ = proctree.KillGroup(cmd.Process.Pid)
 			return finish(st.verdict(waitErr, route)), nil
 		case <-hard.C:
-			proctree.Kill(cmd)
+			joinErr := killAndJoin(cmd, done, terminationGrace)
 			return finish(&executor.Result{Success: false, FinishReason: executor.FinishTimeout,
-				Error: fmt.Sprintf("agy exceeded hard timeout (%v)", timeout)}), nil
+				Error: fmt.Sprintf("agy exceeded hard timeout (%v)", timeout)}), joinErr
 		case <-idle.C:
 			if since := time.Since(time.Unix(0, lastActivity.Load())); since > idleTimeout {
-				proctree.Kill(cmd)
+				joinErr := killAndJoin(cmd, done, terminationGrace)
 				return finish(&executor.Result{Success: false, FinishReason: executor.FinishIdleKilled,
-					Error: fmt.Sprintf("agy produced no output for %v", since.Round(time.Second))}), nil
+					Error: fmt.Sprintf("agy produced no output for %v", since.Round(time.Second))}), joinErr
 			}
 		case <-ctx.Done():
-			proctree.Kill(cmd)
+			joinErr := killAndJoin(cmd, done, terminationGrace)
 			return finish(&executor.Result{Success: false, FinishReason: executor.FinishError,
-				Error: fmt.Sprintf("agy cancelled: %v", ctx.Err())}), nil
+				Error: fmt.Sprintf("agy cancelled: %v", ctx.Err())}), joinErr
 		}
+	}
+}
+
+// terminationGrace bounds the wait for a killed agy to be reaped.
+var terminationGrace = 10 * time.Second
+
+// killAndJoin kills agy's process group and waits, bounded, for the reader goroutine
+// to see it exit (stdout closed, Wait returned). The agy token file refreshes itself,
+// so a cloud job may only write it back and release its lease once nothing that could
+// refresh it is alive: a failed join returns executor.ErrProcessTerminationUnconfirmed
+// and the credential is quarantined (design_docs/planned/m-agy-cloud-executor.md §2).
+// A grandchild holding stdout open counts as alive, deliberately.
+func killAndJoin(cmd *exec.Cmd, done <-chan error, grace time.Duration) error {
+	killErr := proctree.KillGroup(cmd.Process.Pid)
+	select {
+	case <-done:
+		return nil
+	case <-time.After(grace):
+		return fmt.Errorf("%w: agy did not exit within %v of being killed (kill: %v)",
+			executor.ErrProcessTerminationUnconfirmed, grace, killErr)
 	}
 }
 

@@ -90,7 +90,7 @@ func resolveContainerProvider(requested, image string) (string, error) {
 // The error names what is installed, because "opencode: executable file not
 // found in $PATH" says what is missing and not what the container is.
 func preflightExecutor(ctx context.Context, provider string) error {
-	// codex's credential is installed BEFORE this runs (installCodexCredential):
+	// codex's credential is installed BEFORE this runs (installRotatingCredential):
 	// the subscription auth.json. HealthCheck below proves it landed.
 
 	exec, err := executor.GlobalFactory().GetExecutor(provider)

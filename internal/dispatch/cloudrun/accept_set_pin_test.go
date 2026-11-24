@@ -77,8 +77,15 @@ func TestVariantProviderAgreement_AcceptSetIsPinned(t *testing.T) {
 	// Gemini Developer API sibling of managed_agents) joined the provider set
 	// (7 -> 8). Like managed_agents it shells out to nothing — edits come back
 	// as a patch over HTTP — so it is binaryless and accepted on all 11 variants.
-	const wantCells = 88
-	const wantAccepted = 52
+	// 2026-11-24: 88 -> 117 cells and 52 -> 58 accepted (M-AGY-CLOUD). The agy and
+	// agy-go variants joined (11 -> 13) and with them the agy provider (8 -> 9).
+	// +8 accepted: {agy, agy-go} x {"", agy, managed_agents, gemini_agents}. -2:
+	// {eval, eval-go} x motoko — the eval images were nil ("any CLI") but install
+	// only claude, codex, opencode and pi, so motoko (and the new agy) would have
+	// cloned the repo and then failed "executable file not found". Listing the
+	// four makes the refusal early, as for every other image.
+	const wantCells = 117
+	const wantAccepted = 58
 
 	if cells != wantCells {
 		t.Errorf("cells = %d, want %d (variants=%d providers=%d).\n"+

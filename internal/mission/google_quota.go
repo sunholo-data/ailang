@@ -133,11 +133,13 @@ func ObserveGoogleQuota(paths Paths, now time.Time) GoogleQuotaObservation {
 		return o
 	}
 	out, runErr := agyQuotaRunner(agy, sub)
-	return evaluateGoogleQuota(out, runErr, sub, pace, now)
+	return EvaluateGoogleQuota(out, runErr, sub, pace, now)
 }
 
-// evaluateGoogleQuota parses one `agy -p /quota` reading and paces it.
-func evaluateGoogleQuota(out []byte, runErr error, home string, pace float64, now time.Time) GoogleQuotaObservation {
+// EvaluateGoogleQuota parses one `agy -p /quota` reading and paces it. Exported for
+// the cloud agy job, which spawns the read itself under its leased credential
+// (agy.RunQuota) and must apply the rig's exact pacing (m-agy-cloud-executor.md §4).
+func EvaluateGoogleQuota(out []byte, runErr error, home string, pace float64, now time.Time) GoogleQuotaObservation {
 	o := GoogleQuotaObservation{State: "unknown", Home: home, PacePerDay: pace, ObservedAt: now}
 	lower := strings.ToLower(string(out))
 	if strings.Contains(lower, "sign in") || strings.Contains(lower, "authentication") {
