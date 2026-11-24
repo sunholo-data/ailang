@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -68,13 +69,23 @@ func New(cfg *executor.Config) (*AgyExecutor, error) {
 	}, nil
 }
 
-// defaultAgyPath prefers agy on PATH, then the install location of
-// tools/agy/install.sh (launchd PATHs often lack ~/.local/bin).
+// defaultAgyPath resolves the agy binary: the pinned install of
+// tools/agy/install.sh (config.AgyBinFor), then PATH, then ~/.local/bin.
 func defaultAgyPath() string {
+	h, herr := os.UserHomeDir()
+	// The pinned install first: no interactive session runs it, so nothing
+	// self-updates it (config.AgyBinFor). PATH and ~/.local/bin are fallbacks
+	// for an install that predates it; checkPin refuses them unless they
+	// happen to be the pinned version.
+	if herr == nil {
+		if p := config.AgyBinFor(h); fileExists(p) {
+			return p
+		}
+	}
 	if p, err := exec.LookPath("agy"); err == nil {
 		return p
 	}
-	if h, err := os.UserHomeDir(); err == nil {
+	if herr == nil {
 		if p := filepath.Join(h, ".local", "bin", "agy"); fileExists(p) {
 			return p
 		}
@@ -100,6 +111,13 @@ func (e *AgyExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task,
 	}
 	if e.getModel(task) == "" {
 		return nil, executor.ErrUnresolvedModel("agy", "AgyModel")
+	}
+	// The pin is enforced on EVERY run, not only where a caller remembers
+	// HealthCheck: `ailang exec agy` (the mission lane probe) never called it, so
+	// a self-updated binary ran unpinned (2026-11-24). The probe is cached per
+	// executor, so this is one `agy --version` per instance.
+	if err := e.HealthCheck(ctx); err != nil {
+		return nil, err
 	}
 	res, err := e.executeStreaming(ctx, task, handler)
 	if res != nil {

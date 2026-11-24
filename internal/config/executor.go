@@ -88,6 +88,14 @@ func AgyHomeRootFor(home string) string {
 	return filepath.Join(home, ".ailang", "state", "agy")
 }
 
+// AgyBinFor is where the agy executor's PINNED binary lives for an operator home:
+// <agy HOME root>/bin/agy (tools/agy/install.sh puts it there). Deliberately NOT
+// ~/.local/bin/agy: that path belongs to interactive agy, which updates itself
+// whenever it runs without AGY_CLI_DISABLE_AUTO_UPDATE. Measured 2026-11-24: an
+// interactive session started 08:52:32 replaced the shared binary 1.5.15 -> 1.5.16
+// at 08:52:37, and executor runs carried on, unpinned, on the new version.
+func AgyBinFor(home string) string { return filepath.Join(AgyHomeRootFor(home), "bin", "agy") }
+
 // ChildGitCredentials returns the AILANG_CHILD_GIT_CREDENTIALS mode, or an
 // error naming the variable for a value that is neither mode (no silent
 // fallback to either).

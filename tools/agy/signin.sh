@@ -15,11 +15,49 @@
 #
 # Usage: tools/agy/signin.sh            interactive sign-in, then verify
 #        tools/agy/signin.sh --verify   verify only (non-interactive, safe in a loop)
+#        tools/agy/signin.sh --profile cloud --upload <gcp-project> <secret>
+#            Sign in a CLOUD-ONLY holder (design_docs/planned/m-agy-cloud-executor.md,
+#            D1): a fresh throwaway HOME, never the loops' HOME and never ~/.gemini.
+#            The token file goes straight into Secret Manager as a new version of
+#            <secret> (never printed), and the throwaway HOME is deleted, so the
+#            cloud is the only holder of that sign-in. Run with the gcloud account
+#            that may add secret versions (CLOUDSDK_CORE_ACCOUNT=m@sunholo.com).
 set -euo pipefail
 
 ROOT="${AILANG_AGY_HOME_ROOT:-$HOME/.ailang/state/agy}"
 SUB_HOME="$ROOT/subscription"
-AGY="${AGY:-$(command -v agy || echo "$HOME/.local/bin/agy")}"
+PROFILE=subscription
+UPLOAD_PROJECT=""
+UPLOAD_SECRET=""
+VERIFY_ONLY=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --verify) VERIFY_ONLY=1; shift ;;
+    --profile) PROFILE="${2:-}"; shift 2 ;;
+    --upload) UPLOAD_PROJECT="${2:-}"; UPLOAD_SECRET="${3:-}"; shift 3 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+    *) echo "signin: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+case "$PROFILE" in
+  subscription) ;;
+  cloud)
+    if [ -z "$UPLOAD_PROJECT" ] || [ -z "$UPLOAD_SECRET" ]; then
+      echo "signin: --profile cloud needs --upload <gcp-project> <secret> (a cloud sign-in that is not uploaded has no holder)" >&2; exit 2
+    fi
+    [ "$VERIFY_ONLY" = 0 ] || { echo "signin: --verify does not apply to --profile cloud" >&2; exit 2; }
+    command -v gcloud >/dev/null || { echo "signin: gcloud is required for --upload" >&2; exit 2; }
+    # Fail before the sign-in, not after it, when the secret cannot take a version.
+    gcloud secrets describe "$UPLOAD_SECRET" --project "$UPLOAD_PROJECT" --format='value(name)' >/dev/null \
+      || { echo "signin: cannot read secret $UPLOAD_SECRET in $UPLOAD_PROJECT as $(gcloud config get-value account 2>/dev/null)" >&2; exit 2; }
+    mkdir -p "$ROOT"
+    SUB_HOME="$(mktemp -d "$ROOT/.cloud-signin.XXXXXX")"
+    chmod 700 "$SUB_HOME"
+    trap 'rm -rf "$SUB_HOME"' EXIT
+    ;;
+  *) echo "signin: unknown profile '$PROFILE' (subscription | cloud)" >&2; exit 2 ;;
+esac
+AGY="${AGY:-${AILANG_AGY_HOME_ROOT:-$HOME/.ailang/state/agy}/bin/agy}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 "$HERE/install.sh" --check
@@ -59,17 +97,9 @@ verify() {
   echo "OK: subscription route signed in and serving gemini-4-neon."
 }
 
-if [ "${1:-}" = "--verify" ]; then
+if [ "$VERIFY_ONLY" = 1 ]; then
   verify
   exit $?
-fi
-
-if [ -n "${SSH_CONNECTION:-}" ]; then
-  cat <<'EOF'
-NOTE: this is an SSH session. agy stores the sign-in in the macOS keychain, which
-is locked over SSH. Unlock it first, then re-run this script:
-    security unlock-keychain ~/Library/Keychains/login.keychain-db
-EOF
 fi
 
 cat <<EOF
@@ -80,3 +110,14 @@ This script then verifies the route non-interactively.
 EOF
 (cd "$(mktemp -d)" && run_agy) || true
 verify
+
+if [ "$PROFILE" = cloud ]; then
+  token="$SUB_HOME/.gemini/antigravity-cli/antigravity-oauth-token"
+  [ -s "$token" ] || { echo "signin: no token file at $token after sign-in; nothing uploaded" >&2; exit 1; }
+  # Shape check without printing a value: the cloud job refuses anything else.
+  jq -e '.token.refresh_token | type == "string" and length > 0' "$token" >/dev/null \
+    || { echo "signin: token file has no refresh_token; nothing uploaded" >&2; exit 1; }
+  gcloud secrets versions add "$UPLOAD_SECRET" --project "$UPLOAD_PROJECT" --data-file="$token" --format='value(name)' \
+    | sed 's/^/uploaded: /'
+  echo "OK: cloud-only agy sign-in stored in $UPLOAD_PROJECT/$UPLOAD_SECRET; the local copy is deleted on exit."
+fi

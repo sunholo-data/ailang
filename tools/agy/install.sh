@@ -13,7 +13,7 @@
 # AGY_* values together, run `make install-agy`, then `go test ./internal/executor/agy/`.
 #   https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json
 #
-# Usage: tools/agy/install.sh [--dir <bin-dir>] [--check]
+# Usage: tools/agy/install.sh [--dir <bin-dir>] [--check]   (default dir: <agy HOME root>/bin)
 #   --check  only report whether the installed binary is the pinned version (exit 1 if not)
 set -euo pipefail
 
@@ -21,7 +21,10 @@ AGY_VERSION="1.5.15"
 AGY_URL_DARWIN_ARM64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.15-5514532022517760/darwin-arm/cli_mac_arm64.tar.gz"
 AGY_SHA512_DARWIN_ARM64="b03a841eb3a29be918a66960b775f68ed4f3bcc02f33962131bbbc26c46ea983ceac6c832ad46efd11d73d9a2cb97df4ab24d4bc92ee47d3d5ece7b8d8b61235"
 
-BIN_DIR="${HOME}/.local/bin"
+# The executor's OWN copy, never ~/.local/bin/agy: interactive agy self-updates the
+# binary it runs from (1.5.15 -> 1.5.16 on 2026-11-24), and a shared file would
+# carry the executor along with it. internal/config.AgyBinFor is the same path.
+BIN_DIR="${AILANG_AGY_HOME_ROOT:-${HOME}/.ailang/state/agy}/bin"
 CHECK_ONLY=0
 while [ $# -gt 0 ]; do
   case "$1" in

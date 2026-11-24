@@ -96,11 +96,21 @@ func GoogleSubscriptionHome(home string) string {
 	return filepath.Join(config.AgyHomeRootFor(home), "subscription")
 }
 
+// findAgy prefers the executor's pinned install (config.AgyBinFor), the binary no
+// interactive session self-updates, then PATH, then ~/.local/bin.
 func findAgy(home string) string {
+	if p := config.AgyBinFor(home); fileExistsQ(p) {
+		return p
+	}
 	if p, err := exec.LookPath("agy"); err == nil {
 		return p
 	}
 	return filepath.Join(home, ".local", "bin", "agy")
+}
+
+func fileExistsQ(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
 
 // ObserveGoogleQuota reads and paces the Google AI subscription's quota.

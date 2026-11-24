@@ -47,7 +47,7 @@ type Config struct {
 
 	// agy configuration (M-AGY-EXECUTOR). AgyModel is "<agy-model>" for the
 	// subscription route or "api/<agy-model>" for the API-key route.
-	AgyPath  string // Path to the agy CLI binary (default: PATH, then ~/.local/bin/agy)
+	AgyPath  string // Path to the agy CLI binary (default: the pinned install config.AgyBinFor, then PATH, then ~/.local/bin/agy)
 	AgyModel string
 
 	// motoko configuration (M-MOTOKO-EXECUTOR-ADAPTER)
