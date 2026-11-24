@@ -194,11 +194,25 @@ type AILANGRunner struct {
 	spec       *BenchmarkSpec  // Optional spec for stdin/input_files/cli_args
 }
 
+// defaultAILANGBinary resolves the ailang executable for benchmark runs.
+// When running inside an `ailang` binary (not a `go test` binary), prefer
+// os.Executable() so `./bin/ailang eval-suite` always tests its own build
+// instead of a stale `ailang` on PATH.
+func defaultAILANGBinary() string {
+	if exe, err := os.Executable(); err == nil && exe != "" {
+		base := filepath.Base(exe)
+		if base == "ailang" || base == "ailang.exe" {
+			return exe
+		}
+	}
+	return "ailang"
+}
+
 // NewAILANGRunnerWithTask creates a new AILANG runner with task ID and context for telemetry hierarchy.
 // The taskID is propagated via AILANG_PARENT_TASK_ID, and trace context via TRACEPARENT.
 func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []string, taskID string, spec *BenchmarkSpec) *AILANGRunner {
 	if ailangPath == "" {
-		ailangPath = "ailang" // Use PATH
+		ailangPath = defaultAILANGBinary()
 	}
 	return &AILANGRunner{
 		ailangPath: ailangPath,
@@ -531,8 +545,14 @@ func GetRunnerWithContext(ctx context.Context, langName string, spec *BenchmarkS
 	return lr, nil
 }
 
-// FindAILANG attempts to locate the ailang binary
+// FindAILANG attempts to locate the ailang binary, preferring the currently
+// running ailang executable over PATH when invoked from an ailang binary.
 func FindAILANG() (string, error) {
+	if self := defaultAILANGBinary(); self != "ailang" {
+		if _, err := os.Stat(self); err == nil {
+			return self, nil
+		}
+	}
 	// Try common locations
 	paths := []string{
 		"ailang",       // In PATH
