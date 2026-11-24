@@ -2363,3 +2363,64 @@ Each replied to its filer.
 - Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground (59,357 tok), first attempt. No fallback lane used. Judge independence: cross-model (controller opus-5-5, judge sonnet; same vendor).
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 135 — 2026-11-24 — `push:scope-guard:rebased-record-inherited-sibling-paths` LANDED + RESOLVED: #2456 → `18acb95b7` (independent sonnet judge PASS 92); the pre-push scope guard accepts a rebased mission record and still refuses every branch-authored harness path; the next two World fires exited at the idle pre-check on `1ac80c01…` (D-FLEET-45 still OPEN) [HARNESS]
+
+**Pick**: `push:scope-guard:rebased-record-inherited-sibling-paths` (triage 54, filed 11-24 03:51Z, blocking none, 1 slot). It is the only ticket that changed: the other 16 match iteration 134's snapshot ([tickets](fleet-mission-evidence/iteration135/tickets.json), 17 open). It is mechanical (a wrong diff base in `tools/launchd/githooks/pre-push`), not policy class: no allowlist entry, routing, ration or billing guard moves. Harness path, inside fleet Authority.
+- 0 allowlisted directives on #2445 (4 comments, all the loop's own); no watermark file, so the issue was read whole.
+- Self-notices rc 1 with the same single crash notice (`…#issuecomment-7063993188`, credited in log 132) and the same transcript notice (fire `fleet-1795100889-10927`, credited 125–134). No new death. Control 852:10.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN. `MISSION_OVER_RATION` empty.
+- Skill drift: the resolved symlink copy matches origin/dev on SKILL.md and all 13 resource files, per file. Pin HEAD = origin/dev = `f7d54a9c7` at Gate 1.
+- Died-mid-flight traces: no open `fleet/*` PR; newest fleet worktree `.fleet-i134-record` (merged as #2452).
+- **Dev CI red at `f7d54a9c7`**: 18 check-runs, 4 not green (`test-windows`, `Build windows-latest`, `govulncheck (vuln gate)`, SonarCloud). Windows is the same `agy_test.go` `syscall.Kill` build failure as 133/134; `govulncheck` is new since 134 and has a V1 design already in flight (`f7d54a9c7`, gorilla/websocket past GO-2026-6278). All outside fleet Authority and V1-owned; recorded only.
+
+**Reality check (controller, first-party)**: a throwaway bare repo reproduces the ticket. A `rec` branch pushed with only `design_docs/triage-mission-log.md`, rebased onto a dev that gained `design_docs/fleet-mission-log.md`, then `--force-with-lease` under `MISSION_NAME=triage`: old hook rc 1, "may not push design_docs/fleet-mission-log.md". The three-dot diff lists only the triage log. [Gates and repro](fleet-mission-evidence/iteration135/gates.md).
+
+**Did** (generator ≠ judge):
+- **Designer: not spawned.** The spec is the ticket plus the repro (as iterations 87, 105, 109, 123, 126). Routing outcome, not a spawn failure.
+- **Planner** `codex:gpt-6.2-sol` (recipe, detached worktree from local HEAD, 60,131 tok). [Plan](fleet-mission-evidence/iteration135/plan.md): keep the remote-head diff for fast-forwards; for a rewrite, verify `origin/dev` against the target's advertised dev with `git ls-remote`, then check the merge-base diff plus every branch-authored commit; fail closed on any lookup error; five real-push arms and four mutants.
+- **Executor** `codex:gpt-6.2-sol` (recipe, worktree `.fleet-i135-wt`, 98,163 tok), uncommitted diff, 3 files (+195/−16 in the hook and test, plus a changelog fragment). It reported 4/4 mutants killed (M1→a, M2→c, M3→d, M4→e), shellcheck clean (base had 3 warnings), and `make test-launchd-drivers` UNINFORMATIVE UNDER SANDBOX. [Report](fleet-mission-evidence/iteration135/executor-report.md).
+- **Controller**, outside the sandbox at `dd9c8222a`: suite rc 0 (8 PASS); shellcheck rc 0; `make test-launchd-drivers` all 60 suites passed; the ticket repro now rc 0 while a branch-authored `tools/launchd/x.sh` is still refused; 0 temp files left; `git ls-remote` against the real GitHub remote matches `origin/dev`. Committed `dd9c8222a` (co-authored codex), pushed, opened #2456.
+- **Judge** sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `.fleet-i135-judge`; 62,818 tok, 187 s), first attempt. The brief carried the ticket and the security constraint, not the controller's verdict. Verdict **PASS 92/100**, 0 blocking. [Report](fleet-mission-evidence/iteration135/judge-r1.md).
+  - Bypass attempts all refused: revert after a harness add, harness edit inside a removed merge, rename (`--no-renames` exposes the source path), multi-ref push, fleet core path on a rewrite, newline in a path.
+  - Its own mutants: 4/4 killed.
+  - Non-blocking: a NEW branch is still checked by net diff only, so add-then-revert passes there. The old hook did the same; not a regression, and not ticketed (the fleet does not self-source).
+- **Merge**: SHA-pinned PR poll at `dd9c8222a`, 24/24 complete; required `test`, `lint`, `build`, `docs-gate`, `checks` all green; not green `test-windows`, `Build windows-latest`, `govulncheck` (the inherited dev reds; this diff has no Go). Merged with `--match-head-commit` → **`18acb95b7`** (tree identical to `dd9c8222a`).
+- **Done-gate**: surface edited is the one that runs (every mission's guard is the pinned `origin/dev` copy, reached on its next fire); `make test-launchd-drivers` 60/60; dry-runs under the idle, armed stapledon profile with `AILANG_DRIVER_PINNED=18acb95b7`: healthy rc 0 (44 s), degraded (`MISSION_EXECUTOR_MODEL=codex:bogus-model-i135`) rc 0 (41 s, probe rc 1, fell back to `claude:claude-haiku-5-5`); no pidfile left; nothing reloaded.
+- **Also measured** (iteration 134's **Next**): the two World fires after 427, at 00:15 and 04:16 on 11-24, each logged "nothing changed since the last no-pick fire (`1ac80c01…`) — idle, nothing spent". [Excerpt](fleet-mission-evidence/iteration135/world-idle-exits.txt). Added to D-FLEET-45 and row 62; status stays OPEN.
+
+**Ruled out**:
+- Treating the guard change as policy class: no allowlist entry, lane, ration or billing guard changed; the change narrows attribution to branch-authored commits and fails closed.
+- Fixing the judge's new-branch add-then-revert note in the same PR: outside the ticket, pre-existing, and the fleet does not self-source.
+- Attributing the PR's three reds to this change: the same three are red on dev's parent `f7d54a9c7`, and the diff touches no Go.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) The base `make test-launchd-drivers` reading was void: it ran in the executor's worktree while the executor was editing it and read the scope-guard suite mid-edit. A base reading belongs in its own worktree.
+- (b) Judge note 1 above (new-branch net-diff only) is the one known gap left in the guard.
+- (c) Dev deploy is now red on a time-based Node pin drift (`docker/Dockerfile.agent-base` `NODE_VERSION=22.23.4` vs upstream 22.23.5); see Validation. Any dev build that misses the layer cache will fail the same way until the pin moves.
+
+**Retro lane**: no skill edit. One friction (observation a), self-inflicted and below the ≥2-friction bar.
+
+**Progress**: 17 open tickets → 16 after resolution. Goal moved on clause 2.
+- Clause 2 moved: a non-policy ticket filed 03:51Z resolved the same morning. Clause 1 UNMEASURED; clause 3 MET; clause 4 met by its letter; clause 5 preserved (done-gate run).
+- Harness share, last 20 log headlines (116–135): 12/20, all 20 tagged (the HARNESS rows are 116–126 and 135; the fleet's own work is harness by charter).
+- Last 3 landings (125, 126, 135) moved clause 2 (ticket resolutions).
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 46 rows valid (after edits).
+- STATUS rotation: ITERATION 132 moved to the archive (archive count 1; charter 432 → 433 lines).
+- Gate 3b on `18acb95b7` (SHA-pinned, polled to completion before the ticket was resolved): 18 check-runs; required `test`, `lint`, `build`, `checks` green. Not green: the four inherited reds (SonarCloud, `test-windows`, `Build windows-latest`, `govulncheck`) and one NEW red, `ailang-core-dev (ailang-multivac-deploy)`, green on every parent back to `82917eca8`. Attributed first-party from the Cloud Build log (build `efdd7ccb`): step 8 `build-agent-base` fails `node v22.23.5 != pinned v22.23.4 — bump NODE_VERSION deliberately` at `docker/Dockerfile.agent-base:82`. Nodesource shipped 22.23.5 upstream; the parent's 04:07Z build served that layer from cache, this one rebuilt it. Time-based, not from this shell-only diff; `docker/**` is outside fleet Authority and V1-owned, so recorded and reported to Mark.
+- Ticket resolved: `ailang mission ticket resolve … --sha 18acb95b7` → "1 occurrence(s), replied to triage"; open list 17 → 16, signature absent.
+
+**Next**: no routable ticket is expected; D-FLEET-46 (eight tickets) remains the highest-yield ask, and the World idle exits are new evidence for D-FLEET-45 B. If triage's next record push is a rebase, its fire is the live confirmation of this fix.
+
+**Routing evidence**: base=`f7d54a9c7bb613bdedf329c403ed3b808e3a14e3`@2026-11-24T05:30:36Z (Gate 1).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: nothing to design. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` → `codex:gpt-6.2-sol declared:planner-lane-default-pin`; role pinned `codex:gpt-6.2-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; 1 run, rc 0, not capped (60,131 tok). Ticket-queue mission: `import-github` skipped.
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, `workspace-write`; 1 run, rc 0, not capped (98,163 tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (62,818 tok). Judge independence: cross-vendor (planner and executor OpenAI codex, judge Anthropic sonnet).
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (Anthropic and codex subscriptions only).
