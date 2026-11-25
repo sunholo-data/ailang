@@ -108,6 +108,20 @@ Next, in order:
    - No verified row changed.
 
    Still open: **mutually recursive helpers** (11 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
+
+   Probing those 11 showed that most of their contracts do not depend on the helpers' values (`length(result) > 0` over a renderer). So the lever is broader: a helper whose body cannot be encoded could be an **opaque** uninterpreted function. Prototype: +3 verified. It changes what VERIFIED covers, since the helper's own obligations go unchecked. Mark ruled 2026-11-25: do the no-ruling levers first, then opaque helpers, with the caveat recorded on each result and every model through one inconclusive.
+4a. ~~**`stringToInt`, `charCode`, anonymous records in parameters**~~ **Done 2026-11-25.**
+   - `stringToInt` is an uninterpreted `String → Option Int`, with two facts from Go's `ParseInt`: unsigned digits within int64 give `Some(str.to_int s)`; no sign and not all digits (or `""`) give `None`. A signed string is left open.
+   - `charCode` is an uninterpreted `Int`, in 0 … 0x10FFFF for one rune. It is deliberately not Z3's `str.to_code`: Z3's characters stop at 0x2FFFF, so that would prove `charCode(c) < 200000`, which is false.
+   - A record in a parameter's list or type argument (`[{ name: string, q: Question }]`) is declared. Before, it never was. A record with an ADT field is declared after its ADT.
+   - Two inline records with the same field names but different field types share one sort name, because the name comes from the field names alone. `decisions`' `Choice` and `ChoiceR` both make `Record_desc_key`. Such a function is now a skip that names the collision; it was a latent Z3 sort-mismatch ERROR.
+
+   Gap map: +3 verified (`parseLimit`, `parseTop`, `linkedinHexVal`), 2 skipped → inconclusive (`expectedScore`, `referralKeyMonthEffective`: induction), 0 regressions. The record fix moves no row: `buildRequest` and `questionsToJsonSchema` now stop at the `Record_desc_key` collision. Disambiguated record naming would unblock 4 `decisions` rows, but it renames sorts throughout the encoder, so it is not done yet.
+
+   Most of the other (b) clusters are opaque-helper cases. The contract does not depend on the blocked helper:
+   - `flush*`/`tex*`: tuple lists, 7 rows. The contract is `listLength(result.textLines) == 0`; the tuple is reached only through `mdTextBlock → replaceMany`.
+   - `decodeBlocks`: `map(decodeBlock, xs)` with a length contract; `reverse` is five calls down.
+   - `parsePptxCells`/`Rows`: the same shape, blocked by `std/option.map`.
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

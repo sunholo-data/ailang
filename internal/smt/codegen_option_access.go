@@ -11,6 +11,7 @@ import (
 var optionEncodedBuiltins = map[string]bool{
 	listHeadOpt: true, listNthOpt: true, listLastOpt: true,
 	optGetOrElse: true, optIsSome: true, optIsNone: true,
+	strToInt: true,
 }
 
 // encodeOptionAccess encodes the Option-shaped stdlib helpers with the runtime's

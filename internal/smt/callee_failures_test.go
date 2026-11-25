@@ -16,7 +16,7 @@ func TestSkipThroughHelpersNamesTheBlocker(t *testing.T) {
 		// ping → pong → ping: a cycle through the verified function.
 		"ping": {`calls user function "pong"`, "the helpers are mutually recursive"},
 		// A helper's unencodable builtin is named, not "uses unencodable types".
-		"viaParse": {`calls user function "parsed"`, `Callee "parsed" uses an unencodable builtin: std/string.stringToInt`},
+		"viaParse": {`calls user function "parsed"`, `Callee "parsed" uses an unencodable builtin: std/string.stringToFloat`},
 	}
 	report := verifyFixture(t, "callee_chain.ail")
 	seen := map[string]bool{}

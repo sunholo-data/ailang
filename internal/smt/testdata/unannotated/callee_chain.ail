@@ -1,6 +1,6 @@
 module callee_chain
 import std/option (Option, Some, None)
-import std/string (stringToInt)
+import std/string (stringToFloat)
 
 -- leaf matches on a tuple inside an unrolled recursion, which the encoder
 -- cannot encode; mid calls leaf; top calls mid.
@@ -28,10 +28,10 @@ export func ping(n: int) -> int
 
 func pong(n: int) -> int = if n <= 0 then 1 else ping(n - 1)
 
--- parsed calls stringToInt, which has no SMT encoding.
+-- parsed calls stringToFloat, which has no SMT encoding.
 func parsed(s: string) -> int {
-  match stringToInt(s) {
-    Some(n) => n,
+  match stringToFloat(s) {
+    Some(_) => 1,
     None => 0
   }
 }

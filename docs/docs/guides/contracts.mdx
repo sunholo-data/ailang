@@ -591,6 +591,8 @@ Use `import std/string` to access these functions. The verifier resolves stdlib 
 | `join(d, xs)` | `[]` → `""`; `[x]` → `x` |
 | `repeat(s, n)` | `n <= 0` → `""`; else length `length(s) * n` |
 | `replace(s, old, new)` | `s` unchanged when `old` does not occur, or `old == new` |
+| `stringToInt(s)` | unsigned digits within int64 → `Some(n)`; no sign and not all digits (or `""`) → `None`; a signed `s` is left open |
+| `charCode(c)` | for one rune, 0 … 0x10FFFF (not Z3's `str.to_code`, whose characters stop at 0x2FFFF) |
 
 `charAt(s, i)` is exact (`str.at`). A model that rests on one of these is INCONCLUSIVE, and witness replay confirms real violations. **Not yet encodable:** `words`, `foldChars`, `replaceMany`, `splitAny`.
 

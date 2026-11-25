@@ -57,6 +57,21 @@ func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, 
 	if t == nil {
 		return nil
 	}
+	// A record inside a list or a type application is declared too: the
+	// parameter `questions: [{ name: string, q: Question }]` is (Seq
+	// Record_name_q), and the sort was never declared, so every function
+	// taking one was skipped on the closure check.
+	switch x := t.(type) {
+	case *types.TList:
+		return collectRecordTypeSafe(x.Element, ctx, result, visiting)
+	case *types.TApp:
+		for _, arg := range x.Args {
+			if err := collectRecordTypeSafe(arg, ctx, result, visiting); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	rec, ok := t.(*types.TRecord)
 	if !ok {
 		return nil
@@ -440,4 +455,41 @@ func encodeList(list *core.List) (string, error) {
 
 	// Z3's seq.++ is variadic, so we can pass all at once
 	return fmt.Sprintf("(seq.++ %s)", strings.Join(encoded, " ")), nil
+}
+
+// conflictingRecordSorts is the set of inline record sort names declared with
+// two different bodies: within one module (conflicts, from the ADT pass) or
+// across the verified module and its imports (two declarations in decls).
+func conflictingRecordSorts(decls []string, conflicts []string) map[string]bool {
+	out := make(map[string]bool, len(conflicts))
+	for _, name := range conflicts {
+		out[name] = true
+	}
+	first := make(map[string]string, len(decls))
+	for _, d := range decls {
+		name := ExtractSortNameFromDecl(d)
+		if prev, ok := first[name]; ok && prev != d {
+			out[name] = true
+		} else if !ok {
+			first[name] = d
+		}
+	}
+	return out
+}
+
+// firstNeededConflict is the alphabetically first conflicting record sort the
+// function needs, or "". Such a function is skipped: whichever declaration is
+// emitted, a term over the other record is ill-sorted.
+func firstNeededConflict(needed, conflicts map[string]bool) string {
+	names := make([]string, 0, len(conflicts))
+	for name := range conflicts {
+		if needed[name] {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	sort.Strings(names)
+	return names[0]
 }

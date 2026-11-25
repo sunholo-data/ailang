@@ -23,6 +23,9 @@ type ADTExtraction struct {
 	ADTTypes      map[string][]ADTVariant
 	RecordDecls   []string                  // SMT-LIB declare-datatype for inline record types in ADT fields
 	RecordAliases map[string]*types.TRecord // Named record type aliases (e.g., "TableCell" → TRecord)
+	// RecordConflicts are inline record sort names declared twice with
+	// different field sorts (the name is built from field names only).
+	RecordConflicts []string
 }
 
 // ExtractADTTypesWithRecords extracts ADT type definitions and record type aliases
@@ -162,10 +165,6 @@ func collectRecordDeclFromAST(recType *ast.RecordType, result *ADTExtraction, se
 		return
 	}
 	sortName := MapRecordSortName(trec)
-	if seen[sortName] {
-		return
-	}
-	seen[sortName] = true
 
 	// Build field sorts
 	fields := make(map[string]string)
@@ -176,9 +175,25 @@ func collectRecordDeclFromAST(recType *ast.RecordType, result *ADTExtraction, se
 		}
 		fields[name] = sort
 	}
-	if len(fields) > 0 {
-		result.RecordDecls = append(result.RecordDecls, DeclareRecordDatatype(sortName, fields))
+	if len(fields) == 0 {
+		return
 	}
+	decl := DeclareRecordDatatype(sortName, fields)
+	if seen[sortName] {
+		// An anonymous record is named by its field names alone, so
+		// Choice(string, [{key, desc: string}]) and ChoiceR(Json, [{key,
+		// desc: Json}]) both name Record_desc_key; the first declaration won
+		// and a term over the other was ill-sorted (a Z3 ERROR).
+		for _, d := range result.RecordDecls {
+			if ExtractSortNameFromDecl(d) == sortName && d != decl {
+				result.RecordConflicts = append(result.RecordConflicts, sortName)
+				break
+			}
+		}
+		return
+	}
+	seen[sortName] = true
+	result.RecordDecls = append(result.RecordDecls, decl)
 }
 
 // ASTTypeToSMTSort converts an AST type annotation to an SMT-LIB sort name.

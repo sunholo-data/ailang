@@ -1,0 +1,32 @@
+module anon_records
+
+-- An anonymous record in a parameter: the sort is declared when it sits in a
+-- list, and after the ADT one of its fields names.
+type Q = QA(int) | QB(string)
+
+export pure func listOfRecords(xs: [{ name: string, k: int }]) -> int
+  ensures { result >= 0 }
+= 0
+
+export pure func recordWithAdt(x: { name: string, q: Q }) -> int
+  ensures { result >= 0 }
+= 0
+
+export pure func listOfRecordsWithAdt(xs: [{ name: string, q: Q }]) -> int
+  ensures { result >= 0 }
+= 0
+
+export pure func listOfRecordsFalse(xs: [{ name: string, k: int }]) -> int
+  ensures { result > 0 }
+= 0
+
+-- Two inline records with the same field names and different field types
+-- share one sort name; a function needing it is skipped, not a Z3 error.
+type Opt = Plain([{ key: string, desc: string }]) | Rich([{ key: string, desc: int }])
+
+export pure func richDesc(o: Opt) -> int
+  ensures { result >= 0 }
+= match o {
+    Plain(_) => 0,
+    Rich(xs) => match xs { [] => 0, [x, ..._] => if x.desc >= 0 then x.desc else 0 }
+  }

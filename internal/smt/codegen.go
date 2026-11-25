@@ -297,7 +297,14 @@ func EncodeFunction(
 		contracts = opts[0].Contracts
 	}
 
+	// The records this function's signature, body and contracts name join the
+	// dependency-ordered pass below rather than being emitted here: a record
+	// with an ADT field ({ name: string, q: Question }) was declared before
+	// its ADT, and the closure check skipped the function.
+	firstRecordDecl := len(result.Declarations)
 	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
+	recordDecls := append([]string(nil), result.Declarations[firstRecordDecl:]...)
+	result.Declarations = result.Declarations[:firstRecordDecl]
 
 	// Step 0.5 + Step 1: Declare inline record types and ADT types.
 	// Use multi-pass to handle dependencies: declarations are only emitted when
@@ -306,6 +313,11 @@ func EncodeFunction(
 	{
 		// Collect all pending declarations
 		pending := append([]pendingDecl(nil), aliasDecls...)
+		for _, decl := range recordDecls {
+			sortName := ExtractSortNameFromDecl(decl)
+			delete(ctx.DeclaredTypes, sortName) // declared by the pass, in order
+			pending = append(pending, pendingDecl{sortName: sortName, decl: decl})
+		}
 
 		// Add extra declarations (inline record types from ADT constructor fields)
 		if len(opts) > 0 {

@@ -1,5 +1,6 @@
 module string_extra
-import std/string (length, trim, toLower, toUpper, split, chars, join, repeat, charAt, replace, startsWith)
+import std/string (length, trim, toLower, toUpper, split, chars, join, repeat, charAt, replace, startsWith, stringToInt, charCode)
+import std/option (Option, Some, None)
 import std/list (length as llen)
 
 export func t1(s: string) -> string ! {}
@@ -57,4 +58,62 @@ ensures { result == s || length(s) > 0 } {
 export func dashBad(s: string) -> string ! {}
 ensures { result == s } {
   replace(s, "-", "_")
+}
+
+-- stringToInt (Go's ParseInt): unsigned digits → Some(n); no sign and not
+-- all digits → None; a signed string is left open (its model inconclusive).
+export func digits(s: string) -> int
+  requires { s == "042" }
+  ensures { result == 42 }
+{
+  match stringToInt(s) { Some(n) => n, None => 0 - 1 }
+}
+
+export func notDigits(s: string) -> int
+  requires { s == "4x" || s == "" }
+  ensures { result == 0 - 1 }
+{
+  match stringToInt(s) { Some(n) => n, None => 0 - 1 }
+}
+
+export func minusOpen(s: string) -> int
+  requires { s == "-5" }
+  ensures { result == 0 - 1 }
+{
+  match stringToInt(s) { Some(n) => n, None => 0 - 1 }
+}
+
+export func plusOpen(s: string) -> int
+  requires { s == "+5" }
+  ensures { result == 0 - 1 }
+{
+  match stringToInt(s) { Some(n) => n, None => 0 - 1 }
+}
+
+export func positiveOrDefault(s: string, d: int) -> int
+  requires { d > 0 }
+  ensures { result > 0 }
+{
+  match stringToInt(s) { Some(n) => if n > 0 then n else d, None => d }
+}
+
+export func parsedNonNeg(s: string) -> int
+  ensures { result >= 0 }
+{
+  match stringToInt(s) { Some(n) => n, None => 0 }
+}
+
+-- charCode: a single rune's code point, never tied to Z3's narrower range.
+export func code(c: string) -> int
+  requires { length(c) == 1 }
+  ensures { result >= 0 && result <= 1114111 }
+{
+  charCode(c)
+}
+
+export func codeBelowZ3Max(c: string) -> int
+  requires { length(c) == 1 }
+  ensures { result < 200000 }
+{
+  charCode(c)
 }

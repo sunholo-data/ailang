@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// std/string trim/toLower/split/chars/join/repeat/replace (uninterpreted, with
+// std/string trim/toLower/split/chars/join/repeat/replace/stringToInt/charCode (uninterpreted, with
 // facts the runtime result always has) and charAt (exact): every caller used to
 // be skipped. A model over an uninterpreted one is inconclusive — never a
 // violation by itself (the CLI's witness replay confirms real ones).
@@ -21,6 +21,9 @@ func TestStdStringExtraVerify(t *testing.T) {
 		"t1": "verified", "lower": "verified", "parts": "verified", "cs": "verified",
 		"j1": "verified", "rep": "verified", "first": "verified", "dash": "verified",
 		"t1Bad": "inconclusive", "partsBad": "inconclusive", "dashBad": "inconclusive",
+		"digits": "verified", "notDigits": "verified", "positiveOrDefault": "verified",
+		"minusOpen": "inconclusive", "plusOpen": "inconclusive", "parsedNonNeg": "inconclusive",
+		"code": "verified", "codeBelowZ3Max": "inconclusive",
 	}
 	got := map[string]string{}
 	for _, r := range report.Results {

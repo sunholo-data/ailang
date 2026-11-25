@@ -215,6 +215,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		typeOwner[name] = owner
 	}
 	adtRecordDecls := adtResult.RecordDecls
+	recordConflicts := append([]string(nil), adtResult.RecordConflicts...)
 	recordAliases := adtResult.RecordAliases
 	// Also extract from imported modules so cross-module types
 	// (e.g., Block, XmlNode, TableCell) get declare-datatype in the Z3 output.
@@ -242,6 +243,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				}
 			}
 			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
+			recordConflicts = append(recordConflicts, modResult.RecordConflicts...)
 			for name, rec := range modResult.RecordAliases {
 				if _, exists := recordAliases[name]; !exists {
 					recordAliases[name] = rec
@@ -249,6 +251,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 		}
 	}
+
+	conflictingRecords := conflictingRecordSorts(adtRecordDecls, recordConflicts)
 
 	// Build Surface AST function lookup for param extraction
 	surfaceFuncs := make(map[string]*ast.FuncDecl)
@@ -527,6 +531,11 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 		if ambiguousName != "" {
 			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, fmt.Errorf("ambiguous imported ADT identity %s", ambiguousName)))
+			report.Skipped++
+			continue
+		}
+		if name := firstNeededConflict(seeds, conflictingRecords); name != "" {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, fmt.Errorf("two record types with the fields of %s have different field types, and the verifier names an anonymous record by its field names alone", name)))
 			report.Skipped++
 			continue
 		}
