@@ -27,7 +27,7 @@
 -- the same validation, public-feedback inbox and per-IP limit as any MCP
 -- client. The model calls it only when the user asks to report something.
 module executor_tools/agent
-import executor_tools/executor (ailangCheck, ailangRun, ailangPrompt)
+import executor_tools/executor (ailangCheck, ailangRun, fullPrompt)
 import std/ai (Message, ToolCall, ToolSchema, AIError, runTools)
 import std/clock (now)
 import std/debug (log)
@@ -193,11 +193,9 @@ func feedbackLogged(status: int, out: string) -> string ! {Debug} {
   out
 }
 
--- The reference text, from the same ailang_prompt the MCP surface serves.
-func reference() -> string ! {Clock, Debug, Env, Process} = match getString(ailangPrompt(), "stdout") {
-  Some(p) => p,
-  None => ""
-}
+-- The reference text: the whole prompt. The MCP tool serves a cut of it sized
+-- for a tool result; the agent's own context has room for all of it.
+func reference() -> string ! {Env, Process} = fullPrompt()
 
 -- The answer is the model's last message; an empty one is reported, not sent.
 pure func finalAnswer(messages: [Message]) -> Result[string, string] = match last(messages) {

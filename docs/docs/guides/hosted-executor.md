@@ -25,7 +25,7 @@ page is built with `serve-api` and `sunholo/mcp_oauth`, as described in
 
 | Group | Tools | What they do |
 |---|---|---|
-| **Code** | `ailang_prompt` | The current AILANG syntax prompt. Read it before writing code |
+| **Code** | `ailang_prompt` | The current AILANG syntax prompt, less the sections the sandbox cannot use (network, AI calls, archives, packages and the like) and the stdlib listing, so it fits in one tool result. Read it before writing code. The whole prompt is `prompt_get` with `kind` `""` |
 | | `ailang_check` | Type-check a program (and run its contracts through Z3) without running it |
 | | `ailang_run` | Run a program in the sandbox and return its output |
 | | `ailang_eval` | Evaluate one expression |
