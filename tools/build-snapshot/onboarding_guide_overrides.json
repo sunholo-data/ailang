@@ -16,19 +16,19 @@
         },
         {
           "n": 2,
-          "title": "Confirm the remote MCP is connected",
+          "title": "Confirm the AILANG MCP server is connected",
           "actions": [
-            "If you can call this onboarding_guide tool, the remote MCP is working — skip the rest of this step",
-            "Otherwise, point your harness at https://mcp.ailang.sunholo.com/mcp/ (transport: streamable-http)",
-            "For Claude Desktop specifically, use the mcp-remote bridge: `npx -y mcp-remote https://mcp.ailang.sunholo.com/mcp/`"
+            "If you can call this onboarding_guide tool, you are connected — skip the rest of this step",
+            "There are two AILANG servers. The docs server https://mcp.ailang.sunholo.com/mcp/ needs no sign-in and has the docs tools only. The executor https://executor.ailang.sunholo.com/mcp/connect/ needs a sign-in and adds ailang_check, ailang_run and ailang_eval, which run code in a sandbox",
+            "Point your harness at either one (transport: streamable-http)"
           ]
         },
         {
           "n": 3,
           "title": "Load the current syntax",
           "actions": [
-            "Call `prompt_get(forVersion=\"\", kind=\"agent\")` for the agent-shaped prompt (~180 lines) — start here for any new task",
-            "Call `prompt_get(forVersion=\"\", kind=\"\")` only when you need the full ~50 KB reference",
+            "Call `prompt_get(forVersion=\"\", kind=\"agent\")` for the agent-shaped prompt — start here for any new task",
+            "Call `prompt_get(forVersion=\"\", kind=\"\")` only when you need the full reference (over 100 KB)",
             "Use the prompt as the source of truth for syntax — do NOT guess"
           ]
         },
@@ -36,9 +36,9 @@
           "n": 4,
           "title": "Discover stdlib + examples before writing code",
           "actions": [
-            "Call `stdlib_modules(forVersion=\"\")` to see what's available (35 modules)",
+            "Call `stdlib_modules(forVersion=\"\")` to see what's available",
             "Call `stdlib_search(query=\"<keyword>\", forVersion=\"\")` to find a function by name/signature/keyword",
-            "Call `examples_for_concept(concept=\"<feature>\", forVersion=\"\")` for a working pattern matching the user's task"
+            "Call `example_for_concept(concept=\"<feature>\", forVersion=\"\")` for a working pattern matching the user's task"
           ]
         },
         {
@@ -63,17 +63,16 @@
           "n": 7,
           "title": "Type-check then run",
           "actions": [
-            "`ailang check file.ail` — type-check first (fast feedback)",
-            "`ailang run --caps IO,FS --entry main file.ail` — flags MUST come BEFORE the filename (silent failure otherwise)",
-            "On error: call `examples_for_concept` for a working analog, or call `submit_feedback` to file a docs/bug report"
+            "`ailang check file.ail` — type-check first (fast feedback); on the executor, call `ailang_check`",
+            "`ailang run --caps IO,FS --entry main file.ail` — flags MUST come BEFORE the filename (silent failure otherwise); on the executor, call `ailang_run`",
+            "On error: call `example_for_concept` for a working analog"
           ]
         },
         {
           "n": 8,
-          "title": "When stuck — submit feedback",
+          "title": "When stuck — report it",
           "actions": [
-            "Call `submit_feedback(title, body, category=\"bug\"|\"feature\"|\"docs\"|\"limitation\", ailang_version, snippet, contact)` from inside this MCP session",
-            "Lands in the team's public-feedback inbox; counts as a real signal for what blocks agents",
+            "Call `submit_feedback(title, body, category=\"bug\"|\"feature\"|\"docs\"|\"limitation\", ailang_version, snippet, contact)` to report a bug or a gap in the docs",
             "Anonymous is fine — provide `contact` only if you want a follow-up"
           ]
         }
@@ -116,7 +115,7 @@
           "note": "AILANG has no `!` for boolean negation. Invert the branches or write a named helper."
         }
       ],
-      "verification_path": "After step 7, you should have a working .ail file that prints something. If not, call submit_feedback with category=docs and what blocked you — that's the highest-value signal we receive."
+      "verification_path": "After step 7, you should have a working .ail file that prints something. If something in these docs blocked you, submit_feedback with category=docs says what."
     },
     "developer": {
       "role": "developer",
@@ -143,9 +142,8 @@
           "n": 3,
           "title": "Read the prompt for syntax",
           "actions": [
-            "`ailang prompt` — the canonical teaching prompt (full ~50 KB)",
-            "`ailang prompt --compact` — the smaller variant (~15 KB)",
-            "`ailang prompt --source mcp` — fetch fresher version from the remote MCP if available"
+            "`ailang prompt` — the canonical teaching prompt",
+            "Or call `prompt_get` through an AILANG MCP server"
           ]
         },
         {
@@ -172,7 +170,7 @@
           "title": "Add an AI agent (optional)",
           "actions": [
             "Install ailang_bootstrap for your harness (Claude Code / Gemini CLI / Codex CLI) — see install_guide",
-            "Or just add the remote MCP `https://mcp.ailang.sunholo.com/mcp/` to whatever harness you use",
+            "Or add an AILANG MCP server to your harness: the docs server https://mcp.ailang.sunholo.com/mcp/ (no sign-in), or the executor https://executor.ailang.sunholo.com/mcp/connect/ (sign-in; also checks and runs code)",
             "Now your agent has typed AILANG knowledge tools"
           ]
         },

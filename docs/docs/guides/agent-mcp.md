@@ -83,7 +83,7 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 
 | Tool | Purpose |
 |---|---|
-| `design_docs_list` | List planned/implemented/rejected design docs, optionally by version |
+| `design_docs_list` | Design docs (slug, title, state, version) by `state` (planned, implemented, rejected) and `version`; at most 200, with the total |
 | `design_doc` | Full design doc by slug, as markdown, read live from `dev` |
 | `roadmap` | The site's roadmap page, as markdown, read live from `dev` |
 | `changelog_for_version` | What changed in a given release |

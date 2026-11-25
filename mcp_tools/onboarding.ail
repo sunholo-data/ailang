@@ -8,15 +8,27 @@
 -- Unscoped — the flow doesn't change per AILANG release.
 module mcp_tools/onboarding
 
-import mcp_tools/lib (readUnscopedOrError, errorJson)
-import std/json (Json)
+import mcp_tools/lib (readUnscopedJson)
+import std/json (Json, jo, kv, getObject)
+import std/option (Some, None)
+import std/result (Result, Ok, Err)
 
--- Step-by-step guide to getting started with AILANG, for an AI coding agent
--- and for a human developer. role: "agent" | "developer" | "" (both). The
--- guide for both roles is returned whatever role says; pick the part you need.
+-- Step-by-step guide to getting started with AILANG. role = "agent" (an AI
+-- coding agent), "developer" (a human at the CLI) or "" (both).
 @route("POST", "/api/mcp/onboarding_guide")
 @mcp_name("onboarding_guide")
 @mcp_title("AILANG onboarding guide")
 @mcp_hints("readOnly", "idempotent")
-export func onboardingGuide(role: string) -> Json ! {Env, FS} =
-  readUnscopedOrError("onboarding_guide.json")
+export func onboardingGuide(role: string) -> Result[Json, string] ! {Env, FS} =
+  if role != "" && role != "agent" && role != "developer" then
+    Err("role must be agent, developer or empty, not '${role}'")
+  else match readUnscopedJson("onboarding_guide.json") {
+    Err(_) => Err("the onboarding guide is unavailable"),
+    Ok(doc) => if role == "" then Ok(doc) else match getObject(doc, "roles") {
+      None => Err("the onboarding guide is unavailable"),
+      Some(roles) => match getObject(roles, role) {
+        None => Err("the onboarding guide has no '${role}' section"),
+        Some(guide) => Ok(jo([kv("roles", jo([kv(role, guide)]))]))
+      }
+    }
+  }

@@ -2,11 +2,13 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -52,6 +54,8 @@ var docsToolRefusals = map[string]string{
 	"prompt_get":         `{"forVersion": "", "kind": "compact"}`,
 	"benchmarks_compare": `{"modelA": "no-such-model", "modelB": "MODEL"}`,
 	"examples_list":      `{"features": "", "status": "", "forVersion": "not-a-version"}`,
+	"design_docs_list":   `{"state": "drafted", "version": ""}`,
+	"onboarding_guide":   `{"role": "manager"}`,
 }
 
 // fakeRepo serves the working tree as raw.githubusercontent.com serves the
@@ -62,10 +66,14 @@ func fakeRepo(t *testing.T, root string) (*httptest.Server, func() []string) {
 	var seen []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ref, rel, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+		if !ok || rel == "" { // not a file fetch: a stray local probe of a reused port hit "/" once
+			http.NotFound(w, r)
+			return
+		}
 		mu.Lock()
 		seen = append(seen, ref+" "+rel)
 		mu.Unlock()
-		if !ok || strings.Contains(rel, "..") {
+		if strings.Contains(rel, "..") {
 			http.NotFound(w, r)
 			return
 		}
@@ -163,6 +171,42 @@ func TestDocsTools_EveryToolSucceeds(t *testing.T) {
 		if text, isErr := call(name, args); !isErr {
 			t.Errorf("%s(%s) should be a tool error, got success: %s", name, args, clipText(text, 300))
 		}
+	}
+
+	// Filters filter (#2271 X2: design_docs_list returned every doc whatever
+	// state said), and the guide names only tools that exist.
+	var all, rejected struct {
+		Total int `json:"total"`
+		Docs  []struct {
+			State string `json:"state"`
+		} `json:"docs"`
+	}
+	for _, c := range []struct {
+		args string
+		into any
+	}{{`{"state": "", "version": ""}`, &all}, {`{"state": "rejected", "version": ""}`, &rejected}} {
+		text, _ := call("design_docs_list", c.args)
+		if err := json.Unmarshal([]byte(text), c.into); err != nil {
+			t.Fatalf("design_docs_list(%s): %v: %s", c.args, err, clipText(text, 300))
+		}
+	}
+	if rejected.Total == 0 || rejected.Total >= all.Total {
+		t.Errorf("design_docs_list state=rejected matched %d of %d docs", rejected.Total, all.Total)
+	}
+	for _, d := range rejected.Docs {
+		if d.State != "rejected" {
+			t.Errorf("design_docs_list state=rejected listed a %q doc", d.State)
+			break
+		}
+	}
+	guide, _ := call("onboarding_guide", `{"role": ""}`)
+	for _, m := range regexp.MustCompile("`([a-z_]+)\\(").FindAllStringSubmatch(guide, -1) {
+		if _, ok := tools[m[1]]; !ok && m[1] != "submit_feedback" { // the server's own tool, not in mcp_tools/
+			t.Errorf("onboarding_guide tells the agent to call %s, which is not a tool", m[1])
+		}
+	}
+	if agent, _ := call("onboarding_guide", `{"role": "agent"}`); strings.Contains(agent, `"developer"`) {
+		t.Errorf("onboarding_guide role=agent returned the developer guide too")
 	}
 
 	// The live tools went to the release tag or dev, never anywhere else.

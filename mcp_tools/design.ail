@@ -5,21 +5,56 @@
 -- the repository's dev branch (mcp_tools/live), so they are current, not as of
 -- the last release.
 module mcp_tools/design
-import mcp_tools/lib (readUnscopedOrError, readUnscopedJson)
+import mcp_tools/lib (readUnscopedJson)
 import mcp_tools/live (fetchFile, movingRef, latestVersion, browseUrl, stripFrontMatter, clip, clipped, safePath)
-import std/json (Json, jo, kv, js, jb, getArray, getString)
+import std/json (Json, jo, kv, js, jb, ja, jint, getArray, getString)
 import std/option (Option, Some, None, getOrElse)
 import std/result (Result, Ok, Err)
-import std/list (filter)
+import std/list (filter, map, take, length)
+import std/string (replace)
 
--- List planned/implemented/rejected design docs, optionally filtered by version.
--- state = "planned" | "implemented" | "rejected" | ""; empty = all.
+-- Design docs as slug, title, state and version, for design_doc to read.
+-- state = "planned" | "implemented" | "rejected" | "" (all); version = a
+-- release such as "0.51.0" or "v0.51.0", or "" (all). At most 200 are listed;
+-- total says how many matched, so narrow by state or version to see the rest.
 @route("POST", "/api/mcp/design_docs_list")
 @mcp_name("design_docs_list")
 @mcp_title("List design docs")
 @mcp_hints("readOnly", "idempotent")
-export func designDocsList(state: string, version: string) -> Json ! {Env, FS} =
-  readUnscopedOrError("design_docs_index.json")
+export func designDocsList(state: string, version: string) -> Result[Json, string] ! {Env, FS} =
+  if state != "" && state != "planned" && state != "implemented" && state != "rejected" then
+    Err("state must be planned, implemented, rejected or empty, not '${state}'")
+  else match readUnscopedJson("design_docs_index.json") {
+    Err(_) => Err("the design doc index is unavailable"),
+    Ok(idx) =>
+      let want = versionDir(version) in
+      let docs = filter(\d. matches(d, state, want), getOrElse(getArray(idx, "docs"), [])) in
+      let shown = take(listLimit(), docs) in
+      Ok(jo([
+        kv("total", jint(length(docs))),
+        kv("returned", jint(length(shown))),
+        kv("truncated", jb(length(docs) > listLimit())),
+        kv("docs", ja(map(summary, shown)))
+      ]))
+  }
+
+pure func listLimit() -> int = 200
+
+-- The index records a doc's version as its folder name, e.g. "v0_51_0".
+pure func versionDir(v: string) -> string =
+  if v == "" then "" else "v${replace(replace(v, "v", ""), ".", "_")}"
+
+pure func matches(d: Json, state: string, want: string) -> bool =
+  (state == "" || getOrElse(getString(d, "state"), "") == state)
+    && (want == "" || getOrElse(getString(d, "version"), "") == want)
+
+pure func summary(d: Json) -> Json =
+  jo([
+    kv("slug", js(getOrElse(getString(d, "slug"), ""))),
+    kv("title", js(getOrElse(getString(d, "title"), ""))),
+    kv("state", js(getOrElse(getString(d, "state"), ""))),
+    kv("version", js(getOrElse(getString(d, "version"), "")))
+  ])
 
 -- The index entry for a slug, if any.
 func docEntry(slug: string) -> Option[Json] ! {Env, FS} = match readUnscopedJson("design_docs_index.json") {
