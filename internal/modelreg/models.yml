@@ -6552,8 +6552,8 @@ models:
     max_output_tokens: 65536  # matches or-qwen3-6-35b-a3b control
     model_family: "qwen3-8-27b"
     pricing:
-      input_per_1k: 0.000425   # $0.425 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.00255   # $2.55 per 1M (OpenRouter API, verified 2026-08-27)
+      input_per_1k: 0.000035   # $0.035 per 1M (OpenRouter /api/v1/models, verified 2026-11-24; matches pi-or-qwen3-8-27b)
+      output_per_1k: 0.0015    # $1.50 per 1M (same source)
     budgets:
       # PRICE-SCALED, not matched, on purpose. The control's cap is 0.30 at
       # $1.00/M out; this model is $3.20/M out, so an equal *dollar* cap would

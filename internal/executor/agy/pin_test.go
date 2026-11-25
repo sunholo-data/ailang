@@ -1,3 +1,5 @@
+//go:build !windows
+
 package agy
 
 import (
@@ -10,6 +12,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // A run on a binary that is not the pinned version is refused BEFORE agy is
@@ -33,7 +36,7 @@ func TestExecute_RefusesUnpinnedBinary(t *testing.T) {
 // belong to interactive agy and update themselves.
 func TestDefaultAgyPath_PrefersPinnedInstall(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("AILANG_AGY_HOME_ROOT", "")
 	onPath := t.TempDir()
 	t.Setenv("PATH", onPath)

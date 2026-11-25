@@ -42,6 +42,7 @@ var notWiredIntoCIVerify = map[string]string{
 	"verify-cli-examples":      "RED at HEAD 2026-08-25 (rc=2): fixture examples/cli_examples.txt has rotted: 9 of 26 commands fail, incl. list_sum.ail expecting `(15, 15)` and producing `(15, 5)`, and lambdas_full.ail using `++` on strings (list-only since v0.13.0); tracked as an open queue row — wire it when it is green, do not widen the exemption",
 	"verify-examples-all":      "RED at HEAD 2026-08-25 (rc=2): 60% threshold gate over ALL examples currently exits 1; tracked as an open queue row — wire it when it is green, do not widen the exemption",
 	"verify-examples-toplevel": "RED at HEAD 2026-08-25 (rc=2): examples/ai_modes.ail fails effect checking: \"AI requires mode=fixed; declaration provides mode=routeable\". NOTE: this target is a `make ci` prerequisite, so `make ci` is RED at HEAD on this one example; tracked as an open queue row — wire it when it is green, do not widen the exemption",
+	"verify-gap-map":           "developer-local verification sweep across eight sibling downstream repositories (not checked out in CI)",
 }
 
 var nonCanonicalAllowed = map[string]string{
