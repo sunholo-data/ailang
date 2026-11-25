@@ -1,18 +1,20 @@
-# Fleet mission dashboard — iteration 139
+# Fleet mission dashboard — iteration 140
 
 Updated 2026-11-25; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
 
-- **Outcome: REBASED + RE-JUDGED, not merged [HARNESS].** Independent judge (sonnet): **PASS 90**, 0 blocking, both stacks patch-identical after the rebase.
-  - [#2463](https://github.com/sunholo-data/ailang/pull/2463) (evidence secret scan) is now at `cc9216a20`.
-  - [#2466](https://github.com/sunholo-data/ailang/pull/2466) (mission-base repo guard, stacked on #2463) is now at `981c80183`.
-- **Dev: RED, on one new cause.**
-  - D-FLEET-48's three reds were fixed attended (`cb6bb75be`), and `7a61839c7` passed every required check.
-  - Then the v0.16.20 prompt release `2da0c4592` added a required `test` red: `cmd/ailang` `TestRealRegistry_PostMigrationSplitCounts` ("split 19/54/2 v0.16.19"). The test wants one mutable prompt version and finds two. It is still red at `df3994262`.
-  - Both PRs inherit only that red; `lint`, `build`, `checks` and `docs-gate` are green on #2463.
-  - A second, flaky risk: the `internal/pipeline` package sometimes hits its 6m56s timeout (3 of the last 6 runs).
-- **Open tickets:** 21, unchanged. 16 are ruling-gated, 3 are attended-fixed but unresolved (rows 71–73, D-FLEET-46's class), and 2 are built and waiting.
-- **Routing:** controller opus. Judge sonnet in its own worktree (58,734 tok). Designer, planner and executor were not spawned: no code was authored, only a clean rebase.
+- **Outcome: BUILT + JUDGED, not merged [HARNESS].** `skill:rotate-log-index-only-targets-registry-workdir` (World 433) is [#2471](https://github.com/sunholo-data/ailang/pull/2471), stacked on #2466.
+  - Independent judge (sonnet): **PASS 92**, 0 blocking, 11/11 mutations killed.
+  - `ailang mission rotate-log --workdir <dir>` targets an explicit record checkout for `--keep`, `--index-only` and `--stream status`.
+  - Gate 4 prescribes `--workdir "$PWD"` and keeps the earlier forms for a CLI that predates the flag (the rig's v0.61.1 rejects it).
+  - Smoke on the ticket's exact case: the World INDEX was written in the record checkout; the World main checkout was byte-unchanged.
+- **Dev: RED on two required `test` failures at `e3595b4f9`, both outside fleet scope.**
+  - `TestRealRegistry_PostMigrationSplitCounts` (v0.16.20 prompt freeze), as in 139.
+  - New: `TestCachePipeline_EmbeddedKeys` ("std/result unexpected dependencies: [std/option]"), from `e3595b4f9` itself (`result.toOption`/`fromOption`).
+  - #2463, #2466 and #2471 all inherit only these; `lint`, `build`, `checks` and `docs-gate` are green.
+- **Open tickets:** 22 (one new). 16 are ruling-gated, 3 are attended-fixed but unresolved (rows 71–73, D-FLEET-46's class), and 3 are built and waiting (rows 70, 74, 75).
+- **Routing:** controller opus. Planner and executor codex `gpt-6.2-sol` (recipe; 60k + 93k tok). Judge sonnet on the Agent tool, own worktree (56k tok). No designer.
 - **Cost:** metered $0.
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46, D-FLEET-48, all unchanged in status. D-FLEET-48 now needs only the prompt-freeze test fixed (or option B).
-- **Next:** when dev's `test` is green on its head, rebase #2463, poll, merge, run the done-gate and resolve the ticket, then do the same for #2466. Otherwise pick NONE.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration139/](fleet-mission-evidence/iteration139/).
+- **Harness share:** 11/20 (all tagged).
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46, D-FLEET-48, all unchanged. D-FLEET-48 now waits on two dev reds, or option B.
+- **Next:** when dev's `test` is green on its head, land #2463 → #2466 → #2471 in order (rebase, poll, merge, done-gate, resolve). Otherwise pick NONE.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration140/](fleet-mission-evidence/iteration140/).
