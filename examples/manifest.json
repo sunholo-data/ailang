@@ -4463,14 +4463,38 @@
       "description": "Publish a status panel as one applyBatchResult DOM batch, falling back to a text log when no DOM handler exists (CLI).",
       "modules": ["std/dom", "std/list", "std/result", "std/string"],
       "expected": {"stdout": "DOM unavailable (NO_HANDLER); text fallback for region agent-indexer:\n  - add panel \"Indexer\": 30/40 documents embedded\n  - add timeline \"Indexer events\"\n  - update progress-bar: 75%\n  - remove spinner\nDOM unavailable (NO_HANDLER); text fallback for region agent-indexer:\n  - update progress-bar: 100%\n  - add panel \"Indexer\": done\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/destructuring.ail",
+      "status": "working",
+      "tags": ["destructuring", "tuples", "records", "lambdas", "let", "patterns"],
+      "description": "Irrefutable tuple and record destructuring in let bindings and lambda parameters (including open records ... and field renaming)",
+      "modules": ["std/list"],
+      "expected": {"stdout": "tuple let: apples x 5\nrecord let: Ada (36) from London\nlambda tuple map: [\"a=10\", \"b=20\", \"c=30\"]\nlambda tuple foldl: 60\nlambda record map: [\"Ada\", \"Grace\"]\nlambda record foldl: 121\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/pipe_operator.ail",
+      "status": "working",
+      "tags": ["pipe", "operators", "higher-order", "lists", "functional"],
+      "description": "Left-associative pipe operator (|>) chaining named unary functions and inline lambda stages",
+      "modules": ["std/list"],
+      "expected": {"stdout": "5 |> double |> addOne = 11\npositive doubled sum = 16\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/list_combinators.ail",
+      "status": "working",
+      "tags": ["stdlib", "list", "result", "combinators", "filterMap", "partition", "enumerate", "find"],
+      "description": "Standard library O(n) list combinators (all, enumerate, filterMap, partition, find) and std/result.getOrElse",
+      "modules": ["std/list", "std/option", "std/result", "std/string"],
+      "expected": {"stdout": "all even: true\nenumerate: [(0, \"a\"), (1, \"b\"), (2, \"c\")]\nfilterMap: [10, 20, 30]\npartition evens=[2, 4, 6] odds=[1, 3, 5]\nfind > 4: Some(5)\nresult getOrElse: good=42 fallback=-1\n", "exit_code": 0}
     }
   ],
   "statistics": {
-    "total": 333,
-    "working": 325,
+    "total": 336,
+    "working": 328,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.975975975975976,
+    "coverage": 0.9761904761904762,
     "experimental": 0
   },
   "milestones": {
