@@ -1,0 +1,35 @@
+dev HEAD ea6d2f28fe9d2bbe3456c9c3b167e2051eb6b9c7 read 2026-11-24T20:05:26Z
+138601181681 govulncheck (vuln gate)
+138601181680 test-windows
+138601181579 launchd drivers (bash 3.2)
+138600896814 ailang-core-dev (ailang-multivac-deploy)
+138600890007 test
+138600889741 checks
+138600889679 Build macos-latest
+138600889553 Build windows-latest
+138600889411 Build macos-latest
+138600889189 lint
+138600888754 Build ubuntu-latest
+
+--- lint
+##[error]internal/ai/gemini/generate.go:287:18: func (*Client).vertexModelURL is unused (unused)
+##[error]Process completed with exit code 2.
+--- test
+--- FAIL: TestVerifyTargetsAreWiredIntoAWorkflow (0.12s)
+--- FAIL: TestModels_PricingIsSlugConsistent (0.02s)
+--- FAIL: TestQuorumArtifactShellSuite (1.07s)
+--- FAIL: TestBuiltinTypes_GoldenSnapshot (0.00s)
+--- checks
+hand-rolled HOME override outside internal/testutil/home.go (use testutil.SetHomeDir):
+home isolation scan: 2441 _test.go files; fixture matches: 3; live exemptions: 1
+RESIDUAL CLASSES (not covered): the variable name held in a variable or constant; a helper in another package that itself sets HOME; os/exec Env slices; build-tagged files excluded from this GOOS; non-Go surfaces (shell, CI yaml). Whitespace- and newline-spanning calls ARE covered, and so is os.Setenv.
+    internal/executor/agy/pin_test.go:36:	t.Setenv("HOME", home)
+make: *** [make/code-health.mk:206: check-home-isolation] Error 1
+##[error]Process completed with exit code 2.
+--- launchd drivers
+──── FAIL tools/launchd/test_quorum_artifacts.sh (4s, rc=1)
+FAIL generated_docs_and_mirror: sync
+FAIL generated_docs_and_mirror: generated_docs_and_mirror
+──── FAIL tools/launchd/test_agents_skills_sync.sh (1s, rc=1)
+    4s  FAIL  tools/launchd/test_quorum_artifacts.sh
+    1s  FAIL  tools/launchd/test_agents_skills_sync.sh

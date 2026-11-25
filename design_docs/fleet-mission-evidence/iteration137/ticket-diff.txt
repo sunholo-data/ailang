@@ -1,0 +1,3 @@
+open tickets: 20 | iteration-136 snapshot: 17
+new since 136: ['ci:agy-pin-test-home-isolation', 'ci:modelreg-qwen-slug-pricing-mismatch', 'ci:verify-gap-map-workflow-wiring']
+gone since 136: []

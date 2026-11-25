@@ -2424,3 +2424,155 @@ Each replied to its filer.
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (62,818 tok). Judge independence: cross-vendor (planner and executor OpenAI codex, judge Anthropic sonnet).
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (Anthropic and codex subscriptions only).
+
+## 136 — 2026-11-24 — `publish:evidence-pack:no-secret-value-guard` BUILT + JUDGED (independent sonnet judge PASS 84 → PASS 90 after two fix rounds): #2463 adds a value-based pre-publication secret scan and a Gate-4 Public publish rule; it cannot merge over dev's inherited required reds (V1 loop disabled), so D-FLEET-48 asks Mark; ticket stays open [HARNESS]
+
+**Pick**: `publish:evidence-pack:no-secret-value-guard` (stapledon 113, filed 11-24 07:31Z, blocking none, 1 slot). It is the only new ticket: the other 16 match iteration 135's post-resolution set ([tickets](fleet-mission-evidence/iteration136/tickets.json), 17 open). It is not policy class: no routing, lane, ration or billing guard moves. The paths (`scripts/mission_*`, `scripts/test_mission_*`, `.claude/skills/mission-*`, `.agents/skills/{mission,sprint}-*`, `make/test.mk`, `changelogs/**`) are all inside fleet Authority.
+- 0 allowlisted directives on #2445 (5 comments) or `-prev` #2341 (29 comments); no watermark files, so both issues were read whole.
+- Self-notices rc 0: the same single crash notice (`…#issuecomment-7063993188`) and transcript notice (fire `fleet-1795100889-10927`) as 125–135, both already credited. Control 852:10. No new death.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=openrouter google` (no role used those buckets).
+- Skill drift: the resolved symlink copy and the pin copy match origin/dev on SKILL.md and all 13 resource files, per file. Pin HEAD = origin/dev = `16d168f19`.
+- Died-mid-flight traces: no open `fleet/*` PR; no uncommitted fleet worktree. The main checkout holds an attended session's UNCOMMITTED `.agents/skills/sprint-*` sync (12:29), which `b49dc1c59` (12:32) committed without. See Did.
+- **Dev CI red at `16d168f19`** (21 check-runs, 11 not green):
+  - **Fleet territory (fixed in this PR):** `launchd drivers (bash 3.2)` runs `test_agents_skills_sync.sh` and `test_quorum_artifacts.sh`, and `test` includes `TestQuorumArtifactShellSuite`. All three are red because `b49dc1c59` left `.agents/skills/sprint-*` stale.
+  - **V1-owned, not touched:**
+    - `lint`: `internal/ai/gemini/generate.go:287` unused `vertexModelURL`.
+    - `test`: cihygiene `verify-gap-map` not wired; `TestModels_PricingIsSlugConsistent`; pipeline `TestBuiltinTypes_GoldenSnapshot` and `TestDeprecatedASTConstructsClassified` (`ast.LetPattern`). The last one does not appear in dev's own job log, but it fails locally at base: `go test -run` rc 1.
+    - `checks`: `internal/executor/agy/pin_test.go:36` hand-rolled HOME.
+    - Windows, `govulncheck`, and the Cloud Build Node pin.
+  - The V1 loop is disabled (`mission-control.disabled` present), so no loop owns them.
+
+**Reality check (controller, first-party)**: the shared skill at HEAD carries no publish rule and no secret guard (grep of SKILL.md and all 13 resources for bucket/gs:///tarball/upload finds none). The public-bucket step lives in sibling charters (stapledon: `gs://…/refs/<set>/`). The ticket's premise that leaked values came from the launchd environment, not only `secrets.env`, is why the helper also reads credential-named env vars. [Gates](fleet-mission-evidence/iteration136/gates.md).
+
+**Did** (generator ≠ judge):
+- **Designer: not spawned.** The spec is the ticket plus the reality check (as iterations 87, 105, 109, 123, 126, 135). This is a routing outcome, not a spawn failure.
+- **Planner** `codex:gpt-6.2-sol` (recipe, detached worktree from HEAD, 103,634 tok). [Plan](fleet-mission-evidence/iteration136/plan.md):
+  - M1: helper for files and directories.
+  - M2: tar/tgz/zip members, plus suite wiring.
+  - M3: Gate-4 rule, a line-neutral SKILL.md pointer, mirror regeneration (controller-only) and a 15-row mutation table.
+  - It named the two inherited base reds.
+- **Executor** `codex:gpt-6.2-sol` (recipe, worktree `.fleet-i136-wt`, 143,983 tok): uncommitted diff with per-milestone snapshots, 18 arms, 26/26 mutants killed, shellcheck clean. The aggregate was marked UNINFORMATIVE UNDER SANDBOX. [Report](fleet-mission-evidence/iteration136/executor-report.md).
+- **Controller**:
+  - Reconstructed M1/M2/M3 commits from the snapshots, with the suite run at each boundary; `shasum -c` against the executor's final tree was OK.
+  - Wrote the changelog fragment and ran `tools/launchd/sync-agents-skills.sh`. The regenerated sprint mirrors are byte-identical to the main checkout's uncommitted copies, so the attended session's eventual commit rebases to a no-op.
+  - Base `make test-launchd-drivers` (own worktree): 2 of 61 suites red. Candidate: all 62 green, with live `secrets.env` unchanged.
+- **Live defect → fix round 1** (executor, 46,311 tok): on macOS `/tmp` → `/private/tmp` and `/var` → `/private/var`, so the helper's per-component O_NOFOLLOW made every `/tmp` or `$TMPDIR` path rc 2. That would have blocked every legitimate publish. Now the parent prefix is followed fd-relative; the final component and in-tree links still fail closed. New arm, both mutants killed. Live re-check: `/tmp` and `$TMPDIR` clean rc 0; final symlink rc 2.
+- **Live incident shape**: an `env` dump, plain and in a `.tgz`, returned LEAK with 14 hits from 18 loaded values; only key names appear in the output.
+- **PR**: #2463. Its body was scanned clean with the new helper in a separate call before `gh pr create` (the rule, dogfooded).
+- **Judge** sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `.fleet-i136-judge`, 67,263 tok), first attempt. The brief carried the ticket and the code, not the controller's verdict.
+  - **PASS 84/100**, 0 blocking. [Report](fleet-mission-evidence/iteration136/judge-r1.md).
+  - Non-blocking but silent: `.tar.bz2`, `.tar.xz`, `.bz2` and `.xz` holding a value returned **clean rc 0**, and a value in a file or directory-child name was missed.
+  - Its own mutants: 7 of 8 killed; one equivalent.
+- **Fix round 2** (executor, 68,799 tok): bzip2, xz, zstd and 7z signatures (any suffix, top level or as a member) now fail closed. Path-component names are matched as data. One sentence was added to the rule (literal values only; tar/tgz/zip only). Two new arms, both mutants killed. Controller live check: an `env` dump in `.tar.bz2` returns rc 2.
+- **Judge round 2** (same agent resumed, cumulative 76,218 tok): **PASS 90/100**, 0 blocking. Findings 1 and 2 re-verified fixed; its own two mutants were killed. [Report](fleet-mission-evidence/iteration136/judge-r2.md).
+- **Landing: BLOCKED.** PR CI at `66e0aae56`:
+  - Green: required `build` and `docs-gate`, and `launchd drivers (bash 3.2)` (red on dev; this PR fixes it).
+  - Red: required `lint`, `test` and `checks`, on exactly dev's V1-owned failures; `TestQuorumArtifactShellSuite` no longer fails.
+  - No admin merge (never done by this loop). The record is stacked on the PR branch (Gate 1's blocked-PR rule). D-FLEET-48 filed.
+
+**Ruled out**:
+- Policy class: no routing, lane, ration or billing guard changes. The rule adds a publish precondition; the helper only reads.
+- Treating the PR's red `test` as caused here: the diff has 0 Go files, and every failing test fails at base.
+- Fixing dev's V1-owned reds: they are outside fleet Authority (`internal/ai`, `internal/executor`, `internal/cihygiene`, `internal/pipeline`, `internal/eval_harness`), and the scope guard refuses them.
+- Decompressing bz2/xz rather than failing closed: fail closed is the safe minimum, and the rule now states the supported formats.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) Dev's required checks have been red since at least `b49dc1c59` while the V1 loop is disabled. Every PR to dev is BLOCKED, including every sibling mission's record PR. This is the iteration's key finding for Mark.
+- (b) The judge's non-blocking residue: base64, split-line and zlib values scan clean by design (now stated in the rule), and a text file starting `BZh` is rejected (fails safe).
+- (c) The helper requires `python3` ≥ 3.9 (`removesuffix`); the rig has 3.9.6.
+
+**Retro lane**: no skill edit beyond the deliverable. Friction 1: the live `/tmp` defect was caught by the controller's real-environment run, which no sandboxed gate could see. That is false-green (3) in a new shape, and it is the first instance, below the ≥2 bar.
+
+**Progress**: 17 open tickets, 17 after this iteration (the ticket resolves only once #2463 is on `origin/dev`). Goal unmoved on clause 2; the fix is built and judged but not landed.
+- Clause 1 UNMEASURED; clause 2 UNMET, not moved; clause 3 MET; clause 4 met by its letter; clause 5 preserved (nothing landed).
+- Harness share, last 20 log headlines (117–136): 12/20, all 20 tagged (the fleet's own work is harness by charter).
+- Last 3 landings (126, 135, and none this iteration) moved clause 2.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid (after edits).
+- STATUS rotation: ITERATION 133 moved to the archive (archive count 1, control ITERATION 132 count 1). Charter +2 lines net: stamp +4, moved −4, queue row +1, ledger row +1.
+- Evidence directory scanned with the new helper before commit: clean, 8 files, control ok.
+- Ticket NOT resolved.
+
+**Next**: if dev's required checks are green (re-measure first), rebase #2463, run a SHA-pinned poll, merge with `--match-head-commit`, run the done-gate dry-runs (healthy and degraded, idle armed sibling profile) and resolve the ticket. Otherwise, a ruling on D-FLEET-48.
+
+**Routing evidence**: base=`16d168f1900d6d2ea05cd30f08924141ebb0da81`@2026-11-24T13:49:55Z (Gate 4; Gate 1 read the same SHA at 12:59:13Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: nothing to design. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` → `codex:gpt-6.2-sol declared:planner-lane-default-pin`. The role is pinned `codex:gpt-6.2-sol`, so it was routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; 1 run, rc 0, not capped (103,634 tok). Ticket-queue mission: `import-github` skipped.
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, `workspace-write`; 3 runs (main + 2 fix rounds), all rc 0, none capped (143,983 + 46,311 + 68,799 = 259,093 tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree; 1 spawn plus 1 SendMessage resume (76,218 tok cumulative).
+- Judge independence: cross-vendor (planner and executor are OpenAI codex; the judge is Anthropic sonnet).
+- Driver routing note verbatim: (empty).
+- Cost: metered $0 (Anthropic and codex subscriptions only).
+
+## 137 — 2026-11-24 — pick NONE: 20 open tickets, none routable (independent sonnet judge NONE 90%); triage 55 filed three of dev's required reds as tickets, all outside fleet Authority and already named in D-FLEET-48; dev's required `lint`, `test`, `checks` still red at `ea6d2f28f`, so #2463 stays unmerged [ADMIN]
+
+**Pick**: NONE. The queue went from 17 to 20 open tickets ([tickets](fleet-mission-evidence/iteration137/tickets.json), [diff](fleet-mission-evidence/iteration137/ticket-diff.txt)): triage iteration 55 filed `ci:verify-gap-map-workflow-wiring`, `ci:agy-pin-test-home-isolation` and `ci:modelreg-qwen-slug-pricing-mismatch` at 16:06Z (blocking none, 1 slot each). None left the queue. Each of the three is one of dev's required-check reds:
+- The fixes land in `.github/workflows/**` or `internal/cihygiene` (gap-map wiring; the target is `make/code-health.mk:349`), `internal/executor/agy/pin_test.go:36`, and `internal/modelreg/models.yml`.
+- All three paths are refused by the guard (`tools/launchd/githooks/pre-push`; `make/test.mk` is the only allowed make file).
+- No fix begins with an in-scope step, so "screen by step" does not apply.
+- The pricing one would also need owner evidence on vendor rates.
+- D-FLEET-48 option A already names all three. They are queued as rows 71–73 under it; no new decision is filed.
+
+The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queue rows, or built and waiting (#2463).
+- 0 allowlisted directives on #2445 (6 comments) or `-prev` #2341 (29); no watermark files, so both were read whole.
+- Self-notices rc 1 on the same single crash notice (`…#issuecomment-7063993188`, 11-21) and transcript notice (fire `fleet-1795100889-10927`) as 125–136, both already credited. Control 852:10. No new death.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=openrouter google` (no role used those buckets).
+- Skill drift: SKILL.md and all 13 resources match origin/dev, per file, in both the resolved symlink copy and the pin copy. Pin HEAD = origin/dev = `ea6d2f28f`.
+- Blocked-PR rule: #2463's branch carries log entry 136, while origin/dev's log ends at 135. This record is stacked on that branch.
+- Died-mid-flight traces:
+  - The only open `fleet/*` PR is #2463 (known).
+  - `.fleet-i136-wt` is clean at the PR head `48eae22ab`.
+  - Older fleet worktrees hold only historical residue.
+  - The main checkout's uncommitted `.agents/skills/sprint-*` sync is still present (noted in 136).
+- **Dev CI red at `ea6d2f28f`** (26 check-runs, 11 not green; [excerpts](fleet-mission-evidence/iteration137/dev-ci.txt)). Required contexts, read from branch protection: `test`, `lint`, `build`, `docs-gate`, `checks`.
+  - Red, same causes as at `16d168f19`:
+    - `lint`: `internal/ai/gemini/generate.go:287` unused `vertexModelURL`.
+    - `test`: `TestVerifyTargetsAreWiredIntoAWorkflow`, `TestModels_PricingIsSlugConsistent`, `TestQuorumArtifactShellSuite`, `TestBuiltinTypes_GoldenSnapshot`.
+    - `checks`: hand-rolled HOME.
+  - Green: `build` and `docs-gate`.
+  - `launchd drivers (bash 3.2)` is still red on the stale `.agents` sprint mirrors, which #2463 fixes.
+  - The V1 loop is still disabled (`mission-control.disabled` present).
+
+**Did**: no design, plan, build or merge.
+- Evidence directory `iteration137/`: tickets, ticket diff and dev CI excerpts.
+- Queue rows 71–73 added. A measurement was appended to D-FLEET-48.
+- Judge: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only, 77,520 tok), first attempt. The brief carried the ticket queue, the charter and the CI evidence, not the controller's verdict.
+  - Verdict **NONE, 90%**. [Report](fleet-mission-evidence/iteration137/judge.md).
+  - It re-derived the ticket diff, the OPEN-row set, the guard allowlist and the four OPEN rows' defaults.
+  - It read the required-context list from the API; the controller re-read the same list first-party.
+  - It confirmed that #2463's reds are dev's, not the diff's: 0 `.go` files, the same lint and HOME annotations. The PR head is MERGEABLE.
+  - Its cautions match this record: no admin merge, and no self-sourced fix for the untracked lint red.
+
+**Ruled out**:
+- Building any of the three new tickets: all are outside Authority.
+- Splitting #2463's mirror-regeneration commit into its own PR: it would face the same three required reds.
+- Admin-merging #2463: that is D-FLEET-48 option B, Mark's call.
+- Filing a separate decision for the new tickets: D-FLEET-48 A already covers them.
+
+**Retro lane**: none. No new friction this iteration. Iteration 136's sandbox-blind `/tmp` defect stays at one instance, below the ≥2 bar.
+
+**Progress**: 20 open tickets (17 → 20). Goal unmoved.
+- Clause 1 UNMEASURED; clause 2 UNMET, not moved (#2463 waits on dev; three new tickets need an owner outside fleet scope); clause 3 MET (every escalation is in `mission-fleet`); clause 4 met by its letter (tickets are open); clause 5 preserved (nothing landed).
+- Harness share, last 20 log headlines (118–137): 11/20, all 20 tagged. This is the fleet's own work, which is harness by charter.
+- Last 3 landings (126, 135, and none in 136 or 137): 135 moved clause 2.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid (after edits).
+- STATUS rotation: ITERATION 134 moved to the archive (archive count 1; control ITERATION 133 ≥1). Charter +3 lines net: stamp +4, moved −4, queue rows +3; D-FLEET-48 edited in place. Queue-row control `62. [PARKED` still present.
+- Live log 39 entries, so no rotation.
+
+**Next**: re-measure dev's required checks. If green: rebase #2463, run a SHA-pinned poll, merge with `--match-head-commit`, run the done-gate dry-runs and resolve its ticket. Otherwise pick NONE again unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives.
+
+**Routing evidence**: base=`ea6d2f28fe9d2bbe3456c9c3b167e2051eb6b9c7`@2026-11-24T20:07:16Z (Gate 4; Gate 1 read the same SHA at 20:02:58Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer, planner, executor: **not spawned**, because no ticket was routable (pick NONE, judged). This is a routing outcome, not a spawn failure. Rotation pointer unchanged. The operator's standing request to spawn roles was met for the one role a NONE pick needs: the judge.
+- Evaluator: resolver `agent-tool sonnet` (`MISSION_EVALUATOR_MODEL=sonnet`, path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 1 spawn (77,520 tok).
+- Judge independence: the controller is opus and the judge is sonnet. They share a vendor, which is the configured evaluator for this mission. No generator role ran.
+- Driver routing note verbatim: (empty).
+- Cost: metered $0 (Anthropic subscription only).

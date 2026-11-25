@@ -1,0 +1,173 @@
+[
+  {
+    "signature": "reporting:daneel-reports-not-declared-triage",
+    "slots_lost": 20,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-10-16T08:32:42.068653Z",
+    "last_seen": "2026-11-08T01:16:28.29665Z"
+  },
+  {
+    "signature": "skill:idle-record-barred-on-degraded-no-pick-fire",
+    "slots_lost": 14,
+    "blocking": "none",
+    "missions": [
+      "world"
+    ],
+    "first_seen": "2026-11-09T08:55:19.50773Z",
+    "last_seen": "2026-11-23T15:18:25.537229Z"
+  },
+  {
+    "signature": "quorum:gpt6-1-sol-openai-api-credits-exhausted",
+    "slots_lost": 3,
+    "blocking": "none",
+    "missions": [
+      "stapledon",
+      "world"
+    ],
+    "first_seen": "2026-10-01T07:00:56.934997Z",
+    "last_seen": "2026-10-21T14:16:50.328824Z"
+  },
+  {
+    "signature": "messaging:pubsub-notify-wrong-project",
+    "slots_lost": 2,
+    "blocking": "none",
+    "missions": [
+      "world"
+    ],
+    "first_seen": "2026-10-15T16:55:00.023719Z",
+    "last_seen": "2026-10-16T04:03:15.427625Z"
+  },
+  {
+    "signature": "eval:motoko-connection-probe-orphaned",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "motoko"
+    ],
+    "first_seen": "2026-10-01T07:57:29.218227Z",
+    "last_seen": "2026-10-01T07:57:29.218227Z"
+  },
+  {
+    "signature": "pi:openrouter:uncapped-max-tokens-402",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-07T18:58:04.944519Z",
+    "last_seen": "2026-10-07T18:58:04.944519Z"
+  },
+  {
+    "signature": "crash:sprint-executor:sigbus-ram-tmp-full-make-test",
+    "slots_lost": 1,
+    "blocking": "item",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-08T06:56:01.831306Z",
+    "last_seen": "2026-10-08T06:56:01.831306Z"
+  },
+  {
+    "signature": "executor:3h-timeout-from-queue-and-unsliced-sprints",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:30:51.997927Z",
+    "last_seen": "2026-10-12T09:30:51.997927Z"
+  },
+  {
+    "signature": "executor:timeout-loses-work-and-may-never-start",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:31:43.180406Z",
+    "last_seen": "2026-10-12T09:31:43.180406Z"
+  },
+  {
+    "signature": "coordinator:cloud-lane-capped-by-local-worktree-limit",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:33:30.775929Z",
+    "last_seen": "2026-10-12T09:33:30.775929Z"
+  },
+  {
+    "signature": "executor:codex-credential-lease-collision-fails-concurrent-dispatch",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T19:03:48.784419Z",
+    "last_seen": "2026-10-12T19:03:48.784419Z"
+  },
+  {
+    "signature": "coordinator:job-retry-success-dropped-after-failed-completion",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T19:03:49.415734Z",
+    "last_seen": "2026-10-12T19:03:49.415734Z"
+  },
+  {
+    "signature": "executor:codex-credential-collision-drops-automatic-planner-handoffs",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T20:55:51.937314Z",
+    "last_seen": "2026-10-12T20:55:51.937314Z"
+  },
+  {
+    "signature": "quorum:claude-p-ration-usage-429",
+    "slots_lost": 1,
+    "blocking": "item",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-21T22:57:40.687814Z",
+    "last_seen": "2026-10-21T22:57:40.687814Z"
+  },
+  {
+    "signature": "ci:distinct-build-test-failures",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-10-28T21:18:19.965883Z",
+    "last_seen": "2026-10-28T21:18:19.965883Z"
+  },
+  {
+    "signature": "tool-hang:triage-judge:home-metadata-search",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-11-07T12:34:46.265181Z",
+    "last_seen": "2026-11-07T12:34:46.265181Z"
+  },
+  {
+    "signature": "publish:evidence-pack:no-secret-value-guard",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-11-24T07:31:25.35534Z",
+    "last_seen": "2026-11-24T07:31:25.35534Z"
+  }
+]

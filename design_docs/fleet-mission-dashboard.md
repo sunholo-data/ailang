@@ -1,18 +1,21 @@
-# Fleet mission dashboard — iteration 135
+# Fleet mission dashboard — iteration 137
 
 Updated 2026-11-24; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
 
-- **Outcome: LANDED + RESOLVED [HARNESS].** `push:scope-guard:rebased-record-inherited-sibling-paths` (triage 54, filed 03:51Z): #2456 → `18acb95b7`. Independent judge (sonnet): **PASS 92**, 0 blocking.
-  - The pre-push scope guard no longer refuses a mission record rebased onto a newer dev for files it inherited. It still refuses every path the branch itself authored, including one a later commit reverted.
-  - A stale `origin/dev` now refuses a rewrite push with "fetch origin and retry".
-  - Done-gate: `make test-launchd-drivers` 60/60; dry-runs healthy and degraded rc 0 (stapledon profile).
-- **D-FLEET-45**: the two World fires after 427 (00:15, 04:16) exited at the idle pre-check on `1ac80c01…`. The existing rule now saves slots on that snapshot; supports B. Still OPEN.
-- **D-FLEET-46** still covers eight tickets with merged attended fixes. It is the highest-yield ask.
-- **Dev: RED.**
-  - NEW: the `ailang-core-dev` Cloud Build deploy fails on the merge: `node v22.23.5 != pinned v22.23.4` (`docker/Dockerfile.agent-base:82`). Upstream Node release; the parent's build hit the layer cache. Outside fleet scope.
-  - Inherited: `test-windows` / `Build windows-latest` (`agy_test.go` `syscall.Kill`), `govulncheck` (V1's websocket bump is planned), SonarCloud.
-- **Routing:** controller opus. Planner and executor `codex:gpt-6.2-sol` (recipe, within ration). Designer not needed. Judge sonnet (Agent tool, foreground).
-- **Cost:** metered $0. Planner 60,131 tok · executor 98,163 tok · judge 62,818 tok.
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46. Open tickets: 16.
-- **Next:** a ruling on D-FLEET-46 or D-FLEET-45. Triage's next rebased record push is the live confirmation of this fix.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration135/](fleet-mission-evidence/iteration135/).
+- **Outcome: pick NONE [ADMIN].** 20 open tickets and none routable. Independent judge (sonnet): **NONE 90%**.
+- **New tickets (3, triage 55):** `ci:verify-gap-map-workflow-wiring`, `ci:agy-pin-test-home-isolation`, `ci:modelreg-qwen-slug-pricing-mismatch`.
+  - They are dev's required-check reds.
+  - The fixes land in workflows/`internal/cihygiene`, `internal/executor/agy` and `internal/modelreg`, all outside fleet Authority (the guard refuses them).
+  - Queued as rows 71–73 under **D-FLEET-48 A**; no new decision.
+- **Built, not landed:** PR [#2463](https://github.com/sunholo-data/ailang/pull/2463), the evidence secret scan and Gate-4 Public publish rule (judge PASS 90). Its head `48eae22ab` is MERGEABLE, and it carries the iteration 136 and 137 records.
+- **Dev: RED** at `ea6d2f28f`. Required checks `lint`, `test` and `checks` are red; `build` and `docs-gate` are green.
+  - `lint`: gemini `vertexModelURL` unused.
+  - `test`: gap-map wiring, qwen pricing, pipeline golden, plus the mirror suites (fixed by #2463).
+  - `checks`: agy `pin_test.go` HOME.
+  - Also red: Windows, `govulncheck`, and the Cloud Build Node pin.
+  - The **V1 loop is disabled**, so nothing clears these, and every PR to dev is blocked.
+- **Routing:** controller opus. Judge sonnet (Agent tool, foreground, 77,520 tok). Designer, planner and executor were not spawned: there was nothing to build.
+- **Cost:** metered $0.
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46, D-FLEET-48 (all unchanged). D-FLEET-48 A (an attended fix of dev's three required reds) unblocks #2463, resolves 3 tickets, and unblocks every PR to dev.
+- **Next:** when dev's required checks are green, rebase #2463, poll, merge, run the done-gate and resolve its ticket. Otherwise NONE until a ruling or an in-scope ticket arrives.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration137/](fleet-mission-evidence/iteration137/).
