@@ -1,0 +1,37 @@
+module examples/tests/stdlib_combinators_test
+
+import std/list (all, enumerate, filterMap, partition)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err, getOrElse)
+import std/string (stringToInt)
+
+test "std/list all" {
+  assert all(\x. x > 0, [1, 2, 3]) == true
+  assert all(\x. x > 0, [1, 0, 3]) == false
+  assert all(\x. x > 0, []) == true
+}
+
+test "std/list enumerate" {
+  assert enumerate(["a", "b", "c"]) == [(0, "a"), (1, "b"), (2, "c")]
+  assert enumerate([]) == []
+}
+
+test "std/list filterMap" {
+  assert filterMap(stringToInt, ["10", "bad", "20", "", "30"]) == [10, 20, 30]
+  assert filterMap(\x. if x % 2 == 0 then Some(x * 10) else None, [1, 2, 3, 4]) == [20, 40]
+  assert filterMap(\x. Some(x), []) == []
+}
+
+test "std/list partition" {
+  let (evens, odds) = partition(\x. x % 2 == 0, [1, 2, 3, 4, 5, 6])
+  assert evens == [2, 4, 6]
+  assert odds == [1, 3, 5]
+  assert partition(\x. x > 0, []) == ([], [])
+}
+
+test "std/result getOrElse" {
+  let okVal: Result[int, string] = Ok(42)
+  let errVal: Result[int, string] = Err("boom")
+  assert getOrElse(okVal, 0) == 42
+  assert getOrElse(errVal, 99) == 99
+}

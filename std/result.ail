@@ -45,6 +45,14 @@ export pure func isErr[a, e](r: Result[a, e]) -> bool {
   }
 }
 
+-- Return the Ok value, or default if Err (parity with std/option.getOrElse).
+export pure func getOrElse[a, e](r: Result[a, e], default: a) -> a {
+  match r {
+    Ok(x) => x,
+    Err(_) => default
+  }
+}
+
 -- Unsafe: stops the program with RT010 on Err; prefer a match on the Result.
 export pure func unwrap[a, e](r: Result[a, e]) -> a {
   match r {

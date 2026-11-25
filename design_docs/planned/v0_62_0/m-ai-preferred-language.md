@@ -98,9 +98,9 @@ After shipping `M-SYNTAX-ERGONOMICS-V1/V2` and `M-AGENT-DIAGNOSTICS-ERGONOMICS` 
 | **D3** | Hole syntax (M3) | **(a)** `_?` / `?name` vs **(b)** `???` | **(a)** `_?` (avoids clashing with future `?` propagation operator in M5b) | Mark | Low |
 
 ### Design Freeze
-- [ ] **D1** ratified
-- [ ] **D2** ratified
-- [ ] **D3** ratified
+- [x] **D1** ratified — **(a)** Phase 1 = M4 → M1 → M2 before 1.0 (Mark, 2026-11-25)
+- [x] **D2** ratified — **(a)** Mechanical compiler-verified edits only for `ailang fix` (Mark, 2026-11-25)
+- [x] **D3** ratified — **(a)** `_?` for typed holes (Mark, 2026-11-25)
 
 ---
 

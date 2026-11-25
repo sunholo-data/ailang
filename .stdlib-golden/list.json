@@ -41,6 +41,51 @@
         },
         "declassify": []
       },
+      "name": "all",
+      "type": "((a)-\u003ebool,list[a])-\u003ebool",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "p",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "any",
       "type": "((a)-\u003ebool,list[a])-\u003ebool",
       "effects": [],
@@ -318,6 +363,39 @@
       "ifc": {
         "params": [
           {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "enumerate",
+      "type": "(list[a])-\u003elist[(int,a)]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "p",
             "label": {
               "constants": [],
@@ -402,6 +480,51 @@
       "type": "((a)-\u003ebool,list[a])-\u003e[a]",
       "effects": [],
       "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "filterMap",
+      "type": "((a)-\u003eOption[b],list[a])-\u003elist[b]",
+      "effects": [],
+      "pure": true,
       "tier": "stable"
     },
     {
@@ -1638,6 +1761,51 @@
       "pure": true,
       "tier": "stable",
       "replaced_by": "nthOr"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "p",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "partition",
+      "type": "((a)-\u003ebool,list[a])-\u003e(list[a],list[a])",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {

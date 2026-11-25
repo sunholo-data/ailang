@@ -182,9 +182,36 @@ export pure func last_or[a](xs: [a], default: a) -> a = lastOr(xs, default)
 -- Note: 'exists' is a reserved keyword in AILANG, so we use 'any' instead
 export pure func any[a](p: a -> bool, xs: [a]) -> bool = _list_any(p, xs)
 
+-- all: Check if every element satisfies predicate (short-circuits on first false).
+-- Returns true on the empty list. Iterative O(n) via _list_any, no depth limit.
+export pure func all[a](p: a -> bool, xs: [a]) -> bool =
+  !_list_any(\x. !p(x), xs)
+
 -- findIndex: Find index of first element matching predicate (short-circuits like any).
 -- Iterative builtin: O(n), no depth limit (#1518).
 export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] = _list_findIndex(p, xs)
+
+-- enumerate: Pair each element with its 0-based index: [(0, x0), (1, x1), ...].
+-- Iterative O(n) via _list_zip + _list_range, no depth limit.
+export pure func enumerate[a](xs: [a]) -> [(int, a)] =
+  _list_zip(_list_range(0, _list_length(xs)), xs)
+
+-- filterMap: Apply f to each element and keep only Some(y) values, preserving order.
+-- Iterative O(n) via _list_flatMap, no depth limit.
+export pure func filterMap[a, b](f: a -> Option[b], xs: [a]) -> [b] =
+  _list_flatMap(\x. match f(x) {
+    Some(y) => [y],
+    None => []
+  }, xs)
+
+-- partition: Split xs into (matching, nonMatching), preserving relative order in both.
+-- Evaluates p once per element; iterative O(n) via _list_map + _list_flatMap.
+export pure func partition[a](p: a -> bool, xs: [a]) -> ([a], [a]) {
+  let tagged = _list_map(\x. (p(x), x), xs);
+  let yes = _list_flatMap(\(keep, x). if keep then [x] else [], tagged);
+  let no = _list_flatMap(\(keep, x). if keep then [] else [x], tagged);
+  (yes, no)
+}
 
 -- ============================================================================
 -- Zip Combinators (v0.8.1) - Combine lists element-wise
