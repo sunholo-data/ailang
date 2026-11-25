@@ -1,0 +1,44 @@
+id: order_ledger_summary
+description: "Filter paid orders from (id, record) pairs, partition by value threshold, find first high-value order, and summarize"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+tier: stretch
+tags: [records, data_transform, functional]
+task_prompt: |
+  Write a program in <LANG> that processes the following hardcoded list of 5 (order_id, order_record) pairs:
+
+  1. ("ORD-1", { customer: "Ada", item: "book", qty: 3, unit_price: 20, status: "paid" })
+  2. ("ORD-2", { customer: "Grace", item: "monitor", qty: 2, unit_price: 150, status: "paid" })
+  3. ("ORD-3", { customer: "Linus", item: "cable", qty: 5, unit_price: 10, status: "cancelled" })
+  4. ("ORD-4", { customer: "Margaret", item: "keyboard", qty: 1, unit_price: 120, status: "paid" })
+  5. ("ORD-5", { customer: "Ken", item: "mouse", qty: 2, unit_price: 45, status: "paid" })
+
+  Steps:
+  1. Keep only orders where status == "paid" (preserving order).
+  2. For each paid order, compute its line total = qty * unit_price.
+  3. Split paid orders into:
+     - high_value: line total >= 100
+     - standard: line total < 100
+  4. Compute total paid revenue across all paid orders.
+  5. Find the order_id of the first high_value order (or "none" if empty).
+  6. Print exactly the following lines (no extra text):
+     paid: <count>
+     high_value: <count>
+     standard: <count>
+     revenue: <total_paid_revenue>
+     first_high: <order_id|none>
+     followed by one line per high_value order in original order:
+     <order_id>:<customer>=<line_total>
+
+  Output only the code, no explanations.
+expected_stdout: |
+  paid: 4
+  high_value: 2
+  standard: 2
+  revenue: 570
+  first_high: ORD-2
+  ORD-2:Grace=300
+  ORD-4:Margaret=120

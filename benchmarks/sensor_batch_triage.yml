@@ -1,0 +1,40 @@
+id: sensor_batch_triage
+description: "Parse raw sensor strings, partition in-range vs out-of-range, find first alert, index and summarize"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+tier: stretch
+tags: [data_transform, functional, error_handling]
+task_prompt: |
+  Write a program in <LANG> that processes the following hardcoded list of raw sensor readings:
+
+    ["22", "err", "-5", "18", "105", "31", "bad", "42", "0", "99"]
+
+  Steps:
+  1. Parse each string as an integer, discarding any strings that are not valid integers (preserving order).
+  2. Split the valid integers into two lists (preserving order):
+     - in_range: values where 0 <= v <= 100
+     - out_of_range: values where v < 0 or v > 100
+  3. Find the first value in in_range that is strictly greater than 30 (or "none" if there is none).
+  4. Check whether every value in in_range is >= 0 (print lowercase "true" or "false").
+  5. Compute the sum of all values in in_range.
+  6. Format each value in in_range with its 0-based index as "<idx>:<val>", separated by single spaces.
+
+  Print exactly these 6 lines (no extra text):
+  in_range_count: <count>
+  out_of_range_count: <count>
+  all_non_negative: <true|false>
+  first_alert: <value|none>
+  in_range_sum: <sum>
+  indexed: <0:v0 1:v1 ...>
+
+  Output only the code, no explanations.
+expected_stdout: |
+  in_range_count: 6
+  out_of_range_count: 2
+  all_non_negative: true
+  first_alert: 31
+  in_range_sum: 212
+  indexed: 0:22 1:18 2:31 3:42 4:0 5:99
