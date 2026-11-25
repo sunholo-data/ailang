@@ -71,6 +71,11 @@ ailang mission rotate-log ${MISSION_NAME} --keep 20 --workdir "$PWD"
 ```
 
 The override works in record checkouts without a `missions/` directory, including World and Stapledon.
+**If the CLI answers `unknown flag "--workdir"`, it was built before the flag existed** (measured on
+the rig 2026-11-25: v0.61.1 at `cb6bb75` rejects it). Do not run the command without the flag. On a
+shared-repo mission, use `AILANG_MISSION_REGISTRY="$PWD/missions" ailang mission rotate-log …`. On
+a mission whose record checkout has no `missions/`, copy its `missions/<name>.toml` into a scratch
+directory, set `workdir` to the record checkout, and point `AILANG_MISSION_REGISTRY` there.
 Then check that both printed paths (`archive`, `INDEX`) are under your record worktree, and that
 `git -C "$MISSION_WORKDIR" status --porcelain` is empty. The tell: the paths it prints are not the
 directory you are standing in.
