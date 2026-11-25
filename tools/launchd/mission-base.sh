@@ -9,6 +9,45 @@ STATE_DIR="${AILANG_STATE_DIR:-$HOME/.ailang/state}"
 BASE="$STATE_DIR/mission-${MISSION_NAME:-v1}-base"
 REF=""  # set once by resolve_ref in the dispatcher (snap/record/drift only)
 
+github_slug() {
+  local slug pattern='^[A-Za-z0-9-]+/[A-Za-z0-9_.-]+$'
+  case "$1" in
+    https://github.com/*) slug=${1#https://github.com/} ;;
+    git@github.com:*) slug=${1#git@github.com:} ;;
+    ssh://git@github.com/*) slug=${1#ssh://git@github.com/} ;;
+    *) return 1 ;;
+  esac
+  slug=${slug%/}
+  slug=${slug%.git}
+  [[ "$slug" =~ $pattern ]] || return 1
+  printf '%s\n' "$slug"
+}
+
+verify_repo() {
+  local expected="${MISSION_REPO:-}" origin actual
+  [ -n "$expected" ] || return 0
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    actual='unavailable (outside Git)'
+  # A terminator preserves empty trailing entries through command substitution.
+  elif ! origin=$(git config --local --get-all remote.origin.url 2>/dev/null && printf '.'); then
+    actual='unavailable (missing origin)'
+  else
+    origin=${origin%$'\n.'}
+    if [ -z "$origin" ]; then
+      actual='unavailable (missing origin)'
+    elif actual=$(github_slug "$origin"); then
+      if [ "$(printf '%s' "$actual" | LC_ALL=C tr '[:upper:]' '[:lower:]')" = \
+           "$(printf '%s' "$expected" | LC_ALL=C tr '[:upper:]' '[:lower:]')" ]; then
+        return 0
+      fi
+    else
+      actual='unavailable (unsupported or ambiguous origin)'
+    fi
+  fi
+  printf 'mission-base: CWD origin is %s, expected %s (MISSION_REPO)\n' "$actual" "$expected" >&2
+  return 3
+}
+
 resolve_ref() {  # explicit MISSION_BASE_REF wins; else origin/HEAD's symbolic target; else FAIL (no silent default)
   if [ -n "${MISSION_BASE_REF:-}" ]; then REF="$MISSION_BASE_REF"; return 0; fi
   REF=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) && [ -n "$REF" ] && return 0
@@ -41,7 +80,7 @@ last() {  # the full SHA last recorded under base-<label>; exits 1 when no match
 }
 
 drift() { # compare the last base-<label> row against a fresh snap; exit 1 on disagreement
-  local label="$1" old new oldn n
+  local label="$1" old new n
   # (gemini R2 verbatim fix) — check for an empty string explicitly rather than relying on
   # the exit code: an empty `old` must be NO-RECORD (exit 2), never a false DRIFT with an
   # empty old SHA
@@ -55,9 +94,20 @@ drift() { # compare the last base-<label> row against a fresh snap; exit 1 on di
 }
 
 case "${1:-}" in
-  snap) resolve_ref || exit 1; snap ;;
-  record) [ $# -ge 2 ] || { echo "mission-base: record requires a label" >&2; exit 2; }; resolve_ref || exit 1; record "$2" ;;
+  snap)
+    verify_repo || exit 3
+    resolve_ref || exit 1
+    snap ;;
+  record)
+    [ $# -ge 2 ] || { echo "mission-base: record requires a label" >&2; exit 2; }
+    verify_repo || exit 3
+    resolve_ref || exit 1
+    record "$2" ;;
   last) [ $# -ge 2 ] || { echo "mission-base: last requires a label" >&2; exit 2; }; last "$2" ;;
-  drift) [ $# -ge 2 ] || { echo "mission-base: drift requires a label" >&2; exit 2; }; resolve_ref || exit 1; drift "$2" ;;
+  drift)
+    [ $# -ge 2 ] || { echo "mission-base: drift requires a label" >&2; exit 2; }
+    verify_repo || exit 3
+    resolve_ref || exit 1
+    drift "$2" ;;
   *) echo "usage: mission-base.sh {snap|record|last|drift} [label]" >&2; exit 2 ;;
 esac
