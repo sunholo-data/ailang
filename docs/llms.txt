@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-11-25T09:47:42Z
+Last updated: 2026-11-25T10:54:53Z
 
 ---
 
@@ -1540,7 +1540,7 @@ import std/io (println)
 export func main() -> () ! {IO} = println(show(5 % 3))
 ```
 
-**If-then-else (NO braces!):**
+**If-then-else** (always use `then`/`else`, not C-style `if x { ... }`; wrap multi-statement branches in `{ ... }`):
 ```ailang
 module benchmark/solution
 import std/io (println)
@@ -1638,7 +1638,8 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `import "std/io"` | `import std/io (println)` |
 | `{"key": "val"}` | `jo([kv("key", js("val"))])` |
 | `f(a)(b)` for multi-arg func | `f(a, b)` - multi-arg funcs use commas |
-| `if x { ... }` | `if x then ... else ...` - NO braces! |
+| `if x { ... }` | `if x then ... else ...` (wrap multi-statement `then`/`else` bodies in `{ ... }`: `if x then { let a = 1; a } else 0`) |
+| `func f[a: Ord](...)` | `func f[a](...)` — typeclass constraints (`Eq`, `Ord`, `Num`) are inferred automatically |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
 | `let Some(x) = opt` (refutable `let`) | Use `match opt { Some(x) => ..., None => ... }` (irrefutable `let (a, b) = pair` and `let { name, age } = r` / `let { port: p, ... } = cfg` ARE supported) |
 | `\a, b. body` (unparenthesized commas) | Multi-arg: `\a b. body` (space-separated, called `f(a, b)`). Tuple param destructuring: `\(a, b). body`. Record param destructuring: `\{ x, y }. body`. Named: `func(a: T, b: U) -> R { body }` |
@@ -1697,6 +1698,21 @@ export func main() -> () ! {IO} {
 ```
 
 **Simple rule: See `{` -> one `let` per line, no `in`. See `=` -> use `in`.**
+**Multi-statement `match` arms and `if`/`else` branches MUST be wrapped in `{ ... }` (or use `let ... in ...`):**
+```ailang
+-- ✅ Multi-statement match arm and if branch
+pure func adjust(opt: Option[int], flag: bool) -> int =
+  match opt {
+    Some(x) => {
+      let doubled = x * 2
+      if flag then {
+        let bumped = doubled + 1
+        bumped
+      } else doubled
+    },
+    None => 0
+  }
+```
 
 ## Function Calls: Multi-arg vs Curried (CRITICAL)
 
@@ -1770,7 +1786,7 @@ pure func sumOptions(xs: [int]) -> (int, int, int) {
 (one lambda, several params): it is the simplest form. Curried `\a. \b. body` also works.
 Irrefutable tuple and record destructuring work directly in lambda parameters (`\(k, v). ...`, `\acc (k, v). acc + v`, `\{ age, ... }. age`).
 
-**Pipe operator (`|>`):** `x |> f` passes `x` to unary function `f` (left-associative, lowest precedence). Parenthesize inline lambda stages in multi-step chains:
+**Pipe operator (`|>`):** `x |> f` passes `x` to **unary** function `f` (left-associative, lowest precedence). Wrap multi-arg calls or inline lambdas in parens (e.g. `opt |> (\v. getOrElse(v, 0))`):
 ```ailang
 import std/list (filter, map)
 

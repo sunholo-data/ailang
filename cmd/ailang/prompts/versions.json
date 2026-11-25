@@ -1275,7 +1275,7 @@
     },
     "v0.16.20": {
       "file": "prompts/v0.16.20.md",
-      "hash": "d04888355c452606b0ecd34abbda9381801433ba5911a80b03c3cdfc68739bd9",
+      "hash": "3ee8e5b01d3fd4e03aaea65ea1c92bebc44e1716451c487d03e0189c612af1e3",
       "description": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix, std/list (all, enumerate, filterMap, partition, find), and std/result.getOrElse",
       "created": "2026-11-25",
       "tags": [
