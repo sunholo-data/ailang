@@ -202,6 +202,13 @@ func EncodeFunction(
 	bounded, restoreObligations := beginObligations()
 	defer restoreObligations()
 
+	// Record sorts first: helper bodies encoded below build records too.
+	aliasDecls, endRecordSorts, err := beginRecordSorts(opts)
+	defer endRecordSorts()
+	if err != nil {
+		return nil, err
+	}
+
 	// Resolve cross-function call dependencies
 	var calleeDefs []CalleeDef
 	if len(opts) > 0 && opts[0].Program != nil {
@@ -281,11 +288,6 @@ func EncodeFunction(
 	activeParamRenames = make(map[string]string)
 	defer func() { activeParamRenames = nil }()
 
-	// Collect and declare record types from function parameters and return type
-	activeRecordTypes = make(map[string]*RecordTypeInfo)
-	activeFieldSetToSort = make(map[string]string)
-	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
-
 	var returnType types.Type
 	var coreBody core.CoreExpr
 	var contracts []*core.Contract
@@ -293,32 +295,6 @@ func EncodeFunction(
 		returnType = opts[0].ReturnType
 		coreBody = opts[0].Body
 		contracts = opts[0].Contracts
-	}
-
-	// Step 0: Pre-register named record type aliases (e.g., type TableCell = {text: string, ...}).
-	// These must be registered BEFORE collectAndDeclareRecordTypes so that when anonymous
-	// record literals with the same fields are discovered in function bodies, the named
-	// sort takes priority (e.g., "TableCell" instead of "Record_colSpan_merged_rowSpan_text").
-	//
-	var aliasDecls []pendingDecl
-	if len(opts) > 0 && opts[0].RecordTypeAliases != nil {
-		aliasNames := make([]string, 0, len(opts[0].RecordTypeAliases))
-		for name := range opts[0].RecordTypeAliases {
-			aliasNames = append(aliasNames, name)
-		}
-		sort.Strings(aliasNames)
-		for _, aliasName := range aliasNames {
-			rec := opts[0].RecordTypeAliases[aliasName]
-			fieldSorts, err := MapRecordFields(&types.TRecord{Fields: rec.Fields, TypeName: aliasName})
-			if err != nil {
-				return nil, fmt.Errorf("%w: record alias %q: %v", ErrUnresolvableTypes, aliasName, err)
-			}
-			registerRecordAlias(aliasName, fieldSorts)
-			aliasDecls = append(aliasDecls, pendingDecl{
-				sortName: aliasName,
-				decl:     DeclareRecordDatatype(aliasName, fieldSorts),
-			})
-		}
 	}
 
 	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)

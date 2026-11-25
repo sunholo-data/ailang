@@ -60,12 +60,12 @@ What changed from the hand-built table of 2026-11-24: its two largest rows ("hel
 
 Next, in order:
 
-1. **Anonymous record sorts** (18 sole): declare a sort for a record literal whose field set matches no declared record type. An M5 lever, no design doc.
-2. **Callee collection follows same-module calls inside imported bodies** (4 sole). A resolver bug, not a fragment limit.
-3. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
-4. **Name the unencodable type** in `Callee "X" uses unencodable types` (10), so the table can rank it.
+1. ~~**Anonymous record sorts** (18 sole)~~ **Done 2026-11-25.** All 18 had a declared sort: `Json`'s inline `{key, value}`, or a named alias such as `EditApply_CellReplAcc`. The record tables were built after the helper bodies had been encoded, the inline records were never registered, and a literal seeded no alias into the per-function sort filter. Fixed, along with the `(Seq Int)` default for a let-bound `[]` in a record field. Result: 3 verified, 7 now stop at `std/json.encode`/`decode`, 4 `editApply_*` reach a `foldl` the solver cannot decide (a skip that says so), and 1 (`MdParseState`) has a tuple field. Declaring sorts for literals that no type covers would unblock none of them, so it is not done.
+2. **Name the type in `Callee "X" uses unencodable types`**: now the largest blocker (18 any, 17 sole), and the reason does not say which type, so it cannot be ranked further.
+3. **Callee collection follows same-module calls inside imported bodies** (4 sole). A resolver bug, not a fragment limit.
+4. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
-6. Inconclusives (bounded unrolling exhausted): induction, Future Work.
+6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 
 ## Why this program, and why not Lean
 

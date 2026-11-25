@@ -42,3 +42,38 @@ func TestSkipThroughHelpersNamesTheBlocker(t *testing.T) {
 		}
 	}
 }
+
+// Records built in helper bodies and in accumulator literals have sorts: std/json
+// kv's {key, value} (declared by Json's JObject field) and a named alias seeded
+// from a literal. Each verified contract has a false twin that must be refuted.
+// Before, every one was skipped with "no declared record type has fields".
+func TestRecordsBuiltInHelpersAndLiterals(t *testing.T) {
+	want := map[string]string{
+		"viaKv": "verified", "viaKvFalse": "counterexample",
+		"initial": "verified", "initialFalse": "counterexample",
+		"viaFold": "skipped",
+	}
+	report := verifyFixture(t, "records_in_helpers.ail")
+	seen := map[string]bool{}
+	for _, r := range report.Results {
+		w, ok := want[r.Function]
+		if !ok {
+			continue
+		}
+		seen[r.Function] = true
+		if r.Status != w {
+			t.Errorf("%s: %s (%s), want %s", r.Function, r.Status, r.Reason, w)
+		}
+		if strings.Contains(r.Reason, "no declared record type") {
+			t.Errorf("%s: still blocked on the record sort: %s", r.Function, r.Reason)
+		}
+		if r.Function == "viaFold" && !strings.Contains(r.Reason, "map/filter/foldl chains") {
+			t.Errorf("viaFold: reason %q, want the bounded-unrolling skip", r.Reason)
+		}
+	}
+	for fn := range want {
+		if !seen[fn] {
+			t.Errorf("%s: no result", fn)
+		}
+	}
+}

@@ -1,0 +1,45 @@
+module records_in_helpers
+import std/json (Json, JString, JObject, JNull, kv)
+import std/list (foldl, length, concat)
+
+type Acc = { cells: [string], idx: int }
+
+func step(acc: Acc, s: string) -> Acc = { cells: concat(acc.cells, [s]), idx: acc.idx + 1 }
+
+-- kv (std/json) builds a {key, value}: the sort Json's JObject field declares.
+export func viaKv(s: string) -> Json
+  ensures { result != JNull }
+{
+  JObject([kv("k", JString(s))])
+}
+
+export func viaKvFalse(s: string) -> Json
+  ensures { result == JNull }
+{
+  JObject([kv("k", JString(s))])
+}
+
+-- The accumulator literal is reached only through the body: the alias Acc is
+-- seeded from it, and its let-bound [] takes the field's sort, (Seq String).
+export func initial(n: int) -> [string]
+  ensures { length(result) == 0 }
+{
+  let a = { cells: [], idx: n };
+  a.cells
+}
+
+export func initialFalse(n: int) -> int
+  ensures { result == 0 }
+{
+  let a = { cells: [], idx: n };
+  a.idx
+}
+
+-- A foldl over the accumulator, unrolled to a bound the solver cannot decide
+-- through: a skip that says so, not an unknown.
+export func viaFold(xs: [string]) -> [string]
+  ensures { length(result) == length(xs) }
+{
+  let acc = foldl(step, { cells: [], idx: 0 }, xs);
+  acc.cells
+}

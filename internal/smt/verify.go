@@ -615,8 +615,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 		vr = boundedObligationsCaveat(vr, encResult.UncheckedObligations)
 		vr = floatCaveat(vr, encResult.SMTLib)
-		if vr.Status == "unknown" && len(encResult.UnrolledCallees) > 0 {
-			vr = unrolledUndecided(vr, encResult.UnrolledCallees)
+		if vr.Status == "unknown" {
+			vr = unrolledUndecided(vr, encResult.UnrolledCallees, encResult.HOFBoundedDepth > 0)
 		}
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, runtimeWitnessModel(encResult.SMTLib, params, solveResult.Model, solverCfg), encResult.SMTLib, opts.Replay)

@@ -130,10 +130,17 @@ func floatCaveat(vr VerifyResult, smtlib string) VerifyResult {
 }
 
 // unrolledUndecided reports a solver unknown (often a timeout on nonlinear
-// arithmetic) reached through unrolled recursive helpers as a skip: those
-// callers were skipped before the helpers were encoded, and an undecided
-// approximation is not a new failure.
-func unrolledUndecided(vr VerifyResult, callees []string) VerifyResult {
+// arithmetic) reached through a bounded unrolling as a skip: an undecided
+// approximation is not a new failure. The unrolling is of recursive helpers
+// (callees), of the function's map/filter/foldl chains (hof), or both; with
+// neither, the unknown stands.
+func unrolledUndecided(vr VerifyResult, callees []string, hof bool) VerifyResult {
+	if hof {
+		callees = append(append([]string(nil), callees...), "its map/filter/foldl chains")
+	}
+	if len(callees) == 0 {
+		return vr
+	}
 	vr.Status = "skipped"
 	vr.ReasonCode = verification.UnsupportedEncoding
 	vr.Reason = fmt.Sprintf("the solver could not decide this contract through the bounded unrolling of %s (%s)", strings.Join(callees, ", "), vr.Reason)

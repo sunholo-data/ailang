@@ -255,10 +255,35 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 				walk(arm.Guard)
 				walk(arm.Body)
 			}
+		case *core.Record:
+			// `{cells: $t, idx: 0}`: the field's declared sort. ANF hoists the
+			// [] of a foldl accumulator or state record out of the literal,
+			// where encodeRecord's own field hint cannot reach it.
+			found = recordFieldSortOfVar(e, name)
+			for _, v := range e.Fields {
+				walk(v)
+			}
 		}
 	}
 	walk(body)
 	return found
+}
+
+// recordFieldSortOfVar is the declared sort of the field of rec whose value is
+// Var(name), when rec's field set names a declared record ("" otherwise).
+func recordFieldSortOfVar(rec *core.Record, name string) string {
+	info := lookupRecordByFields(rec.Fields)
+	if info == nil {
+		return ""
+	}
+	for field, v := range rec.Fields {
+		if vv, ok := v.(*core.Var); ok && vv.Name == name {
+			if _, isSeq := seqElemSort(info.FieldSorts[field]); isSeq {
+				return info.FieldSorts[field]
+			}
+		}
+	}
+	return ""
 }
 
 // seqSortOf returns expr's SMT sequence sort from its elaborated type, or ""

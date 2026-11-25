@@ -69,6 +69,7 @@ func buildNeededSortSet(
 	for _, root := range extraRoots {
 		collectSortsFromBody(root, seeds)
 	}
+	resolveRecordLiteralSeeds(seeds, aliases, extraDecls)
 	for name, variants := range adtTypes {
 		for _, v := range variants {
 			if seeds[v.Name] {
@@ -391,6 +392,7 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 	case *core.UnOp:
 		collectSortsFromBody(e.Operand, sorts)
 	case *core.Record:
+		sorts[recordLiteralSeed(e.Fields)] = true
 		for _, v := range e.Fields {
 			collectSortsFromBody(v, sorts)
 		}
