@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ import (
 func missionRotateLog(args []string) error {
 	keep := 20
 	var indexOnly, keepProvided bool
-	var name, stream string
+	var name, stream, workdir string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--status":
@@ -28,6 +29,12 @@ func missionRotateLog(args []string) error {
 			i++
 		case "--index-only":
 			indexOnly = true
+		case "--workdir":
+			if i+1 >= len(args) || args[i+1] == "" {
+				return fmt.Errorf("--workdir needs a directory")
+			}
+			workdir = args[i+1]
+			i++
 		case "--keep":
 			keepProvided = true
 			if i+1 >= len(args) {
@@ -41,16 +48,16 @@ func missionRotateLog(args []string) error {
 			i++
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag %q (want: [--keep N | --index-only], --stream log|status)", args[i])
+				return fmt.Errorf("unknown flag %q (want: [--keep N | --index-only], --stream log|status, [--workdir <dir>])", args[i])
 			}
 			name = args[i]
 		}
 	}
 	if indexOnly && keepProvided {
-		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status]: --keep cannot be combined with --index-only")
+		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status] [--workdir <dir>]: --keep cannot be combined with --index-only")
 	}
 	if name == "" {
-		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status] (default keep 20; --index-only writes only the index)")
+		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status] [--workdir <dir>] (default keep 20; --index-only writes only the index)")
 	}
 	reg, err := loadMissionRegistry()
 	if err != nil {
@@ -68,9 +75,14 @@ func missionRotateLog(args []string) error {
 	// a rotated log there would be thrown away by the next fetch, silently.
 	//
 	// Caught by doing exactly that to motoko's clone. The canonical copy for any mission
-	// on the shared repo is the checkout this registry lives in.
+	// on the shared repo is the checkout this registry lives in by default.
 	logDir := m.Workdir
-	if m.Repo == sharedRepoSlug {
+	if workdir != "" {
+		logDir, err = filepath.Abs(workdir)
+		if err != nil {
+			return fmt.Errorf("--workdir %q: %w", workdir, err)
+		}
+	} else if m.Repo == sharedRepoSlug {
 		root := m.Root()
 		if root == "" {
 			return fmt.Errorf("mission %q: shared-repo mission loaded without registry origin (Path %q) — refusing to guess a target root", m.Name, m.Path)
@@ -83,6 +95,11 @@ func missionRotateLog(args []string) error {
 		// v1's reached 1.69 MB / ~423k tokens across 295 entries — so it rotates the same
 		// way, into its own archive and its own index.
 		logPath = filepath.Join(logDir, "design_docs", m.Name+"-mission-status-archive.md")
+	}
+	if workdir != "" {
+		if _, err := os.Stat(logPath); err != nil {
+			return fmt.Errorf("--workdir target %s: %w", logPath, err)
+		}
 	}
 	var res *mission.RotateResult
 	if indexOnly {

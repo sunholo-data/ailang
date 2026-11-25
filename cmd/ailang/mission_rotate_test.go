@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -281,5 +284,254 @@ func TestMissionRotateStreamAndRootSelection(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+const (
+	rotateLogHeading    = "## %d — 2026-11-25 — Record %d"
+	rotateStatusHeading = "## STATUS 2026-11-25 (iteration %d) — Record %d"
+)
+
+func writeRotateRecords(t *testing.T, path, heading string, first, last int) {
+	t.Helper()
+	var records strings.Builder
+	records.WriteString("# Mission records\n")
+	for i := first; i <= last; i++ {
+		fmt.Fprintf(&records, "\n"+heading+"\n\nFull record %d.\n", i, i, i)
+	}
+	synthWrite(t, path, records.String())
+}
+
+// Capture names as well as bytes so a new index or archive changes the snapshot.
+func rotateFiles(t *testing.T, dir string, except ...string) map[string]string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	must(t, err)
+	files := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		if !slices.Contains(except, entry.Name()) {
+			body, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+			must(t, err)
+			files[entry.Name()] = string(body)
+		}
+	}
+	return files
+}
+
+func preserveRotateFiles(t *testing.T, dirs ...string) {
+	t.Helper()
+	for _, dir := range dirs {
+		before := rotateFiles(t, dir)
+		t.Cleanup(func() {
+			if after := rotateFiles(t, dir); !maps.Equal(after, before) {
+				t.Errorf("%s entries or file contents changed (before names %v, after names %v)",
+					dir, slices.Sorted(maps.Keys(before)), slices.Sorted(maps.Keys(after)))
+			}
+		})
+	}
+}
+
+func runRotateLog(t *testing.T, args ...string) string {
+	t.Helper()
+	var err error
+	out := captureStdout(t, func() { err = missionRotateLog(args) })
+	must(t, err)
+	return out
+}
+
+func checkRotatePaths(t *testing.T, out string, want ...string) {
+	t.Helper()
+	var got []string
+	for line := range strings.SplitSeq(out, "\n") {
+		if strings.HasPrefix(line, "live log   ") || strings.HasPrefix(line, "archive    ") || strings.HasPrefix(line, "INDEX      ") {
+			got = append(got, line)
+		}
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("printed path fields = %q, want %q", got, want)
+	}
+}
+
+func checkRotateRecordSplit(t *testing.T, live, archive, heading string) {
+	t.Helper()
+	liveBody, archiveBody := read(t, live), read(t, archive)
+	for i := 1; i <= 10; i++ {
+		record := fmt.Sprintf(heading+"\n\nFull record %d.\n", i, i, i)
+		keep := i > 5
+		if strings.Contains(liveBody, record) != keep || strings.Contains(archiveBody, record) == keep {
+			t.Errorf("record %d in wrong file (want live=%t): %s, %s", i, keep, live, archive)
+		}
+	}
+}
+
+func TestMissionRotateWorkdirOverridesExternalAndShared(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		shared bool
+	}{
+		{name: "external"},
+		{name: "shared", shared: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const live, archive, index = "canary-mission-log.md", "canary-mission-log-archive.md", "canary-mission-index.md"
+			root, reg, work := writeSyntheticRepo(t, "canary", tc.shared, 10)
+			use(t, root, reg)
+			rootDocs, workDocs := filepath.Join(root, "design_docs"), filepath.Join(work, "design_docs")
+			writeRotateRecords(t, filepath.Join(rootDocs, live), rotateLogHeading, 21, 30)
+			writeRotateRecords(t, filepath.Join(workDocs, live), rotateLogHeading, 31, 40)
+			preserveRotateFiles(t, rootDocs, workDocs)
+
+			target := t.TempDir()
+			dir := filepath.Join(target, "design_docs")
+			writeRotateRecords(t, filepath.Join(dir, live), rotateLogHeading, 1, 10)
+			out := runRotateLog(t, "canary", "--keep", "5", "--workdir", target)
+			checkRotated(t, dir, live, archive, index)
+			checkRotateRecordSplit(t, filepath.Join(dir, live), filepath.Join(dir, archive), rotateLogHeading)
+			checkRotatePaths(t, out, "live log   "+filepath.Join(dir, live), "archive    "+filepath.Join(dir, archive), "INDEX      "+filepath.Join(dir, index))
+		})
+	}
+}
+
+func TestMissionRotateWorkdirIndexOnly(t *testing.T) {
+	const live, archive, index = "canary-mission-log.md", "canary-mission-log-archive.md", "canary-mission-index.md"
+	root, reg, work := writeSyntheticRepo(t, "canary", false, 10)
+	use(t, root, reg)
+	preserveRotateFiles(t, filepath.Join(root, "design_docs"), filepath.Join(work, "design_docs"))
+
+	target := t.TempDir()
+	dir := filepath.Join(target, "design_docs")
+	// Enough live entries that dispatching to rotation would rewrite both sources.
+	writeRotateRecords(t, filepath.Join(dir, live), rotateLogHeading, 41, 62)
+	writeRotateRecords(t, filepath.Join(dir, archive), rotateLogHeading, 37, 38)
+	before := rotateFiles(t, dir)
+	out := runRotateLog(t, "canary", "--index-only", "--workdir", target)
+	checkRotatePaths(t, out, "INDEX      "+filepath.Join(dir, index))
+	if after := rotateFiles(t, dir, index); !maps.Equal(after, before) {
+		t.Errorf("index-only changed files other than %s", index)
+	}
+	got := read(t, filepath.Join(dir, index))
+	for _, n := range []int{37, 38, 41, 62} {
+		row := fmt.Sprintf("| %d | 2026-11-25 | Record %d |\n", n, n)
+		if !strings.Contains(got, row) {
+			t.Errorf("index missing row %q:\n%s", row, got)
+		}
+	}
+}
+
+func TestMissionRotateWorkdirStatusStream(t *testing.T) {
+	const log = "canary-mission-log.md"
+	const live, archive, index = "canary-mission-status-archive.md", "canary-mission-status-archive-old.md", "canary-mission-status-index.md"
+	root, reg, work := writeSyntheticRepo(t, "canary", true, 10)
+	use(t, root, reg)
+	rootDocs, workDocs := filepath.Join(root, "design_docs"), filepath.Join(work, "design_docs")
+	writeRotateRecords(t, filepath.Join(rootDocs, live), rotateStatusHeading, 21, 30)
+	writeRotateRecords(t, filepath.Join(workDocs, live), rotateStatusHeading, 31, 40)
+	preserveRotateFiles(t, rootDocs, workDocs)
+
+	target := t.TempDir()
+	dir := filepath.Join(target, "design_docs")
+	writeRotateRecords(t, filepath.Join(dir, log), rotateLogHeading, 11, 20)
+	before := rotateFiles(t, dir)
+	writeRotateRecords(t, filepath.Join(dir, live), rotateStatusHeading, 1, 10)
+	out := runRotateLog(t, "canary", "--stream", "status", "--keep", "5", "--workdir", target)
+	checkRotateRecordSplit(t, filepath.Join(dir, live), filepath.Join(dir, archive), rotateStatusHeading)
+	if read(t, filepath.Join(dir, index)) == "" {
+		t.Errorf("missing status index %s", index)
+	}
+	checkRotatePaths(t, out, "live log   "+filepath.Join(dir, live), "archive    "+filepath.Join(dir, archive), "INDEX      "+filepath.Join(dir, index))
+	if after := rotateFiles(t, dir, live, archive, index); !maps.Equal(after, before) {
+		t.Error("status rotation changed files outside the target status stream")
+	}
+}
+
+func TestMissionRotateWorkdirMissingSource(t *testing.T) {
+	const log, status = "canary-mission-log.md", "canary-mission-status-archive.md"
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		missing string
+	}{
+		{name: "log-rotation", args: []string{"--keep", "5"}, missing: log},
+		{name: "status-index-only", args: []string{"--index-only", "--stream", "status"}, missing: status},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, reg, work := writeSyntheticRepo(t, "canary", true, 10)
+			use(t, root, reg)
+			rootDocs := filepath.Join(root, "design_docs")
+			writeRotateRecords(t, filepath.Join(rootDocs, status), rotateStatusHeading, 21, 30)
+
+			target := t.TempDir()
+			dir := filepath.Join(target, "design_docs")
+			writeRotateRecords(t, filepath.Join(dir, "canary-mission-log-archive.md"), rotateLogHeading, 31, 35)
+			writeRotateRecords(t, filepath.Join(dir, "canary-mission-status-archive-old.md"), rotateStatusHeading, 41, 45)
+			if tc.missing == status {
+				writeRotateRecords(t, filepath.Join(dir, log), rotateLogHeading, 11, 20)
+			}
+			preserveRotateFiles(t, rootDocs, filepath.Join(work, "design_docs"), dir)
+
+			args := append([]string{"canary", "--workdir", target}, tc.args...)
+			err := missionRotateLog(args)
+			want := filepath.Join(dir, tc.missing)
+			var pathErr *os.PathError
+			if !errors.Is(err, os.ErrNotExist) || !errors.As(err, &pathErr) || pathErr.Path != want ||
+				!strings.HasPrefix(err.Error(), "--workdir target "+want+":") {
+				t.Fatalf("error = %v, want --workdir target error for exact path %q", err, want)
+			}
+		})
+	}
+}
+
+func TestMissionRotateWorkdirMissingValue(t *testing.T) {
+	use(t, t.TempDir(), filepath.Join(t.TempDir(), "absent"))
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{name: "trailing", args: []string{"canary", "--workdir"}},
+		{name: "empty", args: []string{"canary", "--workdir", ""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := missionRotateLog(tc.args); err == nil || err.Error() != "--workdir needs a directory" {
+				t.Fatalf("error = %v, want --workdir needs a directory before registry access", err)
+			}
+		})
+	}
+}
+
+func TestMissionRotateWorkdirRelative(t *testing.T) {
+	const live, archive, index = "canary-mission-log.md", "canary-mission-log-archive.md", "canary-mission-index.md"
+	root, reg, work := writeSyntheticRepo(t, "canary", true, 10)
+	use(t, t.TempDir(), reg)
+	preserveRotateFiles(t, filepath.Join(root, "design_docs"), filepath.Join(work, "design_docs"))
+
+	cwd, err := os.Getwd()
+	must(t, err)
+	dir := filepath.Join(cwd, "record", "design_docs")
+	writeRotateRecords(t, filepath.Join(dir, live), rotateLogHeading, 1, 10)
+	out := runRotateLog(t, "canary", "--workdir", "record", "--keep", "5")
+	checkRotatePaths(t, out, "live log   "+filepath.Join(dir, live), "archive    "+filepath.Join(dir, archive), "INDEX      "+filepath.Join(dir, index))
+	checkRotated(t, dir, live, archive, index)
+}
+
+func TestMissionRotateWorkdirDiscoverability(t *testing.T) {
+	const flag = "[--workdir <dir>]"
+	if help := captureStdout(t, printMissionHelp); !strings.Contains(help, flag) {
+		t.Errorf("mission help is missing %s", flag)
+	}
+	use(t, t.TempDir(), filepath.Join(t.TempDir(), "absent"))
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "missing-name", args: []string{"--stream", "log"}, wantErr: "usage:"},
+		{name: "conflicting-options", args: []string{"canary", "--keep", "5", "--index-only"}, wantErr: "--keep cannot be combined with --index-only"},
+		{name: "unknown-flag", args: []string{"canary", "--unknown"}, wantErr: "unknown flag"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := missionRotateLog(tc.args); err == nil || !strings.Contains(err.Error(), tc.wantErr) || !strings.Contains(err.Error(), flag) {
+				t.Errorf("error = %v, want %q and %s", err, tc.wantErr, flag)
+			}
+		})
 	}
 }
