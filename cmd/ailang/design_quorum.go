@@ -21,8 +21,9 @@ import (
 // via flags.
 //
 // Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30; Google seat -> gemini-4-argon 2026-10-13;
-// OpenAI seat onto the codex subscription lane 2026-11-16, D-FLEET-20): codex:gpt-6.1-sol (OpenAI), gemini-4-argon
-// (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-sonnet-5@claude-p
+// OpenAI seat onto the codex subscription lane 2026-11-16, D-FLEET-20; 2026-11-25, Mark attended:
+// "codex astra, gemini carbon, fable, glm 5-3, kimi"): codex:gpt-6.2-astra (OpenAI), gemini-4-carbon
+// (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-fable-5-2@claude-p
 // (Anthropic, subscription); three seats per doc, rotated per doc, distinct
 // vendors preferred, absent seats replaced from the pool. The AUTHOR'S vendor
 // sits out: "if anthropic does the design, it doesn't review; if astra does the
@@ -141,11 +142,11 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --author codex:gpt-6.2-sol < doc.md
+  ailang design-quorum --author codex:gpt-6.2-astra < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer POOL (default codex:gpt-6.2-sol,gemini-4-argon,oc-glm-5-3,
-                             oc-kimi-k3,claude-sonnet-5@claude-p)
+  --reviewers <csv>          reviewer POOL (default codex:gpt-6.2-astra,gemini-4-carbon,oc-glm-5-3,
+                             oc-kimi-k3,claude-fable-5-2@claude-p)
   --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
   --author <model>           the doc's author; its vendor sits out (see below)
@@ -169,11 +170,11 @@ BEHAVIOR:
   AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the
   model that wrote the doc. Reviewers from that vendor are benched, and come
   back — labelled same-vendor — only if nobody else in the pool answers. With no
-  author given, a Claude author is assumed. The OpenAI seat (codex:gpt-6.2-sol)
+  author given, a Claude author is assumed. The OpenAI seat (codex:gpt-6.2-astra)
   runs "codex exec" on the ChatGPT subscription, never the API key, read-only
   in an empty directory; it is absent (quota) when the Codex bucket is blocked.
   A "codex:<model>" pool entry takes that lane. The Anthropic seat
-  (claude-sonnet-5@claude-p) runs "claude -p" on the subscription, never the
+  (claude-fable-5-2@claude-p) runs "claude -p" on the subscription, never the
   API key, with tools, settings and MCP off; it is absent (quota) when the
   Anthropic bucket is measurably over its mission ration, and still runs when
   the quota cannot be read (an unreadable quota is not an exhausted one).
@@ -187,7 +188,7 @@ SEE ALSO:
 
 // defaultQuorumPool is the reviewer pool, one model per vendor. --seats of them
 // review each doc; the author's vendor sits out. Extend the pool here.
-const defaultQuorumPool = quorum.CodexReviewerID + ",gemini-4-argon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
+const defaultQuorumPool = quorum.CodexReviewerID + ",gemini-4-carbon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
 // the Anthropic bucket is measurably over its mission ration — the ration is what

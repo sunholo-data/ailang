@@ -74,7 +74,7 @@ func SelectReviewers(pool []string, author, docKey string, seats int) Selection 
 	av := VendorOf(author)
 	var eligible []string
 	for _, m := range pool {
-		if !ModelAllowed(m) {
+		if !QuorumModelAllowed(m) {
 			sel.Refused = append(sel.Refused, m)
 			continue
 		}

@@ -35,9 +35,12 @@ import (
 // ModelAllowed and --author benching already understand it.
 const CodexReviewerPrefix = "codex:"
 
-// CodexReviewerModel is the model the OpenAI seat runs (D-FLEET-12's OpenAI rung).
+// CodexReviewerModel is the model the OpenAI seat runs.
 // gpt-6.1-sol -> gpt-6.2-sol 2026-11-17 (Mark, attended); needs codex-cli >= 0.169.0.
-const CodexReviewerModel = "gpt-6.2-sol"
+// gpt-6.2-sol -> gpt-6.2-astra 2026-11-25 (Mark, attended: pool "codex astra, gemini
+// carbon, fable, glm 5-3, kimi"). Astra is admitted for the quorum seat only
+// (QuorumOpenAIModels); the D-FLEET-12 mission-role allowlist is unchanged.
+const CodexReviewerModel = "gpt-6.2-astra"
 
 // CodexReviewerID is the roster id of the OpenAI seat.
 const CodexReviewerID = CodexReviewerPrefix + CodexReviewerModel

@@ -44,3 +44,27 @@ func TestIsOpenAIModel(t *testing.T) {
 		}
 	}
 }
+
+// Quorum-only allowance (Mark, attended 2026-11-25): gpt-6.2-astra may review a
+// design doc, but the D-FLEET-12 mission-role allowlist is unchanged, and the
+// retired gpt-6-astra stays refused everywhere.
+func TestQuorumModelAllowed_AstraForReviewOnly(t *testing.T) {
+	for _, id := range []string{"gpt-6.2-astra", "codex:gpt-6.2-astra", "gpt6-2-astra"} {
+		if !QuorumModelAllowed(id) {
+			t.Errorf("quorum seat %q refused", id)
+		}
+		if ModelAllowed(id) {
+			t.Errorf("%q leaked into the mission-role allowlist", id)
+		}
+	}
+	for _, id := range []string{"gpt-6-astra", "gpt6-astra", "codex:gpt-6-sol"} {
+		if QuorumModelAllowed(id) {
+			t.Errorf("retired %q allowed on the quorum", id)
+		}
+	}
+	for _, id := range AllowedOpenAIModels {
+		if !QuorumModelAllowed(id) {
+			t.Errorf("mission-role model %q refused on the quorum", id)
+		}
+	}
+}

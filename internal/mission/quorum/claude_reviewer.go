@@ -25,9 +25,11 @@ import (
 // models.yml row: the suffix routes it to RunClaudeSubscriptionReviewer.
 const ClaudeReviewerID = ClaudeReviewerModel + ClaudeReviewerSuffix
 
-// ClaudeReviewerModel is the model the Anthropic seat runs — sonnet, not the
-// opus that controls and (on its rotation turn) designs.
-const ClaudeReviewerModel = "claude-sonnet-5"
+// ClaudeReviewerModel is the model the Anthropic seat runs: not the opus that
+// controls and (on its rotation turn) designs. claude-sonnet-5 -> claude-fable-5-2
+// 2026-11-25 (Mark, attended: pool "codex astra, gemini carbon, fable, glm 5-3, kimi");
+// `claude -p --model claude-fable-5-2` probed OK the same day.
+const ClaudeReviewerModel = "claude-fable-5-2"
 
 // ClaudeReviewerSuffix marks a roster id that runs through `claude -p`.
 const ClaudeReviewerSuffix = "@claude-p"

@@ -45,7 +45,26 @@ func ModelAllowed(id string) bool {
 	if !IsOpenAIModel(id) {
 		return true
 	}
-	for _, allowed := range AllowedOpenAIModels {
+	return openAIListed(id, AllowedOpenAIModels)
+}
+
+// QuorumOpenAIModels are the OpenAI models a design-quorum seat may run: the
+// mission-role allowlist plus gpt-6.2-astra, admitted for review only
+// (Mark, attended 2026-11-25: quorum pool "codex astra, gemini carbon, fable,
+// glm 5-3, kimi"). Reviewing a doc is not a mission role, so this widens nothing
+// that `mission codex-exec` runs. The retired gpt-6-astra stays refused.
+var QuorumOpenAIModels = append(append([]string{}, AllowedOpenAIModels...), "gpt-6.2-astra")
+
+// QuorumModelAllowed is ModelAllowed for quorum seating.
+func QuorumModelAllowed(id string) bool {
+	if !IsOpenAIModel(id) {
+		return true
+	}
+	return openAIListed(id, QuorumOpenAIModels)
+}
+
+func openAIListed(id string, list []string) bool {
+	for _, allowed := range list {
 		if CanonicalModelKey(id) == CanonicalModelKey(allowed) {
 			return true
 		}

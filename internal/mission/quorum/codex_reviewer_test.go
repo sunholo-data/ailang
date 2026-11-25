@@ -111,8 +111,8 @@ func containsRun(args, run []string) bool {
 // The seat id is the mission's own lane spelling, so the allowlist, the vendor map
 // and author benching already understand it.
 func TestCodexReviewerID_IsAnAllowlistedOpenAISeat(t *testing.T) {
-	if !ModelAllowed(CodexReviewerID) {
-		t.Fatalf("%s refused by the D-FLEET-12 allowlist", CodexReviewerID)
+	if !QuorumModelAllowed(CodexReviewerID) {
+		t.Fatalf("%s refused by the quorum allowlist", CodexReviewerID)
 	}
 	if v := VendorOf(CodexReviewerID); v != "openai" {
 		t.Fatalf("VendorOf(%s) = %q, want openai", CodexReviewerID, v)
