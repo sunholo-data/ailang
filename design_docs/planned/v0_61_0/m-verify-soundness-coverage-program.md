@@ -18,7 +18,7 @@
 | M6 (witness replay) | **Landed on dev.** Each inconclusive model's inputs are run through the real function, using the property-test harness. A runtime ensures failure, with every requires holding, is a confirmed VIOLATION. Int/float/bool/string/list/record inputs are replayed; Option/ADT inputs are not yet. Corpus: 2 of 25 inconclusives became genuine violations (crew_core `ruleSource`: a missing `requires { label != "" }`; `yieldsOf`: `length(result) <= 4` is false for scenarios with more than four yields per recipe). 8 replays hit the contracts holding; 13 models were not convertible (let-terms, unsupported sorts). Induction is still open |
 | M5 (cont.) | **Landed on dev.** std/math: floor/ceil/round/abs/PI exact; sqrt/exp/pow/log/sin/cos uninterpreted with per-call IEEE-true facts, and a model over them is inconclusive (77 false counterexamples avoided in the corpus). take/drop encoded (they had never been reachable). `[]` under `let` is typed from the return sort. Replay reads let-terms and enum constructors. Corpus: **verified 748 → 840** |
 | M5 (strings) | **Landed on dev.** std/string trim/toLower/toUpper/split/chars/join/repeat/replace (uninterpreted, rune-exact facts) and charAt (exact). Encoder hygiene: `[]` sorted from its use, helper/unrolled parameters bound as `$a_`. An undecidable string/math encoding is a skip. Replay found docparse `csvParseLine` (`split("", "")` is `[]`). Corpus: **verified 840 → 872**, errors 5 → 2 |
-| M0 (gap map) | **Landed on dev.** `make verify-gap-map` (`tools/verify-gap-map/`) verifies every contracted file in the `tools/downstream/corpora.yaml` corpora (the same inventory as `make downstream-check`), buckets status / normalised reason / blamed callee, type and builtin, reports the D1 blast radius from the new per-result `requires_callees` field, banks a snapshot and diffs against the last one. A status change in a file whose content hash changed is drift, never a regression. Snapshots bank to `~/.ailang/state/verify-gaps/`, not the repo: docparse, email-parse and daneel are private and a snapshot names their functions. See §M0 baseline |
+| M0 (gap map) | **Landed on dev.** `make verify-gap-map` (`tools/verify-gap-map/`) verifies every contracted file in the `tools/downstream/corpora.yaml` corpora (the same inventory as `make downstream-check`), buckets status / normalised reason / blamed callee, type and builtin, reports the D1 blast radius from the new per-result `requires_callees` field, banks a snapshot and diffs against the last one. A status change in a file whose content hash changed is drift, never a regression. Snapshots bank to `~/.ailang/state/verify-gaps/`, not the repo: docparse, email-parse and daneel are private and a snapshot names their functions. See §M0 baseline. 2026-11-25: skip reasons carry the helper chain down to the construct that blocks them, and the gap map ranks skips by that root blocker (§Remaining work) |
 | M5 (concat, honest skips) | **Landed on dev.** `std/list.concat` = `seq.++` (an empty operand takes the other's sort); undeclarable records skip instead of erroring; tuple types render as AILANG in skip reasons. First gap-map diff: error 1 → 0, nothing else moved. The ten `concat`-blamed functions are large parsers whose next blockers are `foldChars` (8), `bytes`/`Option` helper signatures, and effects: coverage there needs generic callees, not more builtins |
 | M3 (call-site requires) | **Landed on dev.** D1 ruled (a). Each call in a verified body must meet its callee's `requires` (path-scoped through the call-facts channel); a possible break is `counterexample` / `requires_violation`. Lambdas, recursion, helper bodies and contracts not yet checked. Gap map: no verdict changed; all 11 verified results that call a function with a `requires` had every such call checked. Design: [m-verify-call-site-requires.md](../../implemented/v0_61_0/m-verify-call-site-requires.md) |
 | M5 (recursive helpers) | **Landed on dev.** A self-recursive callee without an `ensures` is unrolled to depth 3 (it was refused, and its callers skipped as "could not resolve a required sort"); with an `ensures` its contract is still used. Unknowns through the unrolling stay skips. Gap map: +9 verified, 4 skipped → inconclusive, no regressions |
@@ -39,27 +39,33 @@ Inconclusive dominates what is left of the HOF gain: real contracts rarely bound
 
 ## Remaining work
 
-Measured on the 2026-11-24T152306Z gap-map snapshot: 105 skipped, 9 inconclusive. "Any" counts skips whose reason names the blocker; "sole" counts those where it is the only one named, i.e. what removing it would turn into a verdict at that level.
+Measured by `tools/verify-gap-map`'s "Skips by root blocker" table, 2026-11-25 (106 skipped). Each skip reason now ends at the construct that blocks it, not at the first helper it surfaced in: the callee resolver records why it could not define a helper, and the message carries that reason down the helper chain. The table strips the encoder's layers off each reason and splits a list of rejections. "Any" counts the skips a blocker appears in; "sole" counts those where it is the only blocker, which is what removing it would turn into a verdict at that level.
 
-| Blocker | Any | Sole |
+| Root blocker | Any | Sole |
 |---|---|---|
-| A helper whose own encoding fails ("calls user function X that is not SMT-encodable", closure and nested-helper errors) | 34 | 27 |
-| A `map`/`foldl`/`any` chain whose lambda calls such a helper | 21 | 21 |
+| Anonymous record construction, no declared record type (`std/json`-style `{key, value}` helpers such as `kv`: 11) | 18 | 18 |
 | Effects (not targeted) | 17 | 8 |
-| A type variable in a helper signature (`foldChars` 8, `isErr` 2, `map`/`mapE`/`foldlE`/`flatMapChildren`/`intersect`) | 16 | 8 |
-| A tuple in a helper signature (`replaceMany`, `Result[(), string]`) | 11 | 8 |
-| Mutual recursion | 8 | 8 |
+| A list type in a callee signature | 14 | 6 |
+| Mutually recursive helpers (a `topoSort` cycle, or a cycle through the verified function) | 10 | 10 |
+| `Callee "X" uses unencodable types` (the reason does not say which) | 10 | 9 |
+| A type variable in a callee signature | 9 | 5 |
+| `Result` in a callee signature | 8 | 4 |
+| A list pattern (`x :: rest`) in an unrolled helper | 7 | 7 |
 | The bare-name collision gate (S4/S7) | 9 | 0 |
-| Builtins (`stringToInt`, `charCode`, `intersect`), `bytes` | 12 | 7 |
+| A helper callee collection never reached (`std/json.get` → private `findInList`: a same-module `Var` call inside an imported body is looked up in the caller's program) | 4 | 4 |
+| `bytes` in a callee signature | 5 | 3 |
+| Builtins: `stringToInt` 3, `foldChars` 3 (0 sole), `charCode`, `intersect`, `mapE`, `show` | 11 | 6 |
 
-Two readings. First, the two largest rows are not leaves: a helper fails, or a lambda calls one that fails, because of something further down (`std/json.get` → `findIndex`, `escapeXml` → `replaceMany`, `sha256Hex` → `bytes`, …). The snapshot blames the first helper only, so it cannot rank levers by what they unlock. Second, the structural levers proposed so far pay little on this corpus on their own: qualified callee identity frees no skip by itself, and type-variable instantiation frees at most 3 (`isErr` 2, `flatMapChildren` 1), since `foldChars` and the `map`-family callees also take a function argument.
+What changed from the hand-built table of 2026-11-24: its two largest rows ("helper encode fails" 34, "HOF chain" 21) were not blockers but places where blockers surfaced. Underneath them, the largest single lever is anonymous record construction (18 sole), and `foldChars` frees no skip on its own.
 
 Next, in order:
 
-1. **Instrument: transitive blame.** The gap map attributes each skip to the leaf blocker at the bottom of its helper chain, and reports for each leaf how many skips list it as their only blocker. An M0 extension; no design doc.
-2. Levers ranked by that table. Expected candidates, each an M5 lever without a design doc: `foldChars` (an exact `chars` plus bounded unrolling; long strings become inconclusive, not verified), tuple sorts in helper signatures, `findIndex` (which unblocks `std/json.get`), `replaceMany`, mutual recursion.
-3. A design doc only for a lever that the table ranks high and that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation. This is the same seam that produced S7's false VERIFIED.
-4. Inconclusives (bounded unrolling exhausted): induction, Future Work.
+1. **Anonymous record sorts** (18 sole): declare a sort for a record literal whose field set matches no declared record type. An M5 lever, no design doc.
+2. **Callee collection follows same-module calls inside imported bodies** (4 sole). A resolver bug, not a fragment limit.
+3. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
+4. **Name the unencodable type** in `Callee "X" uses unencodable types` (10), so the table can rank it.
+5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
+6. Inconclusives (bounded unrolling exhausted): induction, Future Work.
 
 ## Why this program, and why not Lean
 

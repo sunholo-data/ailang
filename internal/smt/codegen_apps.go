@@ -130,7 +130,7 @@ func encodeApp(app *core.App) (string, error) {
 		// instead. Covers record/enum-returning callees and user functions called
 		// inside requires/ensures predicates. See M-SMT-CALLEE-SORT-GATE.
 		if activeUserFunctions[vg.Ref.Name] {
-			return "", fmt.Errorf("%w: calls user function %q that is not SMT-encodable in this context", ErrUnresolvableTypes, vg.Ref.Name)
+			return "", unencodableUserCallError(vg.Ref.Name)
 		}
 		// ADT constructor application
 		name := stripConstructorPrefix(vg.Ref.Name)
@@ -150,7 +150,7 @@ func encodeApp(app *core.App) (string, error) {
 		// Leak guard (see VarGlobal branch above): unresolved call to a known user
 		// function → skip gracefully rather than leak a raw "unknown constant".
 		if activeUserFunctions[v.Name] {
-			return "", fmt.Errorf("%w: calls user function %q that is not SMT-encodable in this context", ErrUnresolvableTypes, v.Name)
+			return "", unencodableUserCallError(v.Name)
 		}
 		// Otherwise treat as constructor reference
 		name := stripConstructorPrefix(v.Name)

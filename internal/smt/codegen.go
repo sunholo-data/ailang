@@ -184,8 +184,7 @@ func EncodeFunction(
 	// It must be set BEFORE callee resolution: helper bodies are encoded there,
 	// and with the guard off a helper calling std/math.sqrt emitted a raw
 	// `(sqrt s)` and Z3 hard-errored (stapledons report, 2026-11-02).
-	activeUserFunctions = make(map[string]bool)
-	defer func() { activeUserFunctions = nil }()
+	defer beginUserFunctionScope()()
 	activeUninterpreted = make(map[string]string)
 	defer func() { activeUninterpreted = nil }()
 	if len(opts) > 0 && opts[0].Program != nil {

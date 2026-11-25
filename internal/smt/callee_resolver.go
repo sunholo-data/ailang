@@ -125,6 +125,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 	if err != nil {
 		return nil, err
 	}
+	noteCalleeOrder(order)
 
 	// Encode each callee as a define-fun
 	var defs []CalleeDef
@@ -132,6 +133,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		// Look up body in current program first, then imported programs
 		calleeBody, calleeProg := findFuncBodyInAnyProg(calleeName, prog, imported)
 		if calleeBody == nil || calleeProg == nil {
+			recordCalleeFailure(calleeName, "its definition was not found")
 			continue
 		}
 
@@ -141,6 +143,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 		// Check if callee is SMT-encodable
 		meta := calleeProg.Meta[calleeName]
 		if meta == nil {
+			recordCalleeFailure(calleeName, "it has no declaration metadata")
 			continue
 		}
 
@@ -171,6 +174,8 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				defs = append(defs, CalleeDef{Name: calleeName, SMTLib: declaration, IsContract: true, ResultConst: contractSymbol(spec), Contract: &spec})
 				activeContractSpecs[calleeName] = &spec
 				activeContractCallees[calleeName] = contractSymbol(spec)
+			} else {
+				recordCalleeFailure(calleeName, rejectionsReason(rejections))
 			}
 			continue
 		}
@@ -207,6 +212,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				activeADTContext.ti = previousTI
 			}
 			if uerr != nil {
+				recordCalleeFailure(calleeName, failureReason(uerr))
 				continue // as for any callee body we cannot encode
 			}
 			if len(hofDecls) > 0 {
@@ -236,7 +242,9 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			activeADTContext.ti = previousTI
 		}
 		if err != nil {
-			// Skip callees we can't encode rather than failing the whole verification
+			// Skip callees we can't encode rather than failing the whole
+			// verification; a caller that reaches one reports why.
+			recordCalleeFailure(calleeName, failureReason(err))
 			continue
 		}
 

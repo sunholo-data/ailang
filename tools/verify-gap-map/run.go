@@ -26,6 +26,8 @@ type row struct {
 	// Unchecked are the obligations checked only to an unrolling depth.
 	Unchecked []string `json:"unchecked_obligations,omitempty"`
 	Replayed  bool     `json:"witness_replayed,omitempty"`
+	// Blockers are what a skip is blamed on, from the full reason (blame.go).
+	Blockers []string `json:"blockers,omitempty"`
 }
 
 func (r row) key() string { return r.Corpus + "|" + r.File + "|" + r.Function }
@@ -127,6 +129,7 @@ func runOne(bin string, extra []string, j job, timeout time.Duration) ([]row, *f
 			Status: st, ReasonCode: r.ReasonCode, Reason: truncate(r.Reason, 240),
 			RequiresCallees: r.RequiresCallees, RequiresChecked: r.RequiresChecked, Replayed: r.WitnessReplayed,
 			Caveats: caveatKinds(r.Caveats), Unchecked: r.UncheckedObligations,
+			Blockers: skipBlockers(st, r.Reason),
 		})
 	}
 	return rows, nil
@@ -158,4 +161,12 @@ func caveatKinds(cs []struct {
 		out = append(out, c.Kind)
 	}
 	return out
+}
+
+// skipBlockers blames a skip from its untruncated reason; other statuses have none.
+func skipBlockers(status, reason string) []string {
+	if status != "skipped" {
+		return nil
+	}
+	return blockers(reason)
 }

@@ -56,6 +56,7 @@ func report(w io.Writer, cur, prev *snapshot, prevPath string, n int) int {
 	section(w, "Skip reasons (normalised)", top(reasonBuckets(cur.Rows, "skipped"), n))
 	section(w, "Inconclusive reasons (normalised)", top(reasonBuckets(cur.Rows, "inconclusive", "unknown"), n))
 	section(w, "Error reasons (normalised)", top(reasonBuckets(cur.Rows, "error"), n))
+	blockerSection(w, cur.Rows, n)
 	a := attribute(cur.Rows)
 	section(w, "Skips blamed on a callee signature: callee", top(a.Callees, n))
 	section(w, "Skips blamed on a callee signature: type", top(a.Types, n))
@@ -128,5 +129,21 @@ func section(w io.Writer, title string, rows []kv) {
 	fmt.Fprintf(w, "\n%s\n", title)
 	for _, r := range rows {
 		fmt.Fprintf(w, "  %5d  %s\n", r.Count, r.Key)
+	}
+}
+
+// blockerSection ranks what skips are blamed on once each reason's chain of
+// encoder layers is stripped (blame.go): any = skips it appears in, sole =
+// skips it alone blocks.
+func blockerSection(w io.Writer, rows []row, n int) {
+	anyOf, sole := blockerCounts(rows)
+	ranked := top(anyOf, n)
+	if len(ranked) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "\nSkips by root blocker (any = skips it appears in, sole = skips it alone blocks)")
+	fmt.Fprintf(w, "  %5s %5s\n", "any", "sole")
+	for _, r := range ranked {
+		fmt.Fprintf(w, "  %5d %5d  %s\n", r.Count, sole[r.Key], r.Key)
 	}
 }

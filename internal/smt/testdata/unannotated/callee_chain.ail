@@ -1,0 +1,40 @@
+module callee_chain
+import std/json (Json, getString)
+import std/option (Option, Some, None)
+
+-- leaf matches on a list pattern inside an unrolled recursion, which the
+-- encoder cannot decode; mid calls leaf; top calls mid.
+func leaf(xs: [int]) -> int {
+  match xs {
+    [] => 0,
+    x :: rest => x + leaf(rest)
+  }
+}
+
+func mid(n: int) -> int = leaf([n]) + 1
+
+export func top(n: int) -> int
+  ensures { result >= 0 }
+{
+  mid(n)
+}
+
+-- ping calls back into itself through pong.
+export func ping(n: int) -> int
+  ensures { result >= 0 }
+{
+  if n <= 0 then 0 else pong(n - 1)
+}
+
+func pong(n: int) -> int = if n <= 0 then 1 else ping(n - 1)
+
+-- getString reaches std/json's private findInList, which callee collection
+-- does not follow.
+export func named(j: Json) -> bool
+  ensures { result == result }
+{
+  match getString(j, "name") {
+    Some(_) => true,
+    None => false
+  }
+}
