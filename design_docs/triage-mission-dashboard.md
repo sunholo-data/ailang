@@ -1,9 +1,11 @@
-# Triage mission dashboard
+# Triage dashboard — iteration 57 (2026-11-25)
 
-- **Toolchain** — AILANG v0.61.1 on PATH.
-- **Iteration 56** — 34 groups reviewed against dev f447d431. MiniMax independently judged 14 queue groups and two operational findings. Twenty queue findings await evaluator coverage.
-- **Dev CI** — Red. #2465 carries the Gemini design intake. #2463 covers the skill mirrors. Workflow, HOME fixture and model pricing reports have existing tickets. Current lint and vulnerability checks passed.
-- **Holds** — Six aged green cards need separate execution authorization. #2155 needs ordinary and lean population evidence. #2430 has two of ten normal macOS legs and needs independent reaping-host evidence.
-- **Attended ruling** — D-TRIAGE-82 option A awaits publication in #2429.
-- **Record** — [PR #2450](https://github.com/sunholo-data/ailang/pull/2450), awaiting publication.
-- **Cadence** — Twice daily on changed inputs. OpenAI GPT-6 Luna verifies and MiniMax M3 judges. Recorded metered spend $0.0494271 of the $1 cap.
+- Level 1. Verification, evidence and informational attestations.
+- Dev e3595b4f9 red. Prompt-registry mutability and embedded cache dependency assertions fail on Linux and Windows and in focused tests.
+- 36 cards, 38 PRs, 89 issues. 33 refreshed groups and 28 concurs, 5 dissents, 0 provisionals.
+- Two OpenAI Luna verifier transports and independent MiniMax M3 judgment.
+- Eight aged green cards held. Six need separate execution authorization, #2155 needs eval provenance, and #2430 has two of ten macOS jobs with reaping-host evidence pending.
+- Attended D-TRIAGE-82 A is in #2429 and awaits publication. #2097 execution remains gated.
+- Eight PR-less cards, four uncarded coordinator PRs and one orphaned approval record.
+- Shadow agreement 15/15 comparable settled outcomes. No attestations.
+- [Record PR #2450](https://github.com/sunholo-data/ailang/pull/2450) · [Bookkeeping #2453](https://github.com/sunholo-data/ailang/issues/2453).
