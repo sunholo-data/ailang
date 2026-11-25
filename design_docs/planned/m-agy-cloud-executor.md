@@ -227,6 +227,34 @@ execute-job: agy credential durably persisted        # only if the /quota read r
 execute-job: credential lease released
 ```
 
+### Addendum (Mark, attended 2026-11-25): every subscription lane, and an operator override
+
+The first dev smoke was refused at 34% on day 1, which raised two asks: pace codex and
+claude cloud jobs the same way, and let an attended session override the gate.
+`cmd/ailang/coordinator_cloud_ration.go` replaces the agy-only check with one gate:
+
+| Provider | Bucket | Reader | Unreadable |
+|---|---|---|---|
+| agy | google | `agy -p /quota`, `AILANG_GOOGLE_DAILY_PACE` | blocks |
+| codex | codex | `codex app-server` `account/rateLimits/read`, weekday pace | blocks |
+| claude | anthropic | `/api/oauth/usage` with the job's token, weekday pace | **admitted, logged NOT ENFORCED** (ruling) |
+
+The claude row is admit-on-unknown because the cloud's setup-token is refused by the usage
+endpoint (HTTP 403, re-measured 2026-11-25; a bogus-token control returns 429), and
+`claude -p /usage` now prints only a session-cost summary under any credential. The gate
+starts refusing by itself once a token can read usage. The Claude credit lane
+(`AILANG_AUTH_MODE=apikey`) is metered and skipped.
+
+The override is a time-boxed Firestore record per bucket (`quota_overrides/<bucket>` in the
+plane's project), written by `ailang mission quota --allow <bucket|all> --for <≤24h>
+--reason <why> --project <plane> --yes` and removed early by `--revoke`. It is refused
+inside a mission iteration, read only when the ration would refuse, and every job it admits
+logs `NOT ENFORCED — … operator override by <who> until <t> (<why>)`. It cannot be set
+without an end.
+
+Pace is judged in the container's local time (UTC), the rig in Europe/Copenhagen: the
+weekday line can differ by up to two hours at a day boundary.
+
 ## Success Criteria
 
 - [ ] Phase 0 rows all measured and recorded in the Verification Log

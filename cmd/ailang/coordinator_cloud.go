@@ -228,18 +228,17 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 			}
 		}()
 	}
-	// M-AGY-CLOUD §4: an agy job checks the account's google pace line before it
-	// clones. The /quota read is itself a refresh-capable agy process, so it runs
-	// under the lease: every exit from here goes through the deferred finish()
-	// (write-back, then release), or quarantine when its termination is unproven.
-	if provider == "agy" {
-		if err := checkAgyRation(ctx); err != nil {
-			if errors.Is(err, executor.ErrProcessTerminationUnconfirmed) {
-				rotCred.quarantine()
-			}
-			publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
-			return err
+	// Subscription jobs check their account's pace line before they clone
+	// (coordinator_cloud_ration.go). The agy and codex quota reads are themselves
+	// refresh-capable processes, so they run under the lease: every exit from here
+	// goes through the deferred finish() (write-back, then release), or quarantine
+	// when a process's termination is unproven.
+	if err := checkCloudRation(ctx, provider, projectID); err != nil {
+		if errors.Is(err, executor.ErrProcessTerminationUnconfirmed) {
+			rotCred.quarantine()
 		}
+		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
+		return err
 	}
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")

@@ -96,29 +96,31 @@ func TestCheckAgyRation(t *testing.T) {
 	t.Setenv("AILANG_AGY_HOME_ROOT", t.TempDir())
 	t.Setenv("AILANG_GOOGLE_DAILY_PACE", "15")
 	t.Setenv("AILANG_QUOTA_MARGIN_GOOGLE", "")
+	noOverride(t)
 	old := agyQuotaRun
 	t.Cleanup(func() { agyQuotaRun = old })
+	check := func() error { return checkCloudRation(t.Context(), "agy", "proj") }
 
 	// Day 1 of the window, line 15%: 1% used is within it.
 	agyQuotaRun = func(context.Context, string) ([]byte, error) { return quotaOut("99%", time.Now()), nil }
-	if err := checkAgyRation(t.Context()); err != nil {
+	if err := check(); err != nil {
 		t.Fatalf("within pace: %v", err)
 	}
 	// 50% used one day in: over the line, refuse before cloning.
 	agyQuotaRun = func(context.Context, string) ([]byte, error) { return quotaOut("50%", time.Now()), nil }
-	if err := checkAgyRation(t.Context()); err == nil || !strings.Contains(err.Error(), "not cloning") {
+	if err := check(); err == nil || !strings.Contains(err.Error(), "not cloning") {
 		t.Fatalf("over pace: %v", err)
 	}
 	// Unreadable quota fails closed.
 	agyQuotaRun = func(context.Context, string) ([]byte, error) { return []byte("boom"), fmt.Errorf("exit status 2") }
-	if err := checkAgyRation(t.Context()); err == nil || !strings.Contains(err.Error(), "not cloning") {
+	if err := check(); err == nil || !strings.Contains(err.Error(), "not cloning") {
 		t.Fatalf("unreadable: %v", err)
 	}
 	// An unproven termination is passed through untouched, so the caller quarantines.
 	agyQuotaRun = func(context.Context, string) ([]byte, error) {
 		return nil, fmt.Errorf("%w: test", executor.ErrProcessTerminationUnconfirmed)
 	}
-	if err := checkAgyRation(t.Context()); !errors.Is(err, executor.ErrProcessTerminationUnconfirmed) {
+	if err := check(); !errors.Is(err, executor.ErrProcessTerminationUnconfirmed) {
 		t.Fatalf("termination unconfirmed hidden: %v", err)
 	}
 }

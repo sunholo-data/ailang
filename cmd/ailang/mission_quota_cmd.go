@@ -32,9 +32,19 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. Google (agy subscription) uses `agy -p /quota` paced at AILANG_GOOGLE_DAILY_PACE %/day. These block unknown quota; other buckets require proven ledger exceedance.")
 	codexReset := fs.Bool("codex-reset", false, "ATTENDED ONLY: spend one Codex reset credit (resets the account's current windows). Requires --yes; refused inside a mission iteration.")
 	codexCredit := fs.String("credit", "", "With --codex-reset: the credit id to spend (default: the provider picks)")
-	yes := fs.Bool("yes", false, "With --codex-reset: confirm spending the credit")
+	yes := fs.Bool("yes", false, "With --codex-reset: confirm spending the credit. With --allow: confirm the override")
+	var ov quotaOverrideRequest
+	fs.StringVar(&ov.allow, "allow", "", "ATTENDED ONLY: let a cloud plane's subscription jobs (google, codex, anthropic, or all) start over their pace line until --for elapses. Needs --project, --reason and --yes; refused inside a mission iteration.")
+	fs.StringVar(&ov.revoke, "revoke", "", "Remove a cloud quota override (google, codex, anthropic, or all) before it expires. Needs --project.")
+	fs.DurationVar(&ov.duration, "for", 0, "With --allow: how long the override lasts (at most 24h), e.g. 1h")
+	fs.StringVar(&ov.reason, "reason", "", "With --allow: why; logged by every job the override admits")
+	fs.StringVar(&ov.project, "project", "", "With --allow/--revoke: the cloud plane's GCP project (ailang-multivac = prod, ailang-multivac-dev = dev)")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if ov.wanted() {
+		ov.yes = *yes
+		return missionQuotaOverride(ov, now)
 	}
 	if mapped, err := mission.QuotaBucketFor(*bucket); err != nil || mapped != *bucket {
 		return mission.ErrOpencodeQuotaBucket

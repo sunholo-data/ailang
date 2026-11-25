@@ -242,6 +242,19 @@ func ObserveAnthropicQuota(now time.Time) AnthropicQuotaObservation {
 	return o
 }
 
+// ObserveAnthropicQuotaWithToken reads the usage endpoint with ONE token: no login
+// keychain and no `claude -p /usage` fallback. It is the cloud job's reader, where the
+// env token is the only credential there is and the CLI fallback would cost ~30s per
+// job for nothing (measured 2026-11-25: under a setup-token the CLI prints only its
+// session-cost summary, and the endpoint answers a setup-token with HTTP 403).
+func ObserveAnthropicQuotaWithToken(token string, now time.Time) AnthropicQuotaObservation {
+	client := &http.Client{
+		Timeout:       5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	return observeAnthropicQuota(token, now, client)
+}
+
 // observeAnthropicQuotaWith tries each token in order and returns the first reading that is
 // not "unknown". When every token fails, the reasons are joined so the log names both the
 // login failure (say, a stale 401) and the env-token one (say, a setup-token's 403).
