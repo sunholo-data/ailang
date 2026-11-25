@@ -1,6 +1,6 @@
 # M-VERIFY-NUMERIC-MODEL — int64 overflow and float NaN/∞ (program M4)
 
-**Status**: Implemented on dev 2026-11-24 (see §Result). **Program**: [M-VERIFY-SOUNDNESS-COVERAGE](m-verify-soundness-coverage-program.md) M4 (gaps S2, S3).
+**Status**: Implemented, shipped in v0.61.0 (see §Result). **Program**: [M-VERIFY-SOUNDNESS-COVERAGE](../../planned/v0_61_0/m-verify-soundness-coverage-program.md) M4 (gaps S2, S3).
 **Rulings** (Mark, 2026-11-24): D2 = **(a′)**, D4 = **(b′)**, on the measurements recorded in the
 program doc (§D2/D4 measurements).
 **Quorum**: no trigger fires. D2/D4 are ruled; the change is local to `internal/smt` plus one CLI

@@ -1,0 +1,6 @@
+module model_values
+import std/list (length)
+export pure func half(n: int) -> int ensures { result > 0 } { if n >= 0 then n / 2 else 0 - n }
+export pure func scaled(x: float) -> float requires { x >= 1.0 } ensures { result > 10.0 } { x * 2.0 + 1.0 }
+export pure func pick(n: int) -> Option[int] ensures { match result { Some(v) => v > 100, None => false } } { if n > 3 then Some(n * 3) else None }
+export pure func pair(n: int) -> [int] ensures { length(result) > 2 } { if n > 0 then [n, n + 1] else [n] }

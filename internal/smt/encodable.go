@@ -107,7 +107,37 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr, de
 		})
 	}
 
+	// Check 7: every parameter is annotated (S5). An unannotated parameter has
+	// no surface sort, so it would be dropped from the declarations and reach
+	// Z3 as an unknown constant.
+	if name := firstUnannotatedParam(decl...); name != "" {
+		reasons = append(reasons, unannotatedParamRejection("Function", funcName, name))
+	}
+
 	return len(reasons) == 0, reasons
+}
+
+// firstUnannotatedParam returns the first non-unit parameter of decl that has
+// no type annotation, or "".
+func firstUnannotatedParam(decl ...*ast.FuncDecl) string {
+	if len(decl) == 0 || decl[0] == nil {
+		return ""
+	}
+	for _, p := range decl[0].Params {
+		if p != nil && p.Type == nil && !isUnitParam(p) {
+			return p.Name
+		}
+	}
+	return ""
+}
+
+// unannotatedParamRejection is the skip for a parameter without a type.
+func unannotatedParamRejection(kind, funcName, param string) SMTRejectionReason {
+	return SMTRejectionReason{
+		Code:    RejectUnencodable,
+		Message: fmt.Sprintf("%s %q has an unannotated parameter %q, which has no SMT sort", kind, funcName, param),
+		Hint:    fmt.Sprintf("Annotate it, e.g. `%s: int`.", param),
+	}
 }
 
 // CollectCalleeNames returns the names of all user-defined functions reachable

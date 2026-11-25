@@ -177,6 +177,13 @@ func GetModel() string {
 	return "(get-model)"
 }
 
+// GetResultValue asks for the evaluated value of the result constant, so a
+// counterexample reports a literal (S6): the model echoes `result` as its
+// define-const body, a term over the inputs.
+func GetResultValue() string {
+	return "(get-value (result))"
+}
+
 // MapRecordSortName returns the SMT-LIB sort name for a record type.
 // Named records use their TypeName directly; anonymous records get a
 // deterministic name based on their fields (sorted alphabetically).

@@ -738,7 +738,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 |---------|--------|-------------|
 | Higher-order functions (named function) | `map(f, xs)` where `f` is not a literal lambda | Requires whole-program analysis |
 | Bitwise operators | `&`, `^`, `~`, `<<`, `>>` have no `Int` encoding | Needs a bit-vector encoding |
-| Unannotated generic parameters | `func inc(x) ensures {…}` currently reaches Z3 as an error, not a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
+| Unannotated parameters | `func inc(x) ensures {…}`, or a helper `func h(x)` it calls, is skipped and the reason names the parameter ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
 | `words`/`foldChars`/`replaceMany`, datetime builtins | No SMT encoding yet | Yes — planned |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 | Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |

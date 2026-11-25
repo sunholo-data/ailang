@@ -207,6 +207,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	if strings.HasPrefix(outputStr, "sat") {
 		result.Status = StatusCounterexample
 		result.Model = parseModel(outputStr)
+		fillResultSort(result.Model, smtlib)
 		return result, nil
 	}
 
@@ -264,10 +265,15 @@ func parseModelSExpr(output string) ([]ModelBinding, bool) {
 		return nil, false
 	}
 	var bindings []ModelBinding
+	var resultValue *SExpr
 	found := false
 	for _, top := range exprs {
 		if !top.IsList {
 			continue // "sat"
+		}
+		if v := getValueResult(top); v != nil {
+			resultValue = v
+			continue
 		}
 		for _, def := range top.List {
 			if def.Head() != "define-fun" || len(def.List) != 5 {
@@ -286,7 +292,56 @@ func parseModelSExpr(output string) ([]ModelBinding, bool) {
 			})
 		}
 	}
+	if resultValue != nil {
+		replaced := false
+		for i := range bindings {
+			if bindings[i].Name == "result" {
+				bindings[i].Value, bindings[i].Term = resultValue.String(), resultValue
+				replaced = true
+			}
+		}
+		if !replaced {
+			// The model may omit the define-const; the get-value answer stands
+			// alone, and Solve fills its sort from the script (resultSortOf).
+			bindings = append(bindings, ModelBinding{Name: "result", Value: resultValue.String(), Term: resultValue})
+		}
+	}
 	return bindings, found || len(exprs) > 0
+}
+
+// fillResultSort gives a result binding that came only from get-value the
+// sort the script declared for result.
+func fillResultSort(model []ModelBinding, smtlib string) {
+	for i := range model {
+		if model[i].Name == "result" && model[i].Sort == "" {
+			model[i].Sort = resultSortOf(smtlib)
+		}
+	}
+}
+
+// resultSortOf returns the sort of the script's `(define-const result S ...)`.
+func resultSortOf(smtlib string) string {
+	i := strings.Index(smtlib, "(define-const result ")
+	if i < 0 {
+		return ""
+	}
+	exprs, err := ParseSExprs(smtlib[i:])
+	if err != nil || len(exprs) == 0 || len(exprs[0].List) < 3 {
+		return ""
+	}
+	return exprs[0].List[2].String()
+}
+
+// getValueResult returns v from a `((result v))` get-value response, or nil.
+func getValueResult(top *SExpr) *SExpr {
+	if len(top.List) != 1 {
+		return nil
+	}
+	pair := top.List[0]
+	if !pair.IsList || len(pair.List) != 2 || pair.List[0].IsList || pair.List[0].Atom != "result" {
+		return nil
+	}
+	return pair.List[1]
 }
 
 // parseModelLines is the line-oriented reader, kept for output that is not a

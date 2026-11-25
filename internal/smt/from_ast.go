@@ -405,6 +405,34 @@ func firstUnencodableCalleeInFunc(
 	return "", ""
 }
 
+// firstUnannotatedCalleeParam returns the first callee reachable from body or
+// a contract that has a parameter without a type annotation, and that
+// parameter (S5). Such a parameter has no sort; encoding the callee would
+// leave it an unknown constant in Z3.
+func firstUnannotatedCalleeParam(
+	funcName string,
+	body core.CoreExpr,
+	contracts []*core.Contract,
+	prog *core.Program,
+	imported map[string]*core.Program,
+	calleeASTFuncs map[string]*ast.FuncDecl,
+) (string, string) {
+	roots := []core.CoreExpr{body}
+	for _, c := range contracts {
+		if c != nil && c.Expr != nil {
+			roots = append(roots, c.Expr)
+		}
+	}
+	for _, root := range roots {
+		for _, name := range CollectCalleeNames(root, funcName, prog, imported) {
+			if param := firstUnannotatedParam(calleeASTFuncs[name]); param != "" {
+				return name, param
+			}
+		}
+	}
+	return "", ""
+}
+
 // FindFunctionBody finds the body expression of a named function in the Core program.
 func FindFunctionBody(prog *core.Program, funcName string) core.CoreExpr {
 	for _, decl := range prog.Decls {

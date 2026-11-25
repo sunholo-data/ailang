@@ -1,5 +1,7 @@
 # verify: proofs reason over Z3 unbounded Int but the runtime int is wrapping int64 — VERIFIED then garbage at runtime
 
+> **RESOLVED in v0.61.0** by [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md) M4 ([design](../../implemented/v0_61_0/m-verify-numeric-model.md)), D2 (a′): every `int` `+ - *` carries an int64 range obligation, reported as an `int_overflow` caveat by default and as a violation under `--int-model=int64`. The text below is the original triage, kept for history.
+
 > **Re-verified 2026-11-23 at v0.60.6-128: STILL OPEN, now disclosed.** `inc(x) requires { x >= 0 } ensures { result > x } { x + 1 }` is VERIFIED; `inc(9223372036854775807)` prints `-9223372036854775808`. Remedy (a) has shipped in part: every run prints `encoded model: float=Real, int=Int; runtime equivalence not_established` and the JSON carries `numeric_model`. Remedies (b)/(c) are unrouted. Routed as M4 (gated on decision D2) of [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md).
 
 - **Date**: 2026-09-28

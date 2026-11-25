@@ -1,5 +1,7 @@
 # Z3 HOF inlining is unreachable behind the callee-sort gate, and still hard-codes `(Seq Int)` underneath (#1375, #215)
 
+> **RESOLVED in v0.61.0** by [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md) M2/M5: `map`/`filter`/`foldl`/`any`/`flatMap` are specialised over any element sort (no hard-coded `(Seq Int)`), the callee-sort gate no longer blocks them, and `hof_verify.ail` verifies (`incrementAll`, `positives`, bounded depth 3). The text below is the original triage, kept for history.
+
 > **Re-verified 2026-11-23 at v0.60.6-128: STILL OPEN.** `hof_verify.ail` → 2 skipped, outcome `unproved`. New detail: the skip reason now names `Option[b]`/`Option[a]` for a `std/list` `map`/`filter` — `calleeASTFuncs` in `internal/smt/verify.go:315-330` is keyed by bare name, first-wins over a Go-map iteration of `modules`, so `std/option.map` can shadow `std/list.map`. The gate checks the wrong callee's signature (and which one wins can vary run to run). Fix the keying (module-qualified) as part of option A. Routed as M2 of [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md).
 
 - **Date**: 2026-10-03

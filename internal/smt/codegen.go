@@ -629,14 +629,14 @@ func EncodeFunction(
 	lines = append(lines, result.Assertions...)
 	lines = append(lines, "")
 	lines = append(lines, CheckSat())
-	lines = append(lines, GetModel())
+	lines = append(lines, GetModel(), GetResultValue())
 
 	result.SMTLib = strings.Join(lines, "\n")
 	result.UncheckedObligations = sortedKeys(bounded)
 	for _, g := range callees {
 		q := append(append([]string(nil), lines[:preamble]...), requiresAssertions...)
 		q = append(q, obligationAssertions(callFacts, callees, g)...)
-		q = append(q, "", CheckSat(), GetModel())
+		q = append(q, "", CheckSat(), GetModel(), GetResultValue())
 		result.Obligations = append(result.Obligations, CallObligation{Callee: g, SMTLib: strings.Join(q, "\n"), DependsOnUninterpreted: obligationDependsOn(callFacts, g, result.Uninterpreted)})
 	}
 	return result, nil

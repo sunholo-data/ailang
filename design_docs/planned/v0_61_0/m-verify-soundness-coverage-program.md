@@ -1,6 +1,6 @@
 # M-VERIFY-SOUNDNESS-COVERAGE: close what VERIFIED does not mean, then widen what it reaches
 
-**Status**: Planned. **Quorum guardrail spent** (round 1 and the one re-quorum both BLOCKED 3/3 present; codex seat absent on quota). Every objection was accepted and addressed in-session; see §Quorum History. Awaiting Mark's ratification of D1/D2/D4, not a third round. M0–M1 carry no freeze items. Umbrella program: each milestone below is its own sprint, and M3/M4 need their own design doc after their rulings.
+**Status**: In progress. M0, M2–M6 and the admission amendment shipped in **v0.61.0**; D1 (a), D2 (a′) and D4 (b′) were ruled by Mark 2026-11-24. M1's S5/S6 landed on dev 2026-11-25. Still open: the bare-name half of S4/S7 and a long tail of coverage blockers; see §Remaining work. Quorum guardrail spent (§Quorum History); the rulings replaced a third round.
 **Target**: v0.61.x – v0.62.x
 **Priority**: P1. M1–M2 are P1; M3 is P0 for soundness once D1 is ruled.
 **Estimated**: M0 0.5d · M1 1.5d · M2 3–4d · M3 3–4d · M4 2–3d · M5 2d · M6 2d
@@ -12,7 +12,7 @@
 
 | Milestone | State (2026-11-23) |
 |---|---|
-| M1 (S7 callee identity) | **Landed on dev.** Deterministic bare-name lookups, plus a gate refusing any call that would bind another module's function (`internal/smt/callee_identity.go`, tests in `callee_identity_test.go`). One false positive (a parameter sharing a function's name) was found by the corpus run and fixed. S4/S5/S6 are still open |
+| M1 (S7 callee identity) | **Landed on dev.** Deterministic bare-name lookups, plus a gate refusing any call that would bind another module's function (`internal/smt/callee_identity.go`, tests in `callee_identity_test.go`). One false positive (a parameter sharing a function's name) was found by the corpus run and fixed. S5/S6 landed 2026-11-25 (row below). S4's remaining half is the gate itself: it refuses a call whose bare name another loaded module also defines (9 corpus skips, none of them blocked by the gate alone; see §Remaining work) |
 | M2 (HOF callers) | **Landed on dev, extended.** map/filter/foldl/any/flatMap over any element sort, with captures, inside callees and inside contracts. Bounded (depth 3) and classified like recursion. Let and capture hygiene (`$l_`/`$c_`) fixes #215. See §M2 result below |
 | M5 (partial) | **Landed on dev.** Named-function HOF arguments (eta-expanded). Quantifier-free map/filter frontiers, so length relations are proved for any list. Direct encodings for std/list `nthOr`/`headOr`/`lastOr`/`head`/`nth`/`last` and std/option `getOrElse`/`isSome`/`isNone`. Fixed `floatToInt` floor-vs-truncate (a false VERIFIED). Still open: generic *user* callees, Result-returning callees, math builtins |
 | M6 (witness replay) | **Landed on dev.** Each inconclusive model's inputs are run through the real function, using the property-test harness. A runtime ensures failure, with every requires holding, is a confirmed VIOLATION. Int/float/bool/string/list/record inputs are replayed; Option/ADT inputs are not yet. Corpus: 2 of 25 inconclusives became genuine violations (crew_core `ruleSource`: a missing `requires { label != "" }`; `yieldsOf`: `length(result) <= 4` is false for scenarios with more than four yields per recipe). 8 replays hit the contracts holding; 13 models were not convertible (let-terms, unsupported sorts). Induction is still open |
@@ -20,13 +20,14 @@
 | M5 (strings) | **Landed on dev.** std/string trim/toLower/toUpper/split/chars/join/repeat/replace (uninterpreted, rune-exact facts) and charAt (exact). Encoder hygiene: `[]` sorted from its use, helper/unrolled parameters bound as `$a_`. An undecidable string/math encoding is a skip. Replay found docparse `csvParseLine` (`split("", "")` is `[]`). Corpus: **verified 840 → 872**, errors 5 → 2 |
 | M0 (gap map) | **Landed on dev.** `make verify-gap-map` (`tools/verify-gap-map/`) verifies every contracted file in the `tools/downstream/corpora.yaml` corpora (the same inventory as `make downstream-check`), buckets status / normalised reason / blamed callee, type and builtin, reports the D1 blast radius from the new per-result `requires_callees` field, banks a snapshot and diffs against the last one. A status change in a file whose content hash changed is drift, never a regression. Snapshots bank to `~/.ailang/state/verify-gaps/`, not the repo: docparse, email-parse and daneel are private and a snapshot names their functions. See §M0 baseline |
 | M5 (concat, honest skips) | **Landed on dev.** `std/list.concat` = `seq.++` (an empty operand takes the other's sort); undeclarable records skip instead of erroring; tuple types render as AILANG in skip reasons. First gap-map diff: error 1 → 0, nothing else moved. The ten `concat`-blamed functions are large parsers whose next blockers are `foldChars` (8), `bytes`/`Option` helper signatures, and effects: coverage there needs generic callees, not more builtins |
-| M3 (call-site requires) | **Landed on dev.** D1 ruled (a). Each call in a verified body must meet its callee's `requires` (path-scoped through the call-facts channel); a possible break is `counterexample` / `requires_violation`. Lambdas, recursion, helper bodies and contracts not yet checked. Gap map: no verdict changed; all 11 verified results that call a function with a `requires` had every such call checked. Design: [m-verify-call-site-requires.md](m-verify-call-site-requires.md) |
+| M3 (call-site requires) | **Landed on dev.** D1 ruled (a). Each call in a verified body must meet its callee's `requires` (path-scoped through the call-facts channel); a possible break is `counterexample` / `requires_violation`. Lambdas, recursion, helper bodies and contracts not yet checked. Gap map: no verdict changed; all 11 verified results that call a function with a `requires` had every such call checked. Design: [m-verify-call-site-requires.md](../../implemented/v0_61_0/m-verify-call-site-requires.md) |
 | M5 (recursive helpers) | **Landed on dev.** A self-recursive callee without an `ensures` is unrolled to depth 3 (it was refused, and its callers skipped as "could not resolve a required sort"); with an `ensures` its contract is still used. Unknowns through the unrolling stay skips. Gap map: +9 verified, 4 skipped → inconclusive, no regressions |
 | M3/M4 (inside definitions) | **Landed on dev.** Requires, overflow and NaN obligations inside helpers, `map`/`filter`/`foldl` lambdas and recursion are checked at each call: each define-fun the encoder emits for runtime code gets one `$ob_<name>@<def>` Bool define-fun per obligation (path-scoped, `(=> assumptions obligations)`), and every call adds it on the actual arguments (`internal/smt/codegen_def_obligations.go`). Recursive helpers and lambdas are checked to the unrolling depth (`obligations_checked_to_depth` note). A recursive contracted function's self-calls must meet its own `requires`, which makes its obligations hold by induction. The postcondition query no longer assumes the int64 obligations (that made one docparse function time out). Gap map: no verdict changed; overflow notes 56 → 61, 10 depth notes. Measured first: 32 verified results had int arithmetic in a helper (22), recursive helper (9), lambda (1) or their own recursion (5); none had an unchecked division, `sqrt`/`log` or `requires` |
-| M4 (numeric model) | **Landed on dev.** D2 (a′): int64 overflow obligations, a caveat by default and a violation under `--int-model=int64`. D4 (b′): float `/`, `%` by zero, `sqrt` of a negative and `log` of a non-positive are violations; float inputs assumed non-NaN (caveat). Default-mode gap map: no verdict changed; 56 overflow notes. Design: [m-verify-numeric-model.md](m-verify-numeric-model.md) |
+| M4 (numeric model) | **Landed on dev.** D2 (a′): int64 overflow obligations, a caveat by default and a violation under `--int-model=int64`. D4 (b′): float `/`, `%` by zero, `sqrt` of a negative and `log` of a non-positive are violations; float inputs assumed non-NaN (caveat). Default-mode gap map: no verdict changed; 56 overflow notes. Design: [m-verify-numeric-model.md](../../implemented/v0_61_0/m-verify-numeric-model.md) |
 | M5 (parametric callees) | **Landed on dev.** The callee-sort gate admits a parametric ADT applied to encodable arguments (`Option[int]`, `Result[float, MyErr]`, a user `Box[int]`): `astTypeEncodable` now reads `CollectDeclarableTypes` (name → type-parameter count, Option/Result built in) and checks arity. The encoder already declared these with Z3 binders, so no codegen change was needed. Still gated: type variables (`foldChars`, `isErr`'s `Result[a, e]`), tuples (`Result[(), string]`), function types, `bytes`; record-returning callees fail later (separate). Gap map: 2 skipped → verified (ailang-parse `pdfAiPagesCountFromInfo`; the gate's own example `unencodable_callee_skip.ail`, moved to a tuple callee to keep demonstrating the skip), 0 regressions. Most former Option/Result skips now stop at the next blocker: an **unannotated helper** (`std/json.get`/`decode`/`asString`, crew `distOf`/`levelsOf`) is refused by `smtAdmissible` (25 rows, now the top skip reason), which m-pure-row-and-iface-purity Rule 3 ratified (nil row admits nothing). Its skip hint now names the fix instead of the generic list-pattern text |
 | Admission (rowless functions) | **Landed on dev, ratified by Mark 2026-11-24.** A function with no keyword and no `!` clause is admitted (as the verified function and as a helper) when no parameter type mentions a function type: effect checking already rejects every undeclared effect in it (measured table in the m-pure-row-and-iface-purity amendment). Gap map: 3 skipped → verified, 2 → inconclusive, 0 regressions. The former unannotated-helper skips now stop at `std/json`'s `Json` (its record-typed payload sort is not declared) and `map` chains over it: the next lever for the JSON-heavy corpora |
 | M5 (nested records, Json) | **Landed on dev.** An inline record in an ADT payload is declared wherever it sits in the field's type (list element, type argument, tuple, another record); before, only a field whose type *was* a record was, so `std/json`'s `Json` (`JObject([{key, value}])`) and any user ADT of that shape skipped with `sort "Record_key_value" … is not declared`. The cycle Json ↔ Record_key_value goes through the existing mutual `declare-datatypes` grouping. Also: callee lists are sorted (`collectCalleeCallsFromRoots`, `collectDirectCalls` returned map order), so a skip names the same cycle every run; 4–6 unchanged rows per gap-map run had drifted. Gap map: 2 skipped → verified, 0 regressions. Next blockers in the JSON-heavy corpora: `std/json.get` walks objects with `findIndex` (no HOF encoding), and `map` chains over `Json` lists |
+| M1 (S5, S6) | **Landed on dev 2026-11-25.** S5: a parameter without a type annotation, in the verified function or in a helper it calls, is a skip that names the parameter and suggests the annotation; it was dropped from the declarations and reached Z3 as an unknown constant (an ERROR). S6: each postcondition and obligation query ends with `(get-value (result))`, so a counterexample's `result` is the value on the model's inputs (`result: Int = 0`), where it was the body term (`(let ((a!1 (ite …` ) or missing. Tests: `unannotated_and_model_test.go`, each mutation-tested |
 
 **Five-repo corpus, 2026-11-23 (1,840 obligations):**
 - Verified: 698 → **748**.
@@ -35,6 +36,30 @@
 - No verdict regressions, and no new errors or counterexamples.
 
 Inconclusive dominates what is left of the HOF gain: real contracts rarely bound list length in `requires`. Witness replay (M6) is now the lever for those.
+
+## Remaining work
+
+Measured on the 2026-11-24T152306Z gap-map snapshot: 105 skipped, 9 inconclusive. "Any" counts skips whose reason names the blocker; "sole" counts those where it is the only one named, i.e. what removing it would turn into a verdict at that level.
+
+| Blocker | Any | Sole |
+|---|---|---|
+| A helper whose own encoding fails ("calls user function X that is not SMT-encodable", closure and nested-helper errors) | 34 | 27 |
+| A `map`/`foldl`/`any` chain whose lambda calls such a helper | 21 | 21 |
+| Effects (not targeted) | 17 | 8 |
+| A type variable in a helper signature (`foldChars` 8, `isErr` 2, `map`/`mapE`/`foldlE`/`flatMapChildren`/`intersect`) | 16 | 8 |
+| A tuple in a helper signature (`replaceMany`, `Result[(), string]`) | 11 | 8 |
+| Mutual recursion | 8 | 8 |
+| The bare-name collision gate (S4/S7) | 9 | 0 |
+| Builtins (`stringToInt`, `charCode`, `intersect`), `bytes` | 12 | 7 |
+
+Two readings. First, the two largest rows are not leaves: a helper fails, or a lambda calls one that fails, because of something further down (`std/json.get` → `findIndex`, `escapeXml` → `replaceMany`, `sha256Hex` → `bytes`, …). The snapshot blames the first helper only, so it cannot rank levers by what they unlock. Second, the structural levers proposed so far pay little on this corpus on their own: qualified callee identity frees no skip by itself, and type-variable instantiation frees at most 3 (`isErr` 2, `flatMapChildren` 1), since `foldChars` and the `map`-family callees also take a function argument.
+
+Next, in order:
+
+1. **Instrument: transitive blame.** The gap map attributes each skip to the leaf blocker at the bottom of its helper chain, and reports for each leaf how many skips list it as their only blocker. An M0 extension; no design doc.
+2. Levers ranked by that table. Expected candidates, each an M5 lever without a design doc: `foldChars` (an exact `chars` plus bounded unrolling; long strings become inconclusive, not verified), tuple sorts in helper signatures, `findIndex` (which unblocks `std/json.get`), `replaceMany`, mutual recursion.
+3. A design doc only for a lever that the table ranks high and that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation. This is the same seam that produced S7's false VERIFIED.
+4. Inconclusives (bounded unrolling exhausted): induction, Future Work.
 
 ## Why this program, and why not Lean
 
@@ -105,6 +130,7 @@ real contracts that reach a verdict roughly doubles.
 1. S1: a call that can violate a callee's `requires` is reported, not VERIFIED. The probe flips.
 2. S7: the V16 two-module probe is VIOLATION on 20 of 20 runs, and no callee lookup is keyed by bare name. S4/S5/S6: zero Z3 errors from encodable-but-unannotated input; skip reasons name the actual callee; counterexample values are literals.
 3. Coverage: encoding skips drop from 1,122 to ≤ 600 (M2 + M5), and verified rises from 698 to ≥ 1,100. No verified-to-counterexample flips go unexplained.
+   **Restated 2026-11-25** (agent-proposed): those numbers belong to the ad-hoc five-repo corpus, which M0 replaced with the corpora.yaml inventory (§M0 baseline), so they can no longer be measured. On the inventory: non-effect encoding skips halve from the M0 baseline, 115 (125 minus 10 effectful) to ≤ 58, with no unexplained flips. 2026-11-24T152306Z: 105 skipped, 17 of them effectful, so 88; verified 590 → 596. Verified is not targeted: on this corpus it is bounded by the contracts downstream code writes
 4. S2: an `int` overflow reachable under `requires` is surfaced, per D2's ruling.
 5. S3: per D4's ruling, either a float contract that is false for NaN is no longer VERIFIED, or every float-involving VERIFIED carries a machine-readable `float_model: real` caveat on the result row itself (not only the report header).
 
@@ -119,7 +145,7 @@ real contracts that reach a verdict roughly doubles.
 
 ### Design Freeze
 
-- [x] D1 ruled 2026-11-24 by Mark: **(a)**, a checked obligation; a possible violation is a `counterexample` with reason code `requires_violation`. M3 design: [m-verify-call-site-requires.md](m-verify-call-site-requires.md)
+- [x] D1 ruled 2026-11-24 by Mark: **(a)**, a checked obligation; a possible violation is a `counterexample` with reason code `requires_violation`. M3 design: [m-verify-call-site-requires.md](../../implemented/v0_61_0/m-verify-call-site-requires.md)
 
 **D2/D4 measurements (2026-11-24, throwaway prototype on the M3 obligation channel, not committed).**
 Parameters are assumed valid for their type (an `int` is an int64; a `float` is not NaN), and only
@@ -138,7 +164,7 @@ operations are checked, each as a path-scoped obligation.
   Option (b) as written (any comparison on an unguarded float input is unproved) would reach up to
   the 36 float-parameter proofs; (a) IEEE was not measured.
 - [x] D2 ruled 2026-11-24 by Mark: **(a′)**: int64 overflow obligations, reported on the VERIFIED result (`caveats`, kind `int_overflow`) by default; `--int-model=int64` makes them violations. The default flips to (a) once downstream packages carry bounds
-- [x] D4 ruled 2026-11-24 by Mark: **(b′)**: operations that make NaN/±Inf from ordinary inputs (float `/` and `%` by a possible zero, `sqrt` of a negative, `log` of a non-positive) are checked, and a possible one is a violation (`float_nan_or_inf`); every float result notes that its inputs are assumed non-NaN. M4 design: [m-verify-numeric-model.md](m-verify-numeric-model.md)
+- [x] D4 ruled 2026-11-24 by Mark: **(b′)**: operations that make NaN/±Inf from ordinary inputs (float `/` and `%` by a possible zero, `sqrt` of a negative, `log` of a non-positive) are checked, and a possible one is a violation (`float_nan_or_inf`); every float result notes that its inputs are assumed non-NaN. M4 design: [m-verify-numeric-model.md](../../implemented/v0_61_0/m-verify-numeric-model.md)
 - [x] D3: agent latitude, default (a)
 
 ## Solution Design
@@ -271,10 +297,10 @@ After:   ✓ VERIFIED incrementAll  (bounded: depth 2)
 ## Success Criteria
 
 - [x] M0: `make verify-gap-map` banks a snapshot and diffs against the previous one. Re-based on the corpora.yaml inventory rather than reproducing the earlier ad-hoc corpus table (see §M0 baseline)
-- [ ] M1: the S7 two-module probe is VIOLATION ×20; the S4/S5/S6 probes and a sorted-order test pass; each is mutation-tested (revert the fix, watch its test fail)
+- [x] M1: the S7 probe is VIOLATION, deterministically (`TestCalleeIdentityNeverBindsAnotherModulesFunction`, 5 runs per case over a sorted lookup); S5/S6 probes pass and are mutation-tested
+- [ ] M1 (S4 remainder): no callee lookup keyed by bare name. Deferred: the gate is sound and is the only blocker of no corpus skip
 - [ ] M1: `make verify-examples` pins current verdicts and stays green. A mutation that changes any pinned verdict (e.g. makes `finance.ail`'s `brokenDiscount` SKIP) turns it red
-- [ ] M2: `hof_verify.ail` re-pinned to VERIFIED
-- [ ] M2: `hof_verify.ail` VERIFIED; a `[record]`-list `filter` with a field-named `let` never reaches a Z3 error; gap-map HOF-attributed skips ≤ 50
+- [x] M2: `hof_verify.ail` VERIFIED (`incrementAll`, `positives`, bounded depth 3); a `[record]`-list `filter` with a field-named `let` never reaches a Z3 error; gap-map HOF-attributed skips 29 (≤ 50) on the 2026-11-24T152306Z snapshot
 - [x] M3: the S1 probe flips (`caller` VIOLATION, `requires_violation`); the gap-map flip list is empty
 - [x] M4: per D2 (a′) the S2 probe carries an `int_overflow` caveat (a violation under `--int-model=int64`); per D4 (b′) the S3 probe carries `float_inputs_assumed_non_nan`, and NaN-producing operations are violations
 - [ ] Each milestone: contracts guide, limitations page and prompt "open gaps" lines updated; changelog fragment

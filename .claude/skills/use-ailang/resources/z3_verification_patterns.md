@@ -115,7 +115,7 @@ Z3 can only verify functions within the "decidable fragment." This is checked by
 - Prove **unbounded recursion** — there is no induction; an unbounded recursive function is INCONCLUSIVE
 - Pass a **function-typed parameter** to `map`/`filter`/`foldl`/`any`/`flatMap` (a lambda or a named top-level function is fine). They are unrolled to depth 3: map/filter length relations are proved for any list; other properties VERIFY when `requires` bounds the list length and are INCONCLUSIVE otherwise
 - Use **bitwise** operators (`&`, `^`, `~`, `<<`, `>>`) — skipped as unencodable
-- Use an **unannotated generic parameter** (`func f(x)`) — reaches Z3 as an error (#2400); annotate `x: int`
+- Take an **unannotated parameter** (`func f(x)`), or call a helper that does — skipped, and the reason names it; annotate `x: int`
 - Use **arrays** (use lists instead)
 - Expect values from `trim`/`toLower`/`toUpper`/`split`/`chars`/`join`/`repeat`/`replace`: they are known only by facts (trim never lengthens, case keeps length, `split(s, ",")` has ≥ 1 part, …), so `result == "abc"` after `trim` is not provable. Unsupported: `words`, `foldChars`, `replaceMany`, datetime builtins (`addDays`, …)
 

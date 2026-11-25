@@ -1,6 +1,6 @@
 # M-VERIFY-CALL-SITE-REQUIRES — check a callee's `requires` at each call (program M3)
 
-**Status**: Implemented on dev 2026-11-24 (see §Result). **Program**: [M-VERIFY-SOUNDNESS-COVERAGE](m-verify-soundness-coverage-program.md) M3 (gap S1).
+**Status**: Implemented, shipped in v0.61.0 (see §Result). **Program**: [M-VERIFY-SOUNDNESS-COVERAGE](../../planned/v0_61_0/m-verify-soundness-coverage-program.md) M3 (gap S1).
 **Ruling**: D1 = (a), Mark, 2026-11-24: a call that may violate its callee's `requires` is a
 `counterexample` with reason code `requires_violation`.
 **Quorum**: no trigger fires. D1 is ruled, so there are no freeze items; the change is local to

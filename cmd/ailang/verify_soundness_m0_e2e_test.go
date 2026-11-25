@@ -75,13 +75,14 @@ func TestVerifyM0_ArithmeticAndIdentity(t *testing.T) {
 	for _, name := range []string{"parity", "halfDown"} {
 		negative := false
 		for _, b := range rows[name].Model {
-			if b.Name == "$p_x" {
-				v := strings.TrimSuffix(strings.TrimPrefix(b.Value, "(- "), ")")
-				n, err := strconv.Atoi(v)
+			// Models are rendered as AILANG (model_format.go): `x`, not `$p_x`,
+			// and `-1`, not `(- 1)`.
+			if b.Name == "x" {
+				n, err := strconv.Atoi(b.Value)
 				if err != nil {
 					t.Fatal(err)
 				}
-				negative = strings.HasPrefix(b.Value, "(- ") && n > 0
+				negative = n < 0
 			}
 		}
 		if !negative {

@@ -8,7 +8,7 @@ import (
 )
 
 // Numeric obligations (M-VERIFY-SOUNDNESS-COVERAGE M4, decisions D2(a′) and
-// D4(b′); design: design_docs/planned/v0_61_0/m-verify-numeric-model.md).
+// D4(b′); design: design_docs/implemented/v0_61_0/m-verify-numeric-model.md).
 //
 // They ride the call-site obligation channel (codegen_obligations.go) under two
 // reserved names, so they are path-scoped, emitted for the verified body only,

@@ -677,6 +677,10 @@ func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.Cor
 		})
 	}
 
+	if name := firstUnannotatedParam(decl...); name != "" {
+		reasons = append(reasons, unannotatedParamRejection("Callee", funcName, name))
+	}
+
 	return len(reasons) == 0, reasons
 }
 

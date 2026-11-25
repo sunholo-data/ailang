@@ -1,0 +1,5 @@
+module unannotated_params
+func helper(x) { x + 1 }
+export pure func inc(x) -> int requires { x > 0 } ensures { result > 1 } { x + 1 }
+export pure func usesHelper(n: int) -> int ensures { result > n } { helper(n) }
+export pure func annotated(x: int) -> int requires { x > 0 } ensures { result > 1 } { x + 1 }

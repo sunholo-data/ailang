@@ -9,7 +9,7 @@ import (
 )
 
 // Call-site preconditions (M-VERIFY-SOUNDNESS-COVERAGE M3, decision D1(a);
-// design: design_docs/planned/v0_61_0/m-verify-call-site-requires.md).
+// design: design_docs/implemented/v0_61_0/m-verify-call-site-requires.md).
 //
 // A call to g in the verified function's body adds the call fact
 // (=> $req_ok_g <g's requires on the actual arguments>). Call facts are already

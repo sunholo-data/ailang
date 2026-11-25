@@ -1,5 +1,7 @@
 # verify: callee `requires` never discharged at call sites (inlined-body verification is unsound)
 
+> **RESOLVED in v0.61.0** by [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md) M3 ([design](../../implemented/v0_61_0/m-verify-call-site-requires.md)), D1 (a): a call that may break its callee's `requires`, in the verified body, its helpers, lambdas and recursion, is a `counterexample` with reason code `requires_violation`. The probe below now reports `caller` as a violation. The text below is the original triage, kept for history.
+
 > **Re-verified 2026-11-23 at v0.60.6-128 (Z3 4.16.0): STILL OPEN.** `one(n) requires { n > 0 } ensures { result == 1 }` called from `caller(n) requires { n < 0 } ensures { result == 1 }` reports both VERIFIED. Now documented as a known gap in `docs/docs/reference/limitations.md` (Static verification entry) and the teaching prompt v0.16.17; the fix is still unrouted. Point 3 below (callee `requires` asserted as an axiom) is **stale**: since fd6140dc0 `codegen_xmod_contract.go:98` emits the guarded implication `(=> requires ensures)`, so a violated precondition no longer makes the callee's `ensures` vacuously available. Points 1–2 stand. Routed as M3 of [M-VERIFY-SOUNDNESS-COVERAGE](../v0_61_0/m-verify-soundness-coverage-program.md), gated on decision D1.
 
 - **Date**: 2026-09-29

@@ -423,32 +423,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			rejections = filtered
 			encodable = len(rejections) == 0
 		}
-		// Callee-identity gate (S7): every callee lookup below is by bare name. If a
-		// reachable call means a different module's function than that lookup would
-		// bind, the encoding would prove a contract about the wrong code — refuse.
-		if m := firstMisresolvedCallee(append([]core.CoreExpr{body}, contractExprs(meta.Contracts)...), funcName, owner, coreProg, importedPrograms); m != nil {
-			resolved := m.Resolved
-			if resolved == "" {
-				resolved = owner
-			}
-			rejections = append(rejections, SMTRejectionReason{
-				Code:    RejectUnencodable,
-				Message: fmt.Sprintf("Function %q calls %s.%s, but another loaded module (%s) also defines %q and the verifier resolves callees by bare name", funcName, m.Wanted, m.Name, resolved, m.Name),
-				Hint:    "Rename one of the two functions so the name is unique among the modules this function's calls reach.",
-			})
-			encodable = false
-		}
-		// Callee-sort gate: reject cleanly if a cross-function callee has an
-		// unencodable signature type (e.g. a type variable) rather than leaking an
-		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
-		// Contract predicates are gated too: their callees are resolved as define-funs
-		// (ResolveCalleesFromRoots), so an unencodable callee sort there would leak.
-		if callee, badType := firstUnencodableCalleeInFunc(funcName, body, meta.Contracts, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
-			rejections = append(rejections, SMTRejectionReason{
-				Code:    RejectUnencodable,
-				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-				Hint:    "Cross-function verification cannot encode type variables, tuples, function types or bytes in a callee signature (Option/Result and other ADTs at a concrete type are fine). Give the callee a concrete signature, or inline its logic into the caller.",
-			})
+		if gates := calleeGateRejections(funcName, owner, body, meta.Contracts, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); len(gates) > 0 {
+			rejections = append(rejections, gates...)
 			encodable = false
 		}
 		if !encodable {
