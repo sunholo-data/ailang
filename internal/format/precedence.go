@@ -9,6 +9,7 @@ package format
 const (
 	precLowest      = 0
 	precLambda      = 1  // \x. ...   (lowest binding operator)
+	precPipe        = 1  // |>        (shares lowest band with lambda; left-associative)
 	precLogicalOr   = 2  // ||
 	precLogicalAnd  = 3  // &&
 	precBitwiseXor  = 5  // ^
@@ -31,6 +32,8 @@ const (
 // (never fewer than the parser needs).
 func binaryPrecedence(op string) int {
 	switch op {
+	case "|>":
+		return precPipe
 	case "||":
 		return precLogicalOr
 	case "&&":

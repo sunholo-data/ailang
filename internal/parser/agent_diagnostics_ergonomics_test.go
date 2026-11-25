@@ -64,24 +64,20 @@ export pure func f(x: int) -> int = x + 1
 	}
 }
 
-func TestM3_PipeOperatorDiagnostic(t *testing.T) {
+func TestM5a_PipeOperatorParsesLeftAssociative(t *testing.T) {
 	src := `module m
 export pure func f(x: int) -> int {
-  let y = x |> g;
+  let y = x + 1 |> (\n. n * 2) |> g;
   y
 }
 `
 	p := New(lexer.New(src, "test.ail"))
-	_ = p.ParseFile()
-	foundPipe := false
-	for _, err := range p.Errors() {
-		if strings.Contains(err.Error(), "PAR_PIPE_OPERATOR") {
-			foundPipe = true
-			break
-		}
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("unexpected parse errors for pipe operator: %v", p.Errors())
 	}
-	if !foundPipe {
-		t.Fatalf("expected PAR_PIPE_OPERATOR, got: %v", p.Errors())
+	if file == nil || len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 func, got %#v", file)
 	}
 }
 

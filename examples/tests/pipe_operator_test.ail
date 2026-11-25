@@ -1,0 +1,29 @@
+module examples/tests/pipe_operator_test
+
+import std/list (map, filter, foldl)
+import std/option (Option, Some, None, getOrElse)
+import std/string (stringToInt)
+
+pure func double(x: int) -> int = x * 2
+pure func inc(x: int) -> int = x + 1
+
+test "pipe operator basic left-associative chain" {
+  assert (5 |> inc |> double) == 12
+  assert (5 + 1 |> double |> inc) == 13
+}
+
+test "pipe operator with parenthesized lambda stages" {
+  let result = [1, 2, 3, 4, 5]
+    |> (\xs. filter(\x. x % 2 == 1, xs))
+    |> (\xs. map(\x. x * 10, xs))
+    |> (\xs. foldl(\acc x. acc + x, 0, xs))
+  assert result == 90
+}
+
+test "pipe operator with Option chaining" {
+  let parsed = "42"
+    |> stringToInt
+    |> (\o. getOrElse(o, 0))
+    |> double
+  assert parsed == 84
+}

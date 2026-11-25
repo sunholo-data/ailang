@@ -184,21 +184,6 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 	// `a | b` expecting bitwise OR, then thrash for 17+ turns. AILANG's `|`
 	// is reserved for pattern alternatives in `match` only.
 	if t == lexer.PIPE {
-		if p.peekTokenIs(lexer.GT) {
-			err := NewSuggestionError(
-				"PAR_PIPE_OPERATOR",
-				p.curPos(),
-				p.curToken,
-				"AILANG does not have a '|>' pipe operator",
-				[]string{
-					"Nest function calls directly: g(f(x))",
-					"Or bind intermediate values with 'let': let a = f(x); g(a)",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			)
-			p.errors = append(p.errors, err)
-			return
-		}
 		err := NewSuggestionError(
 			"PAR016",
 			p.curPos(),

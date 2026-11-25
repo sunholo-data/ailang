@@ -61,6 +61,7 @@ type (
 const (
 	LOWEST      = 0
 	LAMBDA      = 1  // \x. (lowest precedence)
+	PIPE        = 1  // |> (shares lowest operator band with LAMBDA; left-associative)
 	LogicalOr   = 2  // ||
 	LogicalAnd  = 3  // &&
 	BitwiseXor  = 5  // ^   (4 reserved for future bitwise OR |)
@@ -128,6 +129,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.GTE, p.parseInfixExpression)
 	p.registerInfix(lexer.AND, p.parseInfixExpression)
 	p.registerInfix(lexer.OR, p.parseInfixExpression)
+	p.registerInfix(lexer.PIPE_ARROW, p.parseInfixExpression)
 	p.registerInfix(lexer.APPEND, p.parseInfixExpression)
 	p.registerInfix(lexer.AMPERSAND, p.parseInfixExpression) // bitwise AND
 	p.registerInfix(lexer.CARET, p.parseInfixExpression)     // bitwise XOR

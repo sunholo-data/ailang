@@ -67,36 +67,37 @@ const (
 	INVARIANT // invariant
 
 	// Operators
-	PLUS      // +
-	MINUS     // -
-	STAR      // *
-	SLASH     // /
-	PERCENT   // %
-	EQ        // ==
-	NEQ       // !=
-	LT        // <
-	GT        // >
-	LTE       // <=
-	GTE       // >=
-	AND       // &&
-	OR        // ||
-	NOT       // not
-	ARROW     // ->
-	FARROW    // =>
-	LARROW    // <-
-	PIPE      // |
-	APPEND    // ++
-	CONS      // ::
-	COMPOSE   // .
-	BANG      // !
-	QUESTION  // ?
-	AT        // @
-	DOLLAR    // $
-	HASH      // #
-	ASSIGN    // =
-	COLON     // :
-	DCOLON    // ::
-	BACKSLASH // \
+	PLUS       // +
+	MINUS      // -
+	STAR       // *
+	SLASH      // /
+	PERCENT    // %
+	EQ         // ==
+	NEQ        // !=
+	LT         // <
+	GT         // >
+	LTE        // <=
+	GTE        // >=
+	AND        // &&
+	OR         // ||
+	NOT        // not
+	ARROW      // ->
+	FARROW     // =>
+	LARROW     // <-
+	PIPE       // |
+	PIPE_ARROW // |>
+	APPEND     // ++
+	CONS       // ::
+	COMPOSE    // .
+	BANG       // !
+	QUESTION   // ?
+	AT         // @
+	DOLLAR     // $
+	HASH       // #
+	ASSIGN     // =
+	COLON      // :
+	DCOLON     // ::
+	BACKSLASH  // \
 
 	// Bitwise operators
 	AMPERSAND // & (bitwise AND)
@@ -189,36 +190,37 @@ var tokens = map[TokenType]string{
 	ENSURES:    "ensures",
 	INVARIANT:  "invariant",
 
-	PLUS:      "+",
-	MINUS:     "-",
-	STAR:      "*",
-	SLASH:     "/",
-	PERCENT:   "%",
-	EQ:        "==",
-	NEQ:       "!=",
-	LT:        "<",
-	GT:        ">",
-	LTE:       "<=",
-	GTE:       ">=",
-	AND:       "&&",
-	OR:        "||",
-	NOT:       "not",
-	ARROW:     "->",
-	FARROW:    "=>",
-	LARROW:    "<-",
-	PIPE:      "|",
-	APPEND:    "++",
-	CONS:      "::",
-	COMPOSE:   ".",
-	BANG:      "!",
-	QUESTION:  "?",
-	AT:        "@",
-	DOLLAR:    "$",
-	HASH:      "#",
-	ASSIGN:    "=",
-	COLON:     ":",
-	DCOLON:    "::",
-	BACKSLASH: "\\",
+	PLUS:       "+",
+	MINUS:      "-",
+	STAR:       "*",
+	SLASH:      "/",
+	PERCENT:    "%",
+	EQ:         "==",
+	NEQ:        "!=",
+	LT:         "<",
+	GT:         ">",
+	LTE:        "<=",
+	GTE:        ">=",
+	AND:        "&&",
+	OR:         "||",
+	NOT:        "not",
+	ARROW:      "->",
+	FARROW:     "=>",
+	LARROW:     "<-",
+	PIPE:       "|",
+	PIPE_ARROW: "|>",
+	APPEND:     "++",
+	CONS:       "::",
+	COMPOSE:    ".",
+	BANG:       "!",
+	QUESTION:   "?",
+	AT:         "@",
+	DOLLAR:     "$",
+	HASH:       "#",
+	ASSIGN:     "=",
+	COLON:      ":",
+	DCOLON:     "::",
+	BACKSLASH:  "\\",
 
 	AMPERSAND: "&",
 	CARET:     "^",
@@ -381,7 +383,7 @@ func (t Token) IsOperator() bool {
 		EQ, NEQ, LT, GT, LTE, GTE,
 		AND, OR, NOT,
 		APPEND, CONS, COMPOSE,
-		PIPE,
+		PIPE, PIPE_ARROW,
 		AMPERSAND, CARET, TILDE, SHL, SHR:
 		return true
 	}
@@ -425,8 +427,8 @@ func (t Token) IsKeyword() bool {
 //	LAMBDA       \                   (1)
 func (t Token) Precedence() int {
 	switch t.Type {
-	case BACKSLASH:
-		return 1 // LAMBDA - lowest precedence
+	case BACKSLASH, PIPE_ARROW:
+		return 1 // LAMBDA / PIPE (|>) - lowest precedence
 	case OR:
 		return 2 // LOGICAL_OR
 	case AND:

@@ -222,6 +222,26 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		return e.normalizeShortCircuit(binop)
 	}
 
+	// Pipe operator `x |> f` desugars to LHS-first Let + App (M-PIPE-OPERATOR):
+	// normalizeToAtomic(Left) runs before normalizeToAtomic(Right), pinning
+	// left-to-right evaluation order for effectful stages.
+	if binop.Op == "|>" {
+		left, leftBinds, err := e.normalizeToAtomic(binop.Left)
+		if err != nil {
+			return nil, err
+		}
+		right, rightBinds, err := e.normalizeToAtomic(binop.Right)
+		if err != nil {
+			return nil, err
+		}
+		app := &core.App{
+			CoreNode: e.makeNode(binop.Position()),
+			Func:     right,
+			Args:     []core.CoreExpr{left},
+		}
+		return e.wrapWithBindings(app, append(leftBinds, rightBinds...)), nil
+	}
+
 	// Normalize operands to atomic values
 	left, leftBinds, err := e.normalizeToAtomic(binop.Left)
 	if err != nil {

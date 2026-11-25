@@ -192,6 +192,10 @@ func (l *Lexer) NextToken() Token {
 			ch := l.ch
 			l.readChar()
 			tok = NewToken(OR, string(ch)+string(l.ch), line, column, l.file)
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = NewToken(PIPE_ARROW, string(ch)+string(l.ch), line, column, l.file)
 		} else {
 			tok = NewToken(PIPE, string(l.ch), line, column, l.file)
 		}
