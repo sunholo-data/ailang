@@ -677,11 +677,18 @@ func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.Cor
 		})
 	}
 
-	// Encodable types only
-	if hasUnencodableTypes(body) {
+	// Encodable builtins and shapes only. Name the builtin, as the
+	// function-level check does: "uses unencodable types" was the largest
+	// skip bucket in the gap map and said nothing about what to change.
+	if blocker := firstUnencodableBuiltin(body); blocker != "" {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectUnencodable,
-			Message: fmt.Sprintf("Callee %q uses unencodable types", funcName),
+			Message: fmt.Sprintf("Callee %q uses an unencodable builtin: %s", funcName, blocker),
+		})
+	} else if hasUnencodableTypes(body) {
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectUnencodable,
+			Message: fmt.Sprintf("Callee %q uses an array literal, which has no SMT sort", funcName),
 		})
 	}
 

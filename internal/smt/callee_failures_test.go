@@ -17,6 +17,8 @@ func TestSkipThroughHelpersNamesTheBlocker(t *testing.T) {
 		"ping": {`calls user function "pong"`, "the helpers are mutually recursive"},
 		// getString → get → findInList, a private std/json helper.
 		"named": {`calls user function "findInList"`, "was not collected as a callee"},
+		// A helper's unencodable builtin is named, not "uses unencodable types".
+		"viaParse": {`calls user function "parsed"`, `Callee "parsed" uses an unencodable builtin: std/string.stringToInt`},
 	}
 	report := verifyFixture(t, "callee_chain.ail")
 	seen := map[string]bool{}

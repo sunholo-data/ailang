@@ -1,6 +1,7 @@
 module callee_chain
 import std/json (Json, getString)
 import std/option (Option, Some, None)
+import std/string (stringToInt)
 
 -- leaf matches on a list pattern inside an unrolled recursion, which the
 -- encoder cannot decode; mid calls leaf; top calls mid.
@@ -37,4 +38,18 @@ export func named(j: Json) -> bool
     Some(_) => true,
     None => false
   }
+}
+
+-- parsed calls stringToInt, which has no SMT encoding.
+func parsed(s: string) -> int {
+  match stringToInt(s) {
+    Some(n) => n,
+    None => 0
+  }
+}
+
+export func viaParse(s: string) -> int
+  ensures { result == result }
+{
+  parsed(s) + 1
 }

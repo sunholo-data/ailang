@@ -40,6 +40,10 @@ const mutualRecursion = "mutually recursive helpers"
 // has fields [...]", whatever the fields.
 const anonymousRecord = "record construction with no declared record type"
 
+// builtinRe matches "Function "f" uses an unencodable builtin: X" and its
+// callee form "Callee "g" uses an unencodable builtin: X".
+var builtinRe = regexp.MustCompile(`^(?:Function|Callee) "[^"]*" uses an unencodable builtin: (\S+)`)
+
 // rootReason strips every encoder layer off the front of a reason.
 func rootReason(reason string) string {
 	s := strings.TrimSpace(reason)
@@ -70,6 +74,10 @@ func blockers(reason string) []string {
 		switch m := calleeRe.FindStringSubmatch(part); {
 		case m != nil:
 			b = "callee signature uses an unencodable type: " + typeHead(m[2])
+		case builtinRe.MatchString(part):
+			// The function-level and callee-level wordings name the same lever;
+			// the name is kept as written (digit folding would turn sha256 into shaN).
+			b = "unencodable builtin: " + strings.TrimRight(builtinRe.FindStringSubmatch(part)[1], ")")
 		case strings.HasPrefix(part, "record construction: no declared record type has fields"):
 			// One lever (an anonymous record has no sort) whatever the fields.
 			b = anonymousRecord
