@@ -325,6 +325,8 @@ func PrintAILANGSource(expr ast.Expr) string {
 		return e.String() // bool, int, float: ast.Literal.String() spells each re-parseably (#1448)
 	case *ast.Identifier:
 		return e.Name
+	case *ast.Hole:
+		return e.String()
 	case *ast.BinaryOp:
 		return fmt.Sprintf("(%s %s %s)",
 			printOperand(e.Left), e.Op, printOperand(e.Right))

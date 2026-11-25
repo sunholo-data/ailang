@@ -113,6 +113,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.PURE, p.parsePureLambda)
 	p.registerPrefix(lexer.BACKSLASH, p.parseBackslashLambda)
 	p.registerPrefix(lexer.FORALL, p.parseForallExpression)
+	p.registerPrefix(lexer.QUESTION, p.parseHoleExpression)
 
 	// Register infix parse functions
 	p.infixParseFns = make(map[lexer.TokenType]infixParseFn)

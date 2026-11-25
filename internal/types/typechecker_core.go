@@ -103,10 +103,9 @@ type CoreTypeChecker struct {
 	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
 	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
 	rigidState                  // M-V1-RIGID-SIGNATURES (#2273) state (rigid_sig.go)
+	holeState                   // M-AI-PREFERRED-LANGUAGE M3 typed holes (typechecker_holes.go)
 	DebugSink     TypeDebugSink // M-DX11: debug sink for type inference events
-	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
-	// applied once at the end via FinalizeSubstitutions(). Eliminates O(N*M) overhead
-	// where N=CoreTI entries and M=let-bindings.
+	// M-PERF-DOCPARSE: Deferred CoreTI substitution — applied once via FinalizeSubstitutions().
 	pendingCoreTISub Substitution
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): when set, downgrades the
 	// new RecordAccessOnTaggedUnionError to a non-fatal warning so existing

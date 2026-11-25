@@ -153,6 +153,9 @@ func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*type
 
 // inferVar infers type of variable
 func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typedast.TypedVar, *TypeEnv, error) {
+	if holeName, isHole := parseHoleVarName(v.Name); isHole {
+		return tc.inferHole(ctx, v, holeName)
+	}
 	typ, err := ctx.env.Lookup(v.Name)
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("undefined variable: %s at %s%s%s%s", v.Name, v.Span(), tc.localResolutionHint(v.Name), importHint(v.Name), builtinHint(v.Name))

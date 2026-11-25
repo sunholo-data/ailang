@@ -78,6 +78,7 @@ var rtCorpus = map[string][]string{
 	// string must not come back as an interpolation.
 	"Literal":    {`1`, `-7`, `1.5`, `"a\n\t\"q\""`, `true`, `()`, `0x8000000000000000`, `0x9e3779b97f4a7c15`, `"cost: \${x}"`},
 	"Identifier": {`x`},
+	"Hole":       {`_?`, `?todo`},
 	"BinaryOp": {`a + b * c`, `a - b / c % d`, `a == b`, `a != b`, `a < b`, `a <= b`, `a > b`, `a >= b`,
 		`a && b || c`, `a ++ b`, `xs ++ [1]`, `"a" ++ "b"`, `a ^ b`, `a << 2`, `a >> 1`, `(if c then [1] else [2]) ++ ys`,
 		`a |> f`, `a |> f |> g`, `a + 1 |> (\x. x * 2) |> g`},

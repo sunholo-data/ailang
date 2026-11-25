@@ -36,6 +36,15 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Literal:
 		return e.normalizeLiteral(ex)
 
+	case *ast.Hole:
+		// M-AI-PREFERRED-LANGUAGE M3: typed holes lower to a sentinel core.Var
+		// so downstream Core passes need no new node; CoreTypeChecker intercepts
+		// it, unifies a fresh TVar, and reports TC_HOLE after FinalizeSubstitutions.
+		return &core.Var{
+			CoreNode: e.makeNode(ex.Position()),
+			Name:     "__ailang_hole__:" + ex.Name,
+		}, nil
+
 	case *ast.Identifier:
 		// Hygienic builtin reference synthesized by a desugar (currently the
 		// `show` wrapper the interpolation desugar inserts). It must reach

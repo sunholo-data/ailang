@@ -56,6 +56,23 @@ func (i *Identifier) Position() Pos  { return i.Pos }
 func (i *Identifier) exprNode()      {}
 func (i *Identifier) patternNode()   {}
 
+// Hole represents a typed hole expression (`_?` or `?name`) used for
+// type-directed synthesis: unifies with any expected type and reports TC_HOLE
+// with the resolved expected type and in-scope bindings (M-AI-PREFERRED-LANGUAGE M3).
+type Hole struct {
+	Name string // "" for anonymous `_?`, or identifier for `?name`
+	Pos  Pos
+}
+
+func (h *Hole) String() string {
+	if h.Name == "" {
+		return "_?"
+	}
+	return "?" + h.Name
+}
+func (h *Hole) Position() Pos { return h.Pos }
+func (h *Hole) exprNode()     {}
+
 // Literal represents a literal value.
 //
 // ⚠️ CRITICAL GOTCHA: Lexer returns int64 for integers, NOT int!

@@ -191,6 +191,15 @@ export pure func all[a](p: a -> bool, xs: [a]) -> bool =
 -- Iterative builtin: O(n), no depth limit (#1518).
 export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] = _list_findIndex(p, xs)
 
+-- find: Return the first element matching predicate (short-circuits like findIndex).
+-- Iterative O(n) via _list_findIndex + nth, no depth limit.
+export pure func find[a](p: a -> bool, xs: [a]) -> Option[a] {
+  match _list_findIndex(p, xs) {
+    Some(i) => nth(xs, i),
+    None => None
+  }
+}
+
 -- enumerate: Pair each element with its 0-based index: [(0, x0), (1, x1), ...].
 -- Iterative O(n) via _list_zip + _list_range, no depth limit.
 export pure func enumerate[a](xs: [a]) -> [(int, a)] =

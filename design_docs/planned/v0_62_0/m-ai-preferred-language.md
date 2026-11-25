@@ -1,6 +1,6 @@
 # M-AI-PREFERRED-LANGUAGE: Closing the Remaining Gaps for AI-Native Programming
 
-**Status**: Phase 1 + M5a Implemented (M4 `aa930e153`, M1 `2a432678e`, M2 `c8022abce`, M5a `|>` — 2026-11-25); Remaining: M3 (typed holes `_?`), M5b (`?` v1.1.0)
+**Status**: Implemented (M1 `2a432678e`, M2 `c8022abce`, M3 `_?`/`?name`, M4 `aa930e153` + `find`, M5a `5315d160e` `|>` — 2026-11-25); Deferred to v1.1.0: M5b (`?`)
 **Target**: v0.62.0 / v1.1.0 (phased across pre-1.0 quick wins and post-1.0 language extensions)
 **Priority**: P1 (High — directly targets AI single-shot accuracy and 1-turn agent self-repair)
 **Estimated**: 5 independent milestones (M1–M5), executable in any order

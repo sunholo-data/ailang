@@ -23,6 +23,9 @@ func (p *printer) expr(e ast.Expr, parentPrec int) error {
 	case *ast.Identifier:
 		p.w.write(n.Name)
 		return nil
+	case *ast.Hole:
+		p.w.write(n.String())
+		return nil
 	case *ast.Literal:
 		s, err := literalString(n)
 		if err != nil {

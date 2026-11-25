@@ -236,6 +236,10 @@ func typeCheckAndLowerModule(
 		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
+	if err := typeChecker.VerifyTypedHoles(); err != nil {
+		return nil, err
+	}
+
 	if err := checkTestBodyEffects(unit.Surface, checkBodies, typeChecker); err != nil {
 		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}

@@ -12,10 +12,29 @@ import (
 // Prefix parse functions for literals and identifiers
 
 func (p *Parser) parseIdentifier() ast.Expr {
+	pos := p.curPos()
+	// M-AI-PREFERRED-LANGUAGE M3: `_?` parses as an anonymous typed hole.
+	if p.curToken.Literal == "_" && p.peekTokenIs(lexer.QUESTION) {
+		p.nextToken() // consume '?'
+		return &ast.Hole{Pos: pos}
+	}
 	return &ast.Identifier{
 		Name: p.curToken.Literal,
-		Pos:  p.curPos(),
+		Pos:  pos,
 	}
+}
+
+// parseHoleExpression parses `?name` (named typed hole) or bare `?` (anonymous typed hole).
+func (p *Parser) parseHoleExpression() ast.Expr {
+	pos := p.curPos()
+	if p.peekTokenIs(lexer.IDENT) {
+		p.nextToken()
+		return &ast.Hole{
+			Name: p.curToken.Literal,
+			Pos:  pos,
+		}
+	}
+	return &ast.Hole{Pos: pos}
 }
 
 // parseIntLiteralValue converts an integer-literal token to int64. Hex (0x),

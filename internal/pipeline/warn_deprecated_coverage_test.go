@@ -128,7 +128,7 @@ var deprecatedExprKinds = map[string]string{
 	"Identifier": "use", "RecordAccess": "use (L.f)",
 	"Lambda": "binder", "FuncLit": "binder", "Let": "binder", "LetPattern": "binder", "LetRec": "binder",
 	"Block": "binder (sequential let)", "Match": "binder (pattern variables)", "ForallExpr": "binder",
-	"Literal": "plain", "BinaryOp": "plain", "UnaryOp": "plain", "AssertStmt": "plain",
+	"Literal": "plain", "Hole": "plain", "BinaryOp": "plain", "UnaryOp": "plain", "AssertStmt": "plain",
 	"FuncCall": "plain", "If": "plain", "List": "plain", "Array": "plain", "Tuple": "plain",
 	"Record": "plain", "RecordUpdate": "plain", "Error": "plain", "QuasiQuote": "plain",
 	"Send": "plain", "Recv": "plain",
