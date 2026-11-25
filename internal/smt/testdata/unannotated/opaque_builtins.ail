@@ -1,0 +1,82 @@
+module opaque_builtins
+import std/json (Json, JString, JObject, JArray, JNull, encode, decode, kv, js)
+import std/crypto (sha256Hex)
+import std/xml (escapeXml)
+import std/string (length, startsWith, endsWith, contains)
+
+-- The contract does not depend on encode's value.
+export func framed(j: Json) -> string
+  ensures { startsWith(result, "data: ") }
+{
+  "data: ${encode(j)}"
+}
+
+-- Shape facts: a JSON object is {...}, an empty array is [].
+export func objectText(name: string) -> string
+  ensures { startsWith(result, "{") && endsWith(result, "}") }
+{
+  encode(JObject([kv("name", js(name))]))
+}
+
+export func emptyArray() -> string
+  ensures { result == "[]" }
+{
+  encode(JArray([]))
+}
+
+-- Shape is not content: the verifier cannot know what the object holds.
+export func objectTextFalse(name: string) -> string
+  ensures { length(result) > 20 }
+{
+  encode(JObject([kv("name", js(name))]))
+}
+
+export func digest(s: string) -> string
+  ensures { length(result) == 64 }
+{
+  sha256Hex(s)
+}
+
+export func digestFalse(s: string) -> string
+  ensures { length(result) == 40 }
+{
+  sha256Hex(s)
+}
+
+export func escaped(s: string) -> string
+  ensures { length(result) >= length(s) && !contains(result, "<") }
+{
+  escapeXml(s)
+}
+
+export func plainUnchanged() -> string
+  ensures { result == "plain text" }
+{
+  escapeXml("plain text")
+}
+
+export func parses(s: string) -> int
+  ensures { result >= 0 }
+{
+  match decode(s) {
+    Ok(_) => 1,
+    Err(_) => 0
+  }
+}
+
+export func parsesFalse(s: string) -> int
+  ensures { result == 1 }
+{
+  match decode(s) {
+    Ok(_) => 1,
+    Err(_) => 0
+  }
+}
+
+-- A-normalisation hoists the [] out of the constructor; its sort is the field's.
+export func emptyHoisted() -> Json
+  ensures { result != JNull }
+{
+  let xs = [];
+  JArray(xs)
+}

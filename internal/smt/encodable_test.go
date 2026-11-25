@@ -508,9 +508,13 @@ func TestIsUnencodableBuiltin(t *testing.T) {
 		{"floatToInt", false},
 		{"_int_to_float", false},
 		{"_float_to_int", false},
+		// Opaque pure builtins — encodable as uninterpreted functions
+		{"_json_encode", false},
+		{"_json_decode", false},
+		{"_crypto_sha256hex", false},
+		{"_escapeXml", false},
 		// Other pure builtins WITHOUT SMT mapping — unencodable (B1 fix)
-		{"_json_encode", true},
-		{"_json_decode", true},
+		{"_json_repair", true},
 		{"_simhash", true},
 		{"_hamming_distance", true},
 		{"_str_compare", true},

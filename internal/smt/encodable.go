@@ -746,6 +746,9 @@ func isUnencodableBuiltin(name string) bool {
 	if _, ok := RecursiveListBuiltins[name]; ok {
 		return false // recursive list builtins with bounded unrolling — encodable
 	}
+	if _, ok := opaqueBuiltins[name]; ok {
+		return false // pure Go-backed builtins, encoded as uninterpreted functions
+	}
 	// Everything else from $builtin module is NOT encodable
 	return true
 }

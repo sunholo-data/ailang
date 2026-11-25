@@ -355,6 +355,12 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 		if name, ok := ResolveStdlibToBuiltin(e.Ref.Module, e.Ref.Name); ok && optionEncodedBuiltins[name] {
 			sorts["Option"] = true
 		}
+		// An opaque builtin's declare-fun names its sorts (Json for _json_encode).
+		if e.Ref.Module == "$builtin" {
+			for _, s := range opaqueBuiltinSorts(e.Ref.Name) {
+				sorts[s] = true
+			}
+		}
 	case *core.DictApp:
 		collectSortsFromBody(e.Dict, sorts)
 		for _, arg := range e.Args {

@@ -258,7 +258,10 @@ func inferTypeFromExpr(expr core.CoreExpr) types.Type {
 // encodeRecord encodes a record construction expression.
 // Record{Fields: {x: 5, y: 10}} → (mk_Point 5 10)
 func encodeRecord(rec *core.Record) (string, error) {
-	info := lookupRecordByFields(rec.Fields)
+	info, err := recordForLiteral(rec)
+	if err != nil {
+		return "", err
+	}
 	if info == nil {
 		return "", fmt.Errorf("%w: record construction: no declared record type has fields %v (a field type, e.g. a tuple, may not be encodable)", ErrUnsupportedConstruct, fieldNamesFromExprMap(rec.Fields))
 	}

@@ -62,7 +62,25 @@ Next, in order:
 
 1. ~~**Anonymous record sorts** (18 sole)~~ **Done 2026-11-25.** All 18 had a declared sort: `Json`'s inline `{key, value}`, or a named alias such as `EditApply_CellReplAcc`. The record tables were built after the helper bodies had been encoded, the inline records were never registered, and a literal seeded no alias into the per-function sort filter. Fixed, along with the `(Seq Int)` default for a let-bound `[]` in a record field. Result: 3 verified, 7 now stop at `std/json.encode`/`decode`, 4 `editApply_*` reach a `foldl` the solver cannot decide (a skip that says so), and 1 (`MdParseState`) has a tuple field. Declaring sorts for literals that no type covers would unblock none of them, so it is not done.
 2. ~~**Name the type in `Callee "X" uses unencodable types`**~~ **Done 2026-11-25.** It was never about types: the check finds an unencodable builtin or an array literal. Named, the 18 skips are all builtins reached through a helper: `_json_encode` 7, `stringToInt` 4 (7 counting direct calls), `_json_decode` 3, `_crypto_sha256hex` 2, `charCode` 2, `_escapeXml` 1.
-   **Next lever: opaque builtins as uninterpreted functions.** `_json_encode`, `_json_decode`, `_crypto_sha256hex` and `_escapeXml` (13 skips) need no semantics for most contracts that call them. Declaring each as an uninterpreted function is sound, because it over-approximates the builtin. A refutation that depends on its value is reported inconclusive, never a counterexample, as for `$str_split` today. `stringToInt` and `charCode` have SMT-LIB counterparts (`str.to_int`, `str.to_code`), but AILANG's sign and `Option` handling must be matched exactly. That is a separate lever.
+   ~~**Opaque builtins as uninterpreted functions**~~ **Done 2026-11-25.** `_json_encode`, `_json_decode`, `_crypto_sha256hex` and `_escapeXml` are each an uninterpreted function, plus the facts their Go implementations guarantee for every input:
+   - **`_crypto_sha256hex`:** the result is 64 characters.
+   - **`_escapeXml`:** no `<`, `>`, `"` or `'` in the result, never shorter than the input, unchanged without special characters.
+   - **`_json_encode`:** the text's outer shape follows the top constructor; never empty.
+   - **`_json_decode`:** none.
+
+   A refutation over one of them is inconclusive until witness replay runs the real builtin. In the fixture, replay confirmed all three false contracts as violations. Datatype-sorted declarations follow the datatypes; a sort the function does not declare is a skip naming the builtin.
+
+   The gap map holds 12 rows blamed on these builtins (13 counted above). 6 verify (`encodeEvent`, `jsonLines`, `sseFrame`, `linkedinDerivePersona`, `xmlEscape`, `apiKeyHash`). The other 6 are still skips, now at their next blocker:
+   - `renderA2UI` (×2) is undecided on its `$json_encode` facts. Its contract `length(result) > 2` is false for `[]`.
+   - `apiKeyValidateResponse` stops at `std/list.findIndex`.
+   - `parseAnswers` stops at `findInList` (item 3).
+   - `buildRequest` and `questionsToJsonSchema` hit an anonymous record (`{name, q}`) in the list a `map` specialisation takes, which seeds no sort.
+
+   Getting past them exposed two encoder bugs, both fixed:
+   - A record literal chose its sort by field names alone, so a package alias `A2UIProp = {key: string, value: string}` captured `std/json`'s `{key, value: Json}` literals, and Z3 rejected the script (an ERROR, not a skip). The literal's checked type now decides, or it is a skip.
+   - An empty list passed straight to a constructor (`JArray([])`) was sorted `(Seq Int)`, also an ERROR. It now takes the field's sort.
+
+   `stringToInt` and `charCode` have SMT-LIB counterparts (`str.to_int`, `str.to_code`), but AILANG's sign and `Option` handling must be matched exactly. That is a separate lever.
 3. **Callee collection follows same-module calls inside imported bodies** (4 sole). A resolver bug, not a fragment limit.
 4. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.

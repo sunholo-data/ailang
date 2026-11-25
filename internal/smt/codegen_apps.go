@@ -35,6 +35,9 @@ func encodeApp(app *core.App) (string, error) {
 		if spec, ok := NumericBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeNumericBuiltin(spec, app.Args)
 		}
+		if enc, ok, err := encodeOpaqueBuiltin(vg.Ref.Name, app.Args); ok {
+			return enc, err
+		}
 	}
 
 	// Check for stdlib function with SMT mapping (std/string, std/list wrappers)
@@ -304,6 +307,10 @@ func encodeConstructorApp(ctorName string, args []core.CoreExpr) (string, error)
 	}
 	encodedArgs := make([]string, len(args))
 	for i, arg := range args {
+		if sort := constructorFieldSeqSort(ctorName, i); sort != "" && isEmptyListLiteral(arg) {
+			encodedArgs[i] = fmt.Sprintf("(as seq.empty %s)", sort) // JArray([])
+			continue
+		}
 		encoded, err := EncodeExpr(arg)
 		if err != nil {
 			return "", fmt.Errorf("constructor arg %d: %w", i, err)

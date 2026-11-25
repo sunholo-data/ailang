@@ -73,15 +73,6 @@ func useUninterpreted(symbol, decl string) error {
 	return nil
 }
 
-// uninterpretedDeclarations returns the declare-fun lines for the symbols used.
-func uninterpretedDeclarations() []string {
-	out := make([]string, 0, len(activeUninterpreted))
-	for _, s := range usedUninterpreted() {
-		out = append(out, activeUninterpreted[s])
-	}
-	return out
-}
-
 // encodeMathCall encodes a std/math call. ok is false when name is not one.
 func encodeMathCall(name string, args []core.CoreExpr) (string, bool, error) {
 	switch name {

@@ -405,6 +405,8 @@ func EncodeFunction(
 		}
 	}
 
+	typeDeclEnd := len(result.Declarations) // datatype-sorted uninterpreted functions go here
+
 	// Step 1.5: Add callee define-fun declarations (for cross-function calls)
 	for _, def := range calleeDefs {
 		result.Declarations = append(result.Declarations, def.SMTLib)
@@ -591,13 +593,19 @@ func EncodeFunction(
 		return nil, err
 	}
 
+	front, afterTypes, err := placeUninterpretedDeclarations(ctx.DeclaredTypes)
+	if err != nil {
+		return nil, err
+	}
+	result.Declarations = append(append(append([]string(nil), result.Declarations[:typeDeclEnd]...), afterTypes...), result.Declarations[typeDeclEnd:]...)
+
 	// Step 6: Build complete SMT-LIB program
 	var lines []string
 	lines = append(lines, fmt.Sprintf("; Verification of %s", funcName))
 	lines = append(lines, "(set-logic ALL)")
 	lines = append(lines, "")
 	result.Uninterpreted = usedUninterpreted()
-	lines = append(lines, uninterpretedDeclarations()...) // before any use, including callee define-funs
+	lines = append(lines, front...) // before any use, including callee define-funs
 	lines = append(lines, result.Declarations...)
 	lines = append(lines, "")
 	preamble := len(lines) // header and declarations, shared by the obligation queries

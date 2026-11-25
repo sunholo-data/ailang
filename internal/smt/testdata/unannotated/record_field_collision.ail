@@ -1,0 +1,18 @@
+module record_field_collision
+import std/json (Json, JObject, JNull, kv, js)
+
+-- Same field names as std/json's {key: string, value: Json}.
+type Pair = { key: string, value: string }
+
+-- kv's literal is a {key, value: Json}, not a Pair.
+export func viaKv(s: string) -> Json
+  ensures { result != JNull }
+{
+  JObject([kv("k", js(s))])
+}
+
+export func pair(s: string) -> Pair
+  ensures { result.value == s }
+{
+  { key: "k", value: s }
+}

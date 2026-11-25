@@ -286,6 +286,36 @@ func recordFieldSortOfVar(rec *core.Record, name string) string {
 	return ""
 }
 
+// constructorFieldSeqSort is field i's sort when ctor belongs to exactly one
+// declared, non-parametric ADT and that field is a sequence. An empty list
+// literal in that position has no element type of its own (Core types it
+// [α]), and defaulting to (Seq Int) made Z3 reject the script: JArray([])
+// was an ERROR. A hoisted `let xs = [] in JArray(xs)` reaches it too, once
+// inlineEmptyListBindings has put the literal back in place. A parametric
+// ADT's field sort is a type parameter, so it is left to the caller's default.
+func constructorFieldSeqSort(ctor string, i int) string {
+	c := activeADTContext
+	if c == nil {
+		return ""
+	}
+	found := ""
+	for owner, variants := range c.adts {
+		for _, v := range variants {
+			if v.Name != ctor {
+				continue
+			}
+			if found != "" || len(c.params[owner]) > 0 || i >= len(v.Fields) {
+				return "" // ambiguous, parametric or out of range
+			}
+			if _, isSeq := seqElemSort(v.Fields[i].Sort); !isSeq {
+				return ""
+			}
+			found = v.Fields[i].Sort
+		}
+	}
+	return found
+}
+
 // seqSortOf returns expr's SMT sequence sort from its elaborated type, or ""
 // when it has none or is not a list (an empty list literal is typed [α]).
 func seqSortOf(expr core.CoreExpr) string {

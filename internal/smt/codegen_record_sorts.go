@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -24,7 +25,8 @@ import (
 func beginRecordSorts(opts []EncodeFunctionOpts) ([]pendingDecl, func(), error) {
 	activeRecordTypes = make(map[string]*RecordTypeInfo)
 	activeFieldSetToSort = make(map[string]string)
-	done := func() { activeRecordTypes = nil; activeFieldSetToSort = nil }
+	activeShadowedRecords = make(map[string][]*RecordTypeInfo)
+	done := func() { activeRecordTypes = nil; activeFieldSetToSort = nil; activeShadowedRecords = nil }
 	if len(opts) == 0 {
 		return nil, done, nil
 	}
@@ -50,13 +52,62 @@ func beginRecordSorts(opts []EncodeFunctionOpts) ([]pendingDecl, func(), error) 
 			continue
 		}
 		key := strings.Join(info.FieldNames, ",")
-		if _, taken := activeFieldSetToSort[key]; taken {
-			continue // a named alias with the same fields wins
+		if owner, taken := activeFieldSetToSort[key]; taken {
+			if owner == info.SortName {
+				continue // the same sort declared twice
+			}
+			// A named alias with the same field names is found first; a
+			// literal tells the two apart by its type (recordForLiteral).
+			activeShadowedRecords[key] = append(activeShadowedRecords[key], info)
+			continue
 		}
 		activeRecordTypes[info.SortName] = info
 		activeFieldSetToSort[key] = info.SortName
 	}
 	return aliasDecls, done, nil
+}
+
+// activeShadowedRecords holds, by field set, the inline records of ADT fields
+// whose field names a named alias already claims: std/json's {key, value:
+// Json} next to a package's `type A2UIProp = {key: string, value: string}`.
+var activeShadowedRecords map[string][]*RecordTypeInfo
+
+// recordForLiteral is the record sort a literal builds. By field names alone
+// it is ambiguous when an alias and an inline record share them, and taking
+// the alias built an A2UIProp holding a Json, which Z3 rejected (an ERROR,
+// not a skip). The literal's checked type then picks: its name, else its
+// field sorts. A literal it cannot pick for is a skip.
+func recordForLiteral(rec *core.Record) (*RecordTypeInfo, error) {
+	primary := lookupRecordByFields(rec.Fields)
+	names := fieldNamesFromExprMap(rec.Fields)
+	shadowed := activeShadowedRecords[strings.Join(names, ",")]
+	if primary == nil || len(shadowed) == 0 {
+		return primary, nil
+	}
+	candidates := append([]*RecordTypeInfo{primary}, shadowed...)
+	if t, ok := hofExprType(rec).(*types.TRecord); ok {
+		for _, c := range candidates {
+			if t.TypeName != "" && c.SortName == t.TypeName {
+				return c, nil
+			}
+		}
+		if sorts, err := MapRecordFields(t); err == nil {
+			var match []*RecordTypeInfo
+			for _, c := range candidates {
+				if maps.Equal(c.FieldSorts, sorts) {
+					match = append(match, c)
+				}
+			}
+			if len(match) == 1 {
+				return match[0], nil
+			}
+		}
+	}
+	sortNames := make([]string, len(candidates))
+	for i, c := range candidates {
+		sortNames[i] = c.SortName
+	}
+	return nil, fmt.Errorf("%w: record construction: fields %v match more than one declared record (%s), and the literal's type does not pick one", ErrUnsupportedConstruct, names, strings.Join(sortNames, ", "))
 }
 
 // recordInfoFromDecl reads a record sort back from its declaration,
