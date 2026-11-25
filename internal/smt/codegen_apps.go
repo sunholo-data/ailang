@@ -38,6 +38,9 @@ func encodeApp(app *core.App) (string, error) {
 		if enc, ok, err := encodeOpaqueBuiltin(vg.Ref.Name, app.Args); ok {
 			return enc, err
 		}
+		if enc, ok, err := encodeFindIndexNode(vg.Ref.Name, app); ok {
+			return enc, err
+		}
 	}
 
 	// Check for stdlib function with SMT mapping (std/string, std/list wrappers)

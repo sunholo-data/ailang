@@ -81,7 +81,15 @@ Next, in order:
    - An empty list passed straight to a constructor (`JArray([])`) was sorted `(Seq Int)`, also an ERROR. It now takes the field's sort.
 
    `stringToInt` and `charCode` have SMT-LIB counterparts (`str.to_int`, `str.to_code`), but AILANG's sign and `Option` handling must be matched exactly. That is a separate lever.
-3. **Callee collection follows same-module calls inside imported bodies** (4 sole). A resolver bug, not a fragment limit.
+3. ~~**Callee collection follows same-module calls inside imported bodies**~~ **Done 2026-11-25.** The collector looked a plain `Var` call inside an imported body up in the caller's program. Fixed, it moved every one of these skips to the real blocker, `findInList`'s `findIndex(\kv. _str_eq(kv.key, key), kvs)`. Both are now encoded:
+   - `findIndex` is specialised as an index chain whose frontier is an unknown index in `-1 … len-1`, and the call site rebuilds the `Option[int]` from the original call's checked type.
+   - `_str_eq` is `=`.
+
+   Result: `eventJson` and `decodeRuns` verify. `parseAnswers` and `apiKeyValidateResponse` now stop at a literal nested inside a pattern, `flushText` at a list in a callee signature, and `decodeBlocks`/`decodeBlocksPaged` at list patterns.
+
+   Found on the way, not fixed, both in witness replay, and both leave a refutation inconclusive (sound):
+   - Replay does not run a zero-argument function ("function expects 1 arguments, got 0").
+   - In `find_index.ail`'s `firstMatchFalse`, replay was "not attempted (k: Int value 9223372036854775808 …)" while the candidate model it printed has `k = 0`. Not yet investigated.
 4. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.

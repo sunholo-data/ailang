@@ -305,6 +305,7 @@ var BuiltinToSMTOp = map[string]string{
 
 	// String comparison (standard binary ops)
 	"eq_String": "=",
+	"_str_eq":   "=", // std/string's raw equality builtin (std/json's findInList): Go a == b
 	"ne_String": "distinct",
 	"lt_String": "str.<",
 	"le_String": "str.<=",

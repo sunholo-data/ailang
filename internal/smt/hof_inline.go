@@ -12,11 +12,12 @@ import (
 type HOFKind int
 
 const (
-	HOFMap     HOFKind = iota // map(lambda, list)
-	HOFFilter                 // filter(lambda, list)
-	HOFFoldl                  // foldl(lambda, init, list)
-	HOFAny                    // any(lambda, list)
-	HOFFlatMap                // flatMap(lambda, list)
+	HOFMap       HOFKind = iota // map(lambda, list)
+	HOFFilter                   // filter(lambda, list)
+	HOFFoldl                    // foldl(lambda, init, list)
+	HOFAny                      // any(lambda, list)
+	HOFFlatMap                  // flatMap(lambda, list)
+	HOFFindIndex                // findIndex(lambda, list), hof_find_index.go
 )
 
 // InlinableHOFCall describes a detected higher-order function call
@@ -64,11 +65,12 @@ var knownHOFBuiltins = map[string]HOFKind{
 
 // knownHOFStdlib maps std/list function names to their HOF kind.
 var knownHOFStdlib = map[string]HOFKind{
-	"map":     HOFMap,
-	"filter":  HOFFilter,
-	"foldl":   HOFFoldl,
-	"any":     HOFAny,
-	"flatMap": HOFFlatMap,
+	"map":       HOFMap,
+	"filter":    HOFFilter,
+	"foldl":     HOFFoldl,
+	"any":       HOFAny,
+	"flatMap":   HOFFlatMap,
+	"findIndex": HOFFindIndex,
 }
 
 // IsInlinableHOF walks the Core AST looking for HOF calls (map, filter, foldl)
@@ -171,7 +173,7 @@ func matchHOFCall(app *core.App) (InlinableHOFCall, bool) {
 
 	// Now check that the function argument (first arg) is a literal Lambda
 	switch hofKind {
-	case HOFMap, HOFFilter, HOFAny, HOFFlatMap:
+	case HOFMap, HOFFilter, HOFAny, HOFFlatMap, HOFFindIndex:
 		// Expected: App(hof, [lambda, list])
 		if len(app.Args) < 2 {
 			return InlinableHOFCall{}, false
@@ -376,6 +378,11 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 			specBody, specName = SpecializeFlatMap(specOwner, call.Lambda, listParamName)
 			params = []FunctionParam{{Name: listParamName, Type: listType}}
 
+		case HOFFindIndex: // the chain returns the index; the call site rebuilds the Option
+			specBody, specName = SpecializeFindIndex(specOwner, call.Lambda, listParamName)
+			params = []FunctionParam{{Name: listParamName, Type: listType}}
+			returnSort = "Int"
+
 		case HOFFoldl:
 			specBody, specName = SpecializeFoldl(specOwner, call.Lambda, listParamName)
 			params = []FunctionParam{
@@ -441,6 +448,11 @@ func InlineHOFCalls(funcName string, body core.CoreExpr, depth int) *InlineResul
 				Func: &core.Var{Name: unrollResult.TopLevelName},
 				Args: append([]core.CoreExpr{call.ListArg}, captureArgs...),
 			}
+		case HOFFindIndex:
+			replacementCall = optionFromIndex(call.Original, &core.App{
+				Func: &core.Var{Name: unrollResult.TopLevelName},
+				Args: append([]core.CoreExpr{call.ListArg}, captureArgs...),
+			})
 		case HOFFoldl:
 			replacementCall = &core.App{
 				Func: &core.Var{Name: unrollResult.TopLevelName},
@@ -638,6 +650,8 @@ func (k HOFKind) String() string {
 		return "any"
 	case HOFFlatMap:
 		return "flatMap"
+	case HOFFindIndex:
+		return "findIndex"
 	}
 	return fmt.Sprintf("HOFKind(%d)", int(k))
 }
@@ -706,6 +720,9 @@ func hofCallParts(call InlinableHOFCall) []core.CoreExpr {
 // of any length, not only within the unrolling depth. The list is the first
 // parameter of a map/filter specialisation; captures follow it.
 func hofFrontier(kind HOFKind) func(string, []string, string) []string {
+	if kind == HOFFindIndex {
+		return findIndexFrontier
+	}
 	if kind != HOFMap && kind != HOFFilter {
 		return nil
 	}

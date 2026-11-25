@@ -355,6 +355,9 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 		if name, ok := ResolveStdlibToBuiltin(e.Ref.Module, e.Ref.Name); ok && optionEncodedBuiltins[name] {
 			sorts["Option"] = true
 		}
+		if e.Ref.Module == "std/list" && knownHOFStdlib[e.Ref.Name] == HOFFindIndex {
+			sorts["Option"] = true // the specialised call builds an Option (hof_find_index.go)
+		}
 		// An opaque builtin's declare-fun names its sorts (Json for _json_encode).
 		if e.Ref.Module == "$builtin" {
 			for _, s := range opaqueBuiltinSorts(e.Ref.Name) {

@@ -25,7 +25,7 @@ func TestVerify_JsonReachesSolver(t *testing.T) {
 		"isNullBad":   "counterexample",
 		"emptyObjKey": "counterexample",
 		"leafOr":      "verified",
-		"hasA":        "skipped",
+		"hasA":        "verified",
 	}
 	for fn, status := range want {
 		if r := got[fn]; r.Status != status {

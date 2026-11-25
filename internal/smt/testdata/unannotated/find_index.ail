@@ -1,0 +1,68 @@
+module find_index
+import std/list (findIndex, length)
+import std/option (Option, Some, None)
+import std/json (Json, JObject, JNull, kv, js, get, getString)
+
+-- The first match, not any match.
+export func firstMatch() -> Option[int]
+  ensures { result == Some(1) }
+{
+  findIndex(\x. x == 1, [0, 1, 1])
+}
+
+export func firstMatchFalse(k: int) -> Option[int]
+  ensures { result == Some(2) }
+{
+  findIndex(\x. x == k, [0, k, k])
+}
+
+export func notFound() -> Option[int]
+  ensures { result == None }
+{
+  findIndex(\x. x > 5, [1, 2, 3])
+}
+
+-- Any length, beyond the unrolling depth: a found index is a position.
+export func inRange(xs: [int]) -> bool
+  ensures { result }
+{
+  match findIndex(\x. x > 0, xs) {
+    Some(i) => i >= 0 && i < length(xs),
+    None => true
+  }
+}
+
+export func alwaysFoundFalse(xs: [int]) -> bool
+  ensures { result }
+{
+  match findIndex(\x. x > 0, xs) {
+    Some(_) => true,
+    None => false
+  }
+}
+
+-- std/json's accessors reach findIndex through the private findInList.
+export func readBack(s: string) -> Option[string]
+  ensures { result == Some(s) }
+{
+  getString(JObject([kv("a", js(s))]), "a")
+}
+
+export func missingKey(s: string) -> Option[Json]
+  ensures { result == None }
+{
+  get(JObject([kv("a", js(s))]), "b")
+}
+
+export func missingKeyFalse(s: string) -> Option[Json]
+  ensures { result != None }
+{
+  get(JObject([kv("a", js(s))]), "b")
+}
+
+-- Nothing here names Option but the findIndex calls themselves.
+export func sameSearch(xs: [int]) -> bool
+  ensures { result || !result }
+{
+  findIndex(\x. x > 0, xs) == findIndex(\y. y > 0, xs)
+}

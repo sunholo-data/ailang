@@ -25,7 +25,7 @@ func TestJsonVerifies(t *testing.T) {
 		"isNullBad":   "counterexample",
 		"emptyObjKey": "counterexample",
 		"leafOr":      "verified",
-		"hasA":        "skipped",
+		"hasA":        "verified",
 	}
 	report, _ := verifySource(t, path, string(src))
 	seen := map[string]bool{}

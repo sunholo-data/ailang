@@ -47,7 +47,7 @@ pure func leafOr(t: Tree) -> int
   match t { Leaf(n) => n, Node(_) => 0 }
 }
 
--- get walks the object with findIndex, which has no encoding yet.
+-- get walks the object with findIndex (specialised, hof_find_index.go).
 pure func hasA(j: Json) -> int
   ensures { result >= 0 }
 {
