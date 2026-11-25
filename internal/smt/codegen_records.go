@@ -313,13 +313,9 @@ func encodeRecordAccess(ra *core.RecordAccess) (string, error) {
 // encodeRecordUpdate encodes a functional record update.
 // RecordUpdate{Base: p, Updates: {x: 20}} → (mk_Point 20 (y p))
 func encodeRecordUpdate(ru *core.RecordUpdate) (string, error) {
-	info := lookupRecordByFields(ru.Updates)
-	if info == nil {
-		// Try to find by looking at base expression type (if it's a known variable)
-		info = lookupRecordForUpdate(ru)
-	}
-	if info == nil {
-		return "", fmt.Errorf("record update: unknown record type")
+	info, err := lookupRecordForUpdate(ru)
+	if err != nil {
+		return "", err
 	}
 
 	base, err := EncodeExpr(ru.Base)
@@ -378,30 +374,46 @@ func lookupRecordByFields(fields interface{}) *RecordTypeInfo {
 	return nil
 }
 
-// lookupRecordForUpdate finds the record type for an update expression.
-// Tries all known record types and checks if the update fields are a subset.
-func lookupRecordForUpdate(ru *core.RecordUpdate) *RecordTypeInfo {
+// lookupRecordForUpdate finds the record an update rebuilds: the checked type
+// of the update or its base when known, else the one declared record that
+// has every updated field. It took the first record in map order with the
+// field, so `{n | text: tail}` on an InlineRun could build a
+// Record_level_runs_text (a Z3 ERROR) on one run and not the next; several
+// candidates and no type is now a skip.
+func lookupRecordForUpdate(ru *core.RecordUpdate) (*RecordTypeInfo, error) {
 	if activeRecordTypes == nil {
-		return nil
+		return nil, fmt.Errorf("%w: record update: no declared record types", ErrUnsupportedConstruct)
 	}
-	updateFields := make(map[string]bool, len(ru.Updates))
-	for name := range ru.Updates {
-		updateFields[name] = true
+	for _, e := range []core.CoreExpr{ru, ru.Base} {
+		if t := hofExprType(e); t != nil {
+			if sort, err := MapType(t); err == nil {
+				if info := activeRecordTypes[sort]; info != nil {
+					return info, nil
+				}
+			}
+		}
 	}
-	for _, info := range activeRecordTypes {
-		// Check if all update fields exist in this record type
+	var candidates []string
+	for sortName, info := range activeRecordTypes {
 		allPresent := true
-		for name := range updateFields {
+		for name := range ru.Updates {
 			if _, ok := info.FieldSorts[name]; !ok {
 				allPresent = false
 				break
 			}
 		}
 		if allPresent {
-			return info
+			candidates = append(candidates, sortName)
 		}
 	}
-	return nil
+	sort.Strings(candidates)
+	switch len(candidates) {
+	case 0:
+		return nil, fmt.Errorf("%w: record update: no declared record type has fields %v", ErrUnsupportedConstruct, fieldNamesFromExprMap(ru.Updates))
+	case 1:
+		return activeRecordTypes[candidates[0]], nil
+	}
+	return nil, fmt.Errorf("%w: record update of fields %v: its type is unknown and %s all have them", ErrUnsupportedConstruct, fieldNamesFromExprMap(ru.Updates), strings.Join(candidates, ", "))
 }
 
 // fieldNamesFromExprMap extracts sorted field names from a map of expressions.

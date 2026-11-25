@@ -220,6 +220,10 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 		}
 		switch e := expr.(type) {
 		case *core.App:
+			if s := userCallArgSeqSort(e, name); s != "" {
+				found = s
+				return
+			}
 			if len(e.Args) == 2 {
 				pair(e.Args[0], e.Args[1])
 			}
@@ -323,6 +327,59 @@ func seqSortOf(expr core.CoreExpr) string {
 		if s, err := MapType(t); err == nil {
 			if _, isSeq := seqElemSort(s); isSeq {
 				return s
+			}
+		}
+	}
+	return ""
+}
+
+// activeUserParamSorts maps each user function the current EncodeFunction can
+// call to its parameters' SMT sorts ("" for one without), from the surface
+// signatures. Set by EncodeFunction.
+var activeUserParamSorts map[string][]string
+
+// setUserParamSorts installs activeUserParamSorts from surface parameters and
+// returns the function restoring the previous table.
+func setUserParamSorts(params map[string][]FunctionParam) func() {
+	previous := activeUserParamSorts
+	table := make(map[string][]string, len(params))
+	for name, ps := range params {
+		sorts := make([]string, len(ps))
+		for i, p := range ps {
+			if p.Type != nil {
+				if s, err := MapType(p.Type); err == nil {
+					sorts[i] = s
+				}
+			}
+		}
+		table[name] = sorts
+	}
+	activeUserParamSorts = table
+	return func() { activeUserParamSorts = previous }
+}
+
+// userCallArgSeqSort is the declared list sort of the parameter that Var(name)
+// is passed as, when app calls a user function: `mkTableFull([], [], c)`,
+// whose [] ANF hoisted into lets that defaulted to (Seq Int), a Z3 ERROR
+// against the callee's (Seq (Seq TableCell)).
+func userCallArgSeqSort(app *core.App, name string) string {
+	var head string
+	switch f := app.Func.(type) {
+	case *core.Var:
+		head = f.Name
+	case *core.VarGlobal:
+		head = f.Ref.Name
+	default:
+		return ""
+	}
+	sorts, ok := activeUserParamSorts[head]
+	if !ok || len(sorts) != len(app.Args) {
+		return ""
+	}
+	for i, a := range app.Args {
+		if v, ok := a.(*core.Var); ok && v.Name == name {
+			if _, isSeq := seqElemSort(sorts[i]); isSeq {
+				return sorts[i]
 			}
 		}
 	}

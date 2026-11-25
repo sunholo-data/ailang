@@ -471,11 +471,11 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 2. Callees are topologically sorted (if A calls B, B's `define-fun` appears first)
 3. Each callee is emitted as `(define-fun name ((params)) RetSort body)` in the SMT-LIB output
 4. The caller can then use the callee name as a regular function in its body
-5. Circular calls are detected and rejected with a clear error
+5. A helper that cannot be defined (its body does not encode, or it is in a call cycle) is called by its `ensures` when it has one, and otherwise as an **opaque helper** (below)
 
 **Limitations:**
-- Callees must also be in the decidable fragment (pure, encodable types)
-- A self-recursive callee (an index scanner like `allFrom(s, i) = i >= length(s) || (ok(charAt(s, i)) && allFrom(s, i + 1))`) is unrolled to depth 3 below an uninterpreted stub. A proof through it holds for every value the stub could return, so it is a real proof, labelled `bounded: depth 3`; a counterexample through it is inconclusive until witness replay confirms it. Mutually recursive helpers are still skipped. See [Bounded Recursion](#bounded-recursion-verification) above
+- Callees must be pure, and their signatures must have SMT sorts. A callee whose *body* does not encode (a tuple, a builtin with no SMT form, a call cycle) and that has no `ensures` is an **opaque helper**: an uninterpreted function of its signature. A proof that holds for every value it could return is `✓ VERIFIED` with a `helpers_not_checked` note naming each such helper and why. Its body was not encoded, so the checks inside it (its callees' `requires`, overflow, NaN) were not made. A model that rests on its value is `INCONCLUSIVE`, never a violation, and witness replay runs the real function. Its own `requires` is still checked at each call
+- A self-recursive callee (an index scanner like `allFrom(s, i) = i >= length(s) || (ok(charAt(s, i)) && allFrom(s, i + 1))`) is unrolled to depth 3 below an uninterpreted stub. A proof through it holds for every value the stub could return, so it is a real proof, labelled `bounded: depth 3`; a counterexample through it is inconclusive until witness replay confirms it. Mutually recursive helpers are opaque helpers (or called by their `ensures`). See [Bounded Recursion](#bounded-recursion-verification) above
 - A callee's `requires` **is** checked at each call in the verified function's body, under the branch and `let` that reach the call: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` is a `✗ VIOLATION` with reason `requires_violation`. The same holds for calls inside the helpers it calls, inside a lambda passed to `map`/`filter`/`foldl`, and for its own recursive calls; so do the int overflow and NaN checks. Inside a recursive helper or a lambda they reach only the unrolling depth, and the result carries a note saying so
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 

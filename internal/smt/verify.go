@@ -623,6 +623,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			vr = checkCallObligations(vr, funcName, encResult, solverCfg, boundedDepth, opts)
 		}
 		vr = boundedObligationsCaveat(vr, encResult.UncheckedObligations)
+		vr = opaqueHelpersCaveat(vr, encResult.OpaqueHelpers)
 		vr = floatCaveat(vr, encResult.SMTLib)
 		if vr.Status == "unknown" {
 			vr = unrolledUndecided(vr, encResult.UnrolledCallees, encResult.HOFBoundedDepth > 0)

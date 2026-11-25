@@ -47,7 +47,7 @@ func encodeContractApplication(name string, args []core.CoreExpr) (string, error
 	if err != nil {
 		return "", err
 	}
-	if err := contractCallObligation(spec, subs, value); err != nil {
+	if err := contractCallObligation(spec, subs); err != nil {
 		return "", err
 	}
 	if expandingContractSpecs == nil {

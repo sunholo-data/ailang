@@ -1,6 +1,7 @@
 package smt
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -149,9 +150,9 @@ func TestTopoSort_SimpleChain(t *testing.T) {
 		map[string]*core.DeclMeta{"b": pureMeta(), "c": pureMeta()},
 	)
 
-	order, err := topoSort([]string{"b", "c"}, "a", prog, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	order, cyclic := topoSort([]string{"b", "c"}, "a", prog, nil)
+	if len(cyclic) != 0 {
+		t.Fatalf("unexpected cycle: %v", cyclic)
 	}
 
 	// c should come before b (c is a dependency of b)
@@ -188,12 +189,11 @@ func TestTopoSort_CircularCall(t *testing.T) {
 		map[string]*core.DeclMeta{"a": pureMeta(), "b": pureMeta()},
 	)
 
-	_, err := topoSort([]string{"a", "b"}, "root", prog, nil)
-	if err == nil {
-		t.Fatal("expected circular call error, got nil")
-	}
-	if !strings.Contains(err.Error(), "circular") {
-		t.Errorf("expected 'circular' in error message, got: %v", err)
+	// Both members are reported (the resolver calls them opaquely or by
+	// contract); neither is an error any more.
+	_, cyclic := topoSort([]string{"a", "b"}, "root", prog, nil)
+	if cyclic["a"] != "a → b → a" || cyclic["b"] != "a → b → a" || len(cyclic) != 2 {
+		t.Errorf("cycle members: %v", cyclic)
 	}
 }
 
@@ -385,17 +385,15 @@ func TestCalleeCollection_DeterministicCycle(t *testing.T) {
 	var first string
 	for i := 0; i < 50; i++ {
 		callees := collectCalleeCallsFromRoots([]core.CoreExpr{root}, "root", prog, nil)
-		_, err := topoSort(callees, "root", prog, nil)
-		if err == nil {
-			t.Fatal("expected a circular call error")
-		}
+		_, cyclic := topoSort(callees, "root", prog, nil)
+		got := fmt.Sprint(cyclic) // fmt prints maps in key order
 		if i == 0 {
-			first = err.Error()
-		} else if err.Error() != first {
-			t.Fatalf("run %d reported %q, run 0 reported %q", i, err.Error(), first)
+			first = got
+		} else if got != first {
+			t.Fatalf("run %d reported %q, run 0 reported %q", i, got, first)
 		}
 	}
-	if !strings.Contains(first, "a → b → c → a") {
-		t.Errorf("sorted order should report a → b → c → a first, got %q", first)
+	if !strings.Contains(first, "a:a → b → c → a") {
+		t.Errorf("sorted order should report a → b → c → a for a, got %q", first)
 	}
 }

@@ -122,6 +122,25 @@ Next, in order:
    - `flush*`/`tex*`: tuple lists, 7 rows. The contract is `listLength(result.textLines) == 0`; the tuple is reached only through `mdTextBlock → replaceMany`.
    - `decodeBlocks`: `map(decodeBlock, xs)` with a length contract; `reverse` is five calls down.
    - `parsePptxCells`/`Rows`: the same shape, blocked by `std/option.map`.
+4b. ~~**Opaque helpers**~~ **Done 2026-11-25, as ruled.** A helper that cannot be defined (its body does not encode, or it is in a call cycle) is called through its `ensures` when it has one. Otherwise it is an uninterpreted function of its signature (`opaque_helpers.go`):
+   - A VERIFIED result through one carries a `helpers_not_checked` caveat naming it and why.
+   - A model through one is inconclusive (its symbol joins `Uninterpreted`), and witness replay runs the real function.
+   - Its `requires` is still checked at each call.
+   - A helper with no return annotation stays a failure.
+   - `topoSort` reports cycle members instead of failing.
+
+   Getting past those skips exposed five latent encoder ERRORs, all fixed:
+   - `result` in an `ensures` was captured by a parameter named `result`.
+   - `[]` passed to a helper defaulted to `(Seq Int)`, whether inline or hoisted into a `let`.
+   - A record update without a type took the first record in map order that had the field, which was nondeterministic.
+   - A requires check bound the call's result, which made a real violation look inconclusive.
+   - An undeclared sort in a `declare-fun` signature was not caught.
+
+   Gap map: +6 verified (`generateHtml`, `generateHtmlStyled`, `htmlParseTable`, `docxTplDropSpans`, `pptxTplDropSpans`, `apiKeyValidateResponse`); 4 carry the caveat. 2 skipped → inconclusive (`formatResult`, `blocksToUnstructuredJson`; replay found the contracts hold). 0 errors, 0 regressions. 11 mutations, all killed.
+
+   Totals against M0 (2026-11-24): verified 590 → 634, skipped 125 → 78, inconclusive 3 → 16, errors 1 → 0.
+
+   Still skipped behind helper **signatures**, which opacity cannot help: tuple lists (`mdEscapePairs`, `replaceMany`: 7), `foldChars`'s type variable (8), `bytes` (6), and `Result[a, e]` (3). The admission check walks the whole call graph and rejects on any reachable signature. Stopping that walk at the first helper that can be opaque is the next lever for the 7 `flush*`/`tex*` rows. It needs no new ruling.
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

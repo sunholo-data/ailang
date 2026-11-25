@@ -3,42 +3,50 @@ package smt_test
 import (
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/smt"
 )
 
-// A skip reached through helpers names what blocks it at the end of the
-// chain. Before, every one of these stopped at the first
-// `calls user function "X" that is not SMT-encodable in this context`.
-func TestSkipThroughHelpersNamesTheBlocker(t *testing.T) {
-	// Each fragment must appear, in this order, in the function's reason.
+// A helper whose body does not encode is called opaquely, and the VERIFIED
+// result's caveat names what blocks it at the end of the chain (these were
+// skips, each naming the same chain, before opaque helpers).
+func TestOpaqueHelperCaveatNamesTheBlocker(t *testing.T) {
+	// Each fragment must appear, in this order, in the helpers_not_checked caveat.
 	want := map[string][]string{
 		// top → mid → leaf, whose match on a tuple does not encode.
-		"top": {`calls user function "mid"`, `calls user function "leaf"`, "tuple expressions cannot be encoded"},
-		// ping → pong → ping: a cycle through the verified function.
-		"ping": {`calls user function "pong"`, "the helpers are mutually recursive"},
+		"top": {"leaf (", "tuple expressions cannot be encoded"},
 		// A helper's unencodable builtin is named, not "uses unencodable types".
-		"viaParse": {`calls user function "parsed"`, `Callee "parsed" uses an unencodable builtin: std/string.stringToFloat`},
+		"viaParse": {"parsed (", `Callee "parsed" uses an unencodable builtin: std/string.stringToFloat`},
 	}
 	report := verifyFixture(t, "callee_chain.ail")
-	seen := map[string]bool{}
+	status := map[string]string{}
 	for _, r := range report.Results {
+		status[r.Function] = r.Status
 		frags, ok := want[r.Function]
 		if !ok {
 			continue
 		}
-		seen[r.Function] = true
+		detail := ""
+		for _, c := range r.Caveats {
+			if c.Kind == smt.CaveatOpaqueHelpers {
+				detail = c.Detail
+			}
+		}
 		at := 0
 		for _, f := range frags {
-			i := strings.Index(r.Reason[at:], f)
-			if r.Status != "skipped" || i < 0 {
-				t.Errorf("%s: %s %q\nwant skipped, with %q in order", r.Function, r.Status, r.Reason, frags)
+			i := strings.Index(detail[at:], f)
+			if r.Status != "verified" || i < 0 {
+				t.Errorf("%s: %s %q\nwant verified, with %q in order in caveat %q", r.Function, r.Status, r.Reason, frags, detail)
 				break
 			}
 			at += i + len(f)
 		}
 	}
-	for fn := range want {
-		if !seen[fn] {
-			t.Errorf("%s: no result", fn)
+	// ping → pong → ping verifies through ping's own contract; topFalse
+	// depends on leaf's value, so its model is inconclusive.
+	for fn, w := range map[string]string{"top": "verified", "viaParse": "verified", "ping": "verified", "topFalse": "inconclusive"} {
+		if status[fn] != w {
+			t.Errorf("%s: status %q, want %q", fn, status[fn], w)
 		}
 	}
 }

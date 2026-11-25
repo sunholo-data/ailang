@@ -168,7 +168,11 @@ func buildParamSubstitution(params []FunctionParam, args []core.CoreExpr) (map[s
 	}
 	subs := make(map[string]string)
 	for i, p := range nonunitParams {
-		value, err := EncodeExpr(nonunitArgs[i])
+		hint := "" // `f([])`: the parameter's list sort, not (Seq Int)
+		if p.Type != nil {
+			hint, _ = MapType(p.Type)
+		}
+		value, err := encodeExprWithSortHint(nonunitArgs[i], hint)
 		if err != nil {
 			return nil, fmt.Errorf("encoding argument %d for %q: %w", i, p.Name, err)
 		}
@@ -209,7 +213,9 @@ func encodeContractExprWithSubs(expr core.CoreExpr, paramSubs map[string]string,
 		bindings = append(bindings, fmt.Sprintf("(%s %s)", alias, paramSubs[k]))
 	}
 	resultAlias := prefix + "result"
-	bindings = append(bindings, fmt.Sprintf("(%s %s)", resultAlias, resultConst))
+	if resultConst != "" { // a requires has no result to bind
+		bindings = append(bindings, fmt.Sprintf("(%s %s)", resultAlias, resultConst))
+	}
 	substituted := substituteContractExpr(expr, aliases, resultAlias)
 	// A callee's contract is its template, not the caller's body: no obligations.
 	value, facts, err := captureCallFacts(func() (string, error) {

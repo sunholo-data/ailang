@@ -3,7 +3,7 @@ import std/option (Option, Some, None)
 import std/string (stringToFloat)
 
 -- leaf matches on a tuple inside an unrolled recursion, which the encoder
--- cannot encode; mid calls leaf; top calls mid.
+-- cannot encode, so it is called opaquely; mid calls leaf; top calls mid.
 func leaf(xs: [int], acc: int) -> int {
   match (xs, acc) {
     ([], a) => a,
@@ -14,12 +14,20 @@ func leaf(xs: [int], acc: int) -> int {
 func mid(n: int) -> int = leaf([n], 0) + 1
 
 export func top(n: int) -> int
+  ensures { result == mid(n) }
+{
+  mid(n)
+}
+
+-- Depends on leaf's value: inconclusive, not a counterexample.
+export func topFalse(n: int) -> int
   ensures { result >= 0 }
 {
   mid(n)
 }
 
--- ping calls back into itself through pong.
+-- ping calls back into itself through pong: its contract stands in for the
+-- inner call (the induction hypothesis), so it verifies.
 export func ping(n: int) -> int
   ensures { result >= 0 }
 {

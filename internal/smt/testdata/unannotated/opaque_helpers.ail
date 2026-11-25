@@ -1,0 +1,121 @@
+module opaque_helpers
+import std/string (length)
+
+-- A helper whose body does not encode (a tuple) and that has no ensures is an
+-- uninterpreted function: a proof that does not depend on its value holds,
+-- with a caveat naming it; a refutation through it is inconclusive.
+func swapSum(a: int, b: int) -> int {
+  match (a, b) { (x, y) => y + x }
+}
+
+export func ignoresHelper(n: int) -> int
+  ensures { result == n }
+{
+  let s = swapSum(n, 1);
+  if s == s then n else 0
+}
+
+export func dependsOnHelper(n: int) -> int
+  ensures { result == n + 1 }
+{
+  swapSum(n, 1)
+}
+
+-- Its requires is still checked at each call.
+func halfOfPos(n: int) -> int
+  requires { n > 0 }
+{
+  match (n, 2) { (x, d) => x / d }
+}
+
+export func callsWithinRequires(n: int) -> int
+  requires { n >= 0 }
+  ensures { result == result }
+{
+  halfOfPos(n + 1)
+}
+
+export func breaksRequires(n: int) -> int
+  ensures { result == result }
+{
+  halfOfPos(n)
+}
+
+-- Mutually recursive helpers are called opaquely too.
+func evenLen(xs: [int]) -> bool = match xs { [] => true, [_, ...r] => oddLen(r) }
+func oddLen(xs: [int]) -> bool = match xs { [] => false, [_, ...r] => evenLen(r) }
+
+export func parityLabel(xs: [int]) -> string
+  ensures { result == "even" || result == "odd" }
+{
+  if evenLen(xs) then "even" else "odd"
+}
+
+-- A helper with an ensures stands in by its contract, even when its body
+-- does not encode: no caveat, and its ensures is usable.
+func nonNegPair(n: int) -> int
+  ensures { result >= 0 }
+{
+  match (n, 0) { (x, z) => if x > z then x else z }
+}
+
+export func viaContract(n: int) -> int
+  ensures { result >= 1 }
+{
+  nonNegPair(n) + 1
+}
+
+-- Bugs that skips through helpers used to hide.
+-- An empty list passed to a helper takes the parameter's sort; ANF hoists it
+-- into a let that defaulted to (Seq Int), a Z3 ERROR.
+func countWords(ws: [string], n: int) -> int {
+  match (ws, n) { (_, k) => k }
+}
+
+export func emptyListArg(n: int) -> int
+  ensures { result == result }
+{
+  countWords([], n)
+}
+
+-- In an ensures, `result` is the return value even when a parameter is
+-- named result.
+export func paramNamedResult(result: string) -> int
+  ensures { result >= 0 }
+{
+  1
+}
+
+-- …the same for a helper that is defined, and for [] that ANF hoists into
+-- lets (a match arm), which take the sort from the call they feed.
+func strsLen(ws: [string]) -> int {
+  match ws { [] => 0, _ => 1 }
+}
+
+export func definedEmptyArg(n: int) -> int
+  ensures { result == 0 }
+{
+  strsLen([])
+}
+
+func nested(a: [[string]], b: [string], n: int) -> int {
+  match (a, n) { (_, k) => k }
+}
+
+export func hoistedEmptyArgs(xs: [int], n: int) -> int
+  ensures { result == result }
+{
+  match xs {
+    [] => nested([], [], n),
+    _ => 0
+  }
+}
+
+-- A helper without a return annotation has no sort to be opaque at: still a skip.
+func untypedTag(n: int) = match (n, "x") { (_, s) => s }
+
+export func viaUntypedReturn(n: int) -> int
+  ensures { result >= 0 }
+{
+  length(untypedTag(n))
+}

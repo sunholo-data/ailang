@@ -9,12 +9,17 @@ var activeHelperConditions map[string]string
 // between value and condition calls; never merge distinct actual environments.
 func encodeResolvedApplication(name string, args []core.CoreExpr) (string, error) {
 	var operands []core.CoreExpr
-	for _, arg := range args {
+	sorts := activeUserParamSorts[name]
+	for i, arg := range args {
 		if isUnitLiteral(arg) {
 			operands = append(operands, arg)
 			continue
 		}
-		value, err := EncodeExpr(arg)
+		hint := "" // `f([])`: the parameter's list sort, not (Seq Int)
+		if len(sorts) == len(args) {
+			hint = sorts[i]
+		}
+		value, err := encodeExprWithSortHint(arg, hint)
 		if err != nil {
 			return "", err
 		}

@@ -120,13 +120,16 @@ func encodeRequiresBody(reqs []*core.Contract) (string, error) {
 
 // contractCallObligation is the requires of a contract-path callee on the
 // actual arguments of one call.
-func contractCallObligation(spec *ContractSpec, subs map[string]string, value string) error {
+func contractCallObligation(spec *ContractSpec, subs map[string]string) error {
 	if !obligationsOn || len(spec.Requires) == 0 {
 		return nil
 	}
 	parts := make([]string, 0, len(spec.Requires))
 	for _, c := range spec.Requires {
-		encoded, err := withoutObligations(func() (string, error) { return encodeContractExprWithSubs(c.Expr, subs, value) })
+		// No result binding: a requires cannot name it, and binding the call
+		// made every requires over an opaque helper's call look dependent on
+		// its uninterpreted value (obligationDependsOn), hiding a violation.
+		encoded, err := withoutObligations(func() (string, error) { return encodeContractExprWithSubs(c.Expr, subs, "") })
 		if err != nil {
 			return uncheckableCall(spec.FuncName, err.Error())
 		}

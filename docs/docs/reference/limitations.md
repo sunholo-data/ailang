@@ -325,7 +325,8 @@ assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY
   passed to `map`/`filter`/`foldl`, and its own recursive calls (which must meet its own `requires`).
   Inside a recursive helper or a lambda the check reaches only the unrolling depth (depth 3), and
   the result carries an `obligations_checked_to_depth` note. Not checked: calls inside
-  `requires`/`ensures`, and calls from an unverified caller.
+  `requires`/`ensures`, calls from an unverified caller, and calls inside an opaque helper (a
+  helper whose body does not encode; the result carries a `helpers_not_checked` note naming it).
 - **int64 overflow (reported on dev, 2026-11-24).** `inc(x) requires { x >= 0 } ensures { result > x }
   { x + 1 }` is `✓ VERIFIED` with a note (`caveats: int_overflow`) showing `x = 9223372036854775807`;
   `ailang run` of that input prints `-9223372036854775808`. By default the note does not change the

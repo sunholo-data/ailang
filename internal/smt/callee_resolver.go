@@ -42,6 +42,9 @@ type CalleeDef struct {
 	UncheckableRequires string
 	// Unrolled: a self-recursive callee encoded by unrollRecursiveCallee.
 	Unrolled bool
+	// Opaque, when set, says why this helper is an uninterpreted function
+	// (declareOpaqueHelper): its body could not be encoded.
+	Opaque string
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -120,11 +123,9 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 	activeResolvedCallees = resolvedSoFar
 	defer func() { activeResolvedCallees = prevResolved }()
 
-	// Build topological order with cycle detection
-	order, err := topoSort(callees, funcName, prog, imported)
-	if err != nil {
-		return nil, err
-	}
+	// Build topological order; members of a call cycle are called opaquely
+	// (or by their contract) instead of being defined.
+	order, cyclic := topoSort(callees, funcName, prog, imported)
 	noteCalleeOrder(order)
 
 	// Encode each callee as a define-fun
@@ -159,9 +160,15 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			return nil, inadmissibleCalleeError{calleeName}
 		}
 		encodable, rejections := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
+		if cycle := cyclic[calleeName]; cycle != "" {
+			// A define-fun cannot refer forward, so a cycle member is never
+			// defined: its contract stands in for it, else it is opaque.
+			encodable = false
+			rejections = []SMTRejectionReason{{Code: RejectRecursive, Message: "it is mutually recursive (" + cycle + ")"}}
+		}
 		// A self-recursive callee with no ensures has no contract to stand in
 		// for it: unroll it instead of dropping it (callers were skipped).
-		unrollSelf := !encodable && onlyRecursive(rejections) && len(BuildContractSpec(calleeName, meta, params, returnSort).Ensures) == 0
+		unrollSelf := !encodable && cyclic[calleeName] == "" && onlyRecursive(rejections) && len(BuildContractSpec(calleeName, meta, params, returnSort).Ensures) == 0
 		if !encodable && !unrollSelf {
 			// Publish only a typed UF declaration and the original template.
 			// Actual arguments and selected-path facts are instantiated by the caller.
@@ -175,7 +182,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				activeContractSpecs[calleeName] = &spec
 				activeContractCallees[calleeName] = contractSymbol(spec)
 			} else {
-				recordCalleeFailure(calleeName, rejectionsReason(rejections))
+				defs = appendSpecOrOpaque(defs, calleeName, meta, params, surfaceReturnSorts[calleeName], rejectionsReason(rejections))
 			}
 			continue
 		}
@@ -212,7 +219,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				activeADTContext.ti = previousTI
 			}
 			if uerr != nil {
-				recordCalleeFailure(calleeName, failureReason(uerr))
+				defs = appendSpecOrOpaque(defs, calleeName, meta, params, surfaceReturnSorts[calleeName], failureReason(uerr))
 				continue // as for any callee body we cannot encode
 			}
 			if len(hofDecls) > 0 {
@@ -242,9 +249,9 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			activeADTContext.ti = previousTI
 		}
 		if err != nil {
-			// Skip callees we can't encode rather than failing the whole
-			// verification; a caller that reaches one reports why.
-			recordCalleeFailure(calleeName, failureReason(err))
+			// A callee we cannot encode is called opaquely when its signature
+			// allows; otherwise a caller that reaches it reports why.
+			defs = appendSpecOrOpaque(defs, calleeName, meta, params, surfaceReturnSorts[calleeName], failureReason(err))
 			continue
 		}
 
@@ -322,10 +329,12 @@ func buildDefineFun(name string, params []FunctionParam, returnSort string, body
 		name, strings.Join(paramParts, " "), returnSort, bodyExpr)
 }
 
-// topoSort returns a topological ordering of callee functions.
-// If A calls B, B appears before A in the result.
-// Returns error if circular dependencies are detected.
-func topoSort(callees []string, rootFunc string, prog *core.Program, imported map[string]*core.Program) ([]string, error) {
+// topoSort returns a topological ordering of callee functions: if A calls B,
+// B appears before A. A call cycle cannot be ordered (a define-fun cannot refer
+// forward), so its members are returned in cyclic, each mapped to the cycle as
+// text; the resolver calls them by contract or opaquely, never defines them,
+// so their place in the order does not matter.
+func topoSort(callees []string, rootFunc string, prog *core.Program, imported map[string]*core.Program) ([]string, map[string]string) {
 	// Build adjacency: for each callee, find what it calls
 	adj := make(map[string][]string)
 	for _, name := range callees {
@@ -338,44 +347,47 @@ func topoSort(callees []string, rootFunc string, prog *core.Program, imported ma
 		adj[name] = deps
 	}
 
-	// DFS-based topological sort with cycle detection
+	// DFS-based topological sort; a back edge marks the cycle on the stack.
 	var order []string
 	state := make(map[string]int) // 0=unvisited, 1=visiting, 2=visited
-	var cycle []string
+	cyclic := make(map[string]string)
+	var stack []string
 
-	var visit func(string) error
-	visit = func(name string) error {
+	var visit func(string)
+	visit = func(name string) {
 		if state[name] == 2 {
-			return nil
+			return
 		}
 		if state[name] == 1 {
-			cycle = append(cycle, name)
-			// Mutually recursive helpers are outside the inlinable fragment (a
-			// define-fun cannot refer forward): a skip, not a verifier error.
-			return fmt.Errorf("%w: circular function call detected: %s", ErrUnsupportedConstruct, strings.Join(cycle, " → "))
+			i := len(stack) - 1
+			for i > 0 && stack[i] != name {
+				i--
+			}
+			members := append(append([]string(nil), stack[i:]...), name)
+			text := strings.Join(members, " → ")
+			for _, m := range stack[i:] {
+				if cyclic[m] == "" {
+					cyclic[m] = text
+				}
+			}
+			return
 		}
 		state[name] = 1
-		cycle = append(cycle, name)
+		stack = append(stack, name)
 		for _, dep := range adj[name] {
-			if err := visit(dep); err != nil {
-				return err
-			}
+			visit(dep)
 		}
 		state[name] = 2
-		cycle = cycle[:len(cycle)-1]
+		stack = stack[:len(stack)-1]
 		order = append(order, name)
-		return nil
 	}
 
 	for _, name := range callees {
 		if state[name] == 0 {
-			if err := visit(name); err != nil {
-				return nil, err
-			}
+			visit(name)
 		}
 	}
-
-	return order, nil
+	return order, cyclic
 }
 
 // collectDirectCalls collects only the direct (non-transitive) callee references
