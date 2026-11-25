@@ -1271,7 +1271,13 @@
         "production",
         "latest"
       ],
-      "notes": "Document let (a, b) tuple destructuring, module-qualified types (S.Set[T], M.Map[K, V]), newline block delimiters, and std/list takeWhile/dropWhile"
+      "notes": "Document let (a, b) tuple destructuring, module-qualified types (S.Set[T], M.Map[K, V]), newline block delimiters, and std/list takeWhile/dropWhile",
+      "frozen": {
+        "at": "2026-11-25",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.20": {
       "file": "prompts/v0.16.20.md",

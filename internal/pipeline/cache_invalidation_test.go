@@ -207,18 +207,23 @@ func assertEmbeddedModuleKey(t *testing.T, loaded map[string]*loader.LoadedModul
 	if mod.SourceContent == nil || *mod.SourceContent == "" {
 		t.Fatalf("%s retained empty/unavailable embedded content", moduleID)
 	}
-	if len(mod.Imports) != 0 {
-		t.Fatalf("%s unexpected dependencies: %v", moduleID, mod.Imports)
+	depKeys := make(map[string]string, len(mod.Imports))
+	for _, imp := range mod.Imports {
+		depMod := result.Modules[imp]
+		if depMod == nil || depMod.Iface == nil {
+			t.Fatalf("%s dependency %s missing compiled interface", moduleID, imp)
+		}
+		depKeys[imp] = cacheDepDigest(depMod.Iface)
 	}
 	entry := manifest.Entries[moduleID]
 	if entry == nil {
 		t.Fatalf("manifest has no %s entry", moduleID)
 	}
-	want := ModuleCacheKey(testCompilerIdentity(t), *mod.SourceContent, map[string]string{})
+	want := ModuleCacheKey(testCompilerIdentity(t), *mod.SourceContent, depKeys)
 	if entry.CacheKey != want {
 		t.Fatalf("%s key = %q, want %q", moduleID, entry.CacheKey, want)
 	}
-	if empty := ModuleCacheKey(testCompilerIdentity(t), "", map[string]string{}); entry.CacheKey == empty {
+	if empty := ModuleCacheKey(testCompilerIdentity(t), "", depKeys); entry.CacheKey == empty {
 		t.Fatalf("%s embedded key equals empty-source key %q", moduleID, empty)
 	}
 	if result.Modules[moduleID].SourceContent != nil {
