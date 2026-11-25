@@ -645,6 +645,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		if vr.Status == "inconclusive" && opts.Replay != nil {
 			vr = replayInconclusive(vr, funcName, params, runtimeWitnessModel(encResult.SMTLib, params, solveResult.Model, solverCfg), encResult.SMTLib, opts.Replay)
 		}
+		vr.Model = formatModelBindings(vr.Model, encResult.SMTLib)
 		if opts.Verbose {
 			vr.SMTLib = encResult.SMTLib
 		}

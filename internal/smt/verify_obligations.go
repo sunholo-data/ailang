@@ -51,7 +51,7 @@ func checkCallObligations(vr VerifyResult, funcName string, enc *EncodeResult, c
 			// D2 a′: reported on the verified result, never a verdict change.
 			c := Caveat{Kind: CaveatIntOverflow, Detail: intOverflowDetail}
 			if r.Status == "counterexample" || r.Status == "inconclusive" {
-				c.Model = sr.Model
+				c.Model = formatModelBindings(sr.Model, ob.SMTLib)
 			} else {
 				c.Kind = CaveatIntOverflowUndecided
 				c.Detail = "could not decide whether every int + - * stays in the int64 range: " + r.Reason
@@ -68,6 +68,7 @@ func checkCallObligations(vr VerifyResult, funcName string, enc *EncodeResult, c
 			}
 			r.ReasonCode = obligationCode(ob.Callee)
 			r.Reason = obligationReason(ob.Callee)
+			r.Model = formatModelBindings(r.Model, ob.SMTLib)
 		case "inconclusive":
 			r.Reason = obligationReason(ob.Callee) + " only under bounded unrolling; " + r.Reason
 		case "unknown":
