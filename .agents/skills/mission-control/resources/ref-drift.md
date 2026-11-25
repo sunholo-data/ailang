@@ -21,7 +21,9 @@ unrecorded earlier SHA leaves no prior against which the later value can be clas
 
 ## Record and compare protocol
 
-Use `tools/launchd/mission-base.sh`; do not quote a base with an ad hoc short SHA.
+Use the mission base helper to read and record the full SHA.
+Run from the mission's own repository, since the helper refuses a mismatched origin
+when `MISSION_REPO` is set.
 
 1. Gate 1 fetches, performs its existing sync checks, then runs `record gate1`. The helper reads the
    full SHA once, pairs it with its UTC read time, and appends `base-gate1` to the dedicated
@@ -45,20 +47,21 @@ mid-gate reap into `CRASHED` and corrupt the diagnostic stamp count.
 ## Non-vacuity recipe
 
 The CI arm in `tools/launchd/test_mission_base.sh` performs this with a scratch clone. To re-prove
-the mechanism manually, use a scratch clone whose `HEAD` is commit B and whose
+the mechanism manually, set `MISSION_DRIVER_ROOT` to the absolute path of the driver checkout
+and use a scratch clone whose `HEAD` is commit B and whose
 `refs/remotes/origin/dev` initially names commit A:
 
 ```bash
 export AILANG_STATE_DIR="$(mktemp -d)"
 export MISSION_NAME=test
 
-bash tools/launchd/mission-base.sh record gate1
-bash tools/launchd/mission-base.sh drift gate1        # control: exit 0, steady
+bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" record gate1
+bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" drift gate1  # control: exit 0, steady
 
 # Simulate a sibling fetch by moving the exact shared ref read by snap; do not merely commit on HEAD.
 git update-ref refs/remotes/origin/dev HEAD
 
-bash tools/launchd/mission-base.sh drift gate1        # exit 1; prints old -> new DRIFT
+bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" drift gate1  # exit 1; prints old -> new DRIFT
 ```
 
 Also prove both missing-record paths: with the base file absent, and with it present but containing

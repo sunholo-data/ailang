@@ -262,7 +262,7 @@ the existing re-confirmation, so do not add another fetch or ref read:
 
 ```bash
 git fetch origin
-base=$(bash tools/launchd/mission-base.sh record gate4) || exit 2
+base=$(bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" record gate4) || exit 2
 base_sha=${base%%$'\t'*}; base_iso=${base#*$'\t'}
 git rev-parse dev "$base_sha"                    # same dev/origin re-confirmation; origin recorded once
 git diff --stat "$base_sha" -- "$MISSION_DOC" design_docs/*-mission-log.md
@@ -272,8 +272,7 @@ echo "Gate 4 Routing evidence field: base=$base_sha@$base_iso"
 The human log's **Routing evidence** row MUST contain `base=<sha>@<iso>` from that same `record
 gate4` result, with the full 40-character SHA. Gate 2's durable `base-gate2` stamp remains deferred:
 its item-level check already fetches immediately before deciding, and a separate durable stamp has
-not yet proved useful;
-it may quote `mission-base.sh snap` in the pick note, but this sprint writes no `base-gate2` row.
+not yet proved useful. The pick note may quote the mission base helper's `snap` result.
 
 If charter/log differ from `origin/dev`, do **not** edit them in the shared checkout: write the
 record in a worktree branched from `origin/dev` (`git worktree add -b … <path> origin/dev`) and land

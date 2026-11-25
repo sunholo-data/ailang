@@ -657,14 +657,14 @@ deliverable parses something, and every fixture in its test file was typed by wh
 
   ```bash
   while :; do
-    base=$(bash tools/launchd/mission-base.sh snap) || exit 2 # full SHA<TAB>read-time, no fetch
+    base=$(bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" snap) || exit 2 # full SHA<TAB>read-time, no fetch
     newsha=${base%%$'\t'*}
-    oldsha=$(bash tools/launchd/mission-base.sh last gate1) || {
+    oldsha=$(bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" last gate1) || {
       echo "no base recorded — abort, Gate 1 did not stamp" >&2
       exit 2
     }
     [ "$newsha" != "$oldsha" ] || break
-    if bash tools/launchd/mission-base.sh drift gate1; then
+    if bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" drift gate1; then
       continue # ref changed during comparison; restart Gate 3 from a fresh paired read
     else
       drift_rc=$?
