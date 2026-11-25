@@ -156,6 +156,16 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		RelaxModules:     relaxModulesEffective,
 		DebugCompile:     debugCompile,
 	}
+	if checkFixMode {
+		if applied, fixErr := runCheckFix(filename, cfg); fixErr == nil && applied > 0 {
+			if !jsonFlag && !quietFlag {
+				fmt.Printf("%s Applied %d mechanical fix(es) to %s\n", green("✓"), applied, filename)
+			}
+			if refreshed, readErr := os.ReadFile(filename); readErr == nil {
+				content = refreshed
+			}
+		}
+	}
 	src := pipeline.Source{
 		Code:     string(content),
 		Filename: filename,

@@ -30,12 +30,13 @@ type checkJSONOutput struct {
 
 // checkJSONError represents a single error in JSON check output
 type checkJSONError struct {
-	Code       string `json:"code"`
-	Message    string `json:"message"`
-	File       string `json:"file,omitempty"`
-	Line       int    `json:"line,omitempty"`
-	Column     int    `json:"column,omitempty"`
-	Suggestion string `json:"suggestion,omitempty"`
+	Code       string          `json:"code"`
+	Message    string          `json:"message"`
+	File       string          `json:"file,omitempty"`
+	Line       int             `json:"line,omitempty"`
+	Column     int             `json:"column,omitempty"`
+	Suggestion string          `json:"suggestion,omitempty"`
+	Edits      []checkTextEdit `json:"edits,omitempty"`
 }
 
 // checkAgentFormat selects the compact, AI-agent-optimized one-line diagnostic
@@ -48,6 +49,7 @@ var checkAgentFormat bool
 // outputCheckJSON writes a checkJSONOutput to stdout — as compact agent lines when
 // --format=agent is active, otherwise as indented JSON.
 func outputCheckJSON(out checkJSONOutput) {
+	attachQuickFixEdits(&out)
 	if checkAgentFormat {
 		outputCheckAgent(out)
 		return

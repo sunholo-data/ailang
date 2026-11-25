@@ -405,6 +405,7 @@ func runCheckCommand(args []string) error {
 	// one gate reads the same on every command; refused without --verify.
 	verifyStrictCheck := checkFS.Bool("strict", false, "With --verify: "+strictFlagHelp)
 	allowInconclusiveCheck := checkFS.Bool("allow-inconclusive", false, "With --verify: "+allowInconclusiveFlagHelp)
+	fixCheck := checkFS.Bool("fix", false, "Apply compiler-verified mechanical quick-fixes in place before checking")
 
 	// Flags may follow the file (`check f.ail --verify`): they used to be read
 	// as further positionals and dropped. A second file still only checks the
@@ -422,6 +423,7 @@ func runCheckCommand(args []string) error {
 	// token-lean one-line rendering for AI agent loops.
 	checkAgentFormat = (*formatCheck == "agent")
 	checkStrictBytecode = *strictBytecodeCheck
+	checkFixMode = *fixCheck
 	// The strict-bytecode gate is single-file only for now: --verify prints
 	// a different report and --package / directory checks have their own
 	// loops. Refuse the combination rather than silently ignore the flag.
