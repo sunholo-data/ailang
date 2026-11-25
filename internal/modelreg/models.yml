@@ -4411,7 +4411,11 @@ models:
     notes: |
       2026-11-25 on-device verdict: NOT a qwen3.8 replacement yet; kept for re-tests.
       Decode is 1.8x faster (59-62 vs 33-34 tok/s through the gateway, under lock),
-      but prefill of 250k-2.4M input tokens dominates agent wall time. One trial each
+      but ollama 0.40.17's MLX prefix cache missed on 23/32 docx turns (cached=0 even
+      when 80-96k tokens matched), so most turns re-read the whole 50-100k context
+      (2.5-9 min each). qwen on the same runner hits every turn. Re-test when that is
+      fixed. It also thinks to the 32k cap (cp_60166: two 32000-token turns, no tool
+      call), the same failure qwen shows on cp_ (64000 out, finish=length). One trial each
       on the benchmarks pi-qwen3-8-27b fails (qwen pass rates in brackets):
       parse_prec_climb PASS 977s; docx_reimplement PASS 139m/32 turns [3/4];
       cp_60149 1h timeout [4/9]; cp_60159 1h timeout [1/5]; cp_60166 3 turns,
