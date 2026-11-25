@@ -474,6 +474,7 @@ func runCheckCommand(args []string) error {
 		fmt.Println("  --quiet            Suppress progress lines, only output errors")
 		fmt.Println("  --package          Check entire package (reads ailang.toml)")
 		fmt.Println("  --strict-bytecode  Also compile to bytecode; BC001 for each evaluator-only function")
+		fmt.Println("  --fix              Apply compiler-verified mechanical quick-fixes in place before checking")
 		fmt.Println()
 		fmt.Println("If a directory is given, all .ail files are checked recursively.")
 		os.Exit(1)
