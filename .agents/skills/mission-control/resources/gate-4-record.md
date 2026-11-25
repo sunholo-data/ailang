@@ -58,23 +58,33 @@ and an index that answers "already tried?" confidently and wrongly is worse than
 
 **⚠ ON A SHARED-REPO MISSION, `rotate-log` WRITES INTO THE CHECKOUT THAT `AILANG_MISSION_REGISTRY`
 NAMES, NOT INTO YOUR CWD, AND THE DRIVER EXPORTS THAT VARIABLE AS THE *PIN* WORKTREE** (fleet
-iterations 28 and 32). The command resolves its target as the registry's root
-(`cmd/ailang/mission_cmd.go`, "ROTATE WHERE THE FILE IS CANONICAL"). Under the driver,
+iterations 28 and 32). Without `--workdir`, the command resolves its target as the registry's root
+(`cmd/ailang/mission_rotate.go`, "ROTATE WHERE THE FILE IS CANONICAL"). Under the driver,
 `AILANG_MISSION_REGISTRY=<pin>/missions`, so running it from a record worktree rotates and
 regenerates the throwaway pin. Overriding `MISSION_WORKDIR` does not help. Measured at
 iteration 32: two runs from the record worktree printed pin paths, and each one added a duplicate
-"Older entries are ARCHIVED" notice to the pin's log. When you write the record anywhere but the
-checkout that variable names, pass it explicitly:
-`AILANG_MISSION_REGISTRY="$PWD/missions" ailang mission rotate-log ${MISSION_NAME} --keep 20`.
+"Older entries are ARCHIVED" notice to the pin's log. For a record outside its canonical checkout,
+run from the record checkout and pass its directory explicitly.
+
+```bash
+ailang mission rotate-log ${MISSION_NAME} --keep 20 --workdir "$PWD"
+```
+
+The override works in record checkouts without a `missions/` directory, including World and Stapledon.
+**If the CLI answers `unknown flag "--workdir"`, it was built before the flag existed** (measured on
+the rig 2026-11-25: v0.61.1 at `cb6bb75` rejects it). Do not run the command without the flag. On a
+shared-repo mission, use `AILANG_MISSION_REGISTRY="$PWD/missions" ailang mission rotate-log …`. On
+a mission whose record checkout has no `missions/`, copy its `missions/<name>.toml` into a scratch
+directory, set `workdir` to the record checkout, and point `AILANG_MISSION_REGISTRY` there.
 Then check that both printed paths (`archive`, `INDEX`) are under your record worktree, and that
 `git -C "$MISSION_WORKDIR" status --porcelain` is empty. The tell: the paths it prints are not the
 directory you are standing in.
 
-To rebuild an index without rotating or rewriting either source, point the registry at the
-intended record checkout explicitly (use `--stream status` for the status index):
+To rebuild an index without rotating or rewriting either source, run from the record checkout
+with the same override (use `--stream status` for the status index).
 
 ```bash
-AILANG_MISSION_REGISTRY="/path/to/record-checkout/missions" ailang mission rotate-log ${MISSION_NAME} --index-only
+ailang mission rotate-log ${MISSION_NAME} --index-only --workdir "$PWD"
 ```
 
 Do not combine `--index-only` with `--keep`. It reads live + archive even when the live
