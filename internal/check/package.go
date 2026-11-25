@@ -271,7 +271,7 @@ func DiscoverPackageSources(dir string) ([]string, []string, error) {
 		// Skip hidden directories and common non-source dirs
 		if info.IsDir() {
 			base := filepath.Base(path)
-			if strings.HasPrefix(base, ".") || base == "node_modules" || base == "_vendor" {
+			if strings.HasPrefix(base, ".") || base == "node_modules" || base == "_vendor" || pkg.IsNestedPackageRoot(path, dir) {
 				return filepath.SkipDir
 			}
 			return nil

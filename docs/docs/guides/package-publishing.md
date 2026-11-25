@@ -142,8 +142,19 @@ kind = "fix"     # security | fix | feature | breaking
 `ailang init package` scaffolds both. The section for the version being published must
 exist and be non-empty (`PUB001`); the kind must be declared (`PUB002`). `CHANGELOG.md`
 ships in the tarball; `ailang pkg versions <name>` prints the kind and notes per version.
-The kind is your *claim* — a later release of the ladder checks it against the measured
-change class, so `security` is the label that is verified hardest.
+The kind is your *claim*, and it is checked against the **measured** change class: your
+version's signature set compared with the previous published version's, using the same
+classifier the dependency cascade uses (A: nothing exported changed, B: additions only,
+C: an export or a contract was removed or changed, U: not measurable, because one side
+predates the contract-aware signature set). `pkg quality` prints it as `measured C vs 0.8.1`
+and banks it in the report's `release.measured_class`.
+
+- `kind = "fix"`, `"security"` or `"feature"` over a measured **C** is `PUB025`. It is a warning
+  until v0.64.0 and a gate from then on: dependents' cascades will route the change to
+  review either way, so declare `kind = "breaking"`.
+- `kind = "breaking"` over a measured **A** is an informational `PUB025`.
+- A **U** raises nothing. The first publish after the contract-aware signature set arrives is
+  U for every package.
 
 ### Contracts are now counted
 
@@ -170,6 +181,28 @@ The same holds for the `literals` an export lists (#2378): the type variables wh
 constraint carries an integer literal, over which the export is compiled once per numeric
 instance. A package with such an export has a different v2 hash under the release that adds
 the field, and the validator is deployed in step with it.
+
+Each export's `requires`/`ensures` contracts are listed in the signature set (as
+`<module>:contract:<fn>:<clause>` lines, plus one `meta:contracts:v1` marker), but **not** in
+`interface_hash_v2`: adding contracts never changes a package's identity, and a publisher
+and validator on either side of that release still agree. What changes is classification:
+tightening a `requires` under an unchanged type is class C, and dependents are told which
+signatures went away (`affected_exports` on the upgrade message).
+
+### Nested packages are separate packages
+
+A directory below your package root that has its own `ailang.toml` is another package. It is
+left out of your package's source discovery, compile, content hash and tarball, and it is
+published on its own. Use this to keep a smaller, separately versioned package (for example
+a dependency-free core) in the same repository.
+
+### How dependents import you
+
+Dependents can import your modules by their `[exports]` names (your `module_prefix`), or by
+`pkg/<vendor>/<name>/<module path after the prefix>`. Both resolve, but only the `pkg/` form
+names exactly one package: the loader lets several dependencies share a prefix and tries
+each. `ailang pkg docs <vendor/name>` ends with the `pkg/` import line for every exported
+module.
 
 ### The package inbox
 

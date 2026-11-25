@@ -170,7 +170,7 @@ func copyPackageContents(srcDir, destDir string) error {
 		}
 		if info.IsDir() {
 			base := filepath.Base(path)
-			if base == ".git" || base == "tests" || base == "test" {
+			if base == ".git" || base == "tests" || base == "test" || IsNestedPackageRoot(path, srcDir) {
 				return filepath.SkipDir
 			}
 			return os.MkdirAll(filepath.Join(destDir, rel), 0755)

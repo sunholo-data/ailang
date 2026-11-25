@@ -26,6 +26,10 @@ func ContentHash(dir string) (string, error) {
 			return err
 		}
 		if info.IsDir() {
+			// A nested package's files are its own content, not this package's.
+			if IsNestedPackageRoot(path, dir) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		// Leftover `ailang test` body copies (#1502) are not package content.

@@ -205,6 +205,7 @@ type ifaceItemJSON struct {
 	Tier            string                `json:"tier,omitempty"`
 	ReplacedBy      string                `json:"replaced_by,omitempty"`
 	DeprecationNote string                `json:"deprecation_note,omitempty"`
+	Contracts       []string              `json:"contracts,omitempty"`
 }
 
 type ctorSchemeJSON struct {
@@ -246,6 +247,7 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 			Tier:            item.Tier,
 			ReplacedBy:      item.ReplacedBy,
 			DeprecationNote: item.DeprecationNote,
+			Contracts:       item.Contracts,
 		}
 	}
 
@@ -336,6 +338,7 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 			Tier:            item.Tier,
 			ReplacedBy:      item.ReplacedBy,
 			DeprecationNote: item.DeprecationNote,
+			Contracts:       item.Contracts,
 		}
 	}
 

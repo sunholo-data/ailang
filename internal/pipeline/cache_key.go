@@ -66,7 +66,12 @@ import (
 // which passed with such a match — must miss, or `check` would pass it warm
 // and fail it cold. Modules also carry a fifth artifact, match_warnings.json
 // (TC_MATCH_003, replayed on a hit).
-const cacheKeyVersion = "v13"
+// v13 -> v14
+// (M-PKG-PARALLEL-AGENTS M2): interface exports carry Contracts (normalised
+// requires/ensures), which feed the v2 signature set. A v13 entry decodes with
+// none, so a warm publish would class a contract change as unchanged; v13 (and
+// older) entries must miss.
+const cacheKeyVersion = "v14"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

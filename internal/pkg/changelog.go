@@ -104,11 +104,17 @@ func ChangelogSectionFrom(content, version string) (string, bool) {
 // is inside the grace window: the badge still shows, and the deployed
 // validator (built with the release tag injected) is the binary that decides.
 func ReleaseGatesHard(ailangVersion string) bool {
+	return gatesHardFrom(ailangVersion, ReleaseGateHardFrom)
+}
+
+// gatesHardFrom reports whether ailangVersion is at or past hardFrom; a
+// version with no x.y.z token is in the grace window.
+func gatesHardFrom(ailangVersion, hardFrom string) bool {
 	m := semverToken.FindStringSubmatch(ailangVersion)
 	if m == nil {
 		return false
 	}
-	cmp, err := compareSemver(m[1], ReleaseGateHardFrom)
+	cmp, err := compareSemver(m[1], hardFrom)
 	if err != nil {
 		return true
 	}

@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/iface"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -50,15 +51,17 @@ func TestInterfaceHashV2_SignatureSetSortedAndDeduplicated(t *testing.T) {
 	dir, manifest := writeV2Package(t, modules, nil)
 	manifest.Exports.Modules = append(manifest.Exports.Modules, manifest.Exports.Modules[0])
 	_, signatures := mustV2Hash(t, dir, manifest, DefaultPublishLimits())
-	if len(signatures) != 6 {
-		t.Fatalf("signature set = %#v, want six de-duplicated signatures", signatures)
+	// Six exports plus the contracts marker, which every module emits and the
+	// package set carries exactly once (M-PKG-PARALLEL-AGENTS D7).
+	if len(signatures) != 7 || signatures[0] != iface.ContractsMarker {
+		t.Fatalf("signature set = %#v, want the marker plus six de-duplicated signatures", signatures)
 	}
 	if !sort.StringsAreSorted(signatures) {
 		t.Fatalf("signature set is not sorted: %#v", signatures)
 	}
 	for i, want := range []string{"alpha", "beta", "delta", "mid", "yak", "zed"} {
-		if !strings.Contains(signatures[i], ":func:"+want+":") {
-			t.Fatalf("signature set[%d] = %q, want the %q export", i, signatures[i], want)
+		if !strings.Contains(signatures[i+1], ":func:"+want+":") {
+			t.Fatalf("signature set[%d] = %q, want the %q export", i+1, signatures[i+1], want)
 		}
 	}
 }

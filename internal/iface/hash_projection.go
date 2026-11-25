@@ -71,6 +71,9 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		// @experimental / @deprecated mark a function without changing it:
 		// marking one must leave interface_hash unchanged (§6.1 item 4).
 		out.Tier, out.ReplacedBy, out.DeprecationNote = "", "", ""
+		// Contracts reach classification through SignatureSet's contract lines;
+		// they must not move interface_hash_v2 (M-PKG-PARALLEL-AGENTS D7).
+		out.Contracts = nil
 		projection.Funcs = append(projection.Funcs, out)
 	}
 	sort.Slice(projection.Funcs, func(a, b int) bool {
@@ -106,6 +109,11 @@ func escapeSigField(s string) string {
 // it returns stable signatures for exported functions, types, and constructors.
 // The encoding is injective (see escapeSigField): distinct interfaces never share a
 // signature, which is what lets M5 use plain set difference.
+// ContractsMarker is the set-level line that marks a v2 signature set as
+// contract-aware. It must equal messaging.SignatureContractsMarker (pinned by a
+// test); messaging does not import iface, to keep its package closure small.
+const ContractsMarker = "meta:contracts:v1"
+
 func SignatureSet(j *InterfaceJSON) []string {
 	if j == nil {
 		return nil
@@ -132,7 +140,14 @@ func SignatureSet(j *InterfaceJSON) []string {
 			typ += " literal[" + strings.Join(f.Literals, ", ") + "]"
 		}
 		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(typ), strings.Join(effects, ",")))
+		for _, c := range f.Contracts {
+			sigs = append(sigs, fmt.Sprintf("%s:contract:%s:%s", mod, escapeSigField(f.Name), escapeSigField(c)))
+		}
 	}
+	// Every contract-aware set carries the marker, whether or not any export has
+	// a contract: "no contract lines" must be distinguishable from "produced
+	// before contracts were recorded" (M-PKG-PARALLEL-AGENTS D7).
+	sigs = append(sigs, ContractsMarker)
 	for _, t := range j.Types {
 		sigs = append(sigs, fmt.Sprintf("%s:type:%s/%d", mod, escapeSigField(t.Name), len(t.Params)))
 		for _, ctor := range t.Ctors {

@@ -104,7 +104,11 @@
       "type": "(int,int,int,int)-\u003eint",
       "effects": [],
       "pure": true,
-      "tier": "experimental"
+      "tier": "experimental",
+      "contracts": [
+        "requires (((((pcmLen \u003e= 0) \u0026\u0026 (rate \u003e 0)) \u0026\u0026 (channels \u003e 0)) \u0026\u0026 (bitsPerSample \u003e 0)) \u0026\u0026 ((bitsPerSample % 8) == 0))",
+        "ensures (result \u003e= 0)"
+      ]
     },
     {
       "ifc": {

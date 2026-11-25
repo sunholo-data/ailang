@@ -31,7 +31,7 @@ func TestConstraintsChangeIdentity(t *testing.T) {
 		t.Errorf("an unconstrained export must project as before (no constraints key): %s", hp)
 	}
 
-	sp, sc := SignatureSet(plain), SignatureSet(constrained)
+	sp, sc := withoutContractsMarker(SignatureSet(plain)), withoutContractsMarker(SignatureSet(constrained))
 	if sp[0] != "q/lib:func:eqq:(a\\,a)->bool:" {
 		t.Errorf("an unconstrained signature must be unchanged, got %q", sp[0])
 	}
@@ -59,7 +59,7 @@ func TestLiteralsChangeIdentity(t *testing.T) {
 	if bytes.Equal(hp, hl) || strings.Contains(string(hp), "literals") || !strings.Contains(string(hl), `"literals":["a"]`) {
 		t.Errorf("literals must change the hash projection and only when present:\n%s\n%s", hp, hl)
 	}
-	sp, sl := SignatureSet(fn(nil)), SignatureSet(fn([]string{"a"}))
+	sp, sl := withoutContractsMarker(SignatureSet(fn(nil))), withoutContractsMarker(SignatureSet(fn([]string{"a"})))
 	if sp[0] != "q/lib:func:inc:Num[a] => (a)->a:" || sl[0] != "q/lib:func:inc:Num[a] => (a)->a literal[a]:" {
 		t.Errorf("signatures: %q, %q", sp[0], sl[0])
 	}

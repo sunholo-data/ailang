@@ -56,6 +56,9 @@ type FuncJSON struct {
 	// Deprecation is not a tier: a deprecated Stable function stays stable.
 	ReplacedBy      string `json:"replaced_by,omitempty"`
 	DeprecationNote string `json:"deprecation_note,omitempty"`
+	// Contracts: normalised requires/ensures (M-PKG-PARALLEL-AGENTS D7). In the
+	// v2 signature set; stripped by HashProjection, so not in interface_hash_v2.
+	Contracts []string `json:"contracts,omitempty"`
 }
 
 // ToNormalizedJSON converts an Iface to normalized JSON
@@ -149,6 +152,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Tier:            export.Tier,
 			ReplacedBy:      export.ReplacedBy,
 			DeprecationNote: export.DeprecationNote,
+			Contracts:       export.Contracts,
 		}
 
 		result.Funcs = append(result.Funcs, funcJSON)

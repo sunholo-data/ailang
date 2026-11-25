@@ -92,13 +92,14 @@ func TestSignatureSet_SortedAndStable(t *testing.T) {
 		"example/shapes:func:paint:Shape[a] -> Shape[a]:IO,State",
 		"example/shapes:type:AliasOnly/0",
 		"example/shapes:type:Shape/1",
+		ContractsMarker, // every contract-aware set carries it (M-PKG-PARALLEL-AGENTS D7)
 	}
 
 	if got := SignatureSet(j); !reflect.DeepEqual(got, want) {
 		t.Fatalf("SignatureSet() = %#v, want %#v", got, want)
 	}
-	if got := SignatureSet(&InterfaceJSON{}); got == nil || len(got) != 0 {
-		t.Fatalf("SignatureSet(empty) = %#v, want non-nil empty slice", got)
+	if got := SignatureSet(&InterfaceJSON{}); !reflect.DeepEqual(got, []string{ContractsMarker}) {
+		t.Fatalf("SignatureSet(empty) = %#v, want only the contracts marker", got)
 	}
 	if got := SignatureSet(nil); got != nil {
 		t.Fatalf("SignatureSet(nil) = %#v, want nil", got)
@@ -171,7 +172,7 @@ func TestSignatureSet_EncodingIsInjective(t *testing.T) {
 
 	// Control: the escaping must not break the ordinary case, and it must be stable.
 	plain := &InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "int -> int", Effects: []string{"IO"}}}}
-	want := []string{"mod:func:run:int -> int:IO"}
+	want := []string{ContractsMarker, "mod:func:run:int -> int:IO"}
 	if got := SignatureSet(plain); !reflect.DeepEqual(got, want) {
 		t.Errorf("unescaped input changed shape: got %#v want %#v", got, want)
 	}

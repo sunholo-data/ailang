@@ -72,7 +72,7 @@ func FindNamedTestBodyFiles(dir string) ([]string, error) {
 			return err
 		}
 		if d.IsDir() {
-			if path != dir && strings.HasPrefix(d.Name(), ".") {
+			if path != dir && (strings.HasPrefix(d.Name(), ".") || IsNestedPackageRoot(path, dir)) {
 				return filepath.SkipDir
 			}
 			return nil

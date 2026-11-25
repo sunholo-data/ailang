@@ -45,6 +45,11 @@ type IfaceItem struct {
 	// Informational: neither changes the type, the digest or interface_hash.
 	ReplacedBy      string
 	DeprecationNote string
+	// Contracts are the function's requires/ensures clauses, normalised
+	// ("requires <expr>", source order). They feed the v2 signature set so a
+	// contract change is classed C (M-PKG-PARALLEL-AGENTS D7), and are kept OUT
+	// of the digest and interface_hash_v2.
+	Contracts []string
 }
 
 // ConstructorScheme represents the type scheme of an ADT constructor

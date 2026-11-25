@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -139,13 +140,16 @@ func measurePackageQuality(dir string, opts qualityMeasureOptions) (*pkg.Package
 	if content, readErr := os.ReadFile(filepath.Join(absDir, "AGENT.md")); readErr == nil {
 		in.HasAgentDoc, in.AgentDocContent = true, string(content)
 	}
-	if index, indexErr := pkg.NewRegistryClient().FetchIndex(); indexErr != nil {
+	client := pkg.NewRegistryClient()
+	if index, indexErr := client.FetchIndex(); indexErr != nil {
 		in.OverlapErr = indexErr.Error()
 	} else {
 		in.Overlap = pkg.ExportOverlap(index, manifest.Package.Name, manifest.Exports.Modules)
+		in.MeasuredChangeClass, in.MeasuredAgainst = measureAgainstPrevious(client, index, manifest, in.Signatures)
 	}
 	in.ChangelogNotes, in.HasChangelogSection = pkg.ChangelogSection(absDir, manifest.Package.Version)
 	in.ReleaseGatesHard = pkg.ReleaseGatesHard(Version)
+	in.ReleaseKindGatesHard = pkg.ReleaseKindGatesHard(Version)
 
 	if opts.RunAttested {
 		in.Attested = runAttestedChecks(absDir, manifest)
@@ -250,7 +254,7 @@ func printQualityHuman(r *pkg.QualityReport) {
 		fmt.Printf("  interface: %s v2 %s (%d signatures)\n", green("✓"), shortHash(r.Interface.HashV2), r.Interface.Signatures)
 	}
 	fmt.Printf("  effects:   max %v  rank_max %s  ceiling_declared %v\n", r.Effects.Max, orDash(r.Effects.RankMax), r.Effects.CeilingDeclared)
-	fmt.Printf("  release:   kind %s  changelog_section %v\n", orDash(r.Release.Kind), r.Release.ChangelogSection)
+	fmt.Printf("  release:   kind %s  changelog_section %v  measured %s\n", orDash(r.Release.Kind), r.Release.ChangelogSection, measuredLabel(r.Release))
 	fmt.Printf("  docs:      AGENT.md %v  ai_summary %v\n", r.Docs.AgentMD, r.Docs.AISummary)
 	fmt.Printf("  style:     %d exported funcs, %d pure (%.0f%%)\n", r.Style.ExportedFuncs, r.Style.PureExports, r.Style.PureRatio*100)
 	if r.Tests != nil {
@@ -294,4 +298,33 @@ func shortHash(h string) string {
 		return h[:12] + "…"
 	}
 	return h
+}
+
+// measureAgainstPrevious classifies this version's v2 signature set against the
+// previous published version's, with the classifier the cascade uses, so
+// PUB025 checks the declared [release] kind against the same class dependents
+// will see. Best-effort: no local signatures, no previous version, or an
+// unreadable metadata.json leaves it unmeasured ("").
+func measureAgainstPrevious(client *pkg.RegistryClient, index *pkg.RegistryIndex, manifest *pkg.PackageManifest, signatures []string) (class, against string) {
+	if len(signatures) == 0 {
+		return "", ""
+	}
+	prev := pkg.PreviousPublishedVersion(index, manifest.Package.Name, manifest.Package.Version)
+	if prev == "" {
+		return "", ""
+	}
+	meta, err := client.FetchMetadata(manifest.Package.Name, prev)
+	if err != nil || meta == nil {
+		return "", ""
+	}
+	old := messaging.PackageVersionInfo{InterfaceHash: meta.InterfHash, Signatures: meta.InterfaceSignatures}
+	return messaging.ClassifyVersionChange(old, messaging.PackageVersionInfo{Signatures: signatures}), prev
+}
+
+// measuredLabel renders the measured class next to the declared kind.
+func measuredLabel(rel pkg.ReleaseSection) string {
+	if rel.MeasuredClass == "" {
+		return "-"
+	}
+	return rel.MeasuredClass + " vs " + rel.MeasuredAgainst
 }

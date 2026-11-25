@@ -339,6 +339,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			if repl, note, ok := fd.Deprecation(); ok {
 				item.ReplacedBy, item.DeprecationNote = repl, note
 			}
+			item.Contracts = FuncContracts(fd)
 		}
 
 		iface.Exports[name] = item

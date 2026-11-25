@@ -134,12 +134,12 @@ func TestEmitUpgradeAvailable_V2PairCarriesBreaking(t *testing.T) {
 	old := PackageVersionInfo{
 		Name: "sunholo/auth", Version: "0.1.0",
 		InterfaceHash: "sha256:aaa", ContentHash: "sha256:ccc",
-		Signatures: []string{"auth:func:login:String -> Bool", "auth:func:logout:Unit -> Unit"},
+		Signatures: []string{"auth:func:login:String -> Bool", "auth:func:logout:Unit -> Unit", SignatureContractsMarker},
 	}
 	new := PackageVersionInfo{
 		Name: "sunholo/auth", Version: "0.2.0",
 		InterfaceHash: "sha256:bbb", ContentHash: "sha256:ddd",
-		Signatures: []string{"auth:func:login:String -> Bool"}, // logout REMOVED => C
+		Signatures: []string{"auth:func:login:String -> Bool", SignatureContractsMarker}, // logout REMOVED => C
 	}
 
 	if _, err := EmitUpgradeAvailable(store, old, new, []string{"workspace:docparse"}); err != nil {
@@ -165,11 +165,11 @@ func TestEmitInterfaceChangeNotice_CarriesChangeClass(t *testing.T) {
 	store := newTestStore(t)
 	old := PackageVersionInfo{
 		Name: "sunholo/auth", Version: "0.1.0", InterfaceHash: "sha256:old",
-		Signatures: []string{"auth:func:login:String -> Bool"},
+		Signatures: []string{"auth:func:login:String -> Bool", SignatureContractsMarker},
 	}
 	new := PackageVersionInfo{
 		Name: "sunholo/auth", Version: "0.2.0", InterfaceHash: "sha256:new",
-		Signatures: []string{"auth:func:login:String -> Result Bool Error"},
+		Signatures: []string{"auth:func:login:String -> Result Bool Error", SignatureContractsMarker},
 	}
 
 	if _, err := EmitInterfaceChangeNotice(store, old, new, []string{"workspace:docparse"}); err != nil {
@@ -248,16 +248,16 @@ func TestClassifyChange_BothLegacy_UnchangedBehaviour(t *testing.T) {
 }
 
 func TestClassifyChange_AdditiveVsBreaking(t *testing.T) {
-	old := PackageVersionInfo{Signatures: []string{"m:func:a:Int"}}
+	old := PackageVersionInfo{Signatures: []string{"m:func:a:Int", SignatureContractsMarker}}
 	tests := []struct {
 		name       string
 		signatures []string
 		want       string
 	}{
-		{"equal", []string{"m:func:a:Int"}, "A"},
-		{"additive", []string{"m:func:b:String", "m:func:a:Int"}, "B"},
-		{"removed", []string{"m:func:b:String"}, "C"},
-		{"retyped", []string{"m:func:a:String"}, "C"},
+		{"equal", []string{"m:func:a:Int", SignatureContractsMarker}, "A"},
+		{"additive", []string{"m:func:b:String", "m:func:a:Int", SignatureContractsMarker}, "B"},
+		{"removed", []string{"m:func:b:String", SignatureContractsMarker}, "C"},
+		{"retyped", []string{"m:func:a:String", SignatureContractsMarker}, "C"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

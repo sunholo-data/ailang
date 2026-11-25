@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +55,7 @@ func pkgDocsCommand(args []string) error {
 		latestDir := filepath.Join(pkgCacheDir, entries[len(entries)-1].Name())
 		agentMD := filepath.Join(latestDir, "AGENT.md")
 		if data, err := os.ReadFile(agentMD); err == nil {
-			fmt.Println(string(data))
+			printAgentDoc(os.Stdout, data, latestDir)
 			return nil
 		}
 	}
@@ -70,7 +71,7 @@ func pkgDocsCommand(args []string) error {
 			// Check each git cache dir for this package
 			candidate := filepath.Join(gitCacheBase, entry.Name(), "packages", nameParts[1], "AGENT.md")
 			if data, err := os.ReadFile(candidate); err == nil {
-				fmt.Println(string(data))
+				printAgentDoc(os.Stdout, data, filepath.Dir(candidate))
 				return nil
 			}
 		}
@@ -111,7 +112,7 @@ func pkgDocsCommand(args []string) error {
 
 			agentMD := filepath.Join(cachePath, "AGENT.md")
 			if data, err := os.ReadFile(agentMD); err == nil {
-				fmt.Println(string(data))
+				printAgentDoc(os.Stdout, data, cachePath)
 				return nil
 			}
 			return fmt.Errorf("package %s@%s has no AGENT.md", name, p.Latest)
@@ -119,4 +120,23 @@ func pkgDocsCommand(args []string) error {
 	}
 
 	return fmt.Errorf("package %s not found in registry or local cache", name)
+}
+
+// printAgentDoc prints a package's AGENT.md followed by the canonical import
+// line for each exported module, read from the package's own ailang.toml.
+// The bare module_prefix spelling also resolves, but the loader lets several
+// dependencies share a prefix; only pkg/<vendor>/<name>/... names exactly one
+// package (M-PKG-PARALLEL-AGENTS M6). A missing or unreadable manifest prints
+// the guide alone.
+func printAgentDoc(w io.Writer, agentDoc []byte, pkgDir string) {
+	fmt.Fprintln(w, string(agentDoc))
+	m, err := pkg.LoadManifest(pkgDir)
+	if err != nil || len(m.Exports.Modules) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "## Imports (canonical)")
+	fmt.Fprintln(w)
+	for _, mod := range m.Exports.Modules {
+		fmt.Fprintf(w, "import pkg/%s\n", m.MapModuleToImportPath(mod))
+	}
 }

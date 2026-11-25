@@ -721,7 +721,10 @@
       "type": "(float,int)-\u003estring",
       "effects": [],
       "pure": true,
-      "tier": "stable"
+      "tier": "stable",
+      "contracts": [
+        "requires ((decimals \u003e= 0) \u0026\u0026 (decimals \u003c= 1000))"
+      ]
     },
     {
       "ifc": {

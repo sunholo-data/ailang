@@ -84,7 +84,8 @@ func (lf *LockFile) Save(dir string) error {
 	}
 	buf.WriteByte('\n')
 
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	// Atomic: agents sharing a checkout read the lock while others rewrite it.
+	return writeFileAtomic(path, buf.Bytes(), 0644)
 }
 
 // LoadLockFile reads and validates a lock file from a directory.

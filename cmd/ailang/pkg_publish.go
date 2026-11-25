@@ -167,7 +167,7 @@ func pkgPublishCommand(args []string) error {
 	fmt.Printf("%s Published %s@%s\n", green("✓"), manifest.Package.Name, manifest.Package.Version)
 
 	// Auto-emit package coordination messages (M-PKG-MSG)
-	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
+	emitPublishMessages(manifest, cwd, contentHash, interfaceHash, inputs.Signatures)
 
 	return nil
 }
@@ -282,7 +282,7 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 
 // emitPublishMessages auto-emits package coordination messages after a successful publish.
 // This is best-effort — failures are logged but don't block the publish.
-func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interfaceHash string) {
+func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interfaceHash string, signatures []string) {
 	store, err := openPkgMsgStore(msgStoreWrite)
 	if err != nil {
 		return // No messaging store available
@@ -341,13 +341,13 @@ func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interf
 	}
 
 	// Notify dependent packages (M-PKG-AUTONOMOUS-UPDATES)
-	emitDependentNotifications(store, manifest, contentHash, interfaceHash)
+	emitDependentNotifications(store, manifest, contentHash, interfaceHash, signatures)
 }
 
 // emitDependentNotifications queries the registry index for packages that depend on
 // the just-published package and sends them upgrade-available messages.
 // Best-effort — failures are logged but don't block the publish.
-func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageManifest, contentHash, interfaceHash string) {
+func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageManifest, contentHash, interfaceHash string, signatures []string) {
 	client := pkg.NewRegistryClient()
 	index, err := client.FetchIndex()
 	if err != nil {
@@ -401,22 +401,7 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 	// Required by the messaging schema validator (upgrade-available demands
 	// from_version + from_interface_hash). We pull the second-most-recent
 	// version from the index entry and fetch its metadata.json for the hash.
-	oldInfo := messaging.PackageVersionInfo{Name: pkgName}
-	for _, e := range index.Packages {
-		if e.Name != pkgName {
-			continue
-		}
-		// Versions list contains the just-published version too. Find the
-		// most recent version that isn't the new one.
-		for i := len(e.Versions) - 1; i >= 0; i-- {
-			if e.Versions[i] == newVersion {
-				continue
-			}
-			oldInfo.Version = e.Versions[i]
-			break
-		}
-		break
-	}
+	oldInfo := messaging.PackageVersionInfo{Name: pkgName, Version: pkg.PreviousPublishedVersion(index, pkgName, newVersion)}
 	if oldInfo.Version != "" {
 		if oldMeta, mErr := client.FetchMetadata(pkgName, oldInfo.Version); mErr == nil && oldMeta != nil {
 			oldInfo.InterfaceHash = oldMeta.InterfHash
@@ -426,6 +411,9 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 			// for the cloud coordinator's deterministic dispatcher.
 			oldInfo.Effects = oldMeta.Manifest.EffectsMax
 			oldInfo.Exports = oldMeta.Manifest.Exports
+			// M-PKG-PARALLEL-AGENTS C4: the previous version's v2 signature set,
+			// so the class is measured (A/B/C/U) instead of assumed from hashes.
+			oldInfo.Signatures = oldMeta.InterfaceSignatures
 		}
 	}
 
@@ -442,6 +430,7 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 			ContentHash:   contentHash,
 			Effects:       depEffects,
 			Exports:       depExports,
+			Signatures:    signatures,
 		}
 		msgID, err := messaging.EmitUpgradeAvailable(store, oldInfo, depInfo, recipients)
 		if err == nil && msgID != "" {
@@ -510,6 +499,20 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 // classifyChange in internal/messaging/pkg_events.go, with B reserved for
 // the rare module-add case the wrapper can prove safe.
 func mapChangeClassToSchema(localClass string, oldInfo, newInfo messaging.PackageVersionInfo) string {
+	// M-PKG-PARALLEL-AGENTS C4: once either side carries a signature set the
+	// class is MEASURED by the same classifier the inbox message uses, so the
+	// two channels cannot disagree (a one-sided pair is U, review). This must
+	// come before the hash check: contracts are deliberately absent from the
+	// interface hash (D7), so equal hashes say nothing about a contract change.
+	if len(oldInfo.Signatures) > 0 || len(newInfo.Signatures) > 0 {
+		return messaging.ClassifyVersionChange(oldInfo, newInfo)
+	}
+	return legacyChangeClass(oldInfo, newInfo)
+}
+
+// legacyChangeClass is the pre-signature heuristic, kept for pairs where
+// neither side has v2 signature metadata.
+func legacyChangeClass(oldInfo, newInfo messaging.PackageVersionInfo) string {
 	if oldInfo.InterfaceHash == "" || oldInfo.InterfaceHash == newInfo.InterfaceHash {
 		return "A" // Content-only change
 	}
@@ -527,10 +530,9 @@ func mapChangeClassToSchema(localClass string, oldInfo, newInfo messaging.Packag
 	if len(newInfo.Exports) > len(oldInfo.Exports) {
 		return "B"
 	}
-	// Interface hash changed but module exports list is unchanged. We cannot
-	// distinguish "added function" from "removed function" without a finer
-	// interface diff. Conservative: assume breaking → AI escalates and either
-	// confirms additive (PR opens with no consumer changes) or repairs.
+	// Interface hash changed but module exports list is unchanged. Without
+	// signatures we cannot tell "added function" from "removed function", so
+	// assume breaking: the AI escalates and confirms or repairs.
 	return "C"
 }
 

@@ -78,6 +78,16 @@ type QualityInputs struct {
 	// see ReleaseGatesHard); false = grace window, badges only.
 	ReleaseGatesHard bool
 
+	// MeasuredChangeClass is the v2 signature-set class of this version against
+	// MeasuredAgainst, the previous published version (A/B/C/U, the classifier
+	// the cascade uses). "" = not measured (first publish, registry
+	// unreachable, or no local signatures). It is what PUB025 checks the
+	// declared [release] kind against (M-PKG-PARALLEL-AGENTS C4).
+	MeasuredChangeClass string
+	MeasuredAgainst     string
+	// ReleaseKindGatesHard: PUB025 blocks (true from ReleaseKindGateHardFrom).
+	ReleaseKindGatesHard bool
+
 	// Attested is nil when the publisher did not run tests/smoke (or the
 	// upload carried none).
 	Attested *AttestedBlock
@@ -190,6 +200,9 @@ type ReleaseSection struct {
 	Kind             string `json:"kind,omitempty"`
 	ChangelogSection bool   `json:"changelog_section"`
 	Notes            string `json:"notes,omitempty"`
+	// MeasuredClass / MeasuredAgainst: see QualityInputs.MeasuredChangeClass.
+	MeasuredClass   string `json:"measured_class,omitempty"`
+	MeasuredAgainst string `json:"measured_against,omitempty"`
 }
 
 type DocsSection struct {
@@ -321,7 +334,8 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 	}
 
 	// release (server) — design D2. Grace: badges below ReleaseGateHardFrom.
-	r.Release = ReleaseSection{Source: SourceServer, Kind: m.Release.Kind, ChangelogSection: in.HasChangelogSection, Notes: in.ChangelogNotes}
+	r.Release = ReleaseSection{Source: SourceServer, Kind: m.Release.Kind, ChangelogSection: in.HasChangelogSection, Notes: in.ChangelogNotes,
+		MeasuredClass: in.MeasuredChangeClass, MeasuredAgainst: in.MeasuredAgainst}
 	if !in.HasChangelogSection {
 		r.finding("PUB001", in.ReleaseGatesHard, "warn",
 			fmt.Sprintf("%s has no non-empty `## %s` section — describe what this version changes", ChangelogFile, m.Package.Version))
@@ -330,6 +344,7 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 		r.finding("PUB002", in.ReleaseGatesHard, "warn",
 			"[release] kind is not declared — one of "+strings.Join(ReleaseKinds, "|"))
 	}
+	releaseKindVsMeasured(r, m.Release.Kind, in)
 
 	// docs
 	_, hasSummary := m.Metadata["ai_summary"]

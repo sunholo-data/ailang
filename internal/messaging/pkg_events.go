@@ -5,6 +5,7 @@ package messaging
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -77,6 +78,7 @@ func UpgradeAvailableMessage(old, new PackageVersionInfo, recipients []string, c
 			ToContentHash:     new.ContentHash,
 			ChangeClass:       changeClass,
 			Breaking:          breakingFlag(old, new, changeClass),
+			AffectedExports:   affectedExports(old, new),
 		},
 		Status: "open",
 	}
@@ -166,13 +168,86 @@ func classifyChange(old, new PackageVersionInfo) string {
 	if oldV2 && !newV2 {
 		return "U"
 	}
-	if sameSignatureSet(old.Signatures, new.Signatures) {
+	// Contract-aware comparison (M-PKG-PARALLEL-AGENTS D7). A set without the
+	// marker was produced before contracts were recorded, so it cannot say
+	// whether contracts changed: the pair is unmeasurable (U), even if the
+	// remaining lines would read A or B. With the marker on both sides, ANY
+	// contract-line difference is C. Adding a requires is a tightening, so
+	// contract lines never count toward the additive (B) rule.
+	if !hasLine(old.Signatures, SignatureContractsMarker) || !hasLine(new.Signatures, SignatureContractsMarker) {
+		return "U"
+	}
+	oldContracts, oldRest := splitContractLines(old.Signatures)
+	newContracts, newRest := splitContractLines(new.Signatures)
+	if !sameSignatureSet(oldContracts, newContracts) {
+		return "C"
+	}
+	if sameSignatureSet(oldRest, newRest) {
 		return "A"
 	}
-	if isSuperset(new.Signatures, old.Signatures) {
+	if isSuperset(newRest, oldRest) {
 		return "B"
 	}
 	return "C"
+}
+
+// ClassifyVersionChange is classifyChange for callers outside the package (the
+// publisher's cascade envelope), so the inbox message and the cascade topic can
+// never disagree about a class.
+func ClassifyVersionChange(old, new PackageVersionInfo) string { return classifyChange(old, new) }
+
+// affectedExports lists the old signatures (contract lines included) that the
+// new version no longer has: removed or changed exports, plus contracts that
+// changed. Nil unless both sides carry v2 signatures. A dependent agent reads
+// this to know WHAT broke, not only that something did.
+func affectedExports(old, new PackageVersionInfo) []string {
+	if len(old.Signatures) == 0 || len(new.Signatures) == 0 {
+		return nil
+	}
+	have := make(map[string]struct{}, len(new.Signatures))
+	for _, s := range new.Signatures {
+		have[s] = struct{}{}
+	}
+	var gone []string
+	for _, s := range old.Signatures {
+		if s == SignatureContractsMarker {
+			continue
+		}
+		if _, ok := have[s]; !ok {
+			gone = append(gone, s)
+		}
+	}
+	return gone
+}
+
+// SignatureContractsMarker marks a contract-aware v2 signature set. It must
+// equal iface.ContractsMarker (pinned by a test in internal/iface).
+const SignatureContractsMarker = "meta:contracts:v1"
+
+// signatureContractInfix identifies a contract line: "<module>:contract:<fn>:<clause>".
+const signatureContractInfix = ":contract:"
+
+func hasLine(set []string, line string) bool {
+	for _, s := range set {
+		if s == line {
+			return true
+		}
+	}
+	return false
+}
+
+// splitContractLines separates contract lines from the rest, dropping the marker.
+func splitContractLines(set []string) (contracts, rest []string) {
+	for _, s := range set {
+		switch {
+		case s == SignatureContractsMarker:
+		case strings.Contains(s, signatureContractInfix):
+			contracts = append(contracts, s)
+		default:
+			rest = append(rest, s)
+		}
+	}
+	return contracts, rest
 }
 
 func legacyClassify(old, new PackageVersionInfo) string {

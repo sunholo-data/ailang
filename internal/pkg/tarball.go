@@ -43,7 +43,7 @@ func CreateTarball(packageDir string) ([]byte, error) {
 		// Skip directories and excluded paths
 		if info.IsDir() {
 			base := filepath.Base(path)
-			if base == ".git" || base == "tests" || base == "test" {
+			if base == ".git" || base == "tests" || base == "test" || IsNestedPackageRoot(path, packageDir) {
 				return filepath.SkipDir
 			}
 			return nil

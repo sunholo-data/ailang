@@ -27,7 +27,7 @@ type ModuleLoader struct {
 	strictSyntaxMode   bool                // When true, syntactic sugar is not allowed
 	stdlibResolver     *StdlibResolver     // Stdlib path resolver (initialized lazily)
 	pkgLoader          PackageResolver     // Optional package loader for pkg/ imports
-	modulePrefixMap    map[string][]string // module_prefix → package names (e.g., "docparse" → ["sunholo/ailang_parse", "sunholo/docparse"])
+	modulePrefixMap    map[string][]string // module_prefix → package names sharing it (e.g., "docparse" → ["sunholo/ailang_parse"])
 	currentPackageName string              // <vendor>/<name> of the package being compiled, when known. Enables bare-canonical self-imports (e.g., "import sunholo/linkedin/types" from within sunholo/linkedin).
 
 	// canonicalOf memoises (importing package, spelling) -> canonical module
@@ -103,8 +103,7 @@ func (ml *ModuleLoader) SetPackageResolverAbsentReason(reason string) {
 // SetModulePrefixMap sets the module_prefix → package name mapping.
 // Input is pkgName → prefix (as built by the pipeline); this method inverts it
 // to prefix → []pkgName for fast lookup during bare import resolution.
-// Multiple packages may share a prefix (e.g., "sunholo/docparse" and
-// "sunholo/ailang_parse" both use module_prefix="docparse"). All are stored
+// Multiple packages may share a prefix; all are stored
 // so the resolver can try each until one succeeds. Each list is sorted, so
 // which package a shared prefix resolves to does not depend on Go's map
 // iteration order — the canonical identity must not either.
