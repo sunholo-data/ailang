@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,5 +62,32 @@ export pure func demo(xs: [int]) -> [string] = map(?toStr, xs)
 				}
 			}
 		})
+	}
+}
+
+func TestTypedHoles_ReportsAllHolesInModule(t *testing.T) {
+	dir := t.TempDir()
+	src := `module multi_hole
+import std/list (map)
+export pure func f(x: int) -> int = _?
+export pure func g(xs: [int]) -> [string] = map(?toStr, xs)
+`
+	path := filepath.Join(dir, "multi_hole.ail")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Run(Config{DryLink: true, RelaxModules: true}, Source{
+		Code:     src,
+		Filename: path,
+	})
+	if err == nil {
+		t.Fatal("expected HoleErrors, got nil")
+	}
+	var holes types.HoleErrors
+	if !errors.As(err, &holes) {
+		t.Fatalf("expected types.HoleErrors, got %T: %v", err, err)
+	}
+	if len(holes) != 2 {
+		t.Fatalf("got %d holes, want 2: %v", len(holes), holes)
 	}
 }

@@ -90,13 +90,37 @@ func snapshotHoleLocals(env *TypeEnv) []holeLocalBinding {
 	return out
 }
 
+// HoleErrors aggregates multiple TC_HOLE diagnostics from a single module so
+// `ailang check --json` / `--format=agent` can report every typed hole in one pass.
+type HoleErrors []error
+
+func (he HoleErrors) Error() string {
+	parts := make([]string, len(he))
+	for i, e := range he {
+		parts[i] = e.Error()
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (he HoleErrors) Unwrap() []error { return []error(he) }
+
 // VerifyTypedHoles runs after FinalizeSubstitutions so CoreTI carries the
 // fully solved expected type for every typed hole (`_?` / `?name`) in the module.
 func (tc *CoreTypeChecker) VerifyTypedHoles() error {
 	if len(tc.holes) == 0 {
 		return nil
 	}
-	h := tc.holes[0]
+	errs := make(HoleErrors, 0, len(tc.holes))
+	for _, h := range tc.holes {
+		errs = append(errs, tc.buildHoleError(h))
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	return errs
+}
+
+func (tc *CoreTypeChecker) buildHoleError(h recordedHole) error {
 	expected := "unknown"
 	if t, ok := tc.CoreTI.Get(h.NodeID); ok && t != nil {
 		expected = displayType(t)

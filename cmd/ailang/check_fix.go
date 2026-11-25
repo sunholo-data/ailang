@@ -64,6 +64,12 @@ func computeCheckEdits(entry checkJSONError, fallbackFile, src string) []checkTe
 	lines := strings.Split(src, "\n")
 
 	switch entry.Code {
+	case "PAR017":
+		// `func f() -> T = { ... }` → `func f() -> T { ... }`
+		if edit, ok := removeEqualsBeforeBraceEdit(file, lines, entry.Line); ok {
+			return []checkTextEdit{edit}
+		}
+
 	case "PAR018":
 		// `let rec name = ...` → `letrec name = ...`
 		if entry.Line >= 1 && entry.Line <= len(lines) {
@@ -117,17 +123,80 @@ func computeCheckEdits(entry checkJSONError, fallbackFile, src string) []checkTe
 		}
 	}
 
-	// Unambiguous missing stdlib import for `undefined variable: <sym>`
+	// Unambiguous missing stdlib import for `undefined variable: <sym>`:
+	// either exported by a single stdlib module, or by exactly one stdlib module
+	// that is already imported with a symbol list in this file.
 	if m := undefVarRe.FindStringSubmatch(entry.Message); m != nil {
 		sym := m[1]
 		mods := stdlibindex.Modules(sym)
+		targetMod := ""
 		if len(mods) == 1 {
-			if edit, ok := insertStdlibImportEdit(file, lines, mods[0], sym); ok {
+			targetMod = mods[0]
+		} else if len(mods) > 1 {
+			var importedMatches []string
+			for _, mod := range mods {
+				if fileHasSelectiveImport(lines, mod) {
+					importedMatches = append(importedMatches, mod)
+				}
+			}
+			if len(importedMatches) == 1 {
+				targetMod = importedMatches[0]
+			}
+		}
+		if targetMod != "" {
+			if edit, ok := insertStdlibImportEdit(file, lines, targetMod, sym); ok {
 				return []checkTextEdit{edit}
 			}
 		}
 	}
 	return nil
+}
+
+func fileHasSelectiveImport(lines []string, mod string) bool {
+	prefix := "import " + mod
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, prefix) {
+			continue
+		}
+		open := strings.Index(line, "(")
+		closeIdx := strings.Index(line, ")")
+		if open >= 0 && closeIdx > open {
+			return true
+		}
+	}
+	return false
+}
+
+// removeEqualsBeforeBraceEdit fixes the `= {` trap (`func f() -> T = { ... }`)
+// by removing `= ` on the function header line at or just above errLine.
+func removeEqualsBeforeBraceEdit(file string, lines []string, errLine int) (checkTextEdit, bool) {
+	if errLine < 1 || errLine > len(lines) {
+		return checkTextEdit{}, false
+	}
+	start := errLine
+	minLine := errLine - 3
+	if minLine < 1 {
+		minLine = 1
+	}
+	for l := start; l >= minLine; l-- {
+		line := lines[l-1]
+		if !strings.Contains(line, "func ") {
+			continue
+		}
+		if idx := strings.Index(line, "= {"); idx >= 0 {
+			return checkTextEdit{
+				File:      file,
+				StartLine: l,
+				StartCol:  idx + 1,
+				EndLine:   l,
+				EndCol:    idx + 3, // remove "= "
+				NewText:   "",
+				Title:     "Remove '=' before '{' in block-body function",
+			}, true
+		}
+	}
+	return checkTextEdit{}, false
 }
 
 func replaceImportedSymbolEdit(file string, lines []string, mod, oldSym, newSym string) (checkTextEdit, bool) {

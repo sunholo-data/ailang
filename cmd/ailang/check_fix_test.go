@@ -53,6 +53,33 @@ func TestComputeCheckEdits_MechanicalFixes(t *testing.T) {
 			t.Fatalf("builtin removal failed: n=%d got:\n%s", n2, got2)
 		}
 	})
+
+	t.Run("PAR017_equals_before_brace", func(t *testing.T) {
+		src := "module m\nexport pure func f(x: int) -> int = {\n  let y = x + 1;\n  y\n}\n"
+		edits := computeCheckEdits(checkJSONError{Code: "PAR017", Line: 3, Column: 16}, "m.ail", src)
+		if len(edits) != 1 {
+			t.Fatalf("got %d edits, want 1", len(edits))
+		}
+		got, n := applyCheckEdits(src, edits)
+		if n != 1 || !strings.Contains(got, "func f(x: int) -> int {") {
+			t.Fatalf("PAR017 fix failed: n=%d got:\n%s", n, got)
+		}
+	})
+
+	t.Run("missing_import_disambiguated_by_existing_import", func(t *testing.T) {
+		src := "module m\nimport std/list (filterMap)\nexport pure func f(xs: [int]) -> [int] = map(\\x. x + 1, xs)\n"
+		edits := computeCheckEdits(checkJSONError{
+			Code:    "ERROR",
+			Message: "undefined variable: map at m.ail:3:42 — `map` is exported by std/list, std/option, std/result",
+		}, "m.ail", src)
+		if len(edits) != 1 {
+			t.Fatalf("got %d edits, want 1", len(edits))
+		}
+		got, n := applyCheckEdits(src, edits)
+		if n != 1 || !strings.Contains(got, "import std/list (filterMap, map)") {
+			t.Fatalf("import disambiguation failed: n=%d got:\n%s", n, got)
+		}
+	})
 }
 
 func TestRunCheckFix_EndToEnd(t *testing.T) {

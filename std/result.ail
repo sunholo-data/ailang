@@ -7,6 +7,8 @@
 
 module std/result
 
+import std/option (Option, Some, None)
+
 -- The Result type: Ok(value) or Err(error)
 export type Result[a, e] = Ok(a) | Err(e)
 
@@ -50,6 +52,22 @@ export pure func getOrElse[a, e](r: Result[a, e], default: a) -> a {
   match r {
     Ok(x) => x,
     Err(_) => default
+  }
+}
+
+-- Convert Result to Option, discarding any Err value.
+export pure func toOption[a, e](r: Result[a, e]) -> Option[a] {
+  match r {
+    Ok(x) => Some(x),
+    Err(_) => None
+  }
+}
+
+-- Convert Option to Result using err when None.
+export pure func fromOption[a, e](opt: Option[a], err: e) -> Result[a, e] {
+  match opt {
+    Some(x) => Ok(x),
+    None => Err(err)
   }
 }
 

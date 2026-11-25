@@ -134,6 +134,14 @@ func pipelineErrorsToCheckJSON(err error, filename string) []checkJSONError {
 		}
 		return out
 	}
+	var holes types.HoleErrors
+	if errors.As(err, &holes) && len(holes) > 1 {
+		out := make([]checkJSONError, len(holes))
+		for i, e := range holes {
+			out[i] = errorToCheckJSONError(e, filename)
+		}
+		return out
+	}
 	return []checkJSONError{errorToCheckJSONError(err, filename)}
 }
 

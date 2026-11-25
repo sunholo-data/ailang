@@ -1,8 +1,9 @@
 module examples/tests/stdlib_combinators_test
 
 import std/list (all, enumerate, filterMap, find, partition)
+import std/map as M
 import std/option (Option, Some, None)
-import std/result (Result, Ok, Err, getOrElse)
+import std/result (Result, Ok, Err, getOrElse, toOption, fromOption)
 import std/string (stringToInt)
 
 test "std/list all" {
@@ -40,4 +41,19 @@ test "std/list find" {
   assert find(\x. x > 5, [1, 3, 7, 9]) == Some(7)
   assert find(\x. x > 10, [1, 3, 7]) == None
   assert find(\x. x > 0, []) == None
+}
+
+test "std/map getOrElse" {
+  let m = M.fromList([("a", 10), ("b", 20)])
+  assert M.getOrElse(m, "a", 0) == 10
+  assert M.getOrElse(m, "missing", -1) == -1
+}
+
+test "std/result toOption and fromOption" {
+  let okVal: Result[int, string] = Ok(42)
+  let errVal: Result[int, string] = Err("boom")
+  assert toOption(okVal) == Some(42)
+  assert toOption(errVal) == None
+  assert fromOption(Some(7), "empty") == Ok(7)
+  assert fromOption(None, "empty") == Err("empty")
 }

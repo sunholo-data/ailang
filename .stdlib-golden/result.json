@@ -64,6 +64,51 @@
       "ifc": {
         "params": [
           {
+            "name": "opt",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "err",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "fromOption",
+      "type": "(Option[a],b)-\u003eResult[a,b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "r",
             "label": {
               "constants": [],
@@ -257,6 +302,39 @@
       },
       "name": "mapErr",
       "type": "((a)-\u003eb,Result[c,a])-\u003eResult[c,b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "toOption",
+      "type": "(Result[a,b])-\u003eOption[a]",
       "effects": [],
       "pure": true,
       "tier": "stable"

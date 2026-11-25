@@ -45,6 +45,14 @@ export pure func lookup[k, v](m: Map[k, v], key: k) -> Option[v] {
   _map_lookup(m, key)
 }
 
+-- Look up key, returning default if not found. O(1).
+export pure func getOrElse[k, v](m: Map[k, v], key: k, default: v) -> v {
+  match _map_lookup(m, key) {
+    Some(v) => v,
+    None => default
+  }
+}
+
 -- Check if key exists in map. O(1).
 export pure func member[k, v](m: Map[k, v], key: k) -> bool {
   _map_member(m, key)
