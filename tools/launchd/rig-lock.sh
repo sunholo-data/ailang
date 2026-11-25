@@ -23,9 +23,12 @@ if [ -z "${RIG_LOCK_DIR:-}" ]; then
   if [ -d "$RIG_SHARED_DIR" ]; then RIG_LOCK_DIR="$RIG_SHARED_DIR/rig.lock.d"
   else RIG_LOCK_DIR="$HOME/.ailang/state/rig.lock.d"; fi
 fi
+RIG_LOCK_POLL_SEC="${RIG_LOCK_POLL_SEC:-30}"   # wait-mode retry interval on a held lock (tests shorten it)
 RIG_LOCK_STALE_MIN="${RIG_LOCK_STALE_MIN:-360}" # steal a lock older than 6h (crash recovery)
 RIG_HANDOFF_FILE="${RIG_HANDOFF_FILE:-$(dirname "$RIG_LOCK_DIR")/rig.handoff}"
 RIG_YIELD_WINDOW_SEC="${RIG_YIELD_WINDOW_SEC:-180}"
+# The yielding holder's claim on the gap it opened (internal/riglock/reclaim.go).
+RIG_RECLAIM_FILE="$(dirname "$RIG_HANDOFF_FILE")/rig.reclaim"
 
 # --- cooperative yield (M-RIG-LOCK-YIELD) -----------------------------------
 # The shell half of internal/riglock/yield.go; read that file's header for why
@@ -79,6 +82,53 @@ rig_yield_pending() {
   return 0
 }
 
+# rig_handoff_for REQUESTER — true if the in-force handoff names REQUESTER.
+# Call after rig_yield_pending, which has already removed a dead or expired marker.
+rig_handoff_for() {
+  local req
+  [ -n "${1:-}" ] || return 1
+  req=$(head -1 "$RIG_HANDOFF_FILE" 2>/dev/null | tr ' ' '\n' | sed -n 's/^requester=//p' | head -1) || true
+  [ "$req" = "$1" ]
+}
+
+# rig_reclaim_pending — true while a holder that lent the lock (a cooperative
+# yield, or lending to the operator) still claims the gap it opened. Same file and
+# line as internal/riglock/reclaim.go: "holder=<name> pid=<n> until=<RFC3339>".
+# Before this claim existed, a job waiting for the lock took the gap the moment
+# the borrower left, and the lender then sat idle through that job's entire run
+# (2h42m on 2026-11-25). A dead, expired or unparseable claim is removed and
+# reported absent, so a crashed holder cannot leave the rig refusing everyone.
+rig_reclaim_pending() {
+  local line pid until_s until_epoch
+  line=$(head -1 "$RIG_RECLAIM_FILE" 2>/dev/null) || return 1
+  [ -n "$line" ] || return 1
+  pid=$(printf '%s' "$line" | tr ' ' '\n' | sed -n 's/^pid=//p' | head -1) || true
+  until_s=$(printf '%s' "$line" | tr ' ' '\n' | sed -n 's/^until=//p' | head -1) || true
+  if [ -z "$pid" ] || [ -z "$until_s" ]; then
+    rm -f "$RIG_RECLAIM_FILE" 2>/dev/null; return 1
+  fi
+  until_epoch=$(TZ=UTC date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$until_s" +%s 2>/dev/null) \
+    || until_epoch=$(date -u -d "$until_s" +%s 2>/dev/null) \
+    || true
+  if [ -z "$until_epoch" ] || [ "$(date -u +%s)" -ge "$until_epoch" ] || ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$RIG_RECLAIM_FILE" 2>/dev/null; return 1
+  fi
+  return 0
+}
+
+# rig_lock_admitted [REQUESTER] — may REQUESTER take the lock right now? The
+# borrower a live handoff names may enter. With no handoff in force, the gap
+# belongs to the holder that is lending it, while its reclaim claim stands.
+# Mirrors admitted() in internal/riglock/riglock.go.
+rig_lock_admitted() {
+  local requester="${1:-}"
+  if rig_yield_pending; then
+    rig_handoff_for "$requester"
+    return
+  fi
+  ! rig_reclaim_pending
+}
+
 # rig_lock_request_yield REQUESTER [WINDOW_SEC] — ask the holder to step aside
 # at its next checkpoint. Does NOT acquire; the caller then races for the lock
 # normally, passing its own name to rig_lock_acquire so this guard lets it in.
@@ -129,14 +179,24 @@ rig_operator_present() {
 rig_lock_acquire() {
   local mode="${1:-wait}" requester="${2:-}"
   mkdir -p "$(dirname "$RIG_LOCK_DIR")" 2>/dev/null
-  # Honour a handoff to someone else BEFORE racing for the directory: the gap a
-  # yielding holder opens belongs to the named requester, not to whoever polls
-  # fastest.
-  while rig_yield_pending "$requester"; do
-    [ "$mode" = "nowait" ] && return 1
-    sleep 2
-  done
-  while ! mkdir "$RIG_LOCK_DIR" 2>/dev/null; do
+  # The guard (rig_lock_admitted) is consulted on EVERY attempt and again right
+  # after a successful mkdir. Checked once up front, a waiter sleeping in the
+  # mkdir loop takes the next gap a yielding holder opens: on 2026-11-25 an
+  # attended test that had been queued here since the day before took a
+  # fine-tune's yield gap and held the rig for 2h42m. Every lender writes its
+  # marker before it removes the directory, so a mkdir that won a gap sees the
+  # marker on the second check and gives the directory straight back.
+  while :; do
+    if ! rig_lock_admitted "$requester"; then
+      [ "$mode" = "nowait" ] && return 1
+      sleep 2
+      continue
+    fi
+    if mkdir "$RIG_LOCK_DIR" 2>/dev/null; then
+      if rig_lock_admitted "$requester"; then break; fi
+      rmdir "$RIG_LOCK_DIR" 2>/dev/null   # won a gap that is not ours: hand it back
+      continue
+    fi
     # Steal a stale lock (holder crashed without releasing).
     if [ -d "$RIG_LOCK_DIR" ] && [ -n "$(find "$RIG_LOCK_DIR" -maxdepth 0 -mmin +"$RIG_LOCK_STALE_MIN" 2>/dev/null)" ]; then
       rm -rf "$RIG_LOCK_DIR"
@@ -145,7 +205,7 @@ rig_lock_acquire() {
     if [ "$mode" = "nowait" ]; then
       return 1
     fi
-    sleep 30
+    sleep "$RIG_LOCK_POLL_SEC"
   done
   echo "$$ $(date -u +%FT%TZ)" > "$RIG_LOCK_DIR/holder" 2>/dev/null || true
   # Tell descendant `ailang eval-suite` processes that an ancestor already holds

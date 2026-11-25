@@ -201,7 +201,7 @@ func Checkpoint(holder string) (bool, time.Duration) {
 		if !OperatorPresent() {
 			return false, 0
 		}
-		return true, lend("the operator", OperatorPresent)
+		return true, lend(holder, "the operator", OperatorPresent)
 	}
 	y, ok := PendingYield()
 	if !ok || y.Requester == strings.TrimSpace(holder) {
@@ -218,16 +218,17 @@ func Checkpoint(holder string) (bool, time.Duration) {
 	}
 
 	// The requester signals it is done by clearing the handoff.
-	return true, lend(y.Requester, func() bool {
+	return true, lend(holder, y.Requester, func() bool {
 		_, still := PendingYield()
 		return still
 	})
 }
 
 // lend releases the held lock, waits while waitWhile reports the borrower still
-// needs the GPU, then re-acquires it as the same hold. who names the borrower in
-// warnings. Callers hold checkpointMu.
-func lend(who string, waitWhile func() bool) time.Duration {
+// needs the GPU, then re-acquires it as the same hold. holder names this job in
+// the reclaim marker; who names the borrower in warnings. Callers hold
+// checkpointMu.
+func lend(holder, who string, waitWhile func() bool) time.Duration {
 	start := time.Now()
 	// The lease survives the yield. A yield LENDS the GPU; it does not end our
 	// hold. Everything under us carries our token — agents in this process and,
@@ -239,6 +240,14 @@ func lend(who string, waitWhile func() bool) time.Duration {
 	// stealable" once this eval-suite exits.
 	prevHolder, _ := os.ReadFile(filepath.Join(lockDir(), "holder"))
 	prevToken := CurrentLease().Token
+	// Claim the gap BEFORE opening it (reclaim.go). Without the claim the gap is
+	// just a free lock, and whoever is queued for it takes it once the borrower
+	// leaves. A failed write is reported, not hidden: the yield still works, but
+	// the gap is unguarded.
+	if err := writeReclaim(holder); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: rig reclaim marker not written (%v); another job may take the lock after %s finishes\n", err, who)
+	}
+	defer clearReclaim()
 	_ = os.RemoveAll(lockDir())
 
 	// Wait while the borrower needs the GPU. Both markers report absent once
@@ -248,9 +257,18 @@ func lend(who string, waitWhile func() bool) time.Duration {
 		time.Sleep(yieldPollInterval)
 	}
 
-	// Wait, not NoWait: the requester may still be finishing the run it took
-	// the lock for, and the whole point was to let it complete.
-	_, _, err := acquireDir(Wait)
+	// Keep trying until we hold it: the borrower may still be finishing the run it
+	// took the lock for, and the whole point was to let it complete. Poll at the
+	// yield interval, not acquireDir's 30s Wait sleep. The reclaim claim keeps
+	// everyone else out, so the only cost of waiting is our own idle GPU time.
+	var err error
+	for {
+		var ok bool
+		if ok, _, err = acquireDir(NoWait, nil); err != nil || ok {
+			break
+		}
+		time.Sleep(yieldPollInterval)
+	}
 	if err != nil {
 		// Re-acquire failed (unwritable state dir). Say so rather than carrying
 		// on as if we still held a lock we do not — a silent false hold is how

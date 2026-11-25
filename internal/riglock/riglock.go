@@ -186,36 +186,68 @@ func Acquire(mode Mode) (bool, Release, error) {
 // allowed to race into it, and a Wait caller queues behind it. Pass the same
 // name here that was given to RequestYield; "" means "not the requester", which
 // is the right default for every caller that never asks for a yield.
+//
+// Once the handoff is over, the gap belongs to the holder that lent it, for as
+// long as its reclaim claim stands (reclaim.go). Every caller is refused or
+// queued until that holder has taken the lock back.
 func AcquireAs(mode Mode, requester string) (bool, Release, error) {
 	if HeldByAncestor() {
 		return true, func() {}, nil
 	}
 	requester = strings.TrimSpace(requester)
-	for {
-		y, pending := PendingYield()
-		if !pending || y.Requester == requester {
-			break
-		}
-		if mode == NoWait {
-			return false, func() {}, nil
-		}
-		time.Sleep(yieldPollInterval)
+	return acquireDir(mode, func() bool { return admitted(requester) })
+}
+
+// waitPollInterval is how long a Wait-mode acquirer sleeps between attempts on a
+// held lock. A variable only so tests can run the queued-waiter race in
+// milliseconds; nothing in production changes it.
+var waitPollInterval = 30 * time.Second
+
+// admitted reports whether requester may take the lock right now. The borrower a
+// live handoff names may enter. With no handoff in force, the gap belongs to the
+// holder that is lending it (reclaim.go), and nobody else may take it while that
+// holder's reclaim claim stands.
+func admitted(requester string) bool {
+	if y, pending := PendingYield(); pending {
+		return y.Requester == requester
 	}
-	return acquireDir(mode)
+	_, reclaiming := PendingReclaim()
+	return !reclaiming
 }
 
 // acquireDir does the raw mkdir-lock work with no ancestor or handoff checks.
 // Checkpoint re-acquires through here because both of those guards would be
 // wrong for it: it IS the ancestor-held holder stepping back in, and the
 // handoff it is honouring is the one it just served.
-func acquireDir(mode Mode) (bool, Release, error) {
+//
+// admit, when non-nil, is the handoff/reclaim guard. It is consulted on EVERY
+// attempt and again right after a successful mkdir, not once up front. A waiter
+// that checked once and then slept in this loop would take the next gap a
+// yielding holder opened, which is the race the guard exists to stop
+// (2026-11-25: an attended test queued here since the day before took a
+// fine-tune's yield gap and held the rig for 2h42m). The post-mkdir check closes
+// the window between checking and creating. Every lender writes its marker
+// before it removes the directory, so a mkdir that won a gap is guaranteed to
+// see the marker and hand the directory straight back.
+func acquireDir(mode Mode, admit func() bool) (bool, Release, error) {
 	dir := lockDir()
 	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 		return false, func() {}, fmt.Errorf("riglock: cannot create state dir: %w", err)
 	}
 	for {
+		if admit != nil && !admit() {
+			if mode == NoWait {
+				return false, func() {}, nil
+			}
+			time.Sleep(yieldPollInterval)
+			continue
+		}
 		err := os.Mkdir(dir, 0o755)
 		if err == nil {
+			if admit != nil && !admit() {
+				_ = os.Remove(dir) // won a gap that is not ours: give it back untouched
+				continue
+			}
 			break // acquired
 		}
 		if !os.IsExist(err) {
@@ -234,7 +266,7 @@ func acquireDir(mode Mode) (bool, Release, error) {
 		if mode == NoWait {
 			return false, func() {}, nil
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(waitPollInterval)
 	}
 
 	pid := os.Getpid()
