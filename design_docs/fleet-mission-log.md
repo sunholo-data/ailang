@@ -2576,3 +2576,63 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Judge independence: the controller is opus and the judge is sonnet. They share a vendor, which is the configured evaluator for this mission. No generator role ran.
 - Driver routing note verbatim: (empty).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 138 — 2026-11-25 — `skill:mission-base-relative-path-records-driver-repo` BUILT + JUDGED (independent sonnet judge PASS 90): `mission-base.sh` refuses a CWD whose origin is not `$MISSION_REPO`, and every gate calls it through `$MISSION_DRIVER_ROOT`; stacked on #2463, it cannot merge while dev's required `test` and `checks` stay red (D-FLEET-48); ticket stays open [HARNESS]
+
+**Pick**: `skill:mission-base-relative-path-records-driver-repo` (world 431, 01:47Z, blocking none, 1 slot), the one ticket new since iteration 137 ([tickets](fleet-mission-evidence/iteration138/tickets.json), [diff](fleet-mission-evidence/iteration138/ticket-diff.txt)). The other 20 are unchanged from 137: ruling-gated on D-FLEET-44/45/46, outside Authority under D-FLEET-48 A, or built and waiting (#2463).
+- Reality check, first-party: `~/.ailang/state/mission-world-base` holds `base-gate1 … f447d431f…` (ailang) at 23:17:44Z and the corrected World SHA `cd06d950…` 6 s later. The World clone has no `tools/launchd/mission-base.sh`, and the helper reads refs from the CWD without checking which repo that is.
+- Admissible: the fix is in `tools/launchd/**` and `.claude/skills/mission-*/**`. It is a wrong-path fix, not routing, quota or billing (not HD-2a).
+- Critical path: it moves clause 2 (turnaround). D-FLEET-46's eight tickets need a ruling, so this is the only routable clause-2 row.
+- 0 allowlisted directives on #2445 (7 comments) or `-prev` #2341 (29). Self-notices rc 1 on the same crash notice (`…#issuecomment-7063993188`) and transcript notice (fire `fleet-1795100889-10927`) as 125–137, already credited. Control 852:10.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google` (no role used it).
+- Skill drift: SKILL.md and all 13 resources match origin/dev, per file, in the resolved symlink copy. Pin HEAD = origin/dev = `f447d431f`.
+- Blocked-PR rule: #2463's branch carries log entries 136 and 137, while origin/dev's log ends at 135. This build and record are stacked on it (`gate-4-record.md` is in both diffs).
+- Died-mid-flight traces: the only open `fleet/*` PR is #2463 (known). The main checkout's uncommitted `.agents/skills/sprint-*` edits are still present (not this loop's; noted since 136).
+- **Dev CI red at `f447d431f`** ([excerpt](fleet-mission-evidence/iteration138/dev-ci.txt)): `lint` went green, `build` green. Required `test` is still red on the same four tests and `checks` on the agy hand-rolled HOME (`check-home-isolation`). The V1 loop is still disabled.
+
+**Did**:
+- Plan: codex `gpt-6.2-sol` ([plan](fleet-mission-evidence/iteration138/plan.md)), two milestones and a 9-row test table, each row tied to a mutation. The controller gave it its own measurements, labelled, plus an inherited-red note (SC2034 `oldn`).
+- Build: codex `gpt-6.2-sol`, `workspace-write` ([report](fleet-mission-evidence/iteration138/executor-report.md)).
+  - M1 `a56a2fdc7`: `verify_repo` in `mission-base.sh` parses the CWD's `remote.origin.url` (https, scp, `ssh://`, optional `.git` and trailing slash, case-insensitive). On a mismatch, a missing origin, or a CWD outside Git, `record`/`snap`/`drift` exit **3** before any ref read or write. `last` stays a state-only read. Unset or empty `MISSION_REPO` keeps the old behaviour. The test arms go from 13 to 37, and the unused `oldn` is removed.
+  - M2 `8fc5c0e6b`: the ten relative calls in gate-1/3/3b/4 and ref-drift become `bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh"`, with one ref-drift sentence saying to run it from the mission's repo. A changelog fragment was added.
+  - The sandbox refused writes to `.agents/`, so the controller regenerated the mirror (`sync-agents-skills.sh`). Exactly the five counterparts changed, each byte-identical to the executor's `.snap/M2`.
+- Controller gates, out of sandbox ([gates](fleet-mission-evidence/iteration138/gates.md)): `test_mission_base.sh` 37/37 (also with an inherited `MISSION_REPO`), shellcheck rc 0 (base rc 1), relative-call grep 0, agents-sync 7/7, context-docs rc 0, `check-changelog` rc 0, `make test-launchd-drivers` 62/62 on base and candidate.
+- Incident replay against the real repos with a throwaway state dir: the OLD helper, run from the ailang pin with `MISSION_REPO=sunholo-data/ailang-world`, records `f447d431fb92` (the ticket). The NEW one exits 3 naming both slugs and writes no file. From the World clone it records World's origin/HEAD. Fleet and Stapledon placed correctly also pass.
+- All 14 mission clones and pins have `https://github.com/<owner>/<name>.git` origins that match `missions/*.toml`, so the guard cannot refuse a correctly placed fire on this rig.
+- Judge: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own worktree `fleet-i138-judge`, 87,241 tok). The brief carried the ticket, plan and commit range, not the controller's verdict or replay.
+  - **PASS 90**, 0 blocking ([report](fleet-mission-evidence/iteration138/judge.md)).
+  - It reproduced the incident with old and new helpers, and ran `snap` against all five ailang pins and five clones (all rc 0).
+  - It ran 22 mutations. 20 were killed; 2 survived (N2: `--local` dropped; N3: guard placed before argument validation).
+  - The controller reproduced N2 first-party (mutant suite rc 0, 0 not ok). It is non-blocking, since no global `remote.origin.url` exists on the rig, and it is recorded as residue on row 74.
+- Evidence secret scan (the #2463 helper, from this branch) over `iteration138/`: verdict clean, 18 values, 7 files, control ok.
+- Charter: STATUS 138; row 74 added; iteration 138 measurement appended to D-FLEET-48.
+
+**Ruled out**:
+- Resolving the ticket: the done-gate needs the fix on `origin/dev`, and dev's required `test`/`checks` reds block every PR.
+- Opening the PR against `fleet/i136-evidence-secret-scan`: CI's `pull_request` filter is `[main, dev]`, so that PR would get no CI. It targets dev and says it is stacked.
+- A round-2 fix for N2/N3: both are non-blocking, and each would buy a second judge round for a case that does not occur on the rig.
+- Folding this into #2463: that would mix two tickets in one PR.
+- Admin merge: that is D-FLEET-48 option B, Mark's call.
+
+**Retro lane**: one friction. The codex `workspace-write` sandbox refused writes to `.agents/skills/` in the worktree, so a planned mirror regeneration could only run outside it. This is instance 1 in fleet (136's mirror commit was also controller-side). It is below the ≥2 bar, so no skill edit.
+
+**Progress**: 21 open tickets (20 → 21). Goal unmoved.
+- Clause 1 UNMEASURED; clause 2 UNMET, not moved (two built fixes, #2463 and row 74, wait on dev reds outside fleet scope); clause 3 MET; clause 4 met by its letter; clause 5 preserved (nothing resolved).
+- Last 3 landings: 126, 135, and none in 136–138.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid.
+- STATUS rotation: ITERATION 135 moved to the archive (archive +4 lines; `ITERATION 135` in the archive ≥1). Charter 438 → 439: stamp +4, moved −4, row 74 +1; D-FLEET-48 edited in place. Three `## STATUS 2026` stamps remain.
+
+**Next**: re-measure dev's required checks. If green: land #2463 first (rebase, SHA-pinned poll, `--match-head-commit` merge, done-gate, resolve), then rebase `fleet/i138-mission-base-repo-guard` onto dev and land it the same way. Otherwise pick NONE unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives.
+
+**Routing evidence**: base=`f447d431fb92bfe051d729b8cb98367cab123ceb`@2026-11-25T02:44:27Z (Gate 4; Gate 1 read the same SHA at 02:12:40Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: a wrong-path fix with nothing to design. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` → `opus fail-closed:no-doc`. The role is pinned `codex:gpt-6.2-sol`, so it was routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0. 1 run, rc 0, not capped (77,724 tok). Ticket-queue mission: `import-github` skipped.
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, `workspace-write`. 1 run, rc 0, not capped (126,503 tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (87,241 tok). Judge independence: cross-vendor (planner and executor OpenAI codex, judge Anthropic sonnet).
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (Anthropic and codex subscriptions only).

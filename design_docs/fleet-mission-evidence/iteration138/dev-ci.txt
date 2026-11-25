@@ -1,0 +1,11 @@
+dev HEAD f447d431fb92bfe051d729b8cb98367cab123ceb, read 2026-11-25 ~02:30Z (fleet iteration 138)
+Required contexts (branch protection): test, lint, build, docs-gate, checks
+  lint: success   (red at ea6d2f28f in iteration 137; now green)
+  build: success
+  test: failure   job 138790814190 — --- FAIL: TestBuiltinTypes_GoldenSnapshot, TestModels_PricingIsSlugConsistent,
+                  TestQuorumArtifactShellSuite, TestVerifyTargetsAreWiredIntoAWorkflow (same four as iteration 137)
+  checks: failure job 138790813973 — "hand-rolled HOME override outside internal/testutil/home.go";
+                  make: *** [make/code-health.mk:206: check-home-isolation] Error 1 (same as iteration 137)
+  docs-gate: not in the check-run list for this SHA (Deploy Documentation last ran on 28915f004: success)
+Not-green non-required: launchd drivers (bash 3.2), test-windows, Build macos/ubuntu/windows-latest
+17 check-runs total on f447d431f.
