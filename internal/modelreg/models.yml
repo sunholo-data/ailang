@@ -4408,6 +4408,16 @@ models:
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
+    notes: |
+      2026-11-25 on-device verdict: NOT a qwen3.8 replacement yet; kept for re-tests.
+      Decode is 1.8x faster (59-62 vs 33-34 tok/s through the gateway, under lock),
+      but prefill of 250k-2.4M input tokens dominates agent wall time. One trial each
+      on the benchmarks pi-qwen3-8-27b fails (qwen pass rates in brackets):
+      parse_prec_climb PASS 977s; docx_reimplement PASS 139m/32 turns [3/4];
+      cp_60149 1h timeout [4/9]; cp_60159 1h timeout [1/5]; cp_60166 3 turns,
+      64k output tokens, no exported functions [0/3]. Results:
+      eval_results/onboard_inkling2mini_pi_2026_11_25 and
+      onboard_inkling2mini_local_2026_11_24. Not in OS_FILLER_MODELS.
 
   # ---------------------------------------------------------------------------
   # FINE-TUNE PHASE 0 SIZE LADDER (2026-11-05, m-eval-finetuning-data-pipeline §Phase 0).
