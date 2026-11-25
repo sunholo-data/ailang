@@ -5,7 +5,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
 expected_gain: "high"
-tier: stretch
+tier: core
 tags: [data_transform, functional, error_handling]
 task_prompt: |
   Write a program in <LANG> that processes the following hardcoded list of raw sensor readings:
