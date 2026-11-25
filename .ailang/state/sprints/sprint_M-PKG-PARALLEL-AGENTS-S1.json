@@ -1,0 +1,149 @@
+{
+  "sprint_id": "M-PKG-PARALLEL-AGENTS-S1",
+  "status": "completed",
+  "created": "2026-11-25T14:51:30Z",
+  "design_doc": "design_docs/planned/v0_63_0/m-pkg-parallel-agents.md",
+  "sprint_plan": "design_docs/planned/v0_63_0/sprint-plan-m-pkg-parallel-agents.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    },
+    {
+      "milestone": "M2",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    },
+    {
+      "milestone": "M3",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    },
+    {
+      "milestone": "M4",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    },
+    {
+      "milestone": "M5",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    },
+    {
+      "milestone": "M6",
+      "package": "none",
+      "action": "none",
+      "reason": "AILANG toolchain internals (Go); no registry package applies; searched lockfile/semver/interface diff"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 310,
+    "estimated_total_loc": 945,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_ATOMIC_LOCK",
+      "description": "Atomic ailang.lock writes via writeFileAtomic (temp+fsync+rename) in internal/pkg; LockFile.Save uses it",
+      "estimated_loc": 85,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TST-PKGPAR-14: 1 writer + 4 readers for 5s -> 0 parse failures, no temp files left",
+        "make test-changed green"
+      ],
+      "passes": true,
+      "started": "2026-11-25T14:54:10.030738+00:00",
+      "completed": "2026-11-25T14:54:10.030738+00:00",
+      "notes": "internal/pkg/atomic_write.go (temp+fsync+rename, Windows rename retry); LockFile.Save uses it. TST-PKGPAR-14 failed pre-fix (1363 torn reads/2s), passes post-fix. Real-path spike rerun: ~5k concurrent runs, 0 hard errors (was 16/~9.7k)."
+    },
+    {
+      "id": "M2_CONTRACT_SIGS",
+      "description": "Contracts on IfaceItem/FuncJSON (persisted through compile cache, stripped from HashProjection); SignatureSet emits meta:contracts:v1 + mod:contract lines; classifyChange contract-aware",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TST-PKGPAR-19 all cases",
+        "interface_hash_v2 unchanged for all internal/pkg/testdata fixtures (golden test)",
+        "warm cache == cold cache Contracts",
+        "make test-changed; make check-file-sizes"
+      ],
+      "passes": true,
+      "started": "2026-11-25T15:08:52.253262+00:00",
+      "completed": "2026-11-25T15:08:52.253262+00:00",
+      "notes": "IfaceItem/FuncJSON Contracts via iface.FuncContracts (AST printer, source order); persisted in compile cache (key v13->v14); stripped in HashProjection; SignatureSet emits meta:contracts:v1 + mod:contract lines; classifyChange contract-aware (marker absent -> U). Real-path: ailang iface emits contracts cold+warm; ailang-parse interface_hash_v2 identical old vs new binary (618 -> 704 signatures). Stdlib goldens refrozen for audio+string (contracts arrays only). TST-PKGPAR-19 passes."
+    },
+    {
+      "id": "M3_PUBLISH_CLASS",
+      "description": "Publish threads old (registry InterfaceSignatures) + new (InterfaceHashV2) signatures; mapChangeClassToSchema uses classifyChange (equal-hash short-circuit removed when signatures present); AffectedExports filled",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M2_CONTRACT_SIGS"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-01, -02, -03, -28",
+        "legacy routing tests unchanged and green",
+        "make test-changed; make check-file-sizes"
+      ],
+      "passes": true,
+      "started": "2026-11-25T15:08:52.253262+00:00",
+      "completed": "2026-11-25T15:08:52.253262+00:00",
+      "notes": "publish threads inputs.Signatures (new) and registry InterfaceSignatures (old) to dependents; mapChangeClassToSchema uses messaging.ClassifyVersionChange whenever either side has signatures (one-sided = U, matching inbox), legacy heuristic otherwise; AffectedExports = old minus new. Deviation: local patch/minor Category label left unchanged (pubsub attribute semantics). TST-PKGPAR-01/-02/-03/-28 + legacy table pass."
+    },
+    {
+      "id": "M4_PUB025",
+      "description": "PUB025 release kind vs measured class: badge (grace one minor, ReleaseGateHardFrom pattern), then gate; breaking+A warns",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M3_PUBLISH_CLASS"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-04",
+        "badge visible in ailang pkg quality --json",
+        "make test-changed"
+      ],
+      "passes": true,
+      "started": "2026-11-25T15:14:15.444747+00:00",
+      "completed": "2026-11-25T15:14:15.444747+00:00",
+      "notes": "internal/pkg/quality_release_kind.go: PUB025 (fix/security/feature over measured C -> warn badge, gate from 0.64.0; breaking over A -> info). Measured class computed once in measurePackageQuality (pkg quality + publish) against PreviousPublishedVersion via messaging.ClassifyVersionChange; release section carries measured_class/measured_against. Real-path: ailang-parse 0.60.0 -> measured U vs 0.59.0 (pre-marker), no PUB025. Server-side validator does not measure yet (badge phase; follow-up)."
+    },
+    {
+      "id": "M5_NESTED_BOUNDARY",
+      "description": "Nested ailang.toml excluded from tarball, content hash, copyPackageContents, package-mode discovery",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TST-PKGPAR-05",
+        "root content hash unchanged by edits under nested package",
+        "sibling monorepo fixtures unchanged",
+        "make test-changed"
+      ],
+      "passes": true,
+      "started": "2026-11-25T15:16:31.222093+00:00",
+      "completed": "2026-11-25T15:16:31.222093+00:00",
+      "notes": "pkg.IsNestedPackageRoot; skipped in discover.go, hasher.go, tarball.go, publish_validator.go copyPackageContents, check/package.go DiscoverPackageSources, testartifact.go FindNamedTestBodyFiles (all six walks). TST-PKGPAR-05 + IsNestedPackageRoot tests. Real path (scratch split/nest): old 3 files/685B + MOD010 -> new 2 files/560B, no MOD010. Full pkg+check suites green."
+    },
+    {
+      "id": "M6_IMPORT_HINTS",
+      "description": "RESCOPED: pkg docs prints canonical pkg/ import lines; IMP hint dropped because V4 was refuted (bare [exports]-spelled imports resolve via the module_prefix map, c59f8f916)",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "IMP hint test with module_prefix-spelled import",
+        "pkg docs import-line test",
+        "make test-changed; make check-changelog"
+      ],
+      "passes": true,
+      "started": "2026-11-25T15:22:28.061304+00:00",
+      "completed": "2026-11-25T15:22:28.061304+00:00",
+      "notes": "V4 refuted live: import docparse/services/markdown_parser from a dependent resolves on v0.61.1 and dev. Dropped the IMP hint; printAgentDoc prints one 'import pkg/<vendor>/<name>/...' line per export (reuses PackageManifest.MapModuleToImportPath); real run on sunholo/ailang_parse prints 79 lines. Corrected the false claim in ailang-parse AGENT.md, the split doc's V2 row, this design doc's V4 row, and the stale loader comment (sunholo/docparse uses docparse_api and is not in the registry). Changelog fragment + package-publishing guide updated."
+    }
+  ],
+  "completion_notes": "All 6 milestones pass. Final make test-changed: iface, messaging, pkg, check, loader, mission/quorum, types green; cmd/ailang only pre-existing TestRealRegistry_PostMigrationSplitCounts (committed prompts/versions.json, b598bd4c6); internal/pipeline build failed on a concurrent session's uncommitted typed_holes_test.go edit (its suite passed with these changes before that edit). verify-stdlib: map/result changed by the same concurrent session's std edits; audio/string refrozen here. lint 0 issues; file sizes ok; check-changelog ok. Not committed."
+}
