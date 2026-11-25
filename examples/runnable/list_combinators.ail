@@ -1,0 +1,32 @@
+-- Standard Library List & Result Combinators
+-- Demonstrates std/list (all, enumerate, filterMap, partition, find)
+-- and std/result (getOrElse).
+
+module examples/runnable/list_combinators
+import std/list (all, enumerate, filterMap, find, partition)
+import std/option (None, Some)
+import std/result (Err, Ok, getOrElse)
+import std/string (stringToInt)
+
+export func main() -> () ! {IO} {
+  let nums = [2, 4, 6, 8]
+  println("all even: ${show(all(\x. x % 2 == 0, nums))}")
+  -- enumerate pairs each element with its 0-based index
+  let indexed = enumerate(["a", "b", "c"])
+  println("enumerate: ${show(indexed)}")
+  -- filterMap parses valid ints and drops non-numeric strings in one O(n) pass
+  let parsed = filterMap(stringToInt, ["10", "oops", "20", "30"])
+  println("filterMap: ${show(parsed)}")
+  -- partition splits into (matching, nonMatching) in one O(n) pass
+  let (evens, odds) = partition(\x. x % 2 == 0, [1, 2, 3, 4, 5, 6])
+  println("partition evens=${show(evens)} odds=${show(odds)}")
+  -- find returns the first matching element as Option[a]
+  match find(\x. x > 4, [1, 3, 5, 7]) {
+    Some(x) => println("find > 4: Some(${show(x)})"),
+    None => println("find > 4: None")
+  }
+  -- std/result.getOrElse extracts Ok or falls back on Err
+  let good = getOrElse(Ok(42), 0)
+  let fallback = getOrElse(Err("missing"), -1)
+  println("result getOrElse: good=${show(good)} fallback=${show(fallback)}")
+}

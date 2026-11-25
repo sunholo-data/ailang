@@ -1,0 +1,19 @@
+-- Typed Holes (`_?` and `?name`)
+-- Typed holes are development-time placeholders that intentionally fail
+-- `ailang check` with diagnostic code TC_HOLE, reporting the expected type
+-- at the hole site and the local bindings in scope.
+--
+-- Try running:
+--   ailang check --format=agent examples/snippets/typed_holes.ail
+--   ailang check --json examples/snippets/typed_holes.ail
+--
+-- Expected output:
+--   ...: TC_HOLE: typed hole `?toStr` has expected type `int -> string` -> in scope: xs: list[int]
+
+module examples/snippets/typed_holes
+
+import std/list (map)
+
+export pure func addOne(x: int) -> int = _?
+
+export pure func formatAll(xs: [int]) -> [string] = map(?toStr, xs)

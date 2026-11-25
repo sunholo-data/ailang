@@ -1,0 +1,32 @@
+-- Destructuring in `let` and Lambdas
+-- Demonstrates irrefutable tuple and record destructuring in `let` bindings
+-- and lambda parameters (including open records with `...` and field renaming).
+
+module examples/runnable/destructuring
+import std/list (foldl, map)
+
+type User = { name: string, age: int, city: string }
+
+export func main() -> () ! {IO} {
+  -- Tuple destructuring in let
+  let pair = ("apples", 5)
+  let (item, qty) = pair
+  println("tuple let: ${item} x ${show(qty)}")
+  -- Record destructuring in let (shorthand, renamed, and open `...`)
+  let user = { name: "Ada", age: 36, city: "London" }
+  let { name, age, ... } = user
+  let { city: hometown, ... } = user
+  println("record let: ${name} (${show(age)}) from ${hometown}")
+  -- Tuple destructuring in lambda parameters (e.g. map and foldl)
+  let entries = [("a", 10), ("b", 20), ("c", 30)]
+  let labels = map(\(k, v). "${k}=${show(v)}", entries)
+  let total = foldl(\acc (_, v). acc + v, 0, entries)
+  println("lambda tuple map: ${show(labels)}")
+  println("lambda tuple foldl: ${show(total)}")
+  -- Record destructuring in lambda parameters
+  let users: [User] = [{ name: "Ada", age: 36, city: "London" }, { name: "Grace", age: 85, city: "New York" }]
+  let names = map(\{ name, ... }. name, users)
+  let totalAge = foldl(\acc { age, ... }. acc + age, 0, users)
+  println("lambda record map: ${show(names)}")
+  println("lambda record foldl: ${show(totalAge)}")
+}
