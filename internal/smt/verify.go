@@ -545,7 +545,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				report.Skipped++
 				continue
 			}
-			// #757: an unsupported Core construct (e.g. match on list patterns)
+			// #757: an unsupported Core construct (e.g. a tuple expression)
 			// is an honest capability boundary of the decidable fragment — skip
 			// with the reason, never a hard ERROR leaking Go type names. Every
 			// command reports it this way: ai-check's former error lane was

@@ -11,8 +11,8 @@ import (
 func TestSkipThroughHelpersNamesTheBlocker(t *testing.T) {
 	// Each fragment must appear, in this order, in the function's reason.
 	want := map[string][]string{
-		// top → mid → leaf, whose list-pattern match does not encode.
-		"top": {`calls user function "mid"`, `calls user function "leaf"`, "match on list patterns"},
+		// top → mid → leaf, whose match on a tuple does not encode.
+		"top": {`calls user function "mid"`, `calls user function "leaf"`, "tuple expressions cannot be encoded"},
 		// ping → pong → ping: a cycle through the verified function.
 		"ping": {`calls user function "pong"`, "the helpers are mutually recursive"},
 		// A helper's unencodable builtin is named, not "uses unencodable types".
@@ -51,7 +51,8 @@ func TestRecordsBuiltInHelpersAndLiterals(t *testing.T) {
 	want := map[string]string{
 		"viaKv": "verified", "viaKvFalse": "counterexample",
 		"initial": "verified", "initialFalse": "counterexample",
-		"viaFold": "skipped",
+		"viaFold":  "skipped",
+		"choiceOf": "verified", "choiceOfFalse": "counterexample",
 	}
 	report := verifyFixture(t, "records_in_helpers.ail")
 	seen := map[string]bool{}

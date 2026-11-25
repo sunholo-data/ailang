@@ -123,6 +123,16 @@ func buildNeededSortSet(
 					queue = append(queue, s)
 				}
 			}
+			// …and another inline record it nests: decisions' Answer has
+			// ChoiceA({choice, probabilities: [{key, p}]}), and without this
+			// Record_key_p was filtered out while Record_choice_probabilities,
+			// which names it, was kept, so every function touching Answer
+			// was skipped on the closure check.
+			for _, s := range sortRefPattern.FindAllString(strings.TrimPrefix(decl, "(declare-datatype "+sort), -1) {
+				if _, inline := declBySort[s]; inline && !needed[s] {
+					queue = append(queue, s)
+				}
+			}
 		}
 	}
 	return needed

@@ -224,7 +224,7 @@ func TestEncodeExpr_Match_ADTWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "(match x (((Some v) v) (None 0)))"
+	want := "(match x (((Some $l_v) $l_v) (None 0)))"
 	if got != want {
 		t.Errorf("got:\n  %s\nwant:\n  %s", got, want)
 	}

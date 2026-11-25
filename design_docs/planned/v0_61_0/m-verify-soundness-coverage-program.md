@@ -50,7 +50,7 @@ Measured by `tools/verify-gap-map`'s "Skips by root blocker" table, 2026-11-25 (
 | `Callee "X" uses unencodable types` (the reason does not say which) | 10 | 9 |
 | A type variable in a callee signature | 9 | 5 |
 | `Result` in a callee signature | 8 | 4 |
-| A list pattern (`x :: rest`) in an unrolled helper | 7 | 7 |
+| ~~A list pattern (`x :: rest`) in an unrolled helper~~ (done 2026-11-25) | 7 | 7 |
 | The bare-name collision gate (S4/S7) | 9 | 0 |
 | A helper callee collection never reached (`std/json.get` → private `findInList`: a same-module `Var` call inside an imported body is looked up in the caller's program) | 4 | 4 |
 | `bytes` in a callee signature | 5 | 3 |
@@ -90,7 +90,24 @@ Next, in order:
    Found on the way, not fixed, both in witness replay, and both leave a refutation inconclusive (sound):
    - Replay does not run a zero-argument function ("function expects 1 arguments, got 0").
    - In `find_index.ail`'s `firstMatchFalse`, replay was "not attempted (k: Int value 9223372036854775808 …)" while the candidate model it printed has `k = 0`. Not yet investigated.
-4. **List patterns in unrolled helpers** (7 sole) and **mutually recursive helpers** (10 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
+4. ~~**List patterns in unrolled helpers**~~ **Done 2026-11-25.** A match with a list pattern goes through the nested-pattern encoder:
+   - Each arm is a test on the length and the named elements, and binds its variables to `seq.nth`/`seq.extract` terms.
+   - The verifier checks coverage itself (`listCoverage`: lengths 0…m one by one, then every longer length). A refutable tail never counts as covering.
+
+   Two bugs found on the way, both fixed:
+   - A pattern variable named like a record field (`Some(p) => p.p`) was a Z3 error. Pattern variables now bind under `$l_`, as `let` does.
+   - The per-function sort filter dropped an inline record nested in another inline record (`decisions`' `Answer`), which skipped every function touching it.
+
+   Result: all 9 rows get past list patterns.
+   - 3 become inconclusive (`entropy`, `pptxTakeFitting`, `apiDisplayFilename`). Each needs a fact about lists beyond the unrolling depth, which is induction (item 6).
+   - The other 6 stop elsewhere:
+     - `compositeScore`: `stringToInt`, through a recursive callee.
+     - `decodeBlocks`/`decodeBlocksPaged`: `std/list.reverse`.
+     - `compress_output`: an anonymous `{count, rest}` record.
+     - `extractSignatureParts` and `emlUnique`: solver timeouts.
+   - No verified row changed.
+
+   Still open: **mutually recursive helpers** (11 sole: a define-fun cannot refer forward, so this needs `define-funs-rec` or joint unrolling).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

@@ -39,7 +39,7 @@ func encodeMatch(m *core.Match) (string, error) {
 		return "", fmt.Errorf("match scrutinee: %w", err)
 	}
 	for _, arm := range m.Arms {
-		if hasNestedConstructorPattern(arm.Pattern) {
+		if needsNestedMatch(arm.Pattern) {
 			return encodeNestedMatch(m, scrutinee)
 		}
 	}
@@ -151,7 +151,7 @@ func encodeIteTest(scrutinee string, pat core.CorePattern) (test, bindVar string
 	case *core.WildcardPattern:
 		return "true", "", nil
 	case *core.VarPattern:
-		return "true", p.Name, nil
+		return "true", letSymbol(p.Name), nil
 	case *core.LitPattern:
 		lit, err := litPatternValue(p)
 		if err != nil {
@@ -204,7 +204,7 @@ func encodePattern(pat core.CorePattern) (string, error) {
 		}
 		return fmt.Sprintf("(%s %s)", p.Name, strings.Join(argParts, " ")), nil
 	case *core.VarPattern:
-		return p.Name, nil
+		return letSymbol(p.Name), nil
 	case *core.WildcardPattern:
 		// SMT-LIB uses _ as wildcard in some dialects; use a fresh variable
 		return "_", nil
@@ -218,9 +218,11 @@ func encodePattern(pat core.CorePattern) (string, error) {
 		// Wrap the sentinel so errors.Is survives the %w wrapping chain up
 		// through the unroller — the verifier classifies this as a SKIP.
 		// Known constructs get a user-facing name; #757's complaint was the raw
-		// Go type name leaking into output.
+		// Go type name leaking into output. A match with a list pattern goes
+		// through encodeNestedMatch (list_patterns.go); one nested in a record
+		// pattern still reaches here.
 		if _, ok := pat.(*core.ListPattern); ok {
-			return "", fmt.Errorf("%w: match on list patterns (x :: rest) is outside the decodable fragment", ErrUnsupportedConstruct)
+			return "", fmt.Errorf("%w: list pattern nested inside a record pattern", ErrUnsupportedConstruct)
 		}
 		return "", fmt.Errorf("%w: unsupported pattern type %T in SMT encoding", ErrUnsupportedConstruct, pat)
 	}

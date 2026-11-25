@@ -298,7 +298,8 @@ func TestVerifyExit_PartialEnumeratesSkipsInJSON(t *testing.T) {
 }
 
 // TestVerifyExit_UnsupportedConstructIsASkipEverywhere: a contracted function
-// matching on list patterns is outside the decidable fragment. `verify` always
+// matching on a tuple is outside the decidable fragment (this was a list
+// pattern until list patterns were encoded). `verify` always
 // reported it skipped (#757); ai-check reported it as a verifier ERROR. Under
 // the shared contract it is a skip on every spelling, and because it is the
 // file's only obligation nothing was proved: "unproved", exit 1, strict or
@@ -311,9 +312,9 @@ func TestVerifyExit_UnsupportedConstructIsASkipEverywhere(t *testing.T) {
 export func sumList(ls: [int]) -> int ! {}
 ensures { result >= 0 }
 {
-  match ls {
-    [] => 0,
-    x :: rest => x + sumList(rest)
+  match (ls, 0) {
+    ([], a) => a,
+    (x :: rest, a) => x + sumList(rest)
   }
 }
 `

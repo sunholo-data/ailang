@@ -159,12 +159,12 @@ func TestVerify_CrossFunctionIntChainStillVerifies(t *testing.T) {
 	}
 }
 
-// TestVerify_ListPatternMatchSkipsNotError is the end-to-end acceptance test
-// for #757: a contracted function matching on list patterns (`x :: rest`)
-// used to hard-ERROR with "unsupported pattern type *core.ListPattern" — a Go
-// type name leaking into user-facing output. It must SKIP with an honest
-// capability reason instead.
-func TestVerify_ListPatternMatchSkipsNotError(t *testing.T) {
+// TestVerify_ListPatternMatchIsEncoded: a contracted function matching on
+// list patterns (`x :: rest`) used to hard-ERROR with "unsupported pattern
+// type *core.ListPattern", a Go type name in user-facing output (#757), and
+// then to skip. List patterns are now encoded, so the false contract below
+// (sumList([-1]) is -1) is refuted, with no error and no skip.
+func TestVerify_ListPatternMatchIsEncoded(t *testing.T) {
 	if !smt.Z3Available() {
 		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
 	}
@@ -195,16 +195,14 @@ ensures { result >= 0 }
 		t.Fatalf("verify leaked the internal pattern type name; output:\n%s", combined)
 	}
 	var payload struct {
-		Skipped int `json:"skipped"`
-		Errors  int `json:"errors"`
+		Skipped        int `json:"skipped"`
+		Errors         int `json:"errors"`
+		Counterexample int `json:"counterexample"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 		t.Fatalf("invalid JSON: %v\n%s", err, stdout)
 	}
-	if payload.Errors != 0 {
-		t.Fatalf("expected 0 errors, got %d:\n%s", payload.Errors, stdout)
-	}
-	if payload.Skipped != 1 {
-		t.Fatalf("expected 1 skipped, got %d:\n%s", payload.Skipped, stdout)
+	if payload.Errors != 0 || payload.Skipped != 0 || payload.Counterexample != 1 {
+		t.Fatalf("want the false contract refuted (0 errors, 0 skipped, 1 counterexample), got %+v:\n%s", payload, stdout)
 	}
 }

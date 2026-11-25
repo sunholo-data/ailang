@@ -26,6 +26,15 @@ func patternBinders(p core.CorePattern) []string {
 			names = append(names, patternBinders(arg)...)
 		}
 		return names
+	case *core.ListPattern:
+		var names []string
+		for _, el := range x.Elements {
+			names = append(names, patternBinders(el)...)
+		}
+		if x.Tail != nil {
+			names = append(names, patternBinders(*x.Tail)...)
+		}
+		return names
 	case *core.RecordPattern:
 		var names []string
 		for _, arg := range x.Fields {
@@ -35,9 +44,22 @@ func patternBinders(p core.CorePattern) []string {
 	}
 	return nil
 }
+
+// encodePatternScoped encodes an arm's body or guard with each variable the
+// pattern binds referring to its letSymbol, the symbol every pattern encoder
+// binds it under. A raw name would collide with a declared accessor or
+// function of the same name (`Some(p) => p.p` was a Z3 error), as for let (#215).
 func encodePatternScoped(expr core.CoreExpr, p core.CorePattern) (string, error) {
-	restore := withoutParameterRenames(patternBinders(p))
-	defer restore()
+	previous := activeParamRenames
+	local := make(map[string]string, len(previous))
+	for k, v := range previous {
+		local[k] = v
+	}
+	for _, name := range patternBinders(p) {
+		local[name] = letSymbol(name)
+	}
+	activeParamRenames = local
+	defer func() { activeParamRenames = previous }()
 	return EncodeExpr(expr)
 }
 

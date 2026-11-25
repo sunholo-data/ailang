@@ -26,8 +26,8 @@ func TestEncodePattern_RecordPattern_Basic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "(mk_Point x y)" {
-		t.Errorf("got %q, want %q", got, "(mk_Point x y)")
+	if got != "(mk_Point $l_x $l_y)" {
+		t.Errorf("got %q, want %q", got, "(mk_Point $l_x $l_y)")
 	}
 }
 
@@ -60,8 +60,8 @@ func TestEncodePattern_RecordPattern_ThreeFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "(mk_Record_a_b_c a b c)" {
-		t.Errorf("got %q, want %q", got, "(mk_Record_a_b_c a b c)")
+	if got != "(mk_Record_a_b_c $l_a $l_b $l_c)" {
+		t.Errorf("got %q, want %q", got, "(mk_Record_a_b_c $l_a $l_b $l_c)")
 	}
 }
 
@@ -82,8 +82,8 @@ func TestEncodePattern_RecordPattern_WithWildcard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "(mk_Point _ v)" {
-		t.Errorf("got %q, want %q", got, "(mk_Point _ v)")
+	if got != "(mk_Point _ $l_v)" {
+		t.Errorf("got %q, want %q", got, "(mk_Point _ $l_v)")
 	}
 }
 
@@ -118,7 +118,7 @@ func TestEncodeMatch_RecordPattern(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "(match p (((mk_Point x y) (+ x y))))"
+	want := "(match p (((mk_Point $l_x $l_y) (+ $l_x $l_y))))"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -164,7 +164,7 @@ func TestEncodePattern_NestedRecordPattern(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "(mk_Circle (mk_Point ox oy) r)"
+	want := "(mk_Circle (mk_Point $l_ox $l_oy) $l_r)"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

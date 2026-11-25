@@ -87,10 +87,12 @@ func nestedPatternTest(p core.CorePattern, value, sort string) (string, []string
 	case *core.WildcardPattern:
 		return "true", nil, nil
 	case *core.VarPattern:
-		return "true", []string{"(" + x.Name + " " + value + ")"}, nil
+		return "true", []string{"(" + letSymbol(x.Name) + " " + value + ")"}, nil
 	case *core.LitPattern:
 		lit, err := litPatternValue(x)
 		return "(= " + value + " " + lit + ")", nil, err
+	case *core.ListPattern:
+		return listPatternTest(x, value, sort)
 	case *core.ConstructorPattern:
 		fields, ok := constructorFields(sort, x.Name)
 		if !ok || len(fields) != len(x.Args) {
@@ -191,6 +193,9 @@ func patternCoverage(rows [][]core.CorePattern, sorts []string, depth int) bool 
 			next[i] = r[1:]
 		}
 		return patternCoverage(next, sorts[1:], depth+1)
+	}
+	if elem := seqElementSort(sorts[0]); elem != "" {
+		return listCoverage(rows, sorts, elem, depth)
 	}
 	name := sorts[0]
 	if strings.HasPrefix(name, "(") {

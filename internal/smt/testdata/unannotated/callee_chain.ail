@@ -2,16 +2,16 @@ module callee_chain
 import std/option (Option, Some, None)
 import std/string (stringToInt)
 
--- leaf matches on a list pattern inside an unrolled recursion, which the
--- encoder cannot decode; mid calls leaf; top calls mid.
-func leaf(xs: [int]) -> int {
-  match xs {
-    [] => 0,
-    x :: rest => x + leaf(rest)
+-- leaf matches on a tuple inside an unrolled recursion, which the encoder
+-- cannot encode; mid calls leaf; top calls mid.
+func leaf(xs: [int], acc: int) -> int {
+  match (xs, acc) {
+    ([], a) => a,
+    (x :: rest, a) => leaf(rest, a + x)
   }
 }
 
-func mid(n: int) -> int = leaf([n]) + 1
+func mid(n: int) -> int = leaf([n], 0) + 1
 
 export func top(n: int) -> int
   ensures { result >= 0 }

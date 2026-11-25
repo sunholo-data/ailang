@@ -32,7 +32,9 @@ ensures { result == 0 } { if true then 0 else nullary() }
 export pure func nullaryCaller() -> int
 ensures { result == 0 } { nullary() }
 
--- The callee's own bounded unit-recursion encoder has an inherited ERROR.
--- Callers still use its declared contract; this sprint does not widen unrolling.
+-- The callee's own bounded unrolling cannot encode its unit argument, which is
+-- a skip naming the unit literal (it was an ERROR until unsupported Core
+-- constructs were all wrapped as such). Callers still use its declared
+-- contract; this sprint does not widen unrolling.
 export pure func nullaryFalse() -> int
 ensures { result == 1 } { nullary() }

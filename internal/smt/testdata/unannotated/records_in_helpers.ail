@@ -43,3 +43,19 @@ export func viaFold(xs: [string]) -> [string]
   let acc = foldl(step, { cells: [], idx: 0 }, xs);
   acc.cells
 }
+
+-- An inline record nested in another inline record of an ADT field: the
+-- outer record's declaration names the inner one's sort, so both must be
+-- kept. The inner one was filtered out and every function touching Answer
+-- was skipped on the declaration closure.
+type Answer =
+  | NoA(float)
+  | ChoiceA({ choice: string, probabilities: [{ key: string, p: float }] })
+
+export func choiceOf(a: Answer) -> string
+  ensures { match a { ChoiceA(c) => result == c.choice, NoA(_) => result == "" } }
+= match a { NoA(_) => "", ChoiceA(c) => c.choice }
+
+export func choiceOfFalse(a: Answer) -> string
+  ensures { result == "" }
+= match a { NoA(_) => "", ChoiceA(c) => c.choice }

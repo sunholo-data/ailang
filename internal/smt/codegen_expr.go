@@ -95,16 +95,16 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 
 	case *core.DictRef:
 		// Dictionary reference: these are type class instances, skip in SMT
-		return "", fmt.Errorf("dictionary reference cannot be encoded directly in SMT-LIB")
+		return "", fmt.Errorf("%w: dictionary reference cannot be encoded directly in SMT-LIB", ErrUnsupportedConstruct)
 
 	case *core.Lambda:
-		return "", fmt.Errorf("lambda expressions cannot be encoded in SMT-LIB (higher-order)")
+		return "", fmt.Errorf("%w: lambda expressions cannot be encoded in SMT-LIB (higher-order)", ErrUnsupportedConstruct)
 
 	case *core.LetRec:
-		return "", fmt.Errorf("recursive let bindings cannot be encoded in SMT-LIB")
+		return "", fmt.Errorf("%w: recursive let bindings cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
 
 	case *core.Tuple:
-		return "", fmt.Errorf("tuple expressions cannot be encoded in SMT-LIB")
+		return "", fmt.Errorf("%w: tuple expressions cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
 
 	case *core.Record:
 		return encodeRecord(e)
@@ -122,7 +122,7 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return encodeForall(e)
 
 	default:
-		return "", fmt.Errorf("unsupported Core expression type %T", expr)
+		return "", fmt.Errorf("%w: unsupported Core expression type %T", ErrUnsupportedConstruct, expr)
 	}
 }
 
@@ -176,7 +176,7 @@ func encodeLit(lit *core.Lit) (string, error) {
 		}
 		return "false", nil
 	case core.UnitLit:
-		return "", fmt.Errorf("unit literals cannot be encoded in SMT-LIB")
+		return "", fmt.Errorf("%w: unit literals cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
 	case core.StringLit:
 		v, ok := lit.Value.(string)
 		if !ok {

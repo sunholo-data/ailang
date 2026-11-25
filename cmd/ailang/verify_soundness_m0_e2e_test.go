@@ -100,7 +100,7 @@ func TestVerifyM0_ArithmeticAndIdentity(t *testing.T) {
 }
 func TestVerifyM0_LexicalHelpersAndSelectedPaths(t *testing.T) {
 	m0Verify(t, "m0_lexical_facts", map[string]string{"shadowFalse": "counterexample", "shadowTrue": "verified", "capturedTrue": "verified", "capturedFalse": "counterexample"})
-	m0Verify(t, "m0_helper_environment", map[string]string{"diamond": "verified", "diamondFalse": "counterexample", "boundShadow": "verified", "nestedBoundFalse": "counterexample", "nestedBoundTrue": "verified", "nullary": "error", "nullaryCaller": "verified", "nullaryFalse": "counterexample", "total": "inconclusive"})
+	m0Verify(t, "m0_helper_environment", map[string]string{"diamond": "verified", "diamondFalse": "counterexample", "boundShadow": "verified", "nestedBoundFalse": "counterexample", "nestedBoundTrue": "verified", "nullary": "skipped", "nullaryCaller": "verified", "nullaryFalse": "counterexample", "total": "inconclusive"})
 	m0Verify(t, "m0_selected_paths", map[string]string{"andSkipped": "verified", "orFalseGoal": "counterexample", "predicateSkipped": "verified", "predicateFalse": "counterexample", "requiresSkipped": "counterexample", "matchUnmatched": "counterexample", "matchLater": "counterexample", "unreachableOpaque": "verified", "zeroOnly": "counterexample", "zeroSkipped": "verified"})
 }
 func TestVerifyM0_PartialCalleeNoGlobalAxiom(t *testing.T) {

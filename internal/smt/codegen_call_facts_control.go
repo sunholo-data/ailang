@@ -79,7 +79,7 @@ func encodeFactMatch(m *core.Match) (string, error) {
 // ite route: SMT match accepts datatypes only. Preserve typed nested matches.
 func encodeFactMatchMirror(m *core.Match, scrutinee string, forceIte bool) (string, error) {
 	for _, arm := range m.Arms {
-		if hasNestedConstructorPattern(arm.Pattern) {
+		if needsNestedMatch(arm.Pattern) {
 			return encodeMatch(m)
 		}
 	}
@@ -96,7 +96,7 @@ func reachableFactMatchArms(m *core.Match) []core.MatchArm {
 		return m.Arms
 	}
 	for _, arm := range m.Arms {
-		if hasNestedConstructorPattern(arm.Pattern) {
+		if needsNestedMatch(arm.Pattern) {
 			return m.Arms
 		}
 	}

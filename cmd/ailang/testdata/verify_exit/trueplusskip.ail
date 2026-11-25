@@ -11,8 +11,8 @@ ensures { true } {
 
 export pure func len(xs: [int]) -> int
 ensures { result >= 5 } {
-  match xs {
-    [] => 0,
-    _ :: rest => 1 + len(rest)
+  match (xs, 0) {
+    ([], a) => a,
+    (_ :: rest, a) => 1 + len(rest)
   }
 }

@@ -25,7 +25,7 @@ func TestEncodePatternLexicalParameterScopeRestored(t *testing.T) {
 	defer func() { activeParamRenames = previous }()
 	pat := &core.ConstructorPattern{Name: "Ok", Args: []core.CorePattern{&core.ConstructorPattern{Name: "Some", Args: []core.CorePattern{&core.VarPattern{Name: "n"}}}}}
 	got, err := encodePatternScoped(&core.Var{Name: "n"}, pat)
-	if err != nil || got != "n" {
+	if err != nil || got != "$l_n" {
 		t.Fatalf("pattern capture: %s %v", got, err)
 	}
 	if activeParamRenames["n"] != "$p_n" || activeParamRenames["other"] != "$p_other" {

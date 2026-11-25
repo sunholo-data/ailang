@@ -1,0 +1,123 @@
+module list_patterns
+import std/list (length)
+import std/option (Option, Some, None)
+
+type KP = { key: string, p: float }
+
+-- The empty arm and the cons arm split on length.
+export func emptyOrOne(xs: [int]) -> int
+  ensures { result == (if length(xs) == 0 then 0 else 1) }
+{
+  match xs { [] => 0, [x, ...rest] => 1 }
+}
+
+export func emptyOrOneFalse(xs: [int]) -> int
+  ensures { result == 0 }
+{
+  match xs { [] => 0, [x, ...rest] => 1 }
+}
+
+-- x :: rest binds the head and the tail.
+export func headAndTail(xs: [int]) -> int
+  requires { length(xs) > 0 }
+  ensures { result == length(xs) }
+{
+  match xs { [] => 0, x :: rest => 1 + length(rest) }
+}
+
+-- A fixed-length pattern matches only that length.
+export func pairOnly(xs: [int]) -> int
+  ensures { result >= 0 }
+{
+  match xs { [a, b] => if a < b then b - a else a - b, _ => 0 }
+}
+
+export func pairOnlyFalse(xs: [int]) -> int
+  ensures { result == 0 }
+{
+  match xs { [a, b] => 1, _ => 0 }
+}
+
+-- A literal element.
+export func startsWithOne(xs: [int]) -> bool
+  requires { length(xs) == 0 }
+  ensures { !result }
+{
+  match xs { [1, ...rest] => true, _ => false }
+}
+
+-- An element literal tests the element, not just the length.
+export func headIsOne(xs: [int]) -> bool
+  requires { length(xs) > 0 }
+  ensures { result == (match xs { [h, ...t] => h == 1, [] => false }) }
+{
+  match xs { [1, ...rest] => true, _ => false }
+}
+
+-- A list inside a constructor.
+export func someHead(o: Option[[int]]) -> int
+  ensures { result >= 0 }
+{
+  match o { Some([x, ...rest]) => if x < 0 then 0 - x else x, Some([]) => 0, None => 0 }
+}
+
+-- Recursion through a helper over records, as in decisions.weightTotal.
+func negWeight(ws: [{ name: string, weight: float }]) -> bool =
+  match ws { [] => false, [w, ...rest] => w.weight < 0.0 || negWeight(rest) }
+
+func countPos(xs: [int]) -> int =
+  match xs { [] => 0, [x, ...rest] => (if x > 0 then 1 else 0) + countPos(rest) }
+
+export func countPosSmall() -> int
+  ensures { result == 1 }
+{
+  countPos([1, 0])
+}
+
+export func noNegWeight() -> bool
+  ensures { !result }
+{
+  negWeight([{ name: "a", weight: 1.0 }, { name: "b", weight: 0.5 }])
+}
+
+export func countPosSmallFalse(k: int) -> int
+  ensures { result == 1 }
+{
+  countPos([k, 0])
+}
+
+-- A guarded list arm falls through to the next arm when the guard fails.
+export func guardedHead(xs: [int]) -> int
+  ensures { result >= 0 }
+{
+  match xs { [x, ...rest] if x > 0 => x, _ => 0 }
+}
+
+export func guardedHeadFalse(xs: [int]) -> int
+  ensures { result > 0 }
+{
+  match xs { [x, ...rest] if x > 0 => x, _ => 0 }
+}
+
+-- Pattern variables named like a record field (p, key) bind under their own
+-- symbol, not the accessor's: both were Z3 errors.
+func totalP(ps: [KP]) -> float =
+  match ps { [] => 0.0, [p, ...rest] => p.p + totalP(rest) }
+
+export func twoTotal() -> float
+  ensures { result == 1.5 }
+{
+  totalP([{ key: "a", p: 1.0 }, { key: "b", p: 0.5 }])
+}
+
+export func pOf(o: Option[KP]) -> float
+  ensures { result == (match o { Some(k) => k.p, None => 0.0 }) }
+{
+  match o { Some(p) => p.p, None => 0.0 }
+}
+
+export func keyOf(ps: [KP]) -> string
+  ensures { result == "" || length(ps) > 0 }
+{
+  match ps { [] => "", [key, ...xs] => key.key }
+}

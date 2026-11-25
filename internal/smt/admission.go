@@ -24,7 +24,7 @@ func unsupportedConstructHint(err error) string {
 	if errors.As(err, &callee) {
 		return fmt.Sprintf("%q declares effects, or has no `!` clause and takes a function-typed parameter (its effects could come from the callback). Give it `! {}` (or only `! {Declassify}`) if it is pure, or inline its logic into the caller.", callee.callee)
 	}
-	return "Match on list patterns (x :: rest), string patterns, and similar unsupported constructs are outside the decodable fragment. Rewrite using length/element access on lists, or verify a version without the unsupported construct."
+	return "The construct named in the reason is outside the decodable fragment. Rewrite it with constructs the encoder supports (e.g. length/element access instead of a list pattern nested in a record pattern), or verify a version without it."
 }
 
 // smtAdmissible is deliberately distinct from interface/runtime purity:
