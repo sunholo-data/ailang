@@ -1,0 +1,44 @@
+module list_reverse
+import std/list (reverse, length, headOr, lastOr)
+import std/string (join)
+
+-- reverse: uninterpreted per list sort, with the facts every reversal has.
+export func revLen(xs: [string]) -> [string]
+  ensures { length(result) == length(xs) }
+{
+  reverse(xs)
+}
+
+export func revShort(xs: [int]) -> [int]
+  requires { length(xs) <= 1 }
+  ensures { result == xs }
+{
+  reverse(xs)
+}
+
+export func revEnds(xs: [int]) -> int
+  requires { length(xs) > 0 }
+  ensures { result == lastOr(xs, 0) }
+{
+  headOr(reverse(xs), 0)
+}
+
+-- Not every list is a palindrome: a model through reverse is inconclusive.
+export func revSame(xs: [int]) -> [int]
+  ensures { result == xs }
+{
+  reverse(xs)
+}
+
+-- A [] that ANF hoists out of a record update takes the field's sort.
+type CellSt = { cells: [string], buf: [string], esc: bool }
+
+func flushCell(st: CellSt) -> CellSt {
+  { st | cells: join("", reverse(st.buf)) :: st.cells, buf: [], esc: false }
+}
+
+export func flushClears(st: CellSt) -> CellSt
+  ensures { length(result.buf) == 0 }
+{
+  flushCell(st)
+}

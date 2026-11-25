@@ -120,6 +120,12 @@ type EncodeFunctionOpts struct {
 	Program *core.Program
 	// SurfaceParams maps function names to their parameter info.
 	SurfaceParams map[string][]FunctionParam
+	// UnencodableSignatures: functions whose signature has a type with no SMT
+	// sort, and that type. The resolver never defines one.
+	UnencodableSignatures map[string]string
+	// SurfaceReturnTypes: each function's declared return type, for the
+	// records an opaque or contract helper's signature names.
+	SurfaceReturnTypes map[string]types.Type
 	// SurfaceReturnSorts maps function names to their return sort strings.
 	SurfaceReturnSorts map[string]string
 	// ReturnType is the function's return type (used to discover record types in return position).
@@ -193,6 +199,9 @@ func EncodeFunction(
 	defer func() { activeUninterpreted = nil }()
 	if len(opts) > 0 {
 		defer setUserParamSorts(opts[0].SurfaceParams)()
+		previousBad := activeUnencodableSignatures
+		activeUnencodableSignatures = opts[0].UnencodableSignatures
+		defer func() { activeUnencodableSignatures = previousBad }()
 	}
 	if len(opts) > 0 && opts[0].Program != nil {
 		for _, name := range collectFunctionNames(opts[0].Program) {
@@ -313,6 +322,20 @@ func EncodeFunction(
 	// its ADT, and the closure check skipped the function.
 	firstRecordDecl := len(result.Declarations)
 	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
+	// A helper called by its signature alone (opaque, or by its contract)
+	// needs the records that signature names: an anonymous {left, runs}
+	// result was never declared, and the closure check skipped the caller.
+	for _, def := range calleeDefs {
+		if def.Contract == nil {
+			continue
+		}
+		for _, p := range def.Contract.Params {
+			collectRecordType(p.Type, ctx, result)
+		}
+		if len(opts) > 0 {
+			collectRecordType(opts[0].SurfaceReturnTypes[def.Name], ctx, result)
+		}
+	}
 	recordDecls := append([]string(nil), result.Declarations[firstRecordDecl:]...)
 	result.Declarations = result.Declarations[:firstRecordDecl]
 
@@ -457,6 +480,7 @@ func EncodeFunction(
 			result.HOFBoundedDepth = hofDepth
 		}
 		for _, spec := range inlineResult.Specializations {
+			registerSpecParamSorts(spec)
 			result.Declarations = append(result.Declarations, spec.Declarations...)
 			// Register specialized functions as resolved callees so encodeApp recognizes them
 			ctx.ResolvedCallees[spec.TopLevelName] = true
@@ -708,6 +732,7 @@ func inlineContractHOFs(funcName, kind string, pred core.CoreExpr, depth int, re
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedConstruct, r.Unsupported)
 	}
 	for _, spec := range r.Specializations {
+		registerSpecParamSorts(spec)
 		result.Declarations = append(result.Declarations, spec.Declarations...)
 		if activeResolvedCallees != nil {
 			activeResolvedCallees[spec.TopLevelName] = true

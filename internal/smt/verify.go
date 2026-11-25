@@ -366,6 +366,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	// declarableADTs: every declared ADT/record name and its type-parameter
 	// count; a parametric one is admitted only at a concrete instance.
 	declarableADTs := CollectDeclarableTypes(allTypeFiles)
+	encOpts.UnencodableSignatures = UnencodableSignatures(calleeASTFuncs, declarableADTs)
+	encOpts.SurfaceReturnTypes = SurfaceReturnTypes(calleeASTFuncs)
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {

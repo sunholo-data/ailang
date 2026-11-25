@@ -64,6 +64,9 @@ func encodeApp(app *core.App) (string, error) {
 			if enc, ok, err := encodeStringExtra(builtinName, app.Args); ok {
 				return enc, err
 			}
+			if enc, ok, err := encodeListReverse(builtinName, app); ok {
+				return enc, err
+			}
 		}
 	}
 

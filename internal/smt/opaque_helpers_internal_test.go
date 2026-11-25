@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 )
 
@@ -45,5 +46,32 @@ func TestValidateDeclarationsChecksDeclareFunSignatures(t *testing.T) {
 	ok := []string{`(declare-datatype Box ((mk_Box (v Int))))`, `(declare-fun $spec_g ((Seq Box) String) (Option Int))`, `(declare-datatype Option (par (a) ((Some (Some_0 a)) (None))))`}
 	if err := validateDeclarations([]string{ok[2], ok[0], ok[1]}, ctx); err != nil {
 		t.Fatalf("declared sorts: %v", err)
+	}
+}
+
+// An inline record in an ADT payload with a field of no sort (a type
+// variable here) is never declared without it: declaring the rest would
+// model two payloads differing only there as equal.
+func TestInlineRecordWithUnsortedFieldNotDeclared(t *testing.T) {
+	rec := &ast.RecordType{Fields: []*ast.RecordField{
+		{Name: "tag", Type: &ast.SimpleType{Name: "int"}},
+		{Name: "v", Type: &ast.TypeVar{Name: "a"}},
+	}}
+	file := &ast.File{Decls: []ast.Node{&ast.TypeDecl{
+		Name:       "Holder",
+		TypeParams: []string{"a"},
+		Definition: &ast.AlgebraicType{Constructors: []*ast.Constructor{{Name: "H", Fields: []*ast.ConstructorField{{Type: rec}}}}},
+	}}}
+	got := ExtractADTTypesWithRecords(file)
+	for _, d := range got.RecordDecls {
+		if strings.Contains(d, "Record_tag_v") {
+			t.Fatalf("declared without its unsorted field: %s", d)
+		}
+	}
+	ok := &ast.RecordType{Fields: []*ast.RecordField{{Name: "tag", Type: &ast.SimpleType{Name: "int"}}}}
+	file.Decls = append(file.Decls, &ast.TypeDecl{Name: "Other", Definition: &ast.AlgebraicType{Constructors: []*ast.Constructor{{Name: "O", Fields: []*ast.ConstructorField{{Type: ok}}}}}})
+	got = ExtractADTTypesWithRecords(file)
+	if len(got.RecordDecls) != 1 || !strings.Contains(got.RecordDecls[0], "Record_tag") {
+		t.Fatalf("a record with every field sorted is declared: %v", got.RecordDecls)
 	}
 }

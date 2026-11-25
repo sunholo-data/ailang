@@ -220,6 +220,9 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 		}
 		switch e := expr.(type) {
 		case *core.App:
+			// A user or specialised function's argument takes its declared
+			// sort, before the two-operand rule below: the [] init of
+			// `_foldl_spec(xs, $t)` took the list's sort, not the accumulator's.
 			if s := userCallArgSeqSort(e, name); s != "" {
 				found = s
 				return
@@ -265,6 +268,22 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 			// where encodeRecord's own field hint cannot reach it.
 			found = recordFieldSortOfVar(e, name)
 			for _, v := range e.Fields {
+				walk(v)
+			}
+		case *core.RecordUpdate:
+			// `{st | buf: $t}`: the updated field's declared sort.
+			if info, err := lookupRecordForUpdate(e); err == nil {
+				for field, v := range e.Updates {
+					if vv, ok := v.(*core.Var); ok && vv.Name == name {
+						if _, isSeq := seqElemSort(info.FieldSorts[field]); isSeq {
+							found = info.FieldSorts[field]
+							return
+						}
+					}
+				}
+			}
+			walk(e.Base)
+			for _, v := range e.Updates {
 				walk(v)
 			}
 		}
@@ -384,4 +403,34 @@ func userCallArgSeqSort(app *core.App, name string) string {
 		}
 	}
 	return ""
+}
+
+// registerSpecParamSorts records a map/filter/foldl specialisation's
+// parameter sorts, read from its top-level definition, so a [] passed to it
+// takes the declared sort (userCallArgSeqSort).
+func registerSpecParamSorts(spec SpecializationResult) {
+	if activeUserParamSorts == nil {
+		return
+	}
+	for _, decl := range spec.Declarations {
+		for _, head := range []string{"(define-fun ", "(declare-fun "} {
+			if !strings.HasPrefix(decl, head+spec.TopLevelName+" ") {
+				continue
+			}
+			es, err := ParseSExprs(decl)
+			if err != nil || len(es) == 0 || len(es[0].List) < 4 {
+				return
+			}
+			var sorts []string
+			for _, p := range es[0].List[2].List {
+				if head == "(define-fun " && len(p.List) == 2 {
+					sorts = append(sorts, p.List[1].String())
+				} else if head == "(declare-fun " {
+					sorts = append(sorts, p.String())
+				}
+			}
+			activeUserParamSorts[spec.TopLevelName] = sorts
+			return
+		}
+	}
 }

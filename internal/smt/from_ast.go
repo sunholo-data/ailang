@@ -98,15 +98,21 @@ func collectNamedRecordAlias(name string, recType *ast.RecordType, result *ADTEx
 	}
 	seen[name] = true
 
+	// A field with no type (a tuple, a function) makes the whole record
+	// undeclarable: declaring the rest would model two values differing only
+	// in that field as equal (MdParseState's itemIndents: [(int, int)] was
+	// dropped, and Z3 rejected every literal that named it).
 	typeFields := make(map[string]types.Type, len(recType.Fields))
+	complete := true
 	for _, f := range recType.Fields {
 		ft := ConvertASTTypeToType(f.Type)
 		if ft == nil {
-			continue
+			complete = false
+			break
 		}
 		typeFields[f.Name] = ft
 	}
-	if len(typeFields) > 0 {
+	if complete && len(typeFields) > 0 {
 		result.RecordAliases[name] = &types.TRecord{
 			Fields:   typeFields,
 			TypeName: name,
@@ -166,12 +172,13 @@ func collectRecordDeclFromAST(recType *ast.RecordType, result *ADTExtraction, se
 	}
 	sortName := MapRecordSortName(trec)
 
-	// Build field sorts
+	// Build field sorts. A field with no sort makes the record undeclarable
+	// (see collectNamedRecordAlias): it is never declared with the rest.
 	fields := make(map[string]string)
 	for name, fieldType := range trec.Fields {
 		sort, err := MapType(fieldType)
 		if err != nil {
-			continue // Skip unencodable fields
+			return
 		}
 		fields[name] = sort
 	}
@@ -371,28 +378,69 @@ func FirstUnencodableCalleeType(
 	calleeASTFuncs map[string]*ast.FuncDecl,
 	declarable map[string]int,
 ) (string, string) {
-	for _, name := range CollectCalleeNames(body, funcName, prog, imported) {
+	// Only the callees funcName calls itself (in its body, or in a lambda its
+	// map/filter/foldl calls are specialised from): a call needs the callee's
+	// sorts at the call. A deeper callee with an unencodable signature is
+	// never defined (the resolver refuses it, UnencodableSignatures), so the
+	// helper calling it is called opaquely; it used to skip the function
+	// although its contract never reached that callee (opaque_helpers.go).
+	for _, name := range collectDirectCalls(body, funcName, prog, imported) {
 		fd, ok := calleeASTFuncs[name]
 		if !ok {
 			continue
 		}
-		if !astTypeEncodable(fd.ReturnType, declarable) {
-			return name, describeASTType(fd.ReturnType)
-		}
-		for _, p := range fd.Params {
-			// A zero-arg function desugars to `f(_: ())`; the unit param carries
-			// no information and the encoder drops it (see UnwrapLambdaParams), so
-			// it must not make the callee unencodable. A nullary pure callee is a
-			// named constant.
-			if isUnitParam(p) {
-				continue
-			}
-			if !astTypeEncodable(p.Type, declarable) {
-				return name, describeASTType(p.Type)
-			}
+		if bad := unencodableSignatureType(fd, declarable); bad != "" {
+			return name, bad
 		}
 	}
 	return "", ""
+}
+
+// unencodableSignatureType describes the first type in fd's signature with no
+// SMT sort, or "" when every type has one.
+func unencodableSignatureType(fd *ast.FuncDecl, declarable map[string]int) string {
+	if !astTypeEncodable(fd.ReturnType, declarable) {
+		return describeASTType(fd.ReturnType)
+	}
+	for _, p := range fd.Params {
+		// A zero-arg function desugars to `f(_: ())`; the unit param carries
+		// no information and the encoder drops it (see UnwrapLambdaParams), so
+		// it must not make the callee unencodable. A nullary pure callee is a
+		// named constant.
+		if isUnitParam(p) {
+			continue
+		}
+		if !astTypeEncodable(p.Type, declarable) {
+			return describeASTType(p.Type)
+		}
+	}
+	return ""
+}
+
+// SurfaceReturnTypes maps each function with a return annotation to that type.
+func SurfaceReturnTypes(funcs map[string]*ast.FuncDecl) map[string]types.Type {
+	out := make(map[string]types.Type, len(funcs))
+	for name, fd := range funcs {
+		if fd.ReturnType == nil {
+			continue
+		}
+		if t := ConvertASTTypeToType(fd.ReturnType); t != nil {
+			out[name] = t
+		}
+	}
+	return out
+}
+
+// UnencodableSignatures maps each function whose signature has a type with no
+// SMT sort to that type; the resolver never defines one (EncodeFunctionOpts).
+func UnencodableSignatures(funcs map[string]*ast.FuncDecl, declarable map[string]int) map[string]string {
+	out := make(map[string]string)
+	for name, fd := range funcs {
+		if bad := unencodableSignatureType(fd, declarable); bad != "" {
+			out[name] = bad
+		}
+	}
+	return out
 }
 
 // firstUnencodableCalleeInFunc applies FirstUnencodableCalleeType to a function's

@@ -141,6 +141,19 @@ Next, in order:
    Totals against M0 (2026-11-24): verified 590 → 634, skipped 125 → 78, inconclusive 3 → 16, errors 1 → 0.
 
    Still skipped behind helper **signatures**, which opacity cannot help: tuple lists (`mdEscapePairs`, `replaceMany`: 7), `foldChars`'s type variable (8), `bytes` (6), and `Result[a, e]` (3). The admission check walks the whole call graph and rejects on any reachable signature. Stopping that walk at the first helper that can be opaque is the next lever for the 7 `flush*`/`tex*` rows. It needs no new ruling.
+4c. ~~**Signature gate on direct callees only, `reverse`**~~ **Done 2026-11-25.**
+   - The callee-sort gate now checks only the callees a function calls itself. A deeper callee with an unencodable signature is never defined (`UnencodableSignatures`), so the helper calling it is opaque.
+   - A helper whose `map`/`filter`/`foldl` does not specialise is opaque, not an abort.
+   - Records named in an opaque or contract helper's signature are declared.
+   - `std/list.reverse` is a per-sort UF, with equal length and swapped ends.
+
+   Getting there exposed a **false VERIFIED** that was already there: a record with a field of no sort (a tuple) was declared without the field, so `r1.tag == r2.tag ⇒ r1 == r2` was proved. A record is now declared with all its fields or not at all (named aliases and inline ADT records). No corpus row depended on it. Two more `[]` sort fixes: a `foldl` accumulator, and a `[]` hoisted from a record update.
+
+   Gap map: +8 verified (`decodeBlocks`, `blocksToJson`, `generateQmd`, `texFlushState`, `texFlushText`, `workbookCellsInRef`, `buildMessage`, motoko `compress_output`), 3 skipped → inconclusive, 0 errors, 0 regressions.
+
+   Totals against M0: verified 590 → **642**, skipped 125 → **67**, inconclusive 3 → 19, errors 1 → 0.
+
+   The `flush*` rows are honest skips now: `MdParseState` has a tuple field. **Tuple sorts** are the next lever: an SMT datatype per arity and component sorts. They block `MdParseState`, `mdEscapePairs`/`replaceMany` (7 rows), `fst2` and `gradeNumeric`.
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

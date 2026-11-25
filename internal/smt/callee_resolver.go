@@ -137,6 +137,12 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 			recordCalleeFailure(calleeName, "its definition was not found")
 			continue
 		}
+		if bad := activeUnencodableSignatures[calleeName]; bad != "" {
+			// No sort to define it, or to call it opaquely, at: a helper
+			// calling it fails to encode and is called opaquely itself.
+			recordCalleeFailure(calleeName, fmt.Sprintf("its signature uses an unencodable type %q", bad))
+			continue
+		}
 
 		// Unwrap lambda to get inner body
 		_, innerBody := unwrapLambda(calleeBody)
@@ -202,10 +208,13 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				if activeADTContext != nil {
 					activeADTContext.ti = previousTI
 				}
-				return nil, fmt.Errorf("%w: callee %q: %s", ErrUnsupportedConstruct, calleeName, r.Unsupported)
+				// Like any body that does not encode: by contract, or opaque.
+				defs = appendSpecOrOpaque(defs, calleeName, meta, params, surfaceReturnSorts[calleeName], r.Unsupported)
+				continue
 			}
 			innerBody = r.NewBody
 			for _, spec := range r.Specializations {
+				registerSpecParamSorts(spec)
 				hofDecls = append(hofDecls, spec.Declarations...)
 				resolvedSoFar[spec.TopLevelName] = true
 			}

@@ -27,6 +27,10 @@ import (
 // A helper is opaque only when its signature has an SMT sort: the surface
 // return type is known and every parameter maps. Otherwise it still fails.
 
+// activeUnencodableSignatures is EncodeFunctionOpts.UnencodableSignatures for
+// the current EncodeFunction.
+var activeUnencodableSignatures map[string]string
+
 // CaveatOpaqueHelpers marks a VERIFIED result reached through opaque helpers.
 const CaveatOpaqueHelpers = "helpers_not_checked"
 

@@ -724,10 +724,10 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums, ADTs, and **records** (field destructuring)
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
-- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be pure by the rule below; a callee whose signature has a type variable, a tuple, a function type or `bytes` makes the caller SKIPPED
+- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be pure by the rule below. A callee whose signature has a type variable, a tuple, a function type or `bytes` makes the caller SKIPPED when the caller calls it directly; reached through another helper, that helper is called opaquely instead (see the limitations under cross-function calls)
 - Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
 - **Higher-order functions**: `map`, `filter`, `foldl`, `any`, `flatMap` with a **lambda or a named top-level function**, over any element type, specialized and unrolled (depth 3) — see [below](#higher-order-function-verification)
-- **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs)
+- **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs). `std/list.reverse` is uninterpreted, with the facts every reversal has: the same length, and the first and last elements swapped. A model that rests on its value is INCONCLUSIVE
 - **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
 - Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → truncation toward zero (as at runtime)

@@ -29,6 +29,15 @@ func TestOpaqueHelpers(t *testing.T) {
 		"definedEmptyArg":     {"verified", "", ""},
 		"hoistedEmptyArgs":    {"verified", "", "nested ("},
 		"viaUntypedReturn":    {"skipped", "", ""},
+		"throughMasked":       {"verified", "", `masked (calls user function "escapePairs" that is not SMT-encodable in this context: its signature uses an unencodable type`},
+		"callsPairsDirectly":  {"skipped", "", ""},
+		"throughBadMap":       {"verified", "", "bumpAll ("},
+		"throughRecordResult": {"verified", "", "splitAt ("},
+		"flattenLen":          {"verified", "", ""},
+		// Was a false VERIFIED: Tagged was declared without pairs.
+		"same":               {"skipped", "", ""},
+		"throughNamedResult": {"verified", "", "mkPt ("},
+		"sameBag":            {"skipped", "", ""},
 	}
 	for _, r := range report.Results {
 		w, ok := want[r.Function]
@@ -53,6 +62,9 @@ func TestOpaqueHelpers(t *testing.T) {
 		}
 		if w.caveat != "" && !strings.Contains(detail, w.caveat) {
 			t.Errorf("%s: helpers caveat %q lacks %q", r.Function, detail, w.caveat)
+		}
+		if r.Function == "callsPairsDirectly" && !strings.Contains(r.Reason, `calls "escapePairs" whose signature uses an unencodable type`) {
+			t.Errorf("callsPairsDirectly: reason %q does not name the direct callee", r.Reason)
 		}
 		if r.Function == "dependsOnHelper" && !strings.Contains(r.Reason, "$spec_swapSum") {
 			t.Errorf("dependsOnHelper: reason %q does not name the opaque helper", r.Reason)
