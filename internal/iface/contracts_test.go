@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
-	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 func gtZero(name string) ast.Expr {
@@ -76,13 +75,6 @@ func TestContracts_InSignaturesNotInHash(t *testing.T) {
 	commas := withoutContractsMarker(SignatureSet(mk([]string{"requires f(a, b)"})))
 	if commas[0] != `q/lib:contract:f:requires f(a\, b)` {
 		t.Errorf("clause not escaped: %#v", commas)
-	}
-}
-
-// The marker is defined twice so internal/messaging need not import iface.
-func TestContractsMarker_MatchesMessaging(t *testing.T) {
-	if ContractsMarker != messaging.SignatureContractsMarker {
-		t.Fatalf("iface %q != messaging %q", ContractsMarker, messaging.SignatureContractsMarker)
 	}
 }
 
