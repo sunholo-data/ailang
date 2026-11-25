@@ -1,0 +1,13 @@
+# dev CI, iteration 139 (read 2026-11-25 ~09:10-09:45Z)
+
+required contexts (branch protection): test lint build docs-gate checks
+
+CI runs on dev (run id, conclusion, head):
+45573724289 failure 4d6e1e9cd  test: TestVerifyM0_ArithmeticAndIdentity
+45574227526 failure c8022abce  test: TestVerifyM0_ArithmeticAndIdentity + internal/pipeline timed out after 6m56s (TestTypeSafety_DecodeJsonNotString running)
+45575341545 failure 5315d160e  test: TestVerifyM0_ArithmeticAndIdentity + internal/pipeline timed out after 6m56s (TestDeprecatedUseCoverage running)
+45576804517 SUCCESS 7a61839c7  all jobs green; internal/pipeline ok 258.134s
+45577532842 failure df96971d4  test only: internal/pipeline timed out after 6m56s (TestIfaceDeterminism_InProcess/std/sem running)
+45581519333 failure 2da0c4592  test: cmd/ailang TestRealRegistry_PostMigrationSplitCounts prompt_freeze_test.go:167 'split 19/54/2 v0.16.19'; also test-windows (non-required)
+
+PR #2463 rebased head cc9216a20, run 45584475837: test fails on the same TestRealRegistry_PostMigrationSplitCounts (inherited from dev 2da0c4592); lint, build, checks, docs-gate success.
