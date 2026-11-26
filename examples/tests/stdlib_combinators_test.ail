@@ -1,6 +1,6 @@
 module examples/tests/stdlib_combinators_test
 
-import std/list (all, enumerate, filterMap, find, partition)
+import std/list (all, chunk, enumerate, filterMap, find, groupBy, partition, range, span)
 import std/map as M
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err, getOrElse, toOption, fromOption)
@@ -56,4 +56,77 @@ test "std/result toOption and fromOption" {
   assert toOption(errVal) == None
   assert fromOption(Some(7), "empty") == Ok(7)
   assert fromOption(None, "empty") == Err("empty")
+}
+
+test "std/map update" {
+  let m = M.fromList([("a", 10), ("b", 20)])
+  let m1 = M.update(m, "a", 1, \v. v + 5)
+  assert M.lookup(m1, "a") == Some(15)
+  assert M.lookup(m1, "b") == Some(20)
+  let m2 = M.update(m1, "c", 99, \v. v + 5)
+  assert M.lookup(m2, "c") == Some(99)
+  assert M.size(m2) == 3
+  -- Original map is unchanged (immutable)
+  assert M.lookup(m, "a") == Some(10)
+  assert M.lookup(m, "c") == None
+}
+
+test "std/map mapValues" {
+  let m = M.fromList([("a", 1), ("b", 2), ("c", 3)])
+  let doubled = M.mapValues(\v. v * 10, m)
+  assert M.toList(doubled) == [("a", 10), ("b", 20), ("c", 30)]
+  let shown = M.mapValues(\v. show(v), m)
+  assert M.toList(shown) == [("a", "1"), ("b", "2"), ("c", "3")]
+  let emptyMap: Map[string, int] = M.empty()
+  assert M.toList(M.mapValues(\v. v + 1, emptyMap)) == []
+}
+
+test "std/map filter" {
+  let m = M.fromList([("a", 1), ("b", 2), ("c", 3), ("d", 4)])
+  let evens = M.filter(\_ v. v % 2 == 0, m)
+  assert M.toList(evens) == [("b", 2), ("d", 4)]
+  let keyMatch = M.filter(\k v. k == "a" || v >= 4, m)
+  assert M.toList(keyMatch) == [("a", 1), ("d", 4)]
+  let noneMatch = M.filter(\_ v. v > 100, m)
+  assert M.size(noneMatch) == 0
+  let emptyMap: Map[string, int] = M.empty()
+  assert M.size(M.filter(\_ v. v > 0, emptyMap)) == 0
+}
+
+test "std/list span" {
+  assert span(\x. x < 3, [1, 2, 3, 1, 2]) == ([1, 2], [3, 1, 2])
+  assert span(\x. x < 10, [1, 2, 3]) == ([1, 2, 3], [])
+  assert span(\x. x > 10, [1, 2, 3]) == ([], [1, 2, 3])
+  assert span(\x. x > 0, []) == ([], [])
+}
+
+test "std/list chunk" {
+  assert chunk(2, [1, 2, 3, 4, 5]) == [[1, 2], [3, 4], [5]]
+  assert chunk(3, [1, 2, 3, 4, 5, 6]) == [[1, 2, 3], [4, 5, 6]]
+  assert chunk(5, [1, 2]) == [[1, 2]]
+  assert chunk(1, [10, 20, 30]) == [[10], [20], [30]]
+  assert chunk(0, [1, 2, 3]) == []
+  assert chunk(-2, [1, 2, 3]) == []
+  assert chunk(2, []) == []
+}
+
+test "std/list groupBy" {
+  let byMod = groupBy(\x. x % 2, [1, 2, 3, 4, 5])
+  assert M.lookup(byMod, 0) == Some([2, 4])
+  assert M.lookup(byMod, 1) == Some([1, 3, 5])
+  assert M.size(byMod) == 2
+
+  let singleKey = groupBy(\_. "all", [10, 20, 30])
+  assert M.lookup(singleKey, "all") == Some([10, 20, 30])
+  assert M.size(singleKey) == 1
+
+  let emptyNums: [int] = []
+  let emptyGrouped = groupBy(\x. x % 2, emptyNums)
+  assert M.size(emptyGrouped) == 0
+
+  -- Larger input verifies iterative execution (no stack overflow / quadratic blowup)
+  let big = range(0, 200)
+  let bigGrouped = groupBy(\x. x % 5, big)
+  assert M.size(bigGrouped) == 5
+  assert M.lookup(bigGrouped, 0) != None
 }

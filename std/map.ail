@@ -26,6 +26,9 @@ import std/option (Option, Some, None)
 --   values(m)        O(n log n) - sorted by key for determinism
 --   fromList(pairs)  O(n)       - bulk construction (mutable internally)
 --   toList(m)        O(n log n) - sorted pairs for determinism
+--   update(m,k,d,f)  O(n)       - lookup + copy-on-write insert
+--   mapValues(f, m)  O(n log n) - bulk transform via toList + fromList
+--   filter(p, m)     O(n log n) - bulk filter via toList + fromList
 -- ============================================================================
 
 -- Create empty map. O(1).
@@ -88,3 +91,21 @@ export pure func fromList[k, v](pairs: [(k, v)]) -> Map[k, v] {
 export pure func toList[k, v](m: Map[k, v]) -> [(k, v)] {
   _map_to_list(m)
 }
+
+-- Update key in map with f(existing) if present, or insert default if absent. O(n) copy-on-write.
+export pure func update[k, v](m: Map[k, v], key: k, default: v, f: v -> v) -> Map[k, v] {
+  match _map_lookup(m, key) {
+    Some(v) => _map_insert(m, key, f(v)),
+    None => _map_insert(m, key, default)
+  }
+}
+
+-- Transform every value in map with f, preserving all keys.
+-- Iterative bulk rebuild via toList + _list_map + fromList; 0 recursion.
+export pure func mapValues[k, v1, v2](f: v1 -> v2, m: Map[k, v1]) -> Map[k, v2] =
+  _map_from_list(_list_map(\(key, val). (key, f(val)), _map_to_list(m)))
+
+-- Keep only entries satisfying predicate p(key, val).
+-- Iterative bulk rebuild via toList + _list_filter + fromList; 0 recursion.
+export pure func filter[k, v](p: (k, v) -> bool, m: Map[k, v]) -> Map[k, v] =
+  _map_from_list(_list_filter(\(key, val). p(key, val), _map_to_list(m)))

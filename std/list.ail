@@ -222,6 +222,65 @@ export pure func partition[a](p: a -> bool, xs: [a]) -> ([a], [a]) {
   (yes, no)
 }
 
+-- span: Split xs into (longest prefix satisfying p, remainder).
+-- Equivalent to (takeWhile(p, xs), dropWhile(p, xs)) in a single O(n) pass.
+export pure func span[a](p: a -> bool, xs: [a]) -> ([a], [a]) =
+  match _list_findIndex(\x. not p(x), xs) {
+    Some(i) => (_list_take(i, xs), _list_drop(i, xs)),
+    None => (xs, [])
+  }
+
+-- chunk: Split xs into contiguous sublists of length n (last chunk may be shorter).
+-- Returns [] when n <= 0 or xs is empty. Iterative O(n) via _list_extract.
+export pure func chunk[a](n: int, xs: [a]) -> [[a]] {
+  let len = _list_length(xs);
+  if n <= 0 || len == 0 then []
+  else {
+    let numChunks = (len + n - 1) / n;
+    _list_map(\ci. {
+      let start = ci * n;
+      let rem = len - start;
+      let size = if rem < n then rem else n;
+      _list_extract(xs, start, size)
+    }, _list_range(0, numChunks))
+  }
+}
+
+-- groupBy: Group elements of xs by keyFn(x), preserving input order within each group.
+-- Iterative O(n log n) via bulk map indexing + stable _list_sortBy + _list_extract
+-- (avoids O(n^2) copy-on-write map inserts and O(n^2) list appends).
+export pure func groupBy[a, k](keyFn: a -> k, xs: [a]) -> Map[k, [a]] {
+  let n = _list_length(xs);
+  if n == 0 then _map_empty()
+  else {
+    let keyed = _list_map(\x. (keyFn(x), x), xs);
+    let uniqueKeys = _map_keys(_map_from_list(_list_map(\(key, _). (key, 0), keyed)));
+    let u = _list_length(uniqueKeys);
+    let keyToId = _map_from_list(_list_zip(uniqueKeys, _list_range(0, u)));
+    let tagged = _list_map(\(key, x). (match _map_lookup(keyToId, key) {
+      Some(id) => id,
+      None => 0
+    }, x), keyed);
+    let sorted = _list_sortBy(\p1 p2. match p1 {
+      (id1, _) => match p2 {
+        (id2, _) => id1 - id2
+      }
+    }, tagged);
+    let vals = _list_map(\(_, x). x, sorted);
+    let starts = _list_filter(\i. if i == 0 then true else match _list_nth(sorted, i) {
+      (id1, _) => match _list_nth(sorted, i - 1) {
+        (id0, _) => id1 != id0
+      }
+    }, _list_range(0, n));
+    let pairs = _list_map(\g. {
+      let start = _list_nth(starts, g);
+      let stop = if g + 1 < u then _list_nth(starts, g + 1) else n;
+      (_list_nth(uniqueKeys, g), _list_extract(vals, start, stop - start))
+    }, _list_range(0, u));
+    _map_from_list(pairs)
+  }
+}
+
 -- ============================================================================
 -- Zip Combinators (v0.8.1) - Combine lists element-wise
 -- ============================================================================
