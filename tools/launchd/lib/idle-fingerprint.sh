@@ -69,13 +69,15 @@ case "$rc" in
 esac
 git -C "$work" fetch -q origin "$branch" 2>"$tmp/err" || die "fetch failed: $(tail -1 "$tmp/err")"
 tip=$(git -C "$work" rev-parse "origin/$branch" 2>"$tmp/err") || die "tip read failed: $(tail -1 "$tmp/err")"
-# Keep the exclusions on their own lines: the charter/log and this mission's per-iteration
-# verification records (root verification/ and design_docs/verification/, both in use) are
-# records. Reading ledger statuses separately lets an attended ruling still wake us.
+# Keep the exclusions on their own lines. Skip the charter/log, this mission's
+# per-iteration verification records in either verification directory, and
+# the record-only MISSION-ITER judge verdicts. Ledger status changes still wake
+# the mission through the separate ledger read.
 head_sha=$(git -C "$work" log -1 --format=%H "origin/$branch" -- . \
   ":(exclude)design_docs/${name}-mission*" \
   ":(exclude)verification/${name}-iter*" \
   ":(exclude)design_docs/verification/${name}-iter*" \
+  ':(exclude).ailang/state/evaluations/eval_MISSION-ITER-*_record.json' \
   2>"$tmp/err") || die "head read failed: $(tail -1 "$tmp/err")"
 printf '%s' "$head_sha" | grep -Eq '^[0-9a-f]{40,64}$' || die 'head read returned no commit'
 printf 'head %s\n' "$head_sha" >"$tmp/head"

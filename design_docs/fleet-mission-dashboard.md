@@ -1,16 +1,14 @@
-# Fleet mission dashboard — iteration 141
+# Fleet mission dashboard — iteration 142
 
 Updated 2026-11-26; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
 
-- **Outcome: LANDED + RESOLVED ×3 [HARNESS].** Dev went fully green at `63b605cbc` (Release v0.62.1), so the stacked fixes landed in order:
-  - [#2463](https://github.com/sunholo-data/ailang/pull/2463) → `25cc5bc42`: pre-publication secret scan for mission evidence plus Gate 4's Public publish rule (`publish:evidence-pack:no-secret-value-guard`, stapledon).
-  - [#2466](https://github.com/sunholo-data/ailang/pull/2466) → `fcc3d3481`: `mission-base.sh` refuses a CWD whose origin is not `$MISSION_REPO`; gates call it via `$MISSION_DRIVER_ROOT` (`skill:mission-base-relative-path-records-driver-repo`, world).
-  - [#2471](https://github.com/sunholo-data/ailang/pull/2471) → `92bc214ba`: `ailang mission rotate-log --workdir <dir>` (`skill:rotate-log-index-only-targets-registry-workdir`, world). The flag reaches a mission only once its `ailang` is rebuilt.
-  - Independent judge (sonnet) re-judged the rebased stack: **PASS 91 / 89 / 91**, 0 blocking. Dev's tree after the last merge is byte-identical to the judged head.
-- **Dev: GREEN** at `92bc214ba` (22/22). Two flakes on `fcc3d3481` (z3 download 403; `internal/pipeline` 6m56s timeout) went green on re-run.
-- **Open tickets:** 20 (23 → 20). Next in scope: `idle-fingerprint:record-eval-json-moves-head` (stapledon 118, 1 slot).
-- **Routing:** controller opus. Judge sonnet on the Agent tool, own worktree (68k tok). No designer, planner or executor (landing only).
+- **Outcome: BUILT + JUDGED, not merged [HARNESS].** [#2473](https://github.com/sunholo-data/ailang/pull/2473) (`idle-fingerprint:record-eval-json-moves-head`, stapledon 118): the idle fingerprint's `head=` now skips stapledon's record-only `eval_MISSION-ITER-*_record.json` verdicts, so an unchanged record-only fire can finally idle. Ordinary sprint verdicts still wake.
+  - Reproduced on stapledon `origin/main` `891c3bc0`: old pathspec → the iteration-119 record commit; new → `beb17c4a`, a product commit.
+  - Codex `gpt-6.2-sol` planned and built it. Independent judge (sonnet): **PASS 88**, 0 blocking, 17/17 mutants. Non-blocking: the `_record.json` suffix is not pinned by a test.
+- **Dev: RED** at `94026beac` on required `test`: `TestEveryListBuiltinIsDelegatedOrExplained` (`internal/builtins`) and `TestLetInIfElseBranchError` (`internal/elaborate`), from the M-AI-PREFERRED-V2 language-core commits `4498d1c2d` and `a6e5304f5`. Outside fleet scope; every PR to dev inherits it. #2473's own checks (incl. `launchd drivers (bash 3.2)`) are green.
+- **Open tickets:** 20 (unchanged). The ticket stays open until #2473 merges.
+- **Routing:** controller opus. Planner and executor codex `gpt-6.2-sol` (91k / 85k tok). Judge sonnet on the Agent tool, own worktree (84k tok). No designer (no doc needed).
 - **Cost:** metered $0.
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46 unchanged. **D-FLEET-48 is now moot** (its default ran); close it when convenient.
-- **Next:** reality-check and fix `idle-fingerprint:record-eval-json-moves-head`; otherwise pick NONE.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration141/](fleet-mission-evidence/iteration141/).
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46 unchanged. D-FLEET-48 is moot (its default ran at 141); close it when convenient.
+- **Next:** when dev's `test` is green, rebase and merge #2473, run the done-gate, resolve the ticket. Otherwise pick NONE.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration142/](fleet-mission-evidence/iteration142/).
