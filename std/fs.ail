@@ -27,10 +27,6 @@ export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFileBase64(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
 
--- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
-@deprecated("readFileBase64")
-export func readFileBytes(path: string) -> Result[string, string] ! {FS} = readFileBase64(path)
-
 -- File writing
 -- Writes string content to file (truncates if exists)
 -- Creates parent directories if needed (future enhancement)
@@ -213,12 +209,6 @@ export func walk(root: string) -> [string] ! {FS} = sortBy(compare, walkDir(root
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func walkWithSuffix(root: string, suffix: string) -> [string] ! {FS} = filter(\p. endsWith(p, suffix), walk(root))
-
--- Deprecated spelling: it was never a glob. Warns TC_DEPRECATED_001, removed before the
--- v1.0.0 soak, and the name stays retired for all of 1.x so it cannot return with a
--- pattern meaning that would silently change old programs.
-@deprecated("walkWithSuffix")
-export func glob(root: string, suffix: string) -> [string] ! {FS} = walkWithSuffix(root, suffix)
 
 -- walkDir: unsorted file paths under one directory (listDir order, depth-first)
 func walkDir(dir: string) -> [string] ! {FS} = walkEntries(dir, listDir(dir))

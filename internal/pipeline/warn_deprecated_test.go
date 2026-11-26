@@ -244,6 +244,9 @@ func TestDeprecatedReplacementMustExist(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+	// Synthetic local slash-path module with a deprecated export (std/ has 0
+	// deprecated exports after pre-soak alias removal).
+	writeModule(t, "deplib/list.ail", "module deplib/list\nexport pure func headOr(xs: [int], d: int) -> int = d\n@deprecated(\"headOr\")\nexport pure func head_or(xs: [int], d: int) -> int = headOr(xs, d)\n")
 	cases := []struct {
 		name, src string
 		wantErr   string // "" = compiles
@@ -262,7 +265,7 @@ func TestDeprecatedReplacementMustExist(t *testing.T) {
 		// key, so rejecting it would make the verdict depend on the cache. The
 		// use-site warning names the live end of the chain instead.
 		{"targetDeprecated", "export pure func c(x: int) -> int = x\n@deprecated(\"c\")\nexport pure func b(x: int) -> int = c(x)\n@deprecated(\"b\")\nexport pure func a(x: int) -> int = b(x)\n", ""},
-		{"targetDeprecatedStd", "import std/list (head_or)\n@deprecated(\"std/list.head_or\")\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n", ""},
+		{"targetDeprecatedStd", "import deplib/list (head_or)\n@deprecated(\"deplib/list.head_or\")\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n", ""},
 		{"cycle", "@deprecated(\"b\")\nexport pure func a(x: int) -> int = x\n@deprecated(\"a\")\nexport pure func b(x: int) -> int = x\n", ""},
 		// A module path without a slash is still a qualified target.
 		{"qualifiedNoSlash", "@deprecated(\"lib.g\")\nexport pure func a(x: int) -> int = x\n", "is not imported"},
@@ -282,6 +285,19 @@ func TestDeprecatedReplacementMustExist(t *testing.T) {
 				t.Fatalf("want %s mentioning %q, got %v", CodeDeprecatedTarget, c.wantErr, err)
 			}
 		})
+	}
+	// Cross-module chain check: a caller of targetDeprecatedStd.first gets the
+	// live end of the chain (deplib/list.headOr), not the deprecated intermediate.
+	writeModule(t, "chainCaller.ail", "module chainCaller\nimport targetDeprecatedStd (first)\nexport pure func run(xs: [int]) -> int = first(xs)\n")
+	ws := checkDeprecatedModule(t, "chainCaller.ail")
+	var callerWarns []*DeprecatedUseWarning
+	for _, w := range ws {
+		if filepath.Base(w.WarningFile()) == "chainCaller.ail" {
+			callerWarns = append(callerWarns, w)
+		}
+	}
+	if len(callerWarns) != 1 || callerWarns[0].Replacement != "deplib/list.headOr" {
+		t.Errorf("cross-module chain warning = %v, want 1 warning naming deplib/list.headOr", callerWarns)
 	}
 }
 
@@ -369,105 +385,141 @@ func goldenModules(t *testing.T, stdDir string) []string {
 	return mods
 }
 
-// stdDeprecations parses every std/*.ail and returns its @deprecated exports.
+// stdDeprecations parses every std module and returns any @deprecated functions.
 func stdDeprecations(t *testing.T) map[string]*ast.FuncDecl {
 	t.Helper()
 	stdDir := stdSourceDir(t)
-	files, err := filepath.Glob(filepath.Join(stdDir, "*.ail"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	out := map[string]*ast.FuncDecl{}
-	for _, f := range files {
-		src, err := os.ReadFile(f)
+	for _, pattern := range []string{"*.ail", "*/*.ail"} {
+		files, err := filepath.Glob(filepath.Join(stdDir, pattern))
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := parser.New(lexer.New(string(src), f))
-		prog := p.Parse()
-		if errs := p.Errors(); len(errs) > 0 {
-			t.Fatalf("%s: %v", f, errs[0])
-		}
-		mod := "std/" + strings.TrimSuffix(filepath.Base(f), ".ail")
-		for _, fd := range prog.File.Funcs {
-			if _, _, ok := fd.Deprecation(); ok && fd.IsExport {
-				out[mod+"."+fd.Name] = fd
+		for _, f := range files {
+			src, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := parser.New(lexer.New(string(src), f))
+			prog := p.Parse()
+			if errs := p.Errors(); len(errs) > 0 {
+				t.Fatalf("%s: %v", f, errs[0])
+			}
+			rel, err := filepath.Rel(stdDir, f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mod := "std/" + strings.TrimSuffix(filepath.ToSlash(rel), ".ail")
+			for _, fd := range prog.File.Funcs {
+				if _, _, ok := fd.Deprecation(); ok {
+					out[mod+"."+fd.Name] = fd
+				}
 			}
 		}
 	}
 	return out
 }
 
-// The removed-name table (importhint.StdlibRenames, which outlives the aliases)
-// and the @deprecated annotations in std/ say the same thing.
-func TestStdlibRenamesMatchDeprecatedAnnotations(t *testing.T) {
-	deps := stdDeprecations(t)
-	seen := map[string]bool{}
-	for _, r := range importhint.StdlibRenames {
-		key := r.Module + "." + r.Old
-		seen[key] = true
-		fd, ok := deps[key]
-		if !ok {
-			t.Errorf("%s is in importhint.StdlibRenames but std/ has no @deprecated %s", key, key)
-			continue
+// stdExports parses every std module and returns module -> exported function names.
+func stdExports(t *testing.T) map[string]map[string]bool {
+	t.Helper()
+	stdDir := stdSourceDir(t)
+	out := map[string]map[string]bool{}
+	for _, pattern := range []string{"*.ail", "*/*.ail"} {
+		files, err := filepath.Glob(filepath.Join(stdDir, pattern))
+		if err != nil {
+			t.Fatal(err)
 		}
-		repl, note, _ := fd.Deprecation()
-		if repl != r.New || note != r.Note {
-			t.Errorf("%s: annotation says (%q, %q), table says (%q, %q)", key, repl, note, r.New, r.Note)
+		for _, f := range files {
+			src, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := parser.New(lexer.New(string(src), f))
+			prog := p.Parse()
+			if errs := p.Errors(); len(errs) > 0 {
+				t.Fatalf("%s: %v", f, errs[0])
+			}
+			rel, err := filepath.Rel(stdDir, f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mod := "std/" + strings.TrimSuffix(filepath.ToSlash(rel), ".ail")
+			names := map[string]bool{}
+			for _, fd := range prog.File.Funcs {
+				if fd.IsExport {
+					names[fd.Name] = true
+				}
+			}
+			out[mod] = names
 		}
 	}
-	for key := range deps {
-		if !seen[key] {
-			t.Errorf("@deprecated %s is missing from importhint.StdlibRenames", key)
+	return out
+}
+
+// All 16 pre-1.0 @deprecated stdlib aliases have been removed before the v1.0.0
+// soak, while importhint.StdlibRenames retains all 16 entries so IMP010 keeps
+// naming their live replacements.
+func TestStdlibHasNoDeprecatedAliases(t *testing.T) {
+	deps := stdDeprecations(t)
+	if len(deps) != 0 {
+		var keys []string
+		for k := range deps {
+			keys = append(keys, k)
 		}
+		sort.Strings(keys)
+		t.Errorf("std/ still has %d @deprecated declarations, want 0: %v", len(deps), keys)
 	}
 	if len(importhint.StdlibRenames) != 16 {
-		t.Errorf("%d renames, the design doc lists 16 (R1-R14, D1, D2)", len(importhint.StdlibRenames))
+		t.Errorf("%d renames in importhint.StdlibRenames, want 16 (R1-R14, D1, D2)", len(importhint.StdlibRenames))
+	}
+	exports := stdExports(t)
+	for _, r := range importhint.StdlibRenames {
+		modExports, ok := exports[r.Module]
+		if !ok {
+			t.Errorf("importhint.StdlibRenames references missing module %s", r.Module)
+			continue
+		}
+		if modExports[r.Old] {
+			t.Errorf("%s still exports removed alias %s", r.Module, r.Old)
+		}
+		if !modExports[r.New] {
+			t.Errorf("%s does not export replacement %s", r.Module, r.New)
+		}
 	}
 }
 
-// Every rename alias is a one-line forwarder to EXACTLY its replacement,
-// with its own parameters in the same order (a forwarder to the wrong target,
-// or with swapped arguments, type-checks when the parameters share a type).
-// member and unsafeGet are deprecated, not renamed: they keep their own body.
-func TestDeprecatedAliasesForwardToTheirReplacement(t *testing.T) {
-	deps := stdDeprecations(t)
-	for _, r := range importhint.StdlibRenames {
-		key := r.Module + "." + r.Old
-		fd := deps[key]
-		if fd == nil {
-			continue // reported by TestStdlibRenamesMatchDeprecatedAnnotations
-		}
-		if r.Swapped || r.Old == "unsafeGet" {
-			continue
-		}
-		body := fd.Body
-		if b, isBlock := body.(*ast.Block); isBlock && len(b.Exprs) == 1 {
-			body = b.Exprs[0] // `= expr` parses as a one-expression block
-		}
-		call, ok := body.(*ast.FuncCall)
-		if !ok {
-			t.Errorf("%s: body is %T, want a call to %s", key, fd.Body, r.New)
-			continue
-		}
-		callee, ok := call.Func.(*ast.Identifier)
-		if !ok || callee.Name != r.New {
-			t.Errorf("%s forwards to %v, want %s", key, call.Func, r.New)
-			continue
-		}
-		if len(call.Args) != len(fd.Params) {
-			t.Errorf("%s: %d args for %d params", key, len(call.Args), len(fd.Params))
-			continue
-		}
-		for i, a := range call.Args {
-			if lit, isLit := a.(*ast.Literal); isLit && lit.Kind == ast.UnitLit && fd.Params[i].Name == "_" {
-				continue // f() forwarding g(): the parser's unit parameter on both sides
+// Importing any of the 16 removed stdlib aliases fails with IMP010 naming its
+// replacement (and Note where non-empty).
+func TestRemovedStdlibAliasesEmitIMP010Hint(t *testing.T) {
+	t.Setenv("AILANG_STDLIB_PATH", stdSourceDir(t))
+	root := t.TempDir()
+	for i, r := range importhint.StdlibRenames {
+		t.Run(r.Module+"."+r.Old, func(t *testing.T) {
+			modName := fmt.Sprintf("removed_%d", i)
+			path := filepath.Join(root, modName+".ail")
+			src := fmt.Sprintf("module %s\nimport %s (%s)\nexport pure func one() -> int = 1\n", modName, r.Module, r.Old)
+			if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+				t.Fatal(err)
 			}
-			id, ok := a.(*ast.Identifier)
-			if !ok || id.Name != fd.Params[i].Name {
-				t.Errorf("%s: argument %d is %T %v, want parameter %s", key, i, a, a, fd.Params[i].Name)
+			res, err := Run(Config{Mode: ModeCheck, NoCache: true}, Source{Filename: path})
+			msg := ""
+			if err != nil {
+				msg = err.Error()
+			} else if len(res.Errors) > 0 {
+				msg = fmt.Sprint(res.Errors)
 			}
-		}
+			if msg == "" {
+				t.Fatalf("importing removed %s.%s succeeded; want IMP010", r.Module, r.Old)
+			}
+			wantRepl := fmt.Sprintf("use '%s' from '%s'", r.New, r.Module)
+			if !strings.Contains(msg, "IMP010") || !strings.Contains(msg, wantRepl) {
+				t.Errorf("import %s (%s): want IMP010 containing %q, got %s", r.Module, r.Old, wantRepl, msg)
+			}
+			if r.Note != "" && !strings.Contains(msg, r.Note) {
+				t.Errorf("import %s (%s): want IMP010 note %q, got %s", r.Module, r.Old, r.Note, msg)
+			}
+		})
 	}
 }
 

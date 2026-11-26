@@ -84,13 +84,6 @@ export pure func absFloat(x: float) -> float = _math_abs_Float(x)
 -- absInt: Compute absolute value of an integer
 export pure func absInt(x: int) -> int = _math_abs_Int(x)
 
--- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
-@deprecated("absFloat")
-export pure func abs_Float(x: float) -> float = absFloat(x)
-
-@deprecated("absInt")
-export pure func abs_Int(x: int) -> int = absInt(x)
-
 -- ============================================================================
 -- Mathematical Constants
 -- ============================================================================

@@ -250,14 +250,13 @@ export func main() -> () ! {IO} = println(show(g({x: 1.5, z: 1}).x))
 	}
 }
 
-// #2291: std/list's contains, member, dedup, union, intersect and difference
+// #2291: std/list's contains, dedup, union, intersect and difference
 // compare elements with ==, through builtins whose schemes had no Eq, so a
 // list of functions passed check and the answer was silently false. Their
 // builtins now carry Eq (BuiltinSpec.EqVars), which the std functions export.
 func TestListEqConstraint_2291(t *testing.T) {
 	calls := map[string]string{
 		"contains":   `show(contains([\x. x + 1], \x. x + 1))`,
-		"member":     `show(member(\x. x + 1, [\x. x + 1]))`,
 		"dedup":      `show(length(dedup([\x. x + 1])))`,
 		"union":      `show(length(union([\x. x + 1], [\x. x + 2])))`,
 		"intersect":  `show(length(intersect([\x. x + 1], [\x. x + 2])))`,

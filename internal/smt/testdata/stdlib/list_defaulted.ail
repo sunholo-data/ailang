@@ -1,5 +1,5 @@
 module list_defaulted
-import std/list (length, nthOr, nth_or, headOr, lastOr)
+import std/list (length, nthOr, headOr, lastOr)
 
 type P = { name: string, age: int }
 
@@ -11,7 +11,7 @@ ensures { result >= 0 } {
 
 export func safeAtBad(xs: [int], i: int) -> int ! {}
 ensures { result >= 0 } {
-  nth_or(xs, i, 0)
+  nthOr(xs, i, 0)
 }
 
 export func firstName(ps: [P]) -> string ! {}

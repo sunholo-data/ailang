@@ -25,7 +25,7 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 --   updateMany(arr, ws)          O(n + k) - one copy, later writes win
 --   accumulate(arr, ws, combine) O(n + k) - one copy, out[i] = combine(out[i], x)
 --
--- ERRORS: get, unsafeGet and set fail on an out-of-bounds index, naming the
+-- ERRORS: get and set fail on an out-of-bounds index, naming the
 -- index and the length. getOpt returns None instead.
 -- ============================================================================
 -- Array creation
@@ -64,13 +64,6 @@ export pure func get[a](arr: Array[a], idx: int) -> a {
 -- Safe get: returns Some(element) if in bounds, None otherwise.
 export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
   if idx < 0 then None else if idx >= _array_length(arr) then None else Some(_array_get(arr, idx))
-}
-
--- Unsafe get: runtime error if out of bounds — exactly what get does, so it is
--- deprecated (warns TC_DEPRECATED_001) and removed before the v1.0.0 soak.
-@deprecated("get", "identical behaviour; if get collides with an imported json.get, import it as `get as arrayGet`")
-export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
-  _array_unsafe_get(arr, idx)
 }
 
 -- Array modification (immutable - returns new array)

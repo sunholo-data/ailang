@@ -23,19 +23,6 @@ export func randBool() -> bool ! {Rand} = _rand_bool()
 -- Use this for reproducible random sequences (game replays, testing)
 export func randSeed(seed: int) -> () ! {Rand} = _rand_seed(seed)
 
--- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
-@deprecated("randInt")
-export func rand_int(min: int, max: int) -> int ! {Rand} = randInt(min, max)
-
-@deprecated("randFloat")
-export func rand_float(min: float, max: float) -> float ! {Rand} = randFloat(min, max)
-
-@deprecated("randBool")
-export func rand_bool() -> bool ! {Rand} = randBool()
-
-@deprecated("randSeed")
-export func rand_seed(seed: int) -> () ! {Rand} = randSeed(seed)
-
 -- uuid4: Generate random UUID v4
 -- Returns RFC 4122 v4 UUID (e.g., "550e8400-e29b-41d4-a716-446655440000")
 export func uuid4() -> string ! {Rand} = _uuid4()

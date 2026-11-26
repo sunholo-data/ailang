@@ -187,10 +187,6 @@ export pure func charAtOpt(s: string, i: int) -> Option[string] =
 export pure func charAtOr(s: string, i: int, default: string) -> string =
   if i >= 0 && i < length(s) then _str_charAt(s, i) else default
 
--- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
-@deprecated("charAtOr")
-export pure func charAt_or(s: string, i: int, default: string) -> string = charAtOr(s, i, default)
-
 -- Get Unicode code point of a single-character string
 -- Example: charCode("a") = 97, charCode("🎉") = 127881
 export pure func charCode(c: string) -> int = _str_charCode(c)

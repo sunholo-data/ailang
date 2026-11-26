@@ -15,7 +15,7 @@ func TestBuildCanonicalJSON_EmbeddedStdFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("std/fs outside a checkout: %v", err)
 	}
-	for _, want := range []string{`"module": "std/fs"`, `"name": "walk"`, `"name": "glob"`} {
+	for _, want := range []string{`"module": "std/fs"`, `"name": "walk"`, `"name": "walkWithSuffix"`} {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("missing %s in embedded iface", want)
 		}

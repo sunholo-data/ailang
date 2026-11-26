@@ -38,10 +38,6 @@ export func flush() -> () ! {IO} = _io_flush()
 -- print/println write stdout; eprint/eprintln write stderr.
 export func eprint(s: string) -> () ! {IO} = _io_printErr(s)
 
--- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
-@deprecated("eprint")
-export func printErr(s: string) -> () ! {IO} = eprint(s)
-
 -- eprintln: Write to stderr with a newline (unbuffered).
 export func eprintln(s: string) -> () ! {IO} = _io_eprintln(s)
 

@@ -72,12 +72,6 @@ export pure func sliceLen(b: bytes, start: int, len: int) -> Option[bytes] {
   _bytes_slice(b, start, len)
 }
 
--- Deprecated spelling: a length-based `slice` reads like the end-based
--- string.substring. Warns TC_DEPRECATED_001, removed before the v1.0.0 soak, and
--- the name stays retired for all of 1.x.
-@deprecated("sliceLen", "the third argument is a length, not an end index")
-export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] = sliceLen(b, start, len)
-
 -- Concatenate two byte slices
 -- Example: concat(fromString("hello"), fromString(" world")) returns bytes for "hello world"
 export pure func concat(a: bytes, b: bytes) -> bytes {
