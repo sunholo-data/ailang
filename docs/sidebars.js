@@ -29,6 +29,7 @@ const sidebars = {
       items: [
         'intro',
         'why-ailang',
+        'why-1-0',
         'start-here/quick-start',
         'start-here/for-ai-agents',
         'start-here/evaluating',
@@ -44,6 +45,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'guides/getting-started',
+        'guides/upgrading-to-1-0',
         'guides/quick-start-examples',
         'guides/editor-setup',
         'guides/lsp',
@@ -132,6 +134,7 @@ const sidebars = {
             'reference/repl-commands',
             'reference/implementation-status',
             'reference/stability',
+            'reference/security-model',
             'reference/limitations',
             'reference/env-vars',
           ],

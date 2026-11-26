@@ -1,8 +1,8 @@
 ---
 title: Language Syntax
 sidebar_position: 1
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Language Syntax Reference
@@ -302,7 +302,7 @@ export func sumBlock() -> int {
   x + y
 }
 
--- Multi-statement if/else branches require braces { ... }
+-- Canonical block-form if/else branches use braces { ... } (`ailang fmt` normalizes to this)
 export func describe(x: int) -> int ! {IO} {
   if x > 0 then {
     println("Positive");
@@ -318,6 +318,138 @@ export func main() -> () ! {IO} {
   println("Line 2");
   println(show(describe(sumBlock())))
 }
+```
+
+### Unbraced Multi-Statement `match` Arms & `if`/`else` Branches
+
+Multi-statement `let` sequences are also accepted directly in `match` arms and `if`/`then`/`else` branches without outer braces; `ailang fmt` normalizes them into canonical `{ ... }` blocks:
+
+```ailang
+module docs/unbraced_branches
+
+export pure func adjust(opt: Option[int], flag: bool) -> int =
+  match opt {
+    Some(x) =>
+      let doubled = x * 2;
+      if flag then
+        let bumped = doubled + 1;
+        bumped
+      else doubled,
+    None => 0
+  }
+```
+
+## Pipe Operator (`|>`)
+
+The left-associative pipe operator `|>` passes its left-hand value as the single argument to the unary function on the right. It has the lowest operator precedence (evaluated left-to-right), and works across the evaluator and `--strict-bytecode`. Wrap multi-argument calls or inline lambdas in parentheses:
+
+```ailang
+module docs/pipe_operator
+
+import std/list (filter, map, foldl)
+
+export pure func sumDoubledPositives(xs: [int]) -> int =
+  xs
+    |> (\ys. filter(\x. x > 0, ys))
+    |> (\ys. map(\x. x * 2, ys))
+    |> (\ys. foldl(\acc x. acc + x, 0, ys))
+```
+
+## Destructuring (`let` & Lambdas)
+
+Irrefutable tuple and record patterns work directly in `let` bindings and lambda parameters (including nested patterns, field renaming, and `...` rest patterns). Refutable constructors like `Some(x)` must still use `match`.
+
+```ailang
+module docs/destructuring
+
+import std/list (map)
+
+export pure func summarize(pair: (int, string), cfg: {host: string, port: int, tls: bool}) -> string {
+  let (count, label) = pair;
+  let {host, port: p, ...} = cfg;
+  let pairs = [(1, "a"), (2, "b")];
+  let labels = map(\(n, tag). "${tag}:${show(n)}", pairs);
+  let describe = \{host: h, ...}. h;
+  "${label}#${show(count)}@${describe(cfg)}:${show(p)} ${show(labels)}"
+}
+```
+
+## Error & Option Propagation (`let x = expr?`)
+
+Inside a function returning `Result[T, E]` or `Option[T]`, `let x = expr?` (including pattern forms like `let (a, b) = expr?`) unwraps `Ok`/`Some` along the function's return spine and returns `Err`/`None` early. It works in both `{ ... }` blocks and `let ... in ...` expression bodies.
+
+The `?` suffix is valid only on the right-hand side of a `let` binding on the return spine: using `?` inside a nested sub-expression emits `PAR_TRY_LET_ONLY` (hoist it into its own `let`), and using it outside a matching `Result`/`Option` return spine emits `TC_TRY_NON_SPINE`.
+
+```ailang
+module docs/try_propagation
+
+import std/string (stringToInt)
+
+export pure func addParsed(a: string, b: string) -> Option[int] {
+  let x = stringToInt(a)?;
+  let y = stringToInt(b)?;
+  Some(x + y)
+}
+
+pure func parsePositive(s: string) -> Result[int, string] =
+  match stringToInt(s) {
+    Some(n) => if n > 0 then Ok(n) else Err("must be positive"),
+    None => Err("not an integer")
+  }
+
+export pure func addPositiveStrings(a: string, b: string) -> Result[int, string] {
+  let x = parsePositive(a)?;
+  let y = parsePositive(b)?;
+  Ok(x + y)
+}
+```
+
+## Deriving Type Classes & JSON Codecs
+
+Monomorphic ADTs and records can derive equality (`deriving (Eq)`) and JSON codecs (`deriving (Json)`):
+
+- `deriving (Eq)` generates structural `==` and `!=` for the type.
+- `deriving (Json)` (requires `import std/json (Json)`) synthesizes pure `encode<Type>(v: <Type>) -> Json` and `decode<Type>(j: Json) -> Result[<Type>, string]` functions (exported iff the type is exported).
+  - For records, `Option[T]` fields omit their key when `None` on encode and accept missing keys or `null` on decode.
+  - For sum ADTs, variants encode with `"tag"` plus `"fields"` (positional arguments) or named keys (inline record arguments).
+  - Polymorphic types cannot derive `Json` (`TC_DERIVE_JSON_POLY`).
+
+```ailang
+module docs/deriving_json
+
+import std/json (Json, encode, decode)
+
+export type ServerConfig = { host: string, port: int, tag: Option[string] } deriving (Eq, Json)
+
+export type Command =
+  | Ping
+  | Scale(int)
+  | Deploy(service: string, region: Option[string])
+  deriving (Eq, Json)
+
+export pure func roundTripConfig(cfg: ServerConfig) -> Result[bool, string] {
+  let encoded = encode(encodeServerConfig(cfg));
+  let j = decode(encoded)?;
+  let decoded = decodeServerConfig(j)?;
+  Ok(decoded == cfg)
+}
+```
+
+## Typed Holes (`_?` and `?name`)
+
+Write `_?` (anonymous) or `?name` (named) in any expression position to ask the type checker what type is expected at that site and which local bindings are in scope. `ailang check` emits a structured `TC_HOLE` diagnostic for every hole in the module in a single pass (`ailang check --json` or `--format=agent`), and `ailang fmt` preserves holes verbatim:
+
+```ailang parse
+module docs/typed_holes
+
+export pure func transform(items: [int], offset: int) -> [string] =
+  ?convertItems
+```
+
+Running `ailang check --format=agent` (or `--json`) reports the expected type and locals in scope:
+
+```text
+docs/typed_holes.ail:4:3 TC_HOLE: typed hole `?convertItems` has expected type `list[string]` → in scope: items: list[int], offset: int
 ```
 
 ## Effects and Capabilities
@@ -368,9 +500,13 @@ The following features are **not yet implemented** in the parser (see [Known Lim
 
 | Feature | Current Workaround |
 |---------|--------------------|
-| **`?` error propagation** | Explicit `match` on `Result` / `Option` |
 | **Typed quasiquotes** | `"${expr}"` string interpolation |
 | **CSP concurrency (channels / session types)** | Deferred |
+
+## Tooling & Diagnostics
+
+- **Semantic module inspection:** `ailang inspect <file-or-dir>` (`--format=agent` default, `--json`, `--exports-only`) prints a compact one-line-per-symbol summary of types, deriving clauses, exports, signatures, `! {Effects}`, contracts, and callees. See [CLI Reference](/docs/reference/cli).
+- **Mechanical quick-fixes:** `ailang check --fix <file>` applies compiler-verified edits in place (missing `! {Effects}`, string `++` → `"${...}"`, `TC_MATCH_002` missing-arm `_?` stubs, `PAR017` `= {`, `PAR018` `let rec` → `letrec`, missing unambiguous stdlib imports). The same edits are exposed as `textDocument/codeAction` in `ailang lsp` — see the [LSP Guide](/docs/guides/lsp).
 
 ## Type Inference & Type Classes
 
@@ -401,11 +537,13 @@ let lt = 5 < 10                  -- true
 - Automatic type inference for `let` bindings, lambdas, and function bodies
 - Polymorphic functions (e.g., `\a. a` works for any type)
 - Row polymorphism for extensible records and effects
-- Built-in type classes (`Num`, `Eq`, `Ord`, `Show`) and `deriving (Eq)` for ADTs
+- Built-in type classes (`Num`, `Eq`, `Ord`, `Show`), `deriving (Eq)` for ADTs/records, and `deriving (Json)` for monomorphic ADTs/records
 
 ## See Also
 
 - [Examples](/docs/examples) - Working code examples demonstrating syntax
+- [CLI Reference](/docs/reference/cli) - `ailang inspect`, `ailang check --fix`, `ailang verify`
+- [LSP Guide](/docs/guides/lsp) - Editor integration and `codeAction` quick-fixes
 - [Effect System](/docs/reference/effects) - Effect annotations and capabilities
 - [Module Reference](/docs/reference/modules) - Module imports and exports
 - [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds

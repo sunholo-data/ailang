@@ -2,7 +2,8 @@
 title: Stdlib Index
 description: Every AILANG stdlib module at a glance — purpose, capability required, import path
 sidebar_label: Stdlib Index
-reviewBy: 2027-02-15
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Stdlib Index
@@ -15,17 +16,17 @@ ailang run --caps IO,Net,Clock examples/runnable/myprogram.ail
 
 See [Effects](/docs/reference/effects) for how the capability system works, [Modules](/docs/reference/modules) for import syntax, and [Browse Packages](/docs/packages) for third-party modules published to the registry.
 
-**Tiers.** Which modules — and which functions inside them — the 1.x promise covers is on the [Stability Promise](/docs/reference/stability#stdlib-surface) page; `ailang docs std/<module>` and `ailang iface std/<module>` show each function's tier. In `std/array`, the numeric kernels (`dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax`, `scatterAdd`, `accumulate` and the `F64LE`/`F32LE` codecs) are Experimental inside a Stable module. Sixteen names were renamed before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, `readFileBytes` → `readFileBase64`, …); the old names still work but warn `TC_DEPRECATED_001` — see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
+**Tiers.** Which modules — and which functions inside them — the 1.x promise covers is on the [Stability Promise](/docs/reference/stability#stdlib-surface) page; `ailang docs std/<module>` and `ailang iface std/<module>` show each function's tier. In `std/array`, the numeric kernels (`dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax`, `scatterAdd`, `accumulate` and the `F64LE`/`F32LE` codecs) are Experimental inside a Stable module. Sixteen legacy names were deprecated in the 0.6x line (`head_or` → `headOr`, `rand_int` → `randInt`, `readFileBytes` → `readFileBase64`, …) and **were removed in `v0.64.0` before `1.0.0`**; importing a removed name produces `IMP010` naming its replacement — see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
 
 ## Data & Collections
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/list` | Functional list operations: map, filter, fold, take, drop | — |
+| `std/list` | Functional list operations: `map`, `filter`, `foldl`, `take`, `drop`, `find`, `span`, `chunk`, `groupBy`, `partition`, `filterMap`, `enumerate`, `all`, plus effectful `*E` combinators | — |
 | `std/array` | O(1) indexed arrays; `set`/`append` copy the array (O(n)), so build with `fromList`/`updateMany` ([bulk_build_cost_model.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/bulk_build_cost_model.ail)). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd`/`accumulate(arr, writes, combine)` batch many writes into one copy ([difference_array_accumulate.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/difference_array_accumulate.ail)); `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
-| `std/map` | O(1) key-value lookup backed by Go hashmaps. Keys: int, string, bool, float, unit, and tuples/records/ADT constructors of those; `insert`/`remove` copy (O(n)). Example: [map_tuple_record_keys.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail) | — |
+| `std/map` | O(1) key-value lookup backed by Go hashmaps: `empty`, `insert`, `lookup`, `getOrElse`, `member`, `remove`, `update`, `mapValues`, `filter`, `keys`, `values`, `fromList`, `toList`. Keys: int, string, bool, float, unit, and tuples/records/ADT constructors of those; `insert`/`remove`/`update` copy (O(n)). Example: [map_tuple_record_keys.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail) | — |
 | `std/set` | Immutable sets (`Set[a]`): `member` O(1), `insert`/`remove` O(n) copy today, `union`/`intersect`/`difference` in one bulk build. Elements take every Map key kind, e.g. a visited `Set[(int, int, Dir)]`. Name the type with `import std/set (Set)` (`S.Set[...]` does not parse). Examples: [visited_set_bfs.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/visited_set_bfs.ail), [cycle_detection_visited_set.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/cycle_detection_visited_set.ail) | — |
-| `std/string` | Length, substring, trim, split, replace, case; `formatFixed(x, decimals)` for bounded fixed-decimal reports | — |
+| `std/string` | Length, substring, trim, split, replace, case; `indexOf`, `stripPrefix`, `stripSuffix`, `padLeft`, `padRight`, `lines`, `unlines`; `formatFixed(x, decimals)` for bounded fixed-decimal reports | — |
 | `std/regex` | Linear-time (RE2) regex: match, find, replace, split ([example](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/regex_basics.ail)) | — |
 | `std/bytes` | UTF-8 encoding, base64, byte-level operations | — |
 | `std/iter` | `FoldStep` and bounded folds for early exit | — |
@@ -47,7 +48,7 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/option` | `Some(x)` / `None` for values that may not exist | — |
-| `std/result` | `Ok(x)` / `Err(e)` for operations that can fail | — |
+| `std/result` | `Ok(x)` / `Err(e)` for operations that can fail; `getOrElse`, `toOption`, `fromOption`, `map`, `mapErr`, `flatMap` | — |
 
 ## Numerics & Randomness
 
@@ -86,7 +87,7 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 |---|---|---|
 | `std/io` | Print to stdout, string or Option line input, exit codes, raw bytes | `IO` |
 | `std/terminal` | Configured TTY facts and scoped key/resize events (macOS/Linux) | `IO` |
-| `std/fs` | Read/write files; sandboxed via `AILANG_FS_SANDBOX` | `FS` |
+| `std/fs` | Read/write files (`readFile`, `writeFile`, `readLines`, `writeLines`, `readLinesResult`, `writeLinesResult`, `walk`, `walkWithSuffix`); sandboxed via `AILANG_FS_SANDBOX` | `FS` |
 | `std/env` | Environment variable access (snapshot, allowlist, redaction) | `Env` |
 | `std/process` | Execute external commands; allowlist + timeout + size limits | `Process` |
 | `std/secret` | Gated secret resolution (`op://…`); resolved value is tainted `<secret>` until an explicit `Declassify` step | `Secret` |

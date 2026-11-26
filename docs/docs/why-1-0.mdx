@@ -1,0 +1,60 @@
+---
+sidebar_position: 2
+title: Why 1.0
+description: What the AILANG 1.0 stability promise guarantees, what changed since 0.57, honest limits, and what comes in 1.x.
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
+---
+
+# Why AILANG 1.0
+
+## What 1.0 Means
+
+AILANG `1.0` is a **promise about what will not break**, not a claim about adoption.
+
+From `1.0.0`, a program written against the **Stable** surface — the documented language syntax, the 17 Stable standard-library modules, the 19 Stable CLI commands, the package manifest/lockfile/registry format, and the 24 Stable hosted MCP tools — keeps checking and keeps behaving the same across every `1.x` minor and patch release (`1.0 → 1.1 → …`). Breaking any Stable contract requires `2.0`.
+
+Experimental and Internal surfaces are explicitly separated in the [Stability Promise](/docs/reference/stability), along with the support window (`1.x` latest minor receives bug and security fixes; the final `0.x` release receives 90 days of security fixes after `1.0.0`).
+
+---
+
+## What You Can Rely On
+
+- **Explicit, statically checked effects:** Every side effect (`! {IO, FS, ...}`) is part of a function's type and is checked before execution. A capability not granted via `--caps` cannot be invoked at runtime — note that `--caps auto` and installed `[bin]` shims (whose `caps` defaults to `"auto"`) grant whatever effects the entrypoint declares, so always inspect untrusted code with `ailang inspect` or `ailang check` first.
+- **Conservative network defaults:** `std/net` enforces HTTPS-only and blocks localhost, private IP ranges, and cloud-metadata endpoints (`169.254.169.254`) unless you explicitly widen them.
+- **Deterministic execution across two aligned engines:** Given the same program and inputs (with seeded `Rand` / virtual `Clock`), the reference evaluator and the bytecode VM (`--bytecode`) produce byte-identical output.
+- **Signed, provenance-backed releases and no default phone-home:** Official release binaries carry keyless Sigstore cosign signatures and SLSA Build Level 3 provenance, and the CLI sends no telemetry by default.
+- **Measured core-tier AI synthesis:** On our core-tier benchmarks, frontier models wrote passing AILANG for **368 of 373 tasks (98.7%)** on runs made between `v0.34` and `v0.52`.
+
+---
+
+## What Changed Since `v0.57`
+
+Between `v0.57` and `1.0.0`, AILANG closed its pre-1.0 breaking window across type soundness, stdlib consistency, verification honesty, and AI ergonomics:
+
+- **Soundness & semantics:** `pure func` requires `! {}`; cross-module nominal type identity (`#2228`); exhaustive `match` enforcement (`TC_MATCH_002`); cross-module IFC sink checking (`#1134`); cross-module typeclass constraints (`#2290`); total, lossless `show` + `std/string.showPreview`; `std/json` `JInt(int)` exact integers; removal of the Go emitter (`#2389`) and `extern func` (`EXT004`) so only the aligned evaluator and bytecode VM remain.
+- **Stdlib close-out:** 16 legacy `@deprecated` aliases were removed before the `1.0.0` soak (with `IMP010` compiler hints naming replacements), and `std/list`, `std/map`, `std/result`, `std/string`, and `std/fs` gained new pure combinators and scripting helpers.
+- **AI & developer ergonomics:** Pipe operator (`|>`), typed holes (`_?` / `?name`), `deriving (Json)`, `let x = expr?` error/option propagation, destructuring in `let` and lambdas, unbraced multi-statement `match` arms and `if`/`else` branches, `ailang inspect`, and `ailang check --fix` + LSP `codeAction`.
+
+See [Upgrading from 0.x to 1.0](/docs/guides/upgrading-to-1-0) for every breaking change, diagnostic code, and mechanical fix.
+
+---
+
+## Honest Limits
+
+We document what AILANG does **not** guarantee as clearly as what it does:
+
+- **Capabilities are coarse:** `FS` covers every file your OS user can reach (unless narrowed by `AILANG_FS_SANDBOX`), `Process` grants host command execution, and `Env` exposes every environment variable. For untrusted code, run under `--policy` (Experimental) or an OS-level sandbox — see the [Security Model](/docs/reference/security-model).
+- **IFC is Experimental and explicit-flow only:** Information-flow labels (`T<label>`, `T{not LABEL}`) track explicit data flow across modules at zero runtime cost, but do **not** track implicit control-flow channels (branches) or survive `FS`/`Net`/`IO` round-trips.
+- **Contract verification is bounded:** `ailang verify` uses Z3 with bounded unrolling for recursion/HOFs, models `int` as unbounded SMT `Int` (reporting `int_overflow` caveats unless `--int-model=int64`), assumes float inputs are non-NaN, and does not check `requires` at unverified callers. Runtime `--verify-contracts` runs on the evaluator only (`CTR004` on `--bytecode`).
+- **Benchmark parity with Python:** On the same models and benchmark tasks, AILANG still trails Python (**85.5% vs 91.8% over 363 cells**) and costs more tokens/dollars per run.
+
+See [Known Limitations](/docs/reference/limitations) for the live-verified list of open design constraints.
+
+---
+
+## What Comes in `1.x`
+
+- **Additive standard library and tooling improvements:** New stdlib modules/functions, opt-in flags, and `ailang inspect` / `check --fix` / LSP capabilities can ship in any `1.x` minor without breaking existing code.
+- **Platform binary split (`ailang` + `ailang-ops`):** Deferred from `1.0.0` to `v1.1+` so `1.0.0` ships a single unified binary; when split, `ailang <ops-command>` continues delegating transparently to `ailang-ops`.
+- **Experimental promotions:** Experimental surfaces (`std/net`, `std/ai`, `std/process`, `--policy`, `ailang fmt`, `ailang verify`, `ailang lsp`) will graduate to Stable only once their contracts settle, announced in the changelog.

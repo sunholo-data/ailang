@@ -2,28 +2,28 @@
 
 ## Supported Versions
 
-AILANG is pre-1.0 and evolves rapidly. Security fixes are applied to the latest
-minor release on the [Releases page](https://github.com/sunholo-data/ailang/releases).
-Earlier versions are not patched — upgrade to the latest release to receive fixes.
+AILANG `1.x` follows the support window defined in the [Stability Promise](docs/docs/reference/stability.md#support-window).
+Security fixes ship as patch releases on the latest `1.x` minor (`1.x` minors are
+non-breaking by promise, so upgrading is the supported path). The final `0.x`
+pre-soak release (`v0.64.0`) receives security fixes for **90 days** after `1.0.0`
+ships.
 
 | Version | Supported |
 |---------|-----------|
-| Latest release (see [CHANGELOG.md](CHANGELOG.md)) | Yes |
-| Older releases | No |
+| Latest `1.x` minor release (see [CHANGELOG.md](CHANGELOG.md)) | Yes (bug & security fixes) |
+| Final `0.x` release (`v0.64.0`) | Security fixes for 90 days after `1.0.0` |
+| Older `1.x` minors and earlier `0.x` releases | No |
 | `dev` branch | Best-effort; rolling development branch |
 
 ## Reporting a Vulnerability
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Use one of these private channels instead:
+Report vulnerabilities privately through **GitHub Security Advisories**:
 
-1. **GitHub Security Advisories (preferred)** —
-   <https://github.com/sunholo-data/ailang/security/advisories/new>.
-   This creates a private draft that only maintainers can see.
-
-2. **Email** — `mark@aitanalabs.com` with subject `AILANG security:`
-   followed by a short description.
+- **GitHub Security Advisories** —
+  <https://github.com/sunholo-data/ailang/security/advisories/new>
+  This creates a private draft that only maintainers can see.
 
 ### What to include
 
@@ -52,7 +52,7 @@ The 14-day fix SLA aligns with the [OpenSSF Best Practices](https://www.bestprac
 Vulnerabilities in scope include:
 
 - The `ailang` CLI and compiler (`cmd/`, `internal/`)
-- The standard library (`stdlib/`)
+- The standard library (`std/`)
 - The dashboard server and coordinator (`internal/server/`, `internal/coordinator/`)
 - Build and release workflows under `.github/workflows/`
 - Capability-system bypasses or effect-system soundness bugs

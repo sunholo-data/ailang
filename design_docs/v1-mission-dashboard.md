@@ -2,7 +2,7 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last update:** 2026-11-26 · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14). Note: v1.0.0 roadmap work ([planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md)) tracks the remaining pre-1.0 items separately.
+**Last update:** 2026-11-26 · **Goal distance:** **N = 0 open bar-v3 gate items** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185, G5 closed by `g5-simplicity-metrics-fragment.md` + `D4` waiver ratification) — bar v3 complete (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14). Note: v1.0.0 roadmap work ([planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md)) tracks the remaining pre-1.0 close-out steps separately.
 **Latest release:** v0.63.0. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
 ## Shipped since v0.57.4 (through v0.63.0, 2026-11-26)
@@ -26,7 +26,7 @@ The N above still counts bar-v3 items only; re-cutting the unit to cover the roa
 | G2 Zero open P0s | 0 ✓ | #1443 (`pure func` + effect row), #1134 (IFC labels across modules) |
 | G3 Packages in the promise | 0 ✓ | Packages tier section + one published package as the worked example |
 | G4 Cloud exec MCP Stable | 0 ✓ | tool surface listed Stable; prod on a custom domain (docparse precedent) |
-| G5 Simplification Phase 5 | 1 | metrics diff fragment for the v1.0.0 release notes |
+| G5 Simplification Phase 5 | 0 ✓ | metrics diff fragment + `D4` waivers in [g5-simplicity-metrics-fragment.md](planned/v1_0_0/g5-simplicity-metrics-fragment.md) |
 
 Tiering (D-64): `ailang messages` **Experimental**; coordinator / missions / approvals / dashboards / eval tooling **Internal**.
 Published at release, not gated: fleet-tier pass rates, cost-per-verified-success baseline.

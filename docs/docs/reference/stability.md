@@ -97,8 +97,10 @@ reference rather than listed again here, so there is one source of truth:
   - IFC labels and `Declassify` (cross-module label checking landed in #1134 / #2185).
   - The `serve-api` export annotations (`@route`, `@mcp_name`, `@mcp_title`, `@mcp_hints`,
     `@noexpose`, `@nomcp`, …), which follow the `serve-api` tier below.
-- **Not implemented:** the `?` error-propagation operator, which gives `PAR_UNEXPECTED_TOKEN` at
-  HEAD, and typed quasiquotes. See [Known Limitations](/docs/reference/limitations).
+- **Error & option propagation (`let x = expr?`)** unwraps `Ok`/`Some` on the return spine of a
+  `Result`/`Option` function and early-returns `Err`/`None` (non-`let` sub-expressions emit
+  `PAR_TRY_LET_ONLY`).
+- **Not implemented:** typed quasiquotes. See [Known Limitations](/docs/reference/limitations).
 - **Effect names** take the tier of the stdlib module that performs them. `IO`, `FS`, `Env`,
   `Clock` and `Rand` are Stable. The other capabilities that `--caps` accepts are Experimental.
 
@@ -212,13 +214,11 @@ change in a 1.x minor, with a CHANGELOG entry.
 
 ### Deprecated stdlib names
 
-A function marked `@deprecated("replacement")` keeps working, with the same type, effects and
-behaviour, and every use of it from another module gives the warning `TC_DEPRECATED_001` naming the
-replacement — on stderr, in `check --json` `warnings[]` and in `check --format agent`, on a warm
-compile cache too. Deprecation is not a tier: a deprecated Stable function stays Stable until it is
-removed. These 16 names were renamed or deprecated before 1.0 and are **removed before the v1.0.0
-soak**, so they are not part of the 1.x surface. After removal, importing one still names the
-replacement (`IMP010`).
+During the 0.6x transition, sixteen legacy stdlib spellings were marked `@deprecated("replacement")`
+and emitted warning `TC_DEPRECATED_001` naming their replacement. All sixteen aliases were **removed
+in `v0.64.0` before the v1.0.0 soak** and are not part of the 1.x surface. Importing any removed
+alias fails compilation with `IMP010`, naming the exact replacement (and noting the swapped
+argument order for `std/list.member(x, xs)` → `contains(xs, x)`).
 
 | Module | Deprecated | Use instead |
 |--------|------------|-------------|
@@ -233,29 +233,18 @@ replacement (`IMP010`).
 | `std/bytes` | `slice(b, start, len)` | `sliceLen` (the third argument is a length; the name stays retired for 1.x) |
 | `std/array` | `unsafeGet` | `get` (identical behaviour) |
 
-`sed -E -f tools/migrate-stdlib-renames.sed` rewrites the unique names; edit `glob`, `slice`,
-`member` and `unsafeGet` by hand, then run `ailang check` until no `TC_DEPRECATED_001` is left.
+For 0.x codebases migrating to `1.0.0`, `sed -E -f tools/migrate-stdlib-renames.sed` rewrites the
+twelve uniquely named functions automatically; update `glob`, `slice`, `member`, and `unsafeGet` by
+hand, then run `ailang check` until zero `IMP010` errors remain.
 
-**Migration order.** None of the 14 new names (`headOr` … `sliceLen`) exists in v0.59.0 or
-v0.60.0, so code pinned to those releases cannot use them: a project moves to them only once
-its pin is on the first release that contains them. `member(x, xs)` → `contains(xs, x)` and
-`unsafeGet` → `get` use names that already exist, so those two can change at any time. The
-order is: (1) release the new names, with the old ones warning; (2) downstream projects move
-their pins and migrate until `check` shows no `TC_DEPRECATED_001`; (3) the aliases are removed
-in the last 0.x release before the v1.0.0 soak (roadmap step 16).
-
-**Where the warning appears.** Every use from another module — in function bodies, contracts,
-named `test` blocks, `property` blocks, inline `tests` rows and module-level `let`s — in
-`ailang check` (stderr, `--json`, `--format agent`, `--package`), `ailang run` (stderr) and
-`ailang test` (stderr). Uses inside an installed dependency package are reported by that
-package's own `check`, not by its importers. A deprecation can only ever produce
-`TC_DEPRECATED_001` in code that uses the name: a std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency.
-When a replacement is deprecated in turn, the warning names the first live function along the
-chain. The command-line REPL cannot import std modules
-(`:import std/list` is "Unknown module"), so a deprecated std name cannot be reached there;
-modules loaded into the browser REPL's registry do not warn.
-Package authors may use `@deprecated` and `@experimental` too; the annotation syntax itself is
-Experimental in 1.0.
+**User `@deprecated` annotations.** Package authors may continue to use `@deprecated` and
+`@experimental` on their own module exports. Within a module's consumers, using an active
+`@deprecated("replacement")` export emits `TC_DEPRECATED_001` (on stderr, in `check --json`
+`warnings[]`, and in `check --format agent`, across function bodies, contracts, named `test` blocks,
+`property` blocks, inline `tests` rows, and module-level `let`s). Uses inside an installed
+dependency package are reported by that package's own `check`, not by its importers, and a
+deprecated Stable export stays Stable until a major release removes it. The `@deprecated` annotation
+syntax itself is Experimental in 1.0.
 
 ### Conventions of the Stable stdlib
 
@@ -577,6 +566,16 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 | `benchmarks_for_model` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `benchmarks_compare` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `submit_feedback` | built-in (`internal/apiserver/feedback_tool.go`) | ⚠ close call — the only write tool; rate-limited, and egress depends on deployment configuration |
+
+## Support Window
+
+| Release line | Bug fixes | Security fixes | Notes |
+|---|---|---|---|
+| **Latest `1.x` minor** | Yes | Yes | Security fixes ship as patch releases on the latest `1.x` minor (`1.x` minors are non-breaking by promise, so upgrading to the latest minor is the supported path). |
+| **Final `0.x` release (`v0.64.0`)** | No | **90 days after `1.0.0`** | Critical and high security fixes only during the 90-day transition window. |
+| **Older `1.x` minors & earlier `0.x` releases** | No | No | Upgrade to the latest `1.x` release. |
+
+See [SECURITY.md](https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md) for vulnerability reporting channels and response SLAs.
 
 ## Known limitations & version promises
 
