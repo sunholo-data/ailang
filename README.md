@@ -100,7 +100,7 @@ See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for det
 The installer detects your OS and architecture automatically. To pin a release:
 
 ```bash
-curl -fsSL https://ailang.sunholo.com/install.sh | VERSION=v0.33.1 bash
+curl -fsSL https://ailang.sunholo.com/install.sh | VERSION=v0.64.1 bash
 ```
 
 <details>
@@ -153,16 +153,16 @@ ailang run --caps IO examples/hello_world.ail
 ```bash
 ailang repl
 
-λ> 1 + 2
+λ[Debug,IO]> 1 + 2
 3 :: Int
 
-λ> let double = \x. x * 2 in double(21)
+λ[Debug,IO]> let double = \x. x * 2 in double(21)
 42 :: Int
 
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
+λ[Debug,IO]> :type \x. x + x
+Int -> Int
 
-λ> :quit
+λ[Debug,IO]> :quit
 ```
 
 ---
@@ -190,7 +190,7 @@ make lint       # Run linter
 ```
 
 **Guides:**
-- [Development Guide](https://ailang.sunholo.com/docs/guides/development)
+- [Development Guide](https://ailang.sunholo.com/docs/guides/development-workflow)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [AGENTS.md](AGENTS.md) - Cross-agent repository instructions (including Codex)
 - [CLAUDE.md](CLAUDE.md) - Detailed AILANG operational workflows
@@ -219,4 +219,4 @@ AILANG draws inspiration from Haskell, OCaml, Rust, and Idris/Agda.
 
 ---
 
-*For AI agents: Deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. Read [AGENTS.md](AGENTS.md), then use `ailang prompt` for current language guidance.*
+*For AI agents: Deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. Start at [For AI Agents](https://ailang.sunholo.com/docs/start-here/for-ai-agents), run `ailang prompt` for current syntax, or fetch [`/llms.txt`](https://ailang.sunholo.com/llms.txt) / [`/llms-full.txt`](https://ailang.sunholo.com/llms-full.txt).*

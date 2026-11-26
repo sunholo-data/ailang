@@ -30,11 +30,25 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-NIGHTLY-FLAKE-GUARD: Variance Guard for the Nightly Eval Regression Detector](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-nightly-flake-guard.md)
 - [Sprint Plan: M-PLANNER-CODEX-LANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane-sprint-plan.md)
 - [M-PLANNER-CODEX-LANE: Route the Mission Planner Through the Hardened codex Spawn Recipe](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane.md)
+- [Pure-row / iface-purity M1–M2 execution evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-m1-m2-validation.md)
+- [M3 validation: pure rows and SMT admission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-m3-validation.md)
+- [Sprint Plan: M-PURE-ROW-AND-IFACE-PURITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-sprint-plan.md)
+- [M-PURE-ROW-AND-IFACE-PURITY — `pure` must mean `! {}`: reject the keyword beside a declared effect row, and derive iface purity from the checked row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity.md)
 - [Sprint Plan: M-V1-MEMORY-FOOTPRINT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint-sprint-plan.md)
 - [M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint.md)
 - [Sprint Plan: M-VM-STACK-LIMIT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md)
 - [M-VM-STACK-LIMIT-PARITY implementation verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-verification.md)
 - [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity.md)
+
+## v0.61.0
+
+- [M-VERIFY-CALL-SITE-REQUIRES — check a callee's `requires` at each call (program M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_61_0/m-verify-call-site-requires.md)
+- [M-VERIFY-NUMERIC-MODEL — int64 overflow and float NaN/∞ (program M4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_61_0/m-verify-numeric-model.md)
+
+## v0.60.6
+
+- [Sprint Plan: M-FLEET-RULINGS-LEDGER — fleet-wide rulings ledger + `mission doctor` ruling notes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_60_6/m-fleet-rulings-ledger-sprint-plan.md)
+- [Fleet-Wide Rulings Ledger + `mission doctor` Contradiction Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_60_6/m-fleet-rulings-ledger.md)
 
 ## v0.57.5
 
@@ -1989,4 +2003,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1436 design documents across 181 versions.*
+*Generated at build time. 1444 design documents across 183 versions.*

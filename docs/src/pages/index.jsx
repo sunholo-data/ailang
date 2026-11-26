@@ -85,10 +85,15 @@ function HeroSection() {
 {`-- hello.ail
 module examples/hello
 
-import std/io (print)
+import std/io (println)
+
+export pure func clampScore(n: int) -> int
+  requires { n >= 0 }
+  ensures  { result <= 100 }
+= if n > 100 then 100 else n
 
 export func main() -> () ! {IO} =
-  print("Hello, AILANG!")`}
+  42 |> clampScore |> show |> println`}
           </pre>
         </div>
       </div>

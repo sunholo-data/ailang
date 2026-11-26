@@ -117,10 +117,10 @@ flowchart LR
 5. Refresh `reviewed: 2026-11-26` + `reviewBy` on overdue pages in scope (`start-here/evaluating.mdx`, `playground.mdx`, `feedback.mdx`, `docs/VISION.md`) after full code verification.
 
 **Acceptance Criteria:**
-- [ ] All 8 SVG files exist in `docs/static/img/diagrams/`, parse cleanly as XML, and are `<15 KB` each — `TST-DOCOV-11`
-- [ ] `git grep -n -E "No \*\*LSP/IDE|\(v0\.[67]\.0\)|subsumption" docs/docs/{intro,why-ailang,vision,examples}.mdx` returns empty — `TST-DOCOV-09`
-- [ ] `make check-doc-samples` exits `0` with `0` new baseline entries — `TST-DOCOV-02`
-- [ ] `0` overdue `reviewBy` warnings remain on M1 files — `TST-DOCOV-03`
+- [x] All 8 SVG files exist in `docs/static/img/diagrams/`, parse cleanly as XML, and are `<15 KB` each — `TST-DOCOV-11`
+- [x] `git grep -n -E "No \*\*LSP/IDE|\(v0\.[67]\.0\)|subsumption" docs/docs/{intro,why-ailang,vision,examples}.mdx` returns empty — `TST-DOCOV-09`
+- [x] `make check-doc-samples` exits `0` with `0` new baseline entries — `TST-DOCOV-02`
+- [x] `0` overdue `reviewBy` warnings remain on M1 files — `TST-DOCOV-03`
 
 ---
 
@@ -137,9 +137,9 @@ flowchart LR
 5. Update `packages.md`, `package-publishing.md` (`484L → ≤300L`, ASCII→Mermaid), `autonomous-package-updates.md` (overdue, 2 ASCII→Mermaid), and mark `extension-packages.md`, `build-a-motoko-extension.md`, `motoko-extension-development.md` with `tier: experimental`, embedding `/img/diagrams/package-lock-cascade.svg` and documenting atomic `ailang.lock`, v2 contract signatures, nested `ailang.toml`, and `ailang pkg docs`.
 
 **Acceptance Criteria:**
-- [ ] Every `v0.60`–`v0.64.1` construct (`|>`, destructuring, `_?`, unbraced `match`/`if`, `deriving (Json)`, `expr?`, `inspect`, `check --fix`, Z3 `Tuple0`/`Tuple2..8`/`int64`, atomic `ailang.lock`) has a checked guide example — `TST-DOCOV-02`
-- [ ] `contracts.mdx` ≤600L, `ifc-labels.mdx` ≤360L, `package-publishing.md` ≤300L, and `0` ASCII-box blocks remain in M2 files — `TST-DOCOV-10`, `TST-DOCOV-12`
-- [ ] `0` `λ>` legacy prompts and `0` overdue `reviewBy` warnings remain in M2 files — `TST-DOCOV-03`, `TST-DOCOV-09`
+- [x] Every `v0.60`–`v0.64.1` construct (`|>`, destructuring, `_?`, unbraced `match`/`if`, `deriving (Json)`, `expr?`, `inspect`, `check --fix`, Z3 `Tuple0`/`Tuple2..8`/`int64`, atomic `ailang.lock`) has a checked guide example — `TST-DOCOV-02`
+- [x] `contracts.mdx` ≤600L, `ifc-labels.mdx` ≤360L, `package-publishing.md` ≤300L, and `0` ASCII-box blocks remain in M2 files — `TST-DOCOV-10`, `TST-DOCOV-12`
+- [x] `0` `λ>` legacy prompts and `0` overdue `reviewBy` warnings remain in M2 files — `TST-DOCOV-03`, `TST-DOCOV-09`
 
 ---
 
@@ -157,9 +157,9 @@ flowchart LR
 6. Per `D2=a`, `git rm docs/docs/prompts/v*.md` (the 23 stale historical prompt copies) and update `docs/scripts/sync-prompts.sh` + `prompts/index.md` so only `current.md` (and `python.md` if needed for benchmark reference, marked `unlisted: true`) builds on the site while linking `prompts/versions.json` on GitHub for historical prompt archaeology (redirects `/docs/prompts/v*` → `/docs/prompts/current` wired in M6).
 
 **Acceptance Criteria:**
-- [ ] `start-here/for-ai-agents.mdx` contains the full 12-task CLI + MCP routing table and embeds `agent-knowledge-stack.svg` — `TST-DOCOV-01`
-- [ ] `three-camps-comparison.md` ≤180L (with `three-camps-self-audit.md` removed) and `agent-tool-policy.md` prose ≤130L — `TST-DOCOV-12`
-- [ ] `make check-doc-samples` exits `0`; `0` ASCII diagrams and `0` overdue `reviewBy` warnings remain in M3 files — `TST-DOCOV-02`, `TST-DOCOV-03`, `TST-DOCOV-10`
+- [x] `start-here/for-ai-agents.mdx` contains the full 12-task CLI + MCP routing table and embeds `agent-knowledge-stack.svg` — `TST-DOCOV-01`
+- [x] `three-camps-comparison.md` ≤180L (with `three-camps-self-audit.md` removed) and `agent-tool-policy.md` prose ≤130L — `TST-DOCOV-12`
+- [x] `make check-doc-samples` exits `0`; `0` ASCII diagrams and `0` overdue `reviewBy` warnings remain in M3 files — `TST-DOCOV-02`, `TST-DOCOV-03`, `TST-DOCOV-10`
 
 ---
 
@@ -177,9 +177,9 @@ flowchart LR
 6. Refresh overdue `architecture/{adding-operators.md,anf.md,debug-tools.mdx}`, `references/{axioms.mdx,design-lineage.mdx,philosophical-foundations.mdx}`, and `packages/{explorer.mdx,graph.mdx}` after reading against current code (and embed `two-engines-architecture.svg` in `architecture/index.md`).
 
 **Acceptance Criteria:**
-- [ ] `go test ./internal/iface -run TestStabilityDocListsEveryDeprecation` exits `0` — `TST-DOCOV-05`
-- [ ] `make check-doc-samples` exits `0`; `0` hits for `prompt --compact`, `v0.33.1`, or `λ>` in M4 files — `TST-DOCOV-02`, `TST-DOCOV-09`
-- [ ] `limitations.md` prose lines `≤190` (`-46%` from `355`) and `0` overdue/missing `reviewBy` warnings in M4 files — `TST-DOCOV-03`, `TST-DOCOV-12`
+- [x] `go test ./internal/iface -run TestStabilityDocListsEveryDeprecation` exits `0` — `TST-DOCOV-05`
+- [x] `make check-doc-samples` exits `0`; `0` hits for `prompt --compact`, `v0.33.1`, or `λ>` in M4 files — `TST-DOCOV-02`, `TST-DOCOV-09`
+- [x] `limitations.md` prose lines `≤190` (`-46%` from `355`) and `0` overdue/missing `reviewBy` warnings in M4 files — `TST-DOCOV-03`, `TST-DOCOV-12`
 
 ---
 
@@ -199,9 +199,9 @@ flowchart LR
 3. Add `tier: internal` frontmatter + scrub stale `v0.3`/`v0.15` stamps across `guides/evaluation/*.md(x)` (converting 2 ASCII diagrams in `architecture.md` & `browser-auth-profiles.md` to Mermaid) and `finetuning/*.md`.
 
 **Acceptance Criteria:**
-- [ ] `0` ASCII-art box diagrams remain across all M5 files — `TST-DOCOV-10`
-- [ ] `serve-api.md` prose `≤330L`, `mcp-connectors.md` prose `≤240L`, `debugging.md` prose `≤220L`, `coordinator.md` prose `≤210L` — `TST-DOCOV-12`
-- [ ] All 10 fleet runbooks reside under `docs/internal/runbooks/`, `make check-doc-samples` exits `0`, and `0` overdue `reviewBy` warnings remain in M5 files — `TST-DOCOV-02`, `TST-DOCOV-03`
+- [x] `0` ASCII-art box diagrams remain across all M5 files — `TST-DOCOV-10`
+- [x] `serve-api.md` prose `≤330L`, `mcp-connectors.md` prose `≤240L`, `debugging.md` prose `≤220L`, `coordinator.md` prose `≤210L` — `TST-DOCOV-12`
+- [x] All 10 fleet runbooks reside under `docs/internal/runbooks/`, `make check-doc-samples` exits `0`, and `0` overdue `reviewBy` warnings remain in M5 files — `TST-DOCOV-02`, `TST-DOCOV-03`
 
 ---
 
@@ -221,10 +221,10 @@ flowchart LR
 6. Fix `tools/generate-llms-txt.sh`, `scripts/check_llms_txt.sh`, and `scripts/test_check_llms_txt.sh` per `D4=a`: generate concise `/llms.txt` (`<35 KB` with the 12-row Task→CLI→MCP table + curated doc URL directory + pointer to `/llms-full.txt`) and complete `/llms-full.txt` (`docs/static/llms-full.txt` bundling fixed `for-ai-agents.mdx`, `getting-started.mdx`, `language-syntax.md`, `stdlib.md`, `effects.md`, `modules.md`, `security-model.md`, `stability.md`, `cli.md`, `reserved-keywords.md`, `limitations.md`, and the active prompt `v0.16.20`). Run `make generate-llms-txt`.
 
 **Acceptance Criteria:**
-- [ ] `cd docs && npm run build` exits `0` and `cd docs && npm run test:benchmarks` exits `0` — `TST-DOCOV-01`, `TST-DOCOV-06`
-- [ ] `make check-llms-txt && make test-check-llms-txt` exit `0` — `TST-DOCOV-04`
-- [ ] `make check-doc-samples` and `bash scripts/check_doc_review.sh` (`0 overdue, 0 without reviewBy`) exit `0` — `TST-DOCOV-02`, `TST-DOCOV-03`
-- [ ] Navbar `≤6` items, sidebar `≤5` top sections, depth `≤3`, visible items `≤18`, `0` orphaned user pages — `TST-DOCOV-07`, `TST-DOCOV-08`
+- [x] `cd docs && npm run build` exits `0` and `cd docs && npm run test:benchmarks` exits `0` — `TST-DOCOV-01`, `TST-DOCOV-06`
+- [x] `make check-llms-txt && make test-check-llms-txt` exit `0` — `TST-DOCOV-04`
+- [x] `make check-doc-samples` and `bash scripts/check_doc_review.sh` (`0 overdue, 0 without reviewBy`) exit `0` — `TST-DOCOV-02`, `TST-DOCOV-03`
+- [x] Navbar `≤6` items, sidebar `≤5` top sections, depth `≤3`, visible items `≤18`, `0` orphaned user pages — `TST-DOCOV-07`, `TST-DOCOV-08`
 
 ---
 

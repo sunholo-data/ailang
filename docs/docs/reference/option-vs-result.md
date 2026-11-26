@@ -161,5 +161,5 @@ Since v0.18.10 ([M-MATCH-ADT-XCHECK](https://github.com/sunholo-data/ailang/blob
 
 ## See also
 
-- [Standard library reference](./language-syntax) — full type signatures for `std/option`, `std/result`, `std/json`, etc.
+- [Standard library reference](./stdlib) — full type signatures for `std/option`, `std/result`, `std/json`, etc.
 - [M-MATCH-ADT-XCHECK design doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_18_10/m-match-adt-xcheck.md) — implementation rationale and history

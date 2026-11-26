@@ -1,12 +1,10 @@
 #!/bin/bash
 # test_check_llms_txt.sh — self-test for scripts/check_llms_txt.sh (bash 3.2).
 #
-# The gate must pass exactly when the three llms.txt copies are what
-# tools/generate-llms-txt.sh produces for the ACTIVE prompt, and fail when any
-# copy embeds another prompt, is stale against an edited active prompt, or is
-# missing. Each arm runs the real generator and the real gate in a scratch tree.
-# (A review mutation that made the gate compare the wrong file survived until
-# this existed.)
+# The gate must pass exactly when the three concise llms.txt index copies (<35 KB)
+# and docs/static/llms-full.txt match what tools/generate-llms-txt.sh produces for
+# the ACTIVE prompt, and fail when any copy is stale, oversized, or missing, or when
+# llms-full.txt does not embed the active prompt verbatim.
 set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,7 +12,7 @@ GATE="$REPO_ROOT/scripts/check_llms_txt.sh"
 GEN="$REPO_ROOT/tools/generate-llms-txt.sh"
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=6
+ARMS_EXPECTED=7
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
 fail() { echo "  FAIL — $1"; FAILED=1; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -46,14 +44,17 @@ setup; generate; set_active v9.9.1
 if gate; then fail "a stale copy (generated for v9.9.2, active v9.9.1) passed"; else pass "copies generated for another prompt version fail"; fi
 
 setup; generate; printf 'an edit to the active prompt\n' >> "$WORK/root/prompts/v9.9.2.md"
-if gate; then fail "an edited active prompt with stale copies passed"; else pass "an active prompt edited after generation fails"; fi
+if gate; then fail "an edited active prompt with stale llms-full.txt passed"; else pass "an active prompt edited after generation fails"; fi
 
 setup; set_active v9.9.1; generate; cp "$WORK/root/llms.txt" "$WORK/root/old.txt"
 set_active v9.9.2; generate; cp "$WORK/root/old.txt" "$WORK/root/docs/static/llms.txt"
-if gate; then fail "one copy (docs/static) embedding the inactive prompt passed"; else pass "a single stale copy fails"; fi
+if gate; then fail "one stale index copy (docs/static/llms.txt) passed"; else pass "a single stale index copy fails"; fi
 
 setup; generate; rm -f "$WORK/root/docs/llms.txt"
-if gate; then fail "a missing copy passed"; else pass "a missing copy fails"; fi
+if gate; then fail "a missing index copy passed"; else pass "a missing index copy fails"; fi
+
+setup; generate; rm -f "$WORK/root/docs/static/llms-full.txt"
+if gate; then fail "a missing docs/static/llms-full.txt passed"; else pass "a missing docs/static/llms-full.txt fails"; fi
 
 setup; generate; printf 'an edit\n' >> "$WORK/root/prompts/v9.9.2.md"; generate
 if gate; then pass "regenerating after the edit passes again"; else fail "regenerated copies were refused"; fi

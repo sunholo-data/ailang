@@ -1,6 +1,6 @@
 # M-DOCS-VISUAL-NAVIGATION-OVERHAUL: Website Docs Visual & Navigation Overhaul Swarm
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: `v0.64.2` → `v1.0.0`
 **Priority**: P0 (User-facing & agent-facing website readiness before `v1.0.0` announcement)
 **Estimated**: 1 swarm wave (~5–7 agent-hours wall time across 5 parallel content/visual slices + 1 IA/`llms.txt` integrator + 1 independent verifier)

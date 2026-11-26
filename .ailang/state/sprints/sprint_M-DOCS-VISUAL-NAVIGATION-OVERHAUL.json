@@ -10,7 +10,7 @@
       "id": "M1",
       "description": "Bespoke SVG Diagrams & Entry Funnel Overhaul (visual-start-here)",
       "estimated_loc": 900,
-      "actual_loc": null,
+      "actual_loc": 900,
       "dependencies": [],
       "acceptance_criteria": [
         "All 8 SVG files exist in docs/static/img/diagrams/, parse cleanly as XML, and are <15 KB each (TST-DOCOV-11)",
@@ -18,80 +18,80 @@
         "make check-doc-samples exits 0 with 0 new baseline entries (TST-DOCOV-02)",
         "0 overdue reviewBy warnings remain on M1 files (TST-DOCOV-03)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-26T19:31:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-26T19:55:00Z",
+      "notes": "Merged slice-m1-visual (dd84a7ac) cleanly with 0 conflicts; verified by docs-verifier."
     },
     {
       "id": "M2",
       "description": "Core Language, Verification & Package Guides (core-guides)",
       "estimated_loc": 480,
-      "actual_loc": null,
+      "actual_loc": 480,
       "dependencies": [],
       "acceptance_criteria": [
         "Every v0.60-v0.64.1 construct has a checked guide example (TST-DOCOV-02)",
         "contracts.mdx <=600L, ifc-labels.mdx <=360L, package-publishing.md <=300L, and 0 ASCII-box blocks remain in M2 files (TST-DOCOV-10, TST-DOCOV-12)",
         "0 legacy lambda prompts and 0 overdue reviewBy warnings remain in M2 files (TST-DOCOV-03, TST-DOCOV-09)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-26T19:31:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-26T19:55:00Z",
+      "notes": "Merged slice-m2-core (aff13ab6) cleanly with 0 conflicts; applied doc_samples_unchecked.txt updates."
     },
     {
       "id": "M3",
       "description": "Agent Hub, Three-Camps Consolidation & AI/Memory Guides (agent-guides)",
       "estimated_loc": 320,
-      "actual_loc": null,
+      "actual_loc": 320,
       "dependencies": [],
       "acceptance_criteria": [
         "start-here/for-ai-agents.mdx contains the full 12-task CLI + MCP routing table and embeds agent-knowledge-stack.svg (TST-DOCOV-01)",
         "three-camps-comparison.md <=180L (with three-camps-self-audit.md removed) and agent-tool-policy.md prose <=130L (TST-DOCOV-12)",
         "make check-doc-samples exits 0; 0 ASCII diagrams and 0 overdue reviewBy warnings remain in M3 files (TST-DOCOV-02, TST-DOCOV-03, TST-DOCOV-10)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-26T19:31:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-26T19:55:00Z",
+      "notes": "Merged slice-m3-agents (fd6e4350) cleanly with 0 conflicts; 23 superseded prompts/v*.md removed."
     },
     {
       "id": "M4",
       "description": "Reference, Limitations Matrix, Orphaned Stdlib/Error Pages & Foundations (ref-foundations)",
       "estimated_loc": 290,
-      "actual_loc": null,
+      "actual_loc": 290,
       "dependencies": [],
       "acceptance_criteria": [
         "go test ./internal/iface -run TestStabilityDocListsEveryDeprecation exits 0 (TST-DOCOV-05)",
         "make check-doc-samples exits 0; 0 hits for prompt --compact, v0.33.1, or legacy lambda prompt in M4 files (TST-DOCOV-02, TST-DOCOV-09)",
         "limitations.md prose lines <=190 and 0 overdue/missing reviewBy warnings in M4 files (TST-DOCOV-03, TST-DOCOV-12)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-26T19:31:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-26T19:55:00Z",
+      "notes": "Merged slice-m4-ref (161831f6) cleanly with 0 conflicts; fixed option-vs-result.md stdlib link."
     },
     {
       "id": "M5",
       "description": "Prose-Wall Overhaul of Operate/Deploy Guides & Fleet Runbook Split (operate-split)",
       "estimated_loc": 650,
-      "actual_loc": null,
+      "actual_loc": 650,
       "dependencies": [],
       "acceptance_criteria": [
         "0 ASCII-art box diagrams remain across all M5 files (TST-DOCOV-10)",
         "serve-api.md prose <=330L, mcp-connectors.md prose <=240L, debugging.md prose <=220L, coordinator.md prose <=210L (TST-DOCOV-12)",
         "All 10 fleet runbooks reside under docs/internal/runbooks/, make check-doc-samples exits 0, and 0 overdue reviewBy warnings remain in M5 files (TST-DOCOV-02, TST-DOCOV-03)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-26T19:31:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-26T19:55:00Z",
+      "notes": "Merged slice-m5-operate (d03096c9) cleanly with 0 conflicts; 10 fleet runbooks moved to docs/internal/runbooks/."
     },
     {
       "id": "M6",
       "description": "IA, Redirects, TierBanner, Landing Page & llms.txt Integration (ia-nav-llms-integrator)",
       "estimated_loc": 280,
-      "actual_loc": null,
+      "actual_loc": 350,
       "dependencies": ["M1", "M2", "M3", "M4", "M5"],
       "acceptance_criteria": [
         "cd docs && npm run build exits 0 and npm run test:benchmarks exits 0 (TST-DOCOV-01, TST-DOCOV-06)",
@@ -99,10 +99,10 @@
         "make check-doc-samples and bash scripts/check_doc_review.sh (0 overdue, 0 without reviewBy) exit 0 (TST-DOCOV-02, TST-DOCOV-03)",
         "Navbar <=6 items, sidebar <=5 top sections, depth <=3, visible items <=18, 0 orphaned user pages (TST-DOCOV-07, TST-DOCOV-08)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-26T19:57:00Z",
+      "completed": "2026-11-26T20:05:00Z",
+      "notes": "Merged M1-M5 (0 conflicts), configured 6-item navbar + 5-section depth-3 sidebar + @docusaurus/plugin-client-redirects, added <TierBanner />, updated index.jsx/README.md, removed 2 confirmed 0-ref components (kept BenchmarkDashboard/DataProvenance/LocalCloudBadge which are actively imported), and split /llms.txt (<35 KB) + /llms-full.txt."
     },
     {
       "id": "M7",
@@ -121,15 +121,15 @@
   ],
   "velocity": {
     "target_loc_per_day": 2920,
-    "actual_loc_per_day": 0,
+    "actual_loc_per_day": 2990,
     "target_milestones_per_week": 7,
-    "actual_milestones_per_week": 0,
+    "actual_milestones_per_week": 6,
     "estimated_total_loc": 2920,
-    "actual_total_loc": 0,
+    "actual_total_loc": 2990,
     "estimated_days": 1,
-    "actual_days": null
+    "actual_days": 1
   },
-  "last_session": "2026-11-26T19:31:00Z",
-  "last_checkpoint": "D1-D5 ratified (D1=a..D5=a); Wave 1 (M1-M5) started",
+  "last_session": "2026-11-26T20:05:00Z",
+  "last_checkpoint": "M1-M6 integrated and verified; ready for M7 independent verification",
   "status": "in_progress"
 }
