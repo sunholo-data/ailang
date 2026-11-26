@@ -185,7 +185,13 @@ Next, in order:
    Gap map: +1 verified (`stoppedCase`), 0 regressions. `validateRun` moves to its next blocker, `isErr`'s `Result[a, e]`. Totals against M0: verified 590 → **649**, skipped 125 → **58**.
 
    With unit, tuples and record names done, the remaining skips are effects (12, out of scope), the `option.map` bare-name gate (3 sole), the solver's undecided rows, and **type variables in helper signatures** (`isErr`, `foldChars`, `firstOr`, `intersect`, `mapE`). Those need instantiation at the call site, which changes how a call is resolved. That is item 5's design doc.
-5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
+5. **Handed off 2026-11-26 to [m-verify-coverage-tail](../v0_64_0/m-verify-coverage-tail.md).** That doc covers everything left except effects:
+   - callee instances: qualified `(module, name)` identity plus type-variable instantiation, which retires the S7 gate;
+   - specialisation on function arguments (`std/option.map`);
+   - the `foldChars`/`intersect`/contract-`show` builtins;
+   - three one-row encoder bugs;
+   - a classification spike for the solver-undecided rows;
+   - induction behind a ruling (D-T1).
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 
 ## Why this program, and why not Lean
