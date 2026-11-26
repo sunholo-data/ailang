@@ -1,6 +1,6 @@
 # M-AI-GO-TO-LANGUAGE: Making AILANG the Default AI Go-To Language (v0.63.0)
 
-**Status**: Planned (awaiting ratification of D1–D4 before `/swarm` launch)
+**Status**: Implemented (Slices 1–5 — 2026-11-26)
 **Target**: v0.63.0
 **Priority**: P0 (High — closes the top structural boilerplate, error-handling, self-healing, context-orienting, and scripting gaps between AILANG and Python/TypeScript/Rust for AI agents)
 **Estimated**: 5 independent author slices + 1 read-only verifier slice, designed for parallel `/swarm` execution with isolated `workspace:"share"` worktrees (~1–2 days wall-clock)
@@ -84,10 +84,10 @@ After `v0.62.0` (`M-AI-PREFERRED-LANGUAGE`) and `M-AI-PREFERRED-V2` (`94026beac`
 
 Before `/swarm` author workers launch, these must be ratified by Mark:
 
-- [ ] **D1** ratified (`deriving (Json)` naming `encode<Type>`/`decode<Type>` & `Option` / ADT wire semantics)
-- [ ] **D2** ratified (`let`-bound `?` scope on `Result[_, E]` and `Option[_]` functions + `PAR_TRY_LET_ONLY`)
-- [ ] **D3** ratified (`check --fix` + LSP auto-stamping `! {Effects}` and rewriting `string ++` to `"${...}"`)
-- [ ] **D4** ratified (`ailang inspect` agent + JSON output schema & CLI group placement)
+- [x] **D1** ratified (`deriving (Json)` naming `encode<Type>`/`decode<Type>` & `Option` / ADT wire semantics)
+- [x] **D2** ratified (`let`-bound `?` scope on `Result[_, E]` and `Option[_]` functions + `PAR_TRY_LET_ONLY`)
+- [x] **D3** ratified (`check --fix` + LSP auto-stamping `! {Effects}` and rewriting `string ++` to `"${...}"`)
+- [x] **D4** ratified (`ailang inspect` agent + JSON output schema & CLI group placement)
 
 ---
 

@@ -121,7 +121,8 @@ ailang docs std/string          # Show ALL exports with signatures
 ailang docs std/list            # Show list operations
 ailang builtins list            # All registered builtins
 ailang check file.ail           # Type-check without running (use _? or ?name holes to query expected type + locals)
-ailang check --fix file.ail     # Auto-apply safe mechanical fixes (trailing ';', '=' before '{', TC_MATCH_002 stubs; also exposed via LSP codeAction)
+ailang check --fix file.ail     # Auto-apply safe mechanical fixes (trailing ';', '=' before '{', TC_MATCH_002 stubs, missing ! {Effects}, string '++' -> "${...}"; also exposed via LSP codeAction)
+ailang inspect <file-or-dir>    # <100ms 1-line/symbol semantic X-ray: types, deriving, exports+locals, ! {Effects}, contracts, callees (--json, --exports-only)
 ailang examples search "recursion"  # Find working code examples
 ```
 
@@ -440,7 +441,8 @@ export func is_even(n: int) -> bool {
   letrec is_odd = \m. if m == 0 then false else is_even(m - 1);
   if n == 0 then true else is_odd(n - 1)
 }
-
+```
+```ailang
 -- ✅ BEST for mutual recursion: top-level `func` declarations
 func is_odd(n: int) -> bool =
   if n == 0 then false else is_even(n - 1)
@@ -483,6 +485,8 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
 | ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record with Eq | `type Point = {x: int, y: int} deriving (Eq)` (anonymous records have no `==`) |
+| `deriving (Json)` | `type Cfg = { host: string, tag: Option[string] } deriving (Eq, Json)` synthesizes pure `encodeCfg(v: Cfg) -> Json` & `decodeCfg(j: Json) -> Result[Cfg, string]` (requires `import std/json (Json)`; `Option` fields omit `None` on encode and accept missing/`null` on decode; ADTs use `{"tag": ...}`) |
+| `let` `?` propagation | `let x = expr?` (or `let (a, b) = expr?`) unwraps `Ok`/`Some` on the return spine of `Result[_, E]` / `Option[_]` functions and early-returns `Err`/`None` (let-bound only; hoist sub-expressions) |
 | `==` / `!=` support | int, float, string, bool, and any list, `Option`, `Result` or tuple whose parts support it (`xs == []`, `o == Some(3)`, `(a, b) == (1, "x")`), plus types declared `deriving (Eq)`. Functions have no `==`. Float `==` is IEEE: NaN is never equal to anything, itself included; test with `isNaN(x)` from `std/math`. Float `<` `<=` `>` `>=` are IEEE too: false whenever either side is NaN, so `if x > hi` does not catch a NaN |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
@@ -626,7 +630,7 @@ export func main() -> () ! {IO} { println("hi") }
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
+| `FS` | `readFile`, `writeFile`, `readLines`, `writeLines`, `readLinesResult`, `writeLinesResult`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
 | `Clock` | `now`, `sleep` | `std/clock` |
@@ -753,7 +757,7 @@ func handleRequest(path: string) -> string ! {Net} {
 **Common imports:**
 ```ailang
 import std/io (println, readLine)
-import std/fs (readFile, writeFile, fileExists, listDir, walk, walkWithSuffix, mkdir, mkdirAll, isDir, isFile, removeFile)
+import std/fs (readFile, writeFile, readLines, writeLines, readLinesResult, writeLinesResult, fileExists, listDir, walk, walkWithSuffix, mkdir, mkdirAll, isDir, isFile, removeFile)
 -- walk(root) -> [string] ! {FS}: every file under root, recursively, sorted, paths prefixed with root.
 -- walkWithSuffix(root, ".ail") -> [string] ! {FS}: walk filtered by suffix (not a glob pattern). Never hand-roll a recursive listDir/isDir walker.
 import std/env (getArgs, getEnv, getEnvOr)
@@ -770,7 +774,7 @@ import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axp
 -- Array[float] when memory or bulk updates matter: unboxed (8 B/element), strict-length kernels, one-copy batched writes.
 -- Its dot/axpy/scale clash with std/embedding's: import one module qualified (import std/array as A).
 import std/array (make, fromList, toList, get, getOpt, set, length, dot, axpy, scale, add, sub, mul, sum, argmax, updateMany, scatterAdd, encodeF64LE, decodeF64LE)
-import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
+import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, indexOf, stripPrefix, stripSuffix, padLeft, padRight, lines, unlines, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
 import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, absFloat, absInt)
 import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
@@ -859,6 +863,10 @@ func demoCombinators() -> int ! {IO} {
 - `startsWith(s, prefix) -> bool` - Check if string starts with prefix
 - `endsWith(s, suffix) -> bool` - Check if string ends with suffix
 - `find(hay, needle) -> int` - Index of substring, or -1 if not found
+- `indexOf(hay, needle) -> Option[int]` - Safe `Option`-returning substring index (`None` if not found)
+- `stripPrefix(s, prefix) -> string` / `stripSuffix(s, suffix) -> string` - Strip prefix/suffix if present, else unchanged
+- `padLeft(s, width, pad) -> string` / `padRight(s, width, pad) -> string` - Pad string to at least `width` characters
+- `lines(s) -> [string]` / `unlines(xs) -> string` - Split lines (strips `\r\n` and `\n`, drops trailing newline) / join lines with `\n`
 - `substring(s, start, end) -> string` - Extract substring
 - `split(s, delim) -> [string]` - Split string by delimiter
 - `chars(s) -> [string]` - Convert string to list of single-character strings (Unicode-aware)
@@ -1109,6 +1117,17 @@ export func main() -> () ! {IO} {
 - `map(f, r) -> Result[b, e]` - Apply function to Ok value
 - `mapErr(f, r) -> Result[a, e2]` - Apply function to Err value
 - `flatMap(f, r) -> Result[b, e]` - Chain Result-returning functions
+
+**Flat `Result`/`Option` pipelines with `let x = expr?`:** inside a function returning `Result[T, E]` or `Option[T]`, `let x = expr?` unwraps `Ok`/`Some` and early-returns `Err`/`None` (works in `{ ... }` blocks and `let ... in ...`; `let`-bound only — hoist sub-expression calls to their own `let`).
+```ailang
+import std/string (stringToInt)
+
+pure func addParsed(a: string, b: string) -> Option[int] {
+  let x = stringToInt(a)?
+  let y = stringToInt(b)?
+  Some(x + y)
+}
+```
 
 **Polymorphic ADTs with mixed field types:**
 ```ailang

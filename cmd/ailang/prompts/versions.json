@@ -1281,14 +1281,14 @@
     },
     "v0.16.20": {
       "file": "prompts/v0.16.20.md",
-      "hash": "4f9096de372538d22e93987c3222b57ce68b5920fbaef6ace46e4ee5fc844fe6",
-      "description": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix + LSP codeAction (incl. TC_MATCH_002 stubs), unbraced multi-statement match arms/if branches, std/list (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse",
+      "hash": "3f8cfa17e588eb6743287c3aa5c0a06de48469d75b8fbfaa1a4c17db349c69a5",
+      "description": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators",
       "created": "2026-11-25",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix + LSP codeAction (incl. TC_MATCH_002 stubs), unbraced multi-statement match arms/if branches, std/list (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse"
+      "notes": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators"
     }
   },
   "active": "v0.16.20",

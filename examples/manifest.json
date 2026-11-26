@@ -4487,14 +4487,39 @@
       "description": "Standard library O(n) list combinators (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse",
       "modules": ["std/list", "std/map", "std/option", "std/result", "std/string"],
       "expected": {"stdout": "all even: true\nenumerate: [(0, \"a\"), (1, \"b\"), (2, \"c\")]\nfilterMap: [10, 20, 30]\npartition evens=[2, 4, 6] odds=[1, 3, 5]\nspan prefix=[1, 2, 3] rest=[4, 1, 2]\nchunk: [[1, 2], [3, 4], [5]]\ngroupBy mod 2: [(0, [2, 4]), (1, [1, 3, 5])]\nmap filtered: [(\"a\", 22), (\"c\", 6), (\"d\", 8)]\nfind > 4: Some(5)\nresult getOrElse: good=42 fallback=-1\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/derive_json.ail",
+      "status": "working",
+      "tags": ["json", "deriving", "records", "adt", "contracts", "codecs"],
+      "description": "Automatic JSON codec synthesis via deriving (Json) for records (with Option[T] key omission) and algebraic sum types",
+      "modules": ["std/io", "std/json", "std/option", "std/result"],
+      "expected": {"stdout": "encoded config: {\"host\":\"0.0.0.0\",\"port\":8080}\ndecoded valid=true eq=true\ncmd1: {\"tag\":\"Ping\"}\ncmd2: {\"tag\":\"Scale\",\"fields\":[4]}\ncmd3: {\"tag\":\"Deploy\",\"service\":\"billing\",\"region\":\"eu-west-1\"}\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/error_propagation.ail",
+      "status": "working",
+      "tags": ["result", "option", "error-handling", "try-let", "contracts"],
+      "description": "Flat Result and Option error-propagation pipelines using let-bound '?' (let x = expr?)",
+      "modules": ["std/io", "std/string"],
+      "expected": {"stdout": "Ok(api.ailang.dev:443 (retries=3))\nErr(expected positive integer, got 0)\nErr(expected host:port, got 'malformed')\nSome(100)\nNone\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/string_fs_scripting.ail",
+      "status": "working",
+      "tags": ["stdlib", "string", "fs", "scripting", "lines", "contracts"],
+      "description": "Everyday std/string (indexOf, stripPrefix, stripSuffix, padLeft, padRight, lines, unlines) and std/fs (readLines, writeLines, readLinesResult, writeLinesResult) scripting helpers",
+      "modules": ["std/fs", "std/list", "std/option", "std/result", "std/string"],
+      "run_flags": ["--caps", "IO,FS", "--entry", "main"],
+      "expected": {"stdout": "roundtrip match: true\ndirect readLines count: [\"one\", \"two\"]\nmissing isErr: true\nindexOf colon: Some(2)\ncrlf lines: [\"x\", \"y\"]\nunlines empty: \n", "exit_code": 0}
     }
   ],
   "statistics": {
-    "total": 336,
-    "working": 328,
+    "total": 339,
+    "working": 331,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9761904761904762,
+    "coverage": 0.976401179941003,
     "experimental": 0
   },
   "milestones": {
