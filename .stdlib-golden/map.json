@@ -39,6 +39,51 @@
       "ifc": {
         "params": [
           {
+            "name": "p",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "m",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "filter",
+      "type": "((a,b)-\u003ebool,Map[a,b])-\u003eMap[a,b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "pairs",
             "label": {
               "constants": [],
@@ -264,6 +309,51 @@
       "ifc": {
         "params": [
           {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "m",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "mapValues",
+      "type": "((a)-\u003eb,Map[c,a])-\u003eMap[c,b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "m",
             "label": {
               "constants": [],
@@ -412,6 +502,75 @@
       },
       "name": "toList",
       "type": "(Map[a,b])-\u003elist[(a,b)]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "m",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "key",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "default",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "update",
+      "type": "(Map[a,b],a,b,(b)-\u003eb)-\u003eMap[a,b]",
       "effects": [],
       "pure": true,
       "tier": "stable"

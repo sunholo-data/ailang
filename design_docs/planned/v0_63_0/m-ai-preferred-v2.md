@@ -1,6 +1,6 @@
 # M-AI-PREFERRED-V2: Closing Measured Stretch Gaps & Self-Healing Tooling (v0.63.0)
 
-**Status**: Approved (D1=b, D2=a, D3=a ratified by Mark 2026-11-26; ready for sprint execution)
+**Status**: Implemented (Slices A–C + deterministic ELO routing — 2026-11-26)
 **Target**: v0.63.0
 **Priority**: P1 (High — directly targets the top remaining measured failure clusters from `v0.62.0` evals)
 **Estimated**: 4 independent slices (A–D), designed for parallel `/swarm` execution with isolated `workspace:"share"` worktrees

@@ -96,6 +96,51 @@
       "ifc": {
         "params": [
           {
+            "name": "n",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "chunk",
+      "type": "(int,list[a])-\u003e[list[a]]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "xs",
             "label": {
               "constants": [],
@@ -921,6 +966,51 @@
       "type": "((a)-\u003e(),list[a])-\u003e()",
       "effects": [],
       "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "keyFn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "groupBy",
+      "type": "((a)-\u003eb,list[a])-\u003eMap[b,list[a]]",
+      "effects": [],
+      "pure": true,
       "tier": "stable"
     },
     {
@@ -1971,6 +2061,51 @@
       },
       "name": "sortBy",
       "type": "((a,a)-\u003eint,list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "p",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "span",
+      "type": "((a)-\u003ebool,list[a])-\u003e(list[a],list[a])",
       "effects": [],
       "pure": true,
       "tier": "stable"

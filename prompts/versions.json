@@ -1281,14 +1281,14 @@
     },
     "v0.16.20": {
       "file": "prompts/v0.16.20.md",
-      "hash": "466da96c36f3ee8342b99aaaeb99e39b95db86b92a68c537be653f075169cac0",
-      "description": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix, std/list (all, enumerate, filterMap, partition, find), and std/result.getOrElse",
+      "hash": "4f9096de372538d22e93987c3222b57ce68b5920fbaef6ace46e4ee5fc844fe6",
+      "description": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix + LSP codeAction (incl. TC_MATCH_002 stubs), unbraced multi-statement match arms/if branches, std/list (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse",
       "created": "2026-11-25",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix, std/list (all, enumerate, filterMap, partition, find), and std/result.getOrElse"
+      "notes": "Document lambda tuple/record destructuring, record let destructuring, pipe operator (|>), typed holes (_?/?name), ailang check --fix + LSP codeAction (incl. TC_MATCH_002 stubs), unbraced multi-statement match arms/if branches, std/list (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse"
     }
   },
   "active": "v0.16.20",

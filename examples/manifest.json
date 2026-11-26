@@ -4483,10 +4483,10 @@
     {
       "path": "runnable/list_combinators.ail",
       "status": "working",
-      "tags": ["stdlib", "list", "result", "combinators", "filterMap", "partition", "enumerate", "find"],
-      "description": "Standard library O(n) list combinators (all, enumerate, filterMap, partition, find) and std/result.getOrElse",
-      "modules": ["std/list", "std/option", "std/result", "std/string"],
-      "expected": {"stdout": "all even: true\nenumerate: [(0, \"a\"), (1, \"b\"), (2, \"c\")]\nfilterMap: [10, 20, 30]\npartition evens=[2, 4, 6] odds=[1, 3, 5]\nfind > 4: Some(5)\nresult getOrElse: good=42 fallback=-1\n", "exit_code": 0}
+      "tags": ["stdlib", "list", "map", "result", "combinators", "filterMap", "partition", "enumerate", "find", "span", "chunk", "groupBy"],
+      "description": "Standard library O(n) list combinators (all, enumerate, filterMap, partition, span, chunk, groupBy, find), std/map (update, mapValues, filter), and std/result.getOrElse",
+      "modules": ["std/list", "std/map", "std/option", "std/result", "std/string"],
+      "expected": {"stdout": "all even: true\nenumerate: [(0, \"a\"), (1, \"b\"), (2, \"c\")]\nfilterMap: [10, 20, 30]\npartition evens=[2, 4, 6] odds=[1, 3, 5]\nspan prefix=[1, 2, 3] rest=[4, 1, 2]\nchunk: [[1, 2], [3, 4], [5]]\ngroupBy mod 2: [(0, [2, 4]), (1, [1, 3, 5])]\nmap filtered: [(\"a\", 22), (\"c\", 6), (\"d\", 8)]\nfind > 4: Some(5)\nresult getOrElse: good=42 fallback=-1\n", "exit_code": 0}
     }
   ],
   "statistics": {
