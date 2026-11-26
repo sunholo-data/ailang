@@ -13,7 +13,10 @@ func TestParseSemver(t *testing.T) {
 		{"v0.10.3", 0, 10, 3, false},
 		{"0.9", 0, 9, 0, false},
 		{"10.20.30", 10, 20, 30, false},
-		{"0.9.5-rc1", 0, 9, 5, false}, // pre-release stripped
+		{"0.9.5-rc1", 0, 9, 5, false},    // pre-release stripped
+		{"1.0.0-rc.1", 1, 0, 0, false},   // SemVer dot-separated RC stripped
+		{"v1.0.0-rc.1", 1, 0, 0, false},  // v-prefixed SemVer RC stripped
+		{"v1.0.0-rc.10", 1, 0, 0, false}, // multi-digit SemVer RC stripped
 		{"dev", 999, 999, 999, false},
 		{"unknown", 999, 999, 999, false},
 		{"", 999, 999, 999, false},
@@ -129,6 +132,15 @@ func TestSatisfiesAILANGVersion(t *testing.T) {
 		// With v prefix
 		{">=0.9.5", "v0.9.5", true},
 		{">=0.9.5", "v0.9.4", false},
+
+		// SemVer release candidates (pre-release suffix stripped per m-v1-release-gates.md §3,
+		// allowing >=1.0.0 packages to be exercised against v1.0.0-rc.N during RC soak)
+		{">=0.40.0", "v1.0.0-rc.1", true},
+		{">=0.64.0", "v1.0.0-rc.1", true},
+		{">=1.0.0", "v1.0.0-rc.1", true},
+		{">=1.0.0", "v1.0.0-rc.10", true},
+		{">=1.0.1", "v1.0.0-rc.1", false},
+		{">=1.1.0", "v1.0.0-rc.10", false},
 	}
 	for _, tc := range tests {
 		name := tc.requirement + "_vs_" + tc.currentVersion

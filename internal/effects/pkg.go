@@ -155,7 +155,10 @@ func listInstalledVersions(pkgDir string) ([]string, error) {
 }
 
 // semverLess orders MAJOR.MINOR.PATCH numerically; a pre-release sorts before
-// its release, and names that do not parse sort before any that do.
+// its release per SemVer 2.0.0 §11.4 (dot-separated numeric identifiers
+// compared as integers, numeric < non-numeric, shorter prefix < longer),
+// build metadata (+...) is ignored, and names that do not parse sort before
+// any that do.
 func semverLess(a, b string) bool {
 	av, aok := parseSemverParts(a)
 	bv, bok := parseSemverParts(b)
@@ -173,7 +176,70 @@ func semverLess(a, b string) bool {
 	if (av.pre == "") != (bv.pre == "") {
 		return av.pre != ""
 	}
-	return av.pre < bv.pre
+	if av.pre == "" {
+		return false
+	}
+	return semverPrereleaseLess(av.pre, bv.pre)
+}
+
+// semverPrereleaseLess compares two non-empty SemVer pre-release strings per
+// SemVer 2.0.0 §11.4.
+func semverPrereleaseLess(a, b string) bool {
+	aIDs := strings.Split(a, ".")
+	bIDs := strings.Split(b, ".")
+	for i := 0; i < len(aIDs) && i < len(bIDs); i++ {
+		ai, bi := aIDs[i], bIDs[i]
+		if ai == bi {
+			continue
+		}
+		aNum, bNum := isDigitsOnly(ai), isDigitsOnly(bi)
+		if aNum && bNum {
+			if cmp := compareDigitStrings(ai, bi); cmp != 0 {
+				return cmp < 0
+			}
+			continue
+		}
+		if aNum != bNum {
+			// SemVer 2.0.0 §11.4.3: numeric identifiers always have lower
+			// precedence than non-numeric identifiers.
+			return aNum
+		}
+		// SemVer 2.0.0 §11.4.2: non-numeric identifiers compare lexically in ASCII.
+		return ai < bi
+	}
+	// SemVer 2.0.0 §11.4.4: a smaller set of pre-release fields has lower
+	// precedence when all preceding identifiers are equal.
+	return len(aIDs) < len(bIDs)
+}
+
+func isDigitsOnly(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func compareDigitStrings(a, b string) int {
+	at := strings.TrimLeft(a, "0")
+	bt := strings.TrimLeft(b, "0")
+	if len(at) != len(bt) {
+		if len(at) < len(bt) {
+			return -1
+		}
+		return 1
+	}
+	if at < bt {
+		return -1
+	}
+	if at > bt {
+		return 1
+	}
+	return 0
 }
 
 type semverParts struct {
@@ -184,11 +250,24 @@ type semverParts struct {
 func parseSemverParts(v string) (semverParts, bool) {
 	var p semverParts
 	v = strings.TrimPrefix(v, "v")
-	if i := strings.IndexAny(v, "-+"); i >= 0 {
-		if v[i] == '-' {
-			p.pre = v[i+1:]
+	// SemVer 2.0.0 §10: strip build metadata (+...) before splitting pre-release.
+	if plus := strings.IndexByte(v, '+'); plus >= 0 {
+		if plus == len(v)-1 {
+			return p, false
 		}
-		v = v[:i]
+		v = v[:plus]
+	}
+	if dash := strings.IndexByte(v, '-'); dash >= 0 {
+		p.pre = v[dash+1:]
+		if p.pre == "" {
+			return p, false
+		}
+		for _, id := range strings.Split(p.pre, ".") {
+			if id == "" {
+				return p, false
+			}
+		}
+		v = v[:dash]
 	}
 	fields := strings.Split(v, ".")
 	if len(fields) != 3 {

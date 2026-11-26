@@ -13,11 +13,11 @@ GIT_VERSION=$(git describe --tags 2>/dev/null || echo "v0.0.0-unknown")
 # Extract active prompt version from prompts/versions.json
 ACTIVE_PROMPT=$(jq -r '.active' prompts/versions.json 2>/dev/null || echo "v0.4.2")
 
-# Extract latest stable release from git tags (most recent vX.Y.Z tag)
+# Extract latest stable release from git tags (most recent final vX.Y.Z tag, excluding pre-releases like -rc.N)
 # NO FALLBACK - fail loudly if tags aren't available (requires fetch-depth: 0 in CI)
-STABLE_RELEASE=$(git tag -l 'v*.*.*' --sort=-v:refname | head -1)
+STABLE_RELEASE=$(git tag -l 'v*.*.*' --sort=-v:refname | grep -v '-' | head -1 || true)
 if [ -z "$STABLE_RELEASE" ]; then
-  echo "❌ ERROR: No git tags found. Ensure 'fetch-depth: 0' is set in CI checkout."
+  echo "❌ ERROR: No stable git tags found. Ensure 'fetch-depth: 0' is set in CI checkout."
   echo "   Run 'git fetch --tags' or check your git configuration."
   exit 1
 fi

@@ -238,8 +238,12 @@ jobs:
 
       - name: Generate codebase statistics
         run: |
-          # Use latest git tag for version (handles tags on other branches)
-          export AILANG_VERSION=$(git tag --sort=-v:refname | head -1)
+          # Use latest final git tag for version (exclude pre-releases like v1.0.0-rc.1)
+          export AILANG_VERSION=$(git tag -l 'v*.*.*' --sort=-v:refname | grep -v '-' | head -1 || true)
+          if [ -z "$AILANG_VERSION" ]; then
+            echo "::error::No stable vX.Y.Z git tag found (ensure fetch-depth: 0)"
+            exit 1
+          fi
           bash tools/generate_codebase_stats.sh
 
       # Regenerate docs/docs/examples.mdx (the examples-status page) and
