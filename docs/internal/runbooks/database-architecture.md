@@ -1,5 +1,7 @@
 ---
-reviewBy: 2027-01-04
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Database Architecture & ID Relationships
@@ -16,26 +18,11 @@ AILANG uses **three SQLite databases** with cross-references. Understanding ID r
 
 ## ID Flow Diagram
 
-```
-COLLABORATION.DB                    COORDINATOR.DB                     OBSERVATORY.DB
-===============                     ==============                     ==============
-threads.id --------------------------> tasks.thread_id
-     |
-messages.id (UUID) ------------------> tasks.message_id
-     |                                     |
-     |                                     +-- tasks.id = "task-" + first_8(message_id)
-     |                                     |        |
-     |                                     |        +--------------------> tasks.id (same)
-     |                                     |                                    |
-     |                                     |   tasks.session_id <---------------+-- spans.attributes.session.id
-     |                                     |                                    |
-     |                                     |                               agent_assignments.id
-     |                                     |                                    |
-     |                                     |                               spans.id <-- span_id (16-char hex)
-     |                                     |                                    +-- trace_id (32-char hex)
-     |                                     |                                    +-- parent_span_id
-     |                                     |                                    +-- task_id (FK)
-     |                                     |                                    +-- agent_assignment_id (FK)
+```mermaid
+flowchart LR
+    C["collaboration.db<br/>threads.id, messages.id"] -->|"thread_id, message_id"| CO["coordinator.db<br/>tasks.id = task-first8(message_id)<br/>tasks.session_id"]
+    CO -->|"tasks.id -> task_id"| O["observatory.db<br/>tasks, agent_assignments, spans"]
+    O -->|"spans.attributes.session.id"| CO
 ```
 
 ## ID Formats
@@ -146,16 +133,12 @@ Event selected -> separate API call to coordinator.db -> ID format mismatch -> s
 The benchmark dashboards do **not** read a database. Their data is three JSON files, and they are
 served at **runtime from a GCS bucket**, not from the site build:
 
-```
-rig rotation (~45 min)
-  ├─ regenerates  docs/static/benchmarks/{latest.json, os/latest.json, os/history.json}
-  ├─ gsutil cp  → gs://ailang-multivac-dev-benchmarks        (step 9, EVERY cycle)
-  └─ (no git commit between releases — retired by W5)
-
-browser
-  └─ benchmarkFetch(rel)  docs/src/lib/benchmarkFetch.js
-       ├─ 1st: GET https://ailang-dev-dashboard-…run.app/benchmarks/<rel>   (Cache-Control max-age=60)
-       └─ fallback on non-2xx / CORS: /benchmarks/<rel>  (the in-build copy)
+```mermaid
+flowchart TD
+    R["rig rotation (~45 min)<br/>regenerates docs/static/benchmarks/{latest,os/latest,os/history}.json"] -->|"gsutil cp"| G["gs://ailang-multivac-dev-benchmarks"]
+    B["Browser: benchmarkFetch(rel)"] -->|"1st (Cache-Control max-age=60)"| D["https://ailang-dev-dashboard-...run.app/benchmarks/<rel>"]
+    D -.-> G
+    B -.->|"fallback on non-2xx/CORS"| S["/benchmarks/<rel> (in-build copy)"]
 ```
 
 **Consequences that trip people up:**

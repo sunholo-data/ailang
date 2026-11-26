@@ -1,12 +1,13 @@
 ---
 sidebar_position: 12
 title: Coordinator Workers (Multi-Host)
-reviewBy: 2027-02-08
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Coordinator Workers: Multi-Host Routing
 
-**Status:** v0.22.0 (M-COORD-MULTI-HOST-WORKERS)
 **Audience:** developers running an AILANG coordinator on a bare-metal host (e.g. a Mac Studio rig) AND on the team's cloud setup.
 
 This guide covers the **worker-tag routing** layer that lets the same Pub/Sub topic carry messages to specific hardware (e.g. "this task needs `ollama:gemma4-26b-ailang`, route to the Studio"). It builds on the existing M-PUBSUB-MESSAGING and M-CLOUD-DISPATCH foundation — there is no new transport.
@@ -49,26 +50,12 @@ ailang coordinator workers list --type cloud-run --since 24h
 
 ## How it works
 
-```
-ANY CLIENT                                          Pub/Sub
-(laptop, GitHub Action, cloud agent)               ailang-messages
-                                                    │
-  POST /api/messages                                │ attributes:
-  { ..., "requires": ["ollama:gemma4-..."] }        │   inbox: eval-rig
-                ↓                                   │   requires: ollama:gemma4-...
-        daemon stores + publishes                   ↓
-                                       ┌────────────┴──────────────┐
-                                       ▼                            ▼
-                            ┌────────────────────┐    ┌────────────────────────┐
-                            │ studio coordinator  │   │ laptop coordinator       │
-                            │ advertises:         │   │ advertises:              │
-                            │   ollama:gemma4-...│   │   code, docs              │
-                            │ → tag-subset MATCH  │   │ → tag-subset MISMATCH    │
-                            │ → ACK, process      │   │ → NACK, redeliver        │
-                            └─────────┬──────────┘    └────────────────────────┘
-                                      ↓
-                            executes via local Ollama,
-                            writes result to Firestore + Pub/Sub completion
+```mermaid
+flowchart TD
+    Cl["Any Client<br/>POST /api/messages {requires: ['ollama:gemma4-...']}"] --> PS["Pub/Sub ailang-messages<br/>attributes: inbox=eval-rig, requires=..."]
+    PS --> St["studio coordinator<br/>advertises: ollama:gemma4-... -> MATCH (ACK)"]
+    PS --> Lp["laptop coordinator<br/>advertises: code, docs -> MISMATCH (NACK)"]
+    St --> Ex["Executes via local Ollama -> Firestore + Pub/Sub completion"]
 ```
 
 The matching rule is **set inclusion with prefix-glob support**: every tag in `requires` must be satisfied by at least one advertised tag (exact match, or family glob like `ollama:*` covers `ollama:gemma4-26b-ailang`).
@@ -109,7 +96,7 @@ ailang coordinator status
 
 ### Example 2: Sending a tag-routed task from elsewhere
 
-**v0.23.0 (M-COORD-TAG-ROUTING-LASTMILE)** added the `--requires` CLI flag, so you no longer need to hand-roll `curl POST` to send tag-routed messages. The CLI handles the HTTP plumbing.
+The `--requires` CLI flag lets you send tag-routed messages directly without hand-rolling `curl POST`. The CLI handles the HTTP plumbing.
 
 ```bash
 # From the Studio shell (sender = receiver):
@@ -149,7 +136,7 @@ curl -X POST http://127.0.0.1:8765/api/messages \
 
 #### HTTP endpoint configuration
 
-v0.23.0 also moves the local daemon's HTTP listener from "opt-in via manual `PORT` env" to "on by default":
+The local daemon's HTTP listener is on by default:
 
 | Where | How |
 |---|---|
@@ -159,7 +146,7 @@ v0.23.0 also moves the local daemon's HTTP listener from "opt-in via manual `POR
 | Check it's up | `curl -s http://127.0.0.1:8765/health` → `{"status":"ok"}` |
 | Or via CLI | `ailang coordinator status` shows `HTTP: ✓ http://127.0.0.1:8765` |
 
-If you've installed the daemon before v0.23.0, the plist won't have `PORT` set and `--requires` will fail with an actionable error. Fix: `make coord-install` (idempotent — re-renders the plist with the new defaults).
+If an older daemon plist lacks `PORT`, `--requires` will fail with an actionable error. Fix: `make coord-install` (idempotent — re-renders the plist with the new defaults).
 
 #### Available routes
 
@@ -243,7 +230,7 @@ coordinator:
         - local-models
 ```
 
-**Defaults preserve all existing behavior** — agents without `worker_tags` or `worker_host_id` behave exactly as in v0.23.x. Empty `worker_host_id` falls back to `os.Hostname()`. Empty `worker_tags` means the agent processes any message that has no `requires` attribute.
+**Defaults preserve all existing behavior** — agents without `worker_tags` or `worker_host_id` behave identically to untagged workers. Empty `worker_host_id` falls back to `os.Hostname()`. Empty `worker_tags` means the agent processes any message that has no `requires` attribute.
 
 The terminology distinction matters: `worker_tags` are routing attributes, **NOT** AILANG's `--caps IO,FS` effect-system capabilities. Don't conflate the two.
 
@@ -260,7 +247,7 @@ For the contracts and code paths underneath this guide:
 
 - **Tag matching** (`internal/coordinator/tag_matcher.go`): pure `TagMatches(required, advertised) bool` with set-inclusion + prefix-glob (`ollama:*`). 17 unit tests cover edge cases including empty sets, case sensitivity, and the `system:heartbeat` probe tag.
 - **Pub/Sub adapter filter** (`internal/coordinator/pubsub_adapter.go`): `HandleNotification` calls `parseRequiresAttr` + `shouldClaim` BEFORE the Firestore fetch. Mismatched messages return a non-nil error → Pub/Sub treats this as NACK → message is redelivered to another worker.
-- **Heartbeat writer** (`internal/coordinator/heartbeat.go`): goroutine writing every 60s (configurable). The default `MemoryHeartbeatStore` works in-process; a `FirestoreHeartbeatStore` is on the v0.25 roadmap and slots into the same `HeartbeatStore` interface.
+- **Heartbeat writer** (`internal/coordinator/heartbeat.go`): goroutine writing every 60s (configurable). The default `MemoryHeartbeatStore` works in-process; a `FirestoreHeartbeatStore` is planned on the roadmap and slots into the same `HeartbeatStore` interface.
 - **HTTP propagation** (`internal/coordinator/daemon_http.go`): `POST /api/messages` accepts a `requires` array on the JSON body and threads it through to `pubsub.MessageAttributes.Requires` → comma-separated `requires` attribute on the Pub/Sub message.
 
 ## Future work

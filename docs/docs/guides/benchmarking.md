@@ -1,5 +1,6 @@
 ---
-reviewBy: 2027-01-25
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AI Usability Benchmarking Guide
@@ -321,22 +322,11 @@ make eval-report     # Generate CSV + Markdown reports
 make eval-clean      # Remove all eval_results files
 ```
 
-## Future Extensions
+## Roadmap & Extensions
 
-**v0.3.0:**
-- Net/Clock benchmarks (once effects land)
-- Auto-retry on failure
-- Cost tracking across vendors
-
-**v0.4.0:**
-- Concurrency benchmarks (spawn, channels)
-- Performance metrics
-- Memory usage tracking
-
-**v0.5.0:**
-- Web leaderboard
-- Historical trending
-- CI integration
+- **Effects & concurrency**: Net/Clock benchmarks, spawn/channel concurrency, memory usage tracking
+- **Reliability & costing**: Auto-retry on failure, cross-vendor cost tracking, CI integration
+- **Reporting**: Web leaderboard and historical release trending (see [Benchmarks](/docs/benchmarks/overview))
 
 ## Contributing
 

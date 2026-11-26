@@ -1,7 +1,9 @@
 ---
 title: The Mission Model Fleet
 description: Which model runs which role in an autonomous mission loop, why, and how each role survives a provider outage or an exhausted quota
-reviewBy: 2027-01-18
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # The mission model fleet
@@ -93,9 +95,11 @@ Putting the metered twin directly behind the flat-rate lane means running out of
 **route**, not the **model**. The loop keeps the same capability and only changes how it is billed.
 Only when both routes are gone does the chain fall back to a different model.
 
-```
-codex → ollama/deepseek-v4-flash → openrouter/deepseek-v4-flash → opus
-        └── flat-rate ──────────┘  └── metered ───────────────┘  └ different model
+```mermaid
+flowchart LR
+    C["codex"] -->|"flat-rate"| F1["ollama/deepseek-v4-flash"]
+    F1 -->|"metered twin"| F2["openrouter/deepseek-v4-flash"]
+    F2 -->|"different model"| O["opus"]
 ```
 
 ## Two independence rules
@@ -155,5 +159,5 @@ fallback.
 ## See also
 
 - [Bootstrapping a Mission Loop](./mission-bootstrap.md) — pointing a loop at your own repository
-- [Agent Workflows](./agent-workflows.mdx) — the design → plan → execute → evaluate inner loop
-- [Evaluation](./evaluation/README.mdx) — how the harness benchmarks referenced above are produced
+- [Agent Workflows](../../docs/guides/agent-workflows.mdx) — the design → plan → execute → evaluate inner loop
+- [Evaluation](../../docs/guides/evaluation/README.mdx) — how the harness benchmarks referenced above are produced

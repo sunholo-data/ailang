@@ -4,6 +4,7 @@ title: Decision log
 description: Dated decisions for the AILANG fine-tuning programme — who decided, what, and why.
 reviewed: 2026-11-25
 reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Decision log

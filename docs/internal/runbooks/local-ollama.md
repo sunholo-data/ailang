@@ -1,18 +1,19 @@
 ---
 sidebar_position: 9
 title: Local Ollama Eval
-reviewBy: 2027-02-08
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Local Ollama Eval
 
 Running AILANG agent-mode evaluations against local Ollama models — typically
 **gemma4:26b** — on a dedicated Mac Studio (128 GB unified memory, M4 Max).
-Companion to [model-configuration.md](./model-configuration.md) which covers
+Companion to [model-configuration.md](../../docs/guides/evaluation/model-configuration.md) which covers
 cloud OS models routed via OpenRouter.
 
-This page reflects the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY
-milestones (v0.22.0).
+This page reflects the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY architecture.
 
 ## TL;DR — canonical commands
 
@@ -274,17 +275,14 @@ ailang chains live <chain-id> --once
 
 Output:
 
-```
+```text
 Chain: c68f0cc6  Source: eval_suite  Status: active  Elapsed: 12m
 Ollama: gemma4:26b  (VRAM 25.76 GB)
-────────────────────────────────────────────────────────────────────────────────
 #    Benchmark / Agent           Status     Turns   Tokens    Last span
-────────────────────────────────────────────────────────────────────────────────
 1    eval-agent:fizzbuzz         running    12      47K       3s ago
 2    eval-agent:adt_option       running    8       31K       12s ago
 3    eval-agent:balanced_parens  running    0       0         ⚠ 540s ago (stuck?)
 4    eval-agent:recursion_fib    running    14      52K       1s ago
-────────────────────────────────────────────────────────────────────────────────
 ```
 
 The `⚠ stuck?` indicator fires when the most recent span for a stage is
@@ -339,5 +337,5 @@ mid-run**
 
 - [M-EVAL-LOCAL-OLLAMA design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-eval-local-ollama.md)
 - [M-EVAL-LOCAL-OBSERVABILITY design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability.md)
-- [model-configuration.md](./model-configuration.md) — cloud OS models via OpenRouter
+- [model-configuration.md](../../docs/guides/evaluation/model-configuration.md) — cloud OS models via OpenRouter
 - [Ollama library](https://ollama.com/library) — full model catalog

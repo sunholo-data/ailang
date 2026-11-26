@@ -4,6 +4,7 @@ title: Pilot-3 (learning from its own mistakes)
 description: The third AILANG fine-tune — trained on pilot-2's own failing attempts repaired by Opus, reaching 10/24 on the held-out set (up from 4/24) and exposing dropped runaway write calls.
 reviewed: 2026-11-25
 reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Pilot-3: learning from its own mistakes

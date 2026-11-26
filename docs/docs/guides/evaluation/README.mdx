@@ -1,10 +1,12 @@
 ---
-reviewBy: 2027-01-11
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon, { CheckIcon, CrossIcon, InfoIcon } from '@site/src/components/Icon';
 
-# AI Evaluation Framework (M-EVAL-LOOP v2.0)
+# AI Evaluation Framework
 
 This directory contains documentation for AILANG's AI evaluation framework, which measures how well AI models can generate AILANG code and provides automated feedback loops for continuous improvement.
 
@@ -31,7 +33,7 @@ ailang eval-suite --tier smoke --models gpt5-mini
 make eval-baseline
 
 # Analyze failures
-ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
+ailang eval-analyze -results eval_results/baselines/prev -dry-run
 ```
 
 **Cost**: ~$0.0003-0.002 per benchmark (5-10x cheaper than full suite)
@@ -48,7 +50,7 @@ ailang eval-suite --full
 make eval-baseline FULL=true 
 
 # Compare results
-ailang eval-compare baselines/v0.3.0 current
+ailang eval-compare baselines/prev current
 ```
 
 **Cost**: ~$0.003-0.015 per benchmark
@@ -69,7 +71,7 @@ ailang eval-suite --models gpt5 --self-repair
 - **[architecture.md](architecture.md)** - System architecture and command reference
 - **[eval-loop.md](eval-loop.md)** - Automated evaluation and improvement workflow
 - **[model-configuration.md](model-configuration.md)** - Model setup and pricing
-- **[cost-and-speed-budgets.md](cost-and-speed-budgets.md)** - Cost-as-primary-gate eval semantics (v0.15.1+)
+- **[cost-and-speed-budgets.md](cost-and-speed-budgets.md)** - Cost-as-primary-gate eval semantics
 
 ## Available Models
 
@@ -117,11 +119,11 @@ The pinned version is also injected into the Python teaching prompt (`prompts/py
 | `ailang eval-suite` | Run benchmarks | `ailang eval-suite --full` |
 | `ailang eval-compare` | Compare two runs | `ailang eval-compare baseline current` |
 | `ailang eval-analyze` | Analyze failures | `ailang eval-analyze -results dir -dry-run` |
-| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
+| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ current` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
-| `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0` |
+| `ailang eval-report` | Generate reports | `ailang eval-report results/ current` |
 
-### Agent Eval (agentic coding via CLI - v0.8.0+)
+### Agent Eval (agentic coding via CLI)
 
 | Command | Purpose | Example |
 |---------|---------|---------|
@@ -130,7 +132,7 @@ The pinned version is also injected into the Python teaching prompt (`prompts/py
 | `ailang eval-chains view` | View chain results | `ailang eval-chains view <id>` |
 | `ailang eval-chains stats` | Pass rate breakdown | `ailang eval-chains stats <id>` |
 | `ailang eval-chains failures` | Show failures only | `ailang eval-chains failures <id>` |
-| `ailang eval-report --from-chain` | Report from chain | `ailang eval-report --from-chain <id> v0.8.0` |
+| `ailang eval-report --from-chain` | Report from chain | `ailang eval-report --from-chain <id> current` |
 | `ailang eval-compare --chain` | Compare two chains | `ailang eval-compare --chain <id1> --chain <id2>` |
 
 See [architecture.md](architecture.md) for detailed command reference.
@@ -142,14 +144,14 @@ release-review purposes. Every benchmark YAML declares a `tier` and 1–3
 `tags`. See [`benchmarks/CURATION.md`](https://github.com/sunholo-data/ailang/blob/dev/benchmarks/CURATION.md)
 for the full curation guide, promotion/demotion criteria, and rotation rules.
 
-### Tier structure (v0.14.0+)
+### Tier structure
 
 | Tier       | Expected pass | Run cost  | Role                                       |
 |------------|---------------|-----------|--------------------------------------------|
 | `smoke`    | ≥ 95%         | seconds   | Regression gate — flat near 100%           |
 | `core`     | 70–95%        | minutes   | **Headline metric** — what releases quote  |
 | `stretch`  | 30–70%        | minutes   | Headroom / differentiation benchmarks      |
-| `frontier` | 0–40%         | minutes   | Frontier-defeating — at least one frontier model fails (v0.29.0+) |
+| `frontier` | 0–40%         | minutes   | Frontier-defeating — at least one frontier model fails |
 | `vision`   | 0–50%         | variable  | Aspirational — measures potential          |
 
 The **Core tier** pass rate is the primary headline metric on the dashboard
@@ -207,7 +209,7 @@ After running benchmarks:
 - **Matrix**: `eval_results/baselines/VERSION/matrix.json` - Aggregated stats
 - **Dashboard**: `docs/docs/benchmarks/performance.md` - Live leaderboard
 
-### Agent Eval (chain-based - v0.8.0+)
+### Agent Eval (chain-based)
 - **Database**: `~/.ailang/state/observatory.db` - Chains with per-benchmark stages
 - **Query**: `ailang eval-chains view <chain-id>` - View results
 - **Export**: `ailang eval-report --from-chain <id> VERSION` - Generate reports from chains
@@ -245,7 +247,7 @@ ailang eval-analyze -results eval_results/current -dry-run  # Check failures
 
 #### 4. Compare Results
 ```bash
-ailang eval-compare baselines/v0.3.6 current
+ailang eval-compare baselines/prev current
 ```
 
 #### 5. Update Dashboard
@@ -253,7 +255,7 @@ ailang eval-compare baselines/v0.3.6 current
 ailang eval-report eval_results/baselines/VERSION VERSION --format=json
 ```
 
-### Agent Eval Workflow (v0.8.0+ - agentic coding)
+### Agent Eval Workflow (agentic coding)
 
 #### 1. Run Agent Eval
 ```bash
@@ -279,7 +281,7 @@ ailang eval-compare --chain <id1> --chain <id2>
 
 #### 5. Generate Report
 ```bash
-ailang eval-report --from-chain <id> v0.8.0 --format=json
+ailang eval-report --from-chain <id> current --format=json
 ```
 
 ## Natural Language Interface
@@ -290,7 +292,7 @@ You can also use natural language with Claude Code:
 <CheckIcon inline size={14} /> "validate my fix for records"
 <CheckIcon inline size={14} /> "how is AILANG performing?"
 <CheckIcon inline size={14} /> "compare baseline to current"
-<CheckIcon inline size={14} /> "generate an HTML report for v0.3.6"
+<CheckIcon inline size={14} /> "generate an HTML report for current"
 ```
 
 The eval-orchestrator agent automatically routes to the correct commands.

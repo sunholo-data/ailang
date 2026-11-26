@@ -1,957 +1,148 @@
 ---
 sidebar_position: 20
 title: Telemetry & Tracing
-description: OpenTelemetry integration for distributed tracing and observability
-reviewBy: 2027-02-01
+description: OpenTelemetry integration for distributed tracing, cross-process trace linking, and Observatory ingestion
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Telemetry & Tracing
 
-AILANG includes comprehensive OpenTelemetry (OTEL) instrumentation for distributed tracing and observability. This enables integration with standard observability backends like Google Cloud Trace, Grafana, Honeycomb, Jaeger, and more.
-
-## Quick Start
-
-### Google Cloud Trace (Recommended for GCP)
-
-```bash
-# Set your GCP project (uses Application Default Credentials)
-export GOOGLE_CLOUD_PROJECT=your-project-id
-
-# Start services
-ailang serve
-ailang coordinator start
-```
-
-View traces at: https://console.cloud.google.com/traces/explorer?project=your-project-id
-
-### Generic OTLP (Jaeger, Grafana, Honeycomb, etc.)
-
-```bash
-# Set OTLP collector endpoint
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-
-# Start services
-ailang serve
-ailang coordinator start
-```
-
-### Dual Export (Both GCP + OTLP)
-
-Send traces to **both** Google Cloud Trace and another backend simultaneously:
-
-```bash
-# Configure both
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-
-# Traces go to both destinations
-ailang serve
-```
-
-## CLI Trace Commands
-
-AILANG includes a built-in CLI for querying traces from Google Cloud Trace:
-
-### Check Status
-
-```bash
-# See current telemetry configuration
-ailang trace status
-```
-
-Output:
-```
-Telemetry Configuration Status
-────────────────────────────────────────
-Google Cloud Project: multivac-internal-dev
-OTLP Endpoint:        (not set)
-
-Mode: Google Cloud Trace
-View traces: https://console.cloud.google.com/traces/explorer?project=multivac-internal-dev
-```
-
-### List Recent Traces
-
-```bash
-# List last 10 traces (default)
-ailang trace list
-
-# Customize time range and limit
-ailang trace list --hours 2 --limit 20
-
-# Filter by span name
-ailang trace list --filter "ailang run"
-
-# JSON output for scripting
-ailang trace list --json
-```
-
-### View Trace Details
-
-```bash
-# View full trace hierarchy with timing
-ailang trace view <trace-id>
-```
-
-Example output:
-```
-Trace: 5d359e6d157ba7e726aca8a7600a3bfe
-Spans: 5
-────────────────────────────────────────────────────────────
-ailang run: examples/runnable/factorial.ail (2.065ms)
-  └─ compile: examples/runnable/factorial.ail (1.458ms)
-  └─ compile.load (358µs)
-  └─ compile.topo_sort (84µs)
-  └─ compile.modules (859µs)
-```
-
-## Tracing tiers
-
-As of v0.12.0 (`M-OBS-TRACE-TRIAGE`), tracing has three tiers. The default is
-`standard`, which emits module/top-level-effect/contract/budget/error spans
-but **not** per-call `eval.function.*` or nested `eval.effect.*` spans. Per-call
-tracing is opt-in via `deep`.
-
-| Tier | Emits | When to use |
-|---|---|---|
-| `off` | Nothing (same as `AILANG_NO_TRACE=1`) | CI, perf benchmarks |
-| `standard` ✅ | `eval.module.*`, top-level `eval.effect.*` (Depth≤1), `compile.*`, `coordinator.*`, `effect.*`, task/chain-linked spans | Normal dev with observability on |
-| `deep` | standard + per-call `eval.function.*` + nested `eval.effect.*` (args/results serialized in full) | Profiling hot paths, AI training data capture |
-
-Precedence: `--trace-tier` CLI flag > `AILANG_TRACE` env > `AILANG_NO_TRACE=1` legacy alias > default (`standard`).
-
-```bash
-# Default — standard tier, no per-call spans
-ailang run --caps IO program.ail
-
-# Per-call tracing for this one run (CLI flag wins)
-ailang run --caps IO --trace-tier deep program.ail
-
-# Per-call tracing for the whole shell
-export AILANG_TRACE=deep
-
-# Disable tracing entirely (legacy)
-AILANG_NO_TRACE=1 ailang run --caps IO program.ail
-
-# Per-trace span budget (default 500). Exceeding emits one
-# `trace.truncated` rollup span with dropped_count attribute.
-AILANG_TRACE_MAX_SPANS=1000 ailang run --caps IO program.ail
-```
-
-## Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `AILANG_TRACE` | Tracing tier (`off`, `standard`, `deep`) | `deep` |
-| `AILANG_TRACE_MAX_SPANS` | Per-trace span budget (0 = unlimited) | `500` |
-| `AILANG_NO_TRACE=1` | Legacy alias for `AILANG_TRACE=off` | `1` |
-| `GOOGLE_CLOUD_PROJECT` | GCP project for Cloud Trace | `my-project` |
-| `OTLP_GOOGLE_CLOUD_PROJECT` | Telemetry-specific GCP project (takes precedence) | `telemetry-project` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | `http://localhost:4318` |
-| `OTEL_ENVIRONMENT` | Deployment environment | `production`, `staging`, `development` |
-
-**Priority for GCP project:**
-1. `OTLP_GOOGLE_CLOUD_PROJECT` (if set)
-2. `GOOGLE_CLOUD_PROJECT` (fallback)
-
-This mirrors the standard OTEL GCP-project precedence (`OTLP_GOOGLE_CLOUD_PROJECT` takes precedence over `GOOGLE_CLOUD_PROJECT`).
-
-### Performance vs Observability Trade-off
-
-Tracing adds approximately **2x overhead** to execution time due to `.String()` serialization
-of function arguments at every call site. For data-intensive workloads:
-
-```bash
-# Maximum performance (no tracing)
-AILANG_NO_TRACE=1 ailang run --caps IO,FS program.ail
-
-# With tracing (for debugging/observability)
-ailang run --caps IO,FS program.ail
-```
-
-| Benchmark | No Trace | With Trace | Overhead |
-|-----------|----------|------------|----------|
-| Alice EPUB (185KB) | 1.4s | 2.5s | ~1.8x |
-| Moby Dick EPUB (797KB) | 3.0s | 6.8s | ~2.3x |
-
-Auto-trace enables when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `AILANG_NO_TRACE=1`
-overrides this, disabling trace collection entirely.
-
-## Instrumented Components
-
-All components emit traces automatically when telemetry is configured:
-
-### Compiler Pipeline
-
-The compilation pipeline emits detailed spans for each phase:
-
-**Single-file/REPL compilation:**
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `compile.pipeline` | Parent span for entire compilation | `file.path`, `file.size_bytes`, `is_repl` |
-| `compile.parse` | Parsing phase | `ast.nodes` (count) |
-| `compile.elaborate` | Surface→Core elaboration | - |
-| `compile.typecheck` | Type checking | - |
-| `compile.validate` | CoreTypeInfo validation | - |
-| `compile.lower` | Operator lowering | - |
-
-**Module compilation:**
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `compile.module_pipeline` | Parent span for module compilation | `file.path`, `file.size_bytes` |
-| `compile.load` | Module loading | `modules.loaded` (count) |
-| `compile.topo_sort` | Topological sort | `modules.sorted` (count) |
-| `compile.modules` | Compile all modules | `modules.count` |
-
-### Eval Harness (`ailang eval-suite`)
-
-The [benchmark evaluation system](/docs/guides/evaluation) emits spans for suite execution and individual benchmarks:
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `eval.suite` | Parent span for entire benchmark run | `eval.models`, `eval.benchmarks`, `eval.languages`, `eval.total_runs`, `eval.agent_mode`, `eval.success_count`, `eval.fail_count`, `eval.success_rate` |
-| `eval.benchmark` | Individual benchmark execution | `benchmark.id`, `benchmark.model`, `benchmark.language`, `benchmark.seed`, `benchmark.success`, `benchmark.duration_ms`, `benchmark.input_tokens`, `benchmark.output_tokens`, `benchmark.cost_usd` |
-
-**v0.6.3+ Enhanced Attributes:**
-
-For successful benchmarks:
-- `code.preview` - First 100 chars of generated code
-- `code.hash` - 8-char hash for deduplication
-
-For failed benchmarks:
-- `error.summary` - Truncated error message
-- `error.category` - Error classification
-
-For standard mode (with repair):
-- `benchmark.repair_successful` - Whether self-repair succeeded
-
-### Messaging System (`ailang messages`)
-
-Message operations emit spans for observability:
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `messages.send` | Create/insert message | `message.to_inbox`, `message.from_agent`, `message.type`, `message.category`, `message.id` |
-| `messages.list` | List messages with filters | `list.inbox`, `list.unread_only`, `list.collapsed`, `list.limit`, `list.result_count` |
-| `messages.read` | Read single message by ID | `message.id`, `message.from_agent`, `message.to_inbox`, `message.type` |
-| `messages.search` | Semantic search | `search.query`, `search.use_neural`, `search.threshold`, `search.limit`, `search.inbox`, `search.result_count` |
-| `messages.ack` | Mark message as read | `message.id`, `message.new_status` |
-| `messages.unack` | Mark message as unread | `message.id`, `message.new_status` |
-| `messages.cleanup` | Delete old/expired messages | `cleanup.older_than`, `cleanup.expired_only`, `cleanup.dry_run`, `cleanup.deleted_count` |
-| `messages.github_sync` | Import issues from GitHub | `github.repo`, `sync.dry_run`, `github.issues_found`, `sync.imported`, `sync.skipped` |
-
-### REPL (`ailang repl`)
-
-Interactive REPL sessions emit session-level and input-level spans:
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `repl.session` | Parent span for entire REPL session | `session.id`, `version`, `session.input_count`, `session.duration_ms` |
-| `repl.input` | Individual user input evaluation | `input.type` (command/expression), `input.text` (truncated 200 chars), `input.number` |
-
-**Span Hierarchy:**
-```
-repl.session (duration of interactive session)
-  └─ repl.input #1 (first user input)
-  └─ repl.input #2 (second user input)
-  └─ ... (subsequent inputs)
-```
-
-Session metrics are finalized when the REPL exits, capturing total input count and session duration.
-
-### Check Command (`ailang check`)
-
-The type checking command emits spans for file/directory verification:
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `ailang.check` | Root span for check operation | `file.path`, `timeout_ms`, `is_directory` |
-| `check.result` | Check outcome with pass/fail | `passed` (bool), `errors.count`, `timed_out` (if timeout occurred) |
-
-**Span Hierarchy:**
-```
-ailang.check (root span)
-  └─ check.result (with pass/fail and error counts)
-  └─ compile.* (compilation phases from compiler pipeline)
-```
-
-When using `--timeout`, the `timed_out` attribute is set if compilation exceeds the limit.
-
-### Server (`ailang serve`)
-
-- HTTP request/response spans via `otelhttp` middleware
-- Automatic status codes, latency, and path attributes
-- Filters out `/health` and `/ws` endpoints
-
-### Coordinator (`ailang coordinator start`)
-
-The [coordinator daemon](/docs/guides/coordinator) emits task lifecycle spans:
-
-- Task lifecycle spans: `coordinator.execute_task`
-- Attributes: `task.id`, `task.type`, `task.stage`
-- Token and cost tracking per task
-
-### Executors
-
-**Claude Executor:**
-- Span: `claude.execute`
-- Attributes: `executor.model`, `task.workspace`, `session.id`
-- Token counts: `task.tokens_in`, `task.tokens_out`
-- Cost: `task.cost_usd`
-
-**Managed Agents Executor:**
-- Span: `managed_agents.execute`
-- HTTP/SSE (Vertex Managed Agents API, the Antigravity `antigravity-preview` agent); same token + cost attributes as the Claude executor
-
-### AI Providers
-
-All AI providers emit spans for API calls:
-
-| Provider | Span Name | Key Attributes |
-|----------|-----------|----------------|
-| Anthropic | `anthropic.generate` | `ai.model`, `ai.tokens_in`, `ai.tokens_out`, `http.status_code`, `ai.prompt_preview`, `ai.response_preview`, `ai.finish_reason` |
-| OpenAI | `openai.generate` | `ai.model`, `ai.api_type` (chat/responses), `ai.tokens_*`, `ai.prompt_preview`, `ai.response_preview` |
-| Gemini | `gemini.generate` | `ai.model`, `ai.auth_type` (api_key/adc), `ai.tokens_*`, `ai.prompt_preview`, `ai.response_preview` |
-| Ollama | `ollama.generate` | `ai.model`, `ai.endpoint`, `ai.prompt_preview`, `ai.response_preview` |
-
-## Telemetry Helpers (v0.6.3+)
-
-The `internal/telemetry` package provides helper functions for safe, consistent span attributes:
-
-### Truncate
-
-Safely truncate strings for span attributes, preserving UTF-8 boundaries:
-
-```go
-import "github.com/sunholo/ailang/internal/telemetry"
-
-// Truncate to 100 chars, adding "..." if truncated
-preview := telemetry.Truncate(longString, 100)
-// "Hello, 世界..." (never breaks in middle of multi-byte chars)
-```
-
-### CategorizeError
-
-Categorize errors for filtering and aggregation:
-
-```go
-category := telemetry.CategorizeError(err)
-// Returns: "network", "timeout", "auth", "rate_limit", "parse", "type", "runtime", or "unknown"
-```
-
-### ShortHash
-
-Generate deterministic short hashes for deduplication:
-
-```go
-hash := telemetry.ShortHash(codeString)
-// Returns 8-char hex string like "a1b2c3d4"
-```
-
-### LineSnippet
-
-Extract source code context around a line number:
-
-```go
-snippet := telemetry.LineSnippet(sourceCode, lineNumber, 60)
-// Returns up to 60 chars of the specified line
-```
-
-## Example: Local Jaeger Setup
-
-```bash
-# Start Jaeger with OTLP collector
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 4318:4318 \
-  jaegertracing/all-in-one:latest
-
-# Configure AILANG
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-
-# Start services
-ailang serve &
-ailang coordinator start
-
-# View traces at http://localhost:16686
-```
-
-## Example: Google Cloud Trace + Local Jaeger
-
-```bash
-# Dual export - both GCP and local Jaeger
-export GOOGLE_CLOUD_PROJECT=my-gcp-project
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-
-# Traces go to BOTH destinations
-ailang serve
-```
-
-## Integration Tests
-
-Run the integration tests to verify your Google Cloud Trace setup:
-
-```bash
-# Set project
-export GOOGLE_CLOUD_PROJECT=your-project-id
-
-# Run tests
-go test -tags=integration -v -run TestGoogleCloudTrace ./internal/telemetry/...
-```
-
-Tests create sample traces and verify they export correctly.
-
-## Native CLI Telemetry
-
-Claude Code has native OTEL support:
-
-### Claude Code
-
-```bash
-export CLAUDE_CODE_ENABLE_TELEMETRY=1
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-```
-
-## Cross-Process Trace Linking (v0.6.3+)
-
-AILANG supports end-to-end distributed tracing across process boundaries. When the coordinator spawns CLI executors (e.g. Claude Code), and those CLIs spawn `ailang run` commands, all spans are linked into a single trace.
-
-### How It Works
-
-The trace context flows via W3C TRACEPARENT environment variables:
-
-```mermaid
-flowchart TB
-    subgraph Coordinator["Coordinator (traced)"]
-        ExecTask["coordinator.execute_task"]
-
-        subgraph Inject["Environment Injection"]
-            TP["TRACEPARENT=00-trace_id-span_id-01"]
-            TID["AILANG_TASK_ID=..."]
-            SID["AILANG_SESSION_ID=..."]
-        end
-
-        subgraph CLI["Claude Code"]
-            Inherit["Environment variables inherited"]
-
-            subgraph AILANG["ailang run (traced)"]
-                Extract["Extracts TRACEPARENT"]
-                Child["Creates child spans"]
-            end
-        end
-    end
-
-    ExecTask --> Inject
-    Inject --> CLI
-    Inherit --> AILANG
-    Extract --> Child
-```
-
-### Environment Variables
-
-The following environment variables are used for trace propagation:
-
-| Variable | Format | Description |
-|----------|--------|-------------|
-| `TRACEPARENT` | `00-{trace_id}-{span_id}-{flags}` | W3C trace context (standard) |
-| `TRACESTATE` | Vendor-specific | Additional trace state (optional) |
-| `AILANG_TASK_ID` | UUID | Coordinator task ID (fallback correlation) |
-| `AILANG_SESSION_ID` | UUID | Executor session ID (fallback correlation) |
-
-### Supported Commands
-
-These commands extract trace context from the environment:
-
-| Command | Behavior |
-|---------|----------|
-| `ailang run` | Creates child span under parent trace |
-| `ailang check` | Creates child span under parent trace |
-| `ailang eval-suite` | Creates child span under parent trace |
-| `ailang repl` | Session uses extracted trace context |
-
-### CLI Tool Scenarios
-
-Depending on whether the CLI tool (e.g. Claude Code) supports OTEL:
-
-**Scenario A: Claude Code (metrics + linked traces)**
-```
-Executor span ─────────────────────► ailang run span
-     │                                     │
-     └─────────────────────────────────────┘
-              (linked trace, CLI gap)
-
-   + Claude Code metrics/events with ailang.task_id correlation
-```
-
-Claude Code exports **metrics and events** (not traces), but we inject `ailang.task_id` via `OTEL_RESOURCE_ATTRIBUTES` so they can be joined with AILANG traces in the dashboard.
-
-**Scenario B: CLI passes env vars through (fallback)**
-```
-Executor span ──────────────────► ailang run span
-     │                                  │
-     └──────────────────────────────────┘
-              (linked trace, CLI gap)
-```
-
-**Scenario C: CLI sanitizes environment (rare)**
-```
-Executor span             ailang run span
-     │                          │
-     │     (correlated via      │
-     └──── AILANG_TASK_ID) ─────┘
-```
-
-### CLI Telemetry Configuration
-
-The AILANG executors automatically configure CLI telemetry. Here's what gets injected:
-
-**Claude Code** (via environment variables):
-```bash
-CLAUDE_CODE_ENABLE_TELEMETRY=1           # Enable telemetry
-OTEL_METRICS_EXPORTER=otlp               # Export metrics via OTLP
-OTEL_LOGS_EXPORTER=otlp                  # Export events via OTLP
-OTEL_RESOURCE_ATTRIBUTES=ailang.task_id=...,ailang.session_id=...  # Correlation IDs
-OTEL_EXPORTER_OTLP_ENDPOINT=...          # Inherited from parent
-OTEL_EXPORTER_OTLP_PROTOCOL=...          # Inherited from parent
-OTLP_GOOGLE_CLOUD_PROJECT=...            # Primary project
-GOOGLE_CLOUD_PROJECT=...                 # Fallback project
-TRACEPARENT=00-{trace_id}-{span_id}-01   # W3C trace context (for ailang run)
-```
-
-**Note:** Claude Code exports **metrics and events only** (not traces). The `OTEL_RESOURCE_ATTRIBUTES` allows joining Claude Code metrics with AILANG traces by `ailang.task_id`.
-
-> The retired Gemini CLI executor used to receive injected telemetry env vars
-> here. Its successor, the in-process `managed_agents` executor, emits its
-> `managed_agents.execute` span directly through AILANG's own tracer — no CLI
-> env-var injection is involved.
-
-**Project detection order:**
-1. `OTLP_GOOGLE_CLOUD_PROJECT` - Primary
-2. `GOOGLE_CLOUD_PROJECT` - Fallback (GCP standard)
-
-**Manual CLI configuration** (if running CLIs directly):
-
-Claude Code settings (`~/.claude/settings.json`):
-```json
-{
-  "env": {
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
-    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"
-  }
-}
-```
-
-### Using in CI/CD
-
-Export trace context to link CI runs with AILANG executions:
-
-**GitHub Actions:**
-```yaml
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run with trace linking
-        env:
-          TRACEPARENT: "00-${{ github.run_id }}-${{ github.job }}-01"
-          AILANG_TASK_ID: ${{ github.run_id }}
-        run: |
-          ailang run --caps IO --entry main app.ail
-```
-
-**Cloud Build:**
-```yaml
-steps:
-  - name: 'ailang-builder'
-    env:
-      - 'TRACEPARENT=00-${BUILD_ID}-cloudtrace-01'
-      - 'AILANG_TASK_ID=${BUILD_ID}'
-    args: ['run', '--caps', 'IO', '--entry', 'main', 'app.ail']
-```
-
-### Verification
-
-To verify trace linking is working:
-
-```bash
-# 1. Set up telemetry
-export GOOGLE_CLOUD_PROJECT=your-project
-
-# 2. Create a trace context manually
-export TRACEPARENT="00-$(uuidgen | tr -d '-')-$(uuidgen | tr -d '-' | cut -c1-16)-01"
-
-# 3. Run a command
-ailang run --caps IO --entry main examples/runnable/hello.ail
-
-# 4. Check traces
-ailang trace list --hours 1
-```
-
-The trace should show a child span linked to your TRACEPARENT.
-
-### Programmatic Usage
-
-The telemetry package provides helpers for trace propagation:
-
-```go
-import "github.com/sunholo/ailang/internal/telemetry"
-
-// Inject trace context into subprocess environment
-env := os.Environ()
-env = telemetry.InjectTraceContext(ctx, env)
-env = telemetry.InjectCorrelationIDs(env, taskID, sessionID)
-cmd.Env = env
-
-// Extract trace context from environment (in subprocess)
-ctx = telemetry.ExtractTraceContext(ctx)
-taskID, sessionID := telemetry.ExtractCorrelationIDs()
-```
-
-## Trace Attributes Reference
-
-### Common Attributes
-
-All spans include:
-- `service.name` - Service identifier (e.g., `ailang-server`, `ailang-coordinator`)
-- `service.version` - AILANG version
-- `deployment.environment` - From `OTEL_ENVIRONMENT` (default: `development`)
-- `process.runtime.name` - `go`
-- `process.runtime.version` - Go version
-
-### AI-Specific Attributes
-
-| Attribute | Description |
-|-----------|-------------|
-| `ai.provider` | Provider name: `anthropic`, `openai`, `gemini`, `ollama` |
-| `ai.model` | Model ID (e.g., `claude-sonnet-4-5`, `gpt-5`) |
-| `ai.tokens_in` | Input tokens |
-| `ai.tokens_out` | Output tokens |
-| `ai.tokens_total` | Total tokens |
-| `ai.cost_usd` | Estimated cost in USD |
-| `ai.prompt_preview` | First 100 chars of prompt (v0.6.3+) |
-| `ai.response_preview` | First 100 chars of response (v0.6.3+) |
-| `ai.finish_reason` | Why generation stopped: `end_turn`, `max_tokens`, etc. (v0.6.3+) |
-
-### Task Attributes
-
-| Attribute | Description |
-|-----------|-------------|
-| `task.id` | Unique task identifier |
-| `task.type` | Task type: `bug`, `feature`, `docs`, etc. |
-| `task.stage` | Pipeline stage: `design`, `sprint`, `implement` |
-| `task.success` | Boolean success status |
-| `task.duration_ms` | Duration in milliseconds |
-
-### Error Context Attributes (v0.6.3+)
-
-When errors occur, spans include rich debugging context:
-
-| Attribute | Description |
-|-----------|-------------|
-| `error.message` | Truncated error message (max 200 chars, UTF-8 safe) |
-| `error.category` | Error type: `network`, `timeout`, `auth`, `rate_limit`, `parse`, `type`, `runtime`, `unknown` |
-| `error.location` | Position in source: `line:column` format |
-| `error.snippet` | Source code around error (max 60 chars) |
-| `error.summary` | Short error description for failed benchmarks |
-
-### Code Context Attributes (v0.6.3+)
-
-Eval benchmarks include code analysis attributes:
-
-| Attribute | Description |
-|-----------|-------------|
-| `code.preview` | First 100 chars of generated code |
-| `code.hash` | Short hash (8 chars) for deduplication |
-| `benchmark.repair_successful` | Whether self-repair succeeded (standard mode) |
-
-### CLI Run Attributes (v0.6.3+)
-
-The `ailang run` command includes:
-
-| Attribute | Description |
-|-----------|-------------|
-| `file.path` | Path to the executed file |
-| `entry.function` | Entry point function name |
-| `caps.granted` | List of granted capabilities (e.g., `["IO", "FS"]`) |
+AILANG instruments compiler phases, eval suites, messaging, HTTP servers, coordinator tasks, and AI providers with OpenTelemetry (OTEL) for Google Cloud Trace, local Observatory (`ailang serve`), or any OTLP backend (Jaeger, Grafana, Honeycomb).
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Your Application                         │
-├─────────────────────────────────────────────────────────────┤
-│  Server    │  Coordinator  │  Executors  │  AI Providers    │
-│  (HTTP)    │  (Tasks)      │  (Claude/   │  (Anthropic/     │
-│            │               │   Gemini)   │   OpenAI/etc)    │
-└────────────┴───────────────┴─────────────┴──────────────────┘
-                              │
-                    otel.Tracer("...")
-                              │
-                    ┌─────────▼─────────┐
-                    │  TracerProvider   │
-                    │  (Global)         │
-                    └─────────┬─────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              │               │               │
-    ┌─────────▼────┐  ┌───────▼────┐  ┌───────▼──────┐
-    │ GCP Exporter │  │ OTLP       │  │ (disabled)   │
-    │ Cloud Trace  │  │ Exporter   │  │ No-op        │
-    └──────────────┘  └────────────┘  └──────────────┘
-              │               │
-              ▼               ▼
-    Google Cloud        Jaeger/Grafana/
-    Console             Honeycomb/etc
+```mermaid
+flowchart TB
+    App["Instrumented AILANG Components\n(Server HTTP, Coordinator, Executors, Compiler, AI Providers)"] -->|"otel.Tracer(...)"| TP["Global TracerProvider"]
+    TP -->|"GOOGLE_CLOUD_PROJECT"| GCP["GCP Cloud Trace Exporter"]
+    TP -->|"OTEL_EXPORTER_OTLP_ENDPOINT"| OTLP["OTLP Exporter\n(Observatory :1957 / Jaeger :4318)"]
+    TP -->|"unset"| Noop["No-op (~2-5 ns/call)"]
 ```
 
-## Performance Overhead
-
-### When Disabled (Default)
-
-When no telemetry environment variables are set:
-- No exporters are initialized
-- Tracers return no-op spans
-- **~2-5 nanoseconds** per span call (just a nil check)
-- Zero memory allocations
-- No external connections made
-
-This is negligible - you can leave the instrumentation in place without any measurable impact.
-
-### When Enabled (Production Use)
-
-When `GOOGLE_CLOUD_PROJECT` or `OTEL_EXPORTER_OTLP_ENDPOINT` is set:
-- **~50-200 microseconds** per compilation (all phases combined)
-- **~100-500 microseconds** per AI API call
-- Spans are batched and exported asynchronously
-- Export happens in background goroutines (doesn't block your code)
-
-**Production recommendations:**
-- Use sampling for high-throughput services (e.g., 10% of requests)
-- Batch exporters are enabled by default
-- Set `OTEL_ENVIRONMENT=production` for environment tagging
-
-### Overhead Breakdown by Component
-
-| Component | Spans per Operation | Typical Overhead |
-|-----------|---------------------|------------------|
-| Compiler Pipeline | 5-7 spans | ~100μs |
-| Eval Harness | 2 spans per benchmark | ~50μs |
-| Messaging | 1 span per operation | ~20μs |
-| REPL Session | 1 session + N input spans | ~30μs per input |
-| Check Command | 2 spans (root + result) | ~40μs |
-| AI Providers | 1 span per API call | ~30μs |
-
-**Note:** Actual overhead depends on your OTEL collector. Local Jaeger adds ~10μs, while cloud exports (GCP, Honeycomb) add ~50-100μs due to batching and network I/O.
-
-## Observatory Dashboard Integration (v0.6.3+)
-
-The AILANG Observatory provides a local dashboard for viewing traces, spans, and metrics from Claude Code and AILANG operations (including the in-process `managed_agents` executor) in real-time.
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Your Development Environment                    │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│   Claude Code ──────────────┐                                        │
-│   (metrics + events)        │                                        │
-│                             │    OTLP/HTTP                           │
-│                             ├────────────────►  AILANG Server       │
-│                             │                   (localhost:1957)    │
-│                             │                         │              │
-│   ailang run ───────────────┘                         │              │
-│   (full traces)                                       │              │
-│                                                       ▼              │
-│                                              ┌──────────────────┐    │
-│                                              │ observatory.db   │    │
-│                                              │ (ailang chains)  │    │
-│                                              └──────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Quick Setup
-
-**1. Start the AILANG server:**
+## Quick Start & CLI Trace Inspection
 
 ```bash
-ailang server
-# Or with make
-make services-start
-```
-
-**2. Configure Claude Code:**
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "env": {
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
-    "OTEL_LOGS_EXPORTER": "otlp",
-    "OTEL_METRICS_EXPORTER": "otlp",
-    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1957",
-    "OTEL_RESOURCE_ATTRIBUTES": "ailang.source=user"
-  }
-}
-```
-
-**3. Inspect what arrived:**
-
-The server has no UI. Read the data with the CLI: `ailang chains` (execution chains),
-`ailang chains dashboard spans` and `ailang chains dashboard traces`, or the
-`/api/observatory/*` REST reads.
-
-### What Gets Captured
-
-| Source | Data Type | What You See |
-|--------|-----------|--------------|
-| Claude Code | Events (OTLP logs) | Token counts, costs, model, session info |
-| AILANG commands | Full traces | Compilation phases, eval benchmarks, `managed_agents.execute`, etc. |
-
-### Environment Variables Reference
-
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Claude Code telemetry export | `1` |
-| `OTEL_LOGS_EXPORTER` | Log export protocol | `otlp` |
-| `OTEL_METRICS_EXPORTER` | Metrics export protocol | `otlp` |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | OTLP transport protocol | `http/json` or `grpc` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Observatory server URL | `http://localhost:1957` |
-| `OTEL_RESOURCE_ATTRIBUTES` | Span metadata | `ailang.source=user` |
-
-### Resource Attributes
-
-The `OTEL_RESOURCE_ATTRIBUTES` field supports these attributes:
-
-| Attribute | Description |
-|-----------|-------------|
-| `ailang.source` | `user` for manual sessions, `coordinator` for automated |
-| `ailang.task_id` | Coordinator task ID (set automatically) |
-| `ailang.session_id` | Session ID (set automatically) |
-
-### OTLP Receiver Endpoints
-
-The Observatory server exposes standard OTLP endpoints:
-
-| Endpoint | Method | Content-Type | Purpose |
-|----------|--------|--------------|---------|
-| `/v1/traces` | POST | `application/x-protobuf`, `application/json` | Trace spans |
-| `/v1/logs` | POST | `application/x-protobuf`, `application/json` | Log records (Claude Code events) |
-| `/v1/metrics` | POST | `application/x-protobuf`, `application/json` | Metrics |
-
-Both protobuf and JSON formats are supported. Claude Code uses JSON (`http/json` protocol).
-
-### Silent Failure Mode
-
-**Important:** If the Observatory server is not running, OTLP exports fail silently. This is by design - your CLI tools continue working normally without errors or delays.
-
-To verify telemetry is working:
-1. Ensure `ailang server` is running
-2. Run a Claude Code command (or any AILANG command)
-3. Check for new traces: `ailang chains dashboard traces`
-
-### Filtering Noisy Traces
-
-The server does not trace its own polling and ingest endpoints, to reduce noise:
-- `/api/approvals`, `/api/version`, `/api/inbox`, `/api/coordinator/events`
-- `/api/observatory/*`, `/api/controlplane/*`
-- `/v1/*` (OTLP endpoints themselves)
-- `/`, `/health`, `/ws`
-
-Only meaningful operations appear in the trace list.
-
-### Coordinator vs User Sessions
-
-The `ailang.source` attribute distinguishes trace sources:
-
-| Source | Origin | Typical Use |
-|--------|--------|-------------|
-| `user` | Manual Claude Code sessions | Interactive development |
-| `coordinator` | Automated tasks via `ailang coordinator` | Background automation |
-
-This allows filtering in the dashboard to see only relevant traces.
-
-### Dual Export (Observatory + GCP)
-
-Send traces to **both** the local Observatory and Google Cloud Trace:
-
-```bash
-# Local Observatory
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
-
-# Also export to GCP
+# Google Cloud Trace (uses ADC; OTLP_GOOGLE_CLOUD_PROJECT overrides GOOGLE_CLOUD_PROJECT)
 export GOOGLE_CLOUD_PROJECT=your-project-id
+
+# Generic OTLP / Local Observatory (:1957) or Jaeger (:4318) — both export simultaneously when both vars are set
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+
+ailang trace status
+ailang trace list --hours 2 --limit 20 --filter "ailang run"
+ailang trace view <trace-id>
 ```
 
-The AILANG server attempts to register exporters for both destinations. Check its initialization report and persisted spans to verify the result.
+<details>
+<summary>Example <code>ailang trace status</code> and <code>ailang trace view</code> output</summary>
 
-## Registration, recovery and delivery evidence
+```text
+Telemetry Configuration Status
+Google Cloud Project: multivac-internal-dev
+OTLP Endpoint:        (not set)
+Mode: Google Cloud Trace
 
-Coordinator and server startup report each destination as `disabled`, `registered`,
-or `degraded`, followed by `delivery unverified`. Registration means the exporter
-was constructed and attached to a provider. It does not prove authentication,
-collector receipt, persistence, or complete fleet coverage. A Cloud Trace
-initialization timeout is reported as degraded; its late constructor result is
-closed, and a restart is needed to retry Cloud Trace initialization.
+Trace: 5d359e6d157ba7e726aca8a7600a3bfe (5 spans)
+  ailang run: examples/runnable/factorial.ail (2.065ms)
+    -> compile: examples/runnable/factorial.ail (1.458ms)
+    -> compile.load (358us) -> compile.topo_sort (84us) -> compile.modules (859us)
+```
 
-OTLP initialization does not probe the collector. The HTTP SDK handles TLS,
-endpoint paths and default ports (`https://collector.example` uses 443). A
-collector unavailable at startup remains configured, so later batches can arrive
-when it recovers. Export attempts have a three-second timeout; shutdown shares a
-two-second deadline across providers, and the coordinator flushes on normal exit.
-A forced process kill cannot flush pending work.
+</details>
 
-These exporters use memory queues. Failed batches and work interrupted before
-flush can be lost; this change adds no durable spool or replay. Malformed endpoint
-URLs fail initialization instead of falling back to a different destination.
-Export errors and missing records must remain visible in operational checks.
+## Tracing Tiers & Environment Variables
 
-### Staged verification for the capture recovery change
+Precedence: `--trace-tier` flag > `AILANG_TRACE` env > `AILANG_NO_TRACE=1` > default (`standard`).
 
-1. Review the exact commit, built image digest and deployment diff before rollout.
-   Record the canary revision and retain the previous revision for rollback.
-2. Confirm the canary's startup report lists the expected registered exporters.
-   Treat that as registration evidence only.
-3. For a fresh, authorized coordinator task, record its task, chain, stage and
-   trace identifiers. Query the receiving cloud store and match these identifiers,
-   span parents, timestamps and token fields. A query error is not an empty result.
-4. In an isolated canary collector fixture, start the collector after initialization
-   and verify receipt of a later batch; repeat with a failed batch followed by
-   recovery. Record timeout/error behavior and distinguish lost batches from later
-   successful receipt. Do not interrupt the shared production collector for this test.
-5. Record the revision/digest, query identifiers, receipt latency and outcome before
-   expanding rollout. Function tracing, fleet coverage, accounting and approval
-   delivery still require their separate data-audit acceptance checks.
+| Tier | Emits | Overhead | When to use |
+|---|---|---|---|
+| `off` (`AILANG_NO_TRACE=1`) | Nothing | `0` (~2–5 ns no-op) | CI, latency benchmarks |
+| `standard` (default) | `eval.module.*`, top-level `eval.effect.*`, `compile.*`, `coordinator.*`, `effect.*`, chain spans | Low (~50–200 μs/compile) | Normal dev & prod |
+| `deep` | `standard` + per-call `eval.function.*` + nested `eval.effect.*` (with args/results) | ~1.8–6× | Profiling hot paths, training export |
+
+| Variable | Purpose | Example / Default |
+|---|---|---|
+| `AILANG_TRACE` / `AILANG_TRACE_MAX_SPANS` | Tracing tier / per-trace span cap (emits `trace.truncated` rollup) | `deep` / `500` |
+| `GOOGLE_CLOUD_PROJECT` / `OTLP_GOOGLE_CLOUD_PROJECT` | GCP Cloud Trace project (`OTLP_*` wins) | `my-project-id` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_ENVIRONMENT` | OTLP collector URL / deployment tag | `http://localhost:1957` / `development` |
+
+## Instrumented Components & Span Hierarchy
+
+```mermaid
+flowchart TD
+    Check["ailang.check (root span)"] --> CheckRes["check.result\n(passed, errors.count, timed_out)"]
+    Check --> Comp["compile.* / compile.module_pipeline\n(parse -> elaborate -> typecheck -> validate -> lower)"]
+    Repl["repl.session"] --> ReplIn["repl.input #1..N\n(input.type, input.text)"]
+```
+
+| Component | Root / Key Spans | Key Attributes |
+|---|---|---|
+| **Compiler** | `compile.pipeline`, `compile.module_pipeline`, `compile.{parse,elaborate,typecheck,validate,lower,load,topo_sort,modules}` | `file.path`, `file.size_bytes`, `ast.nodes`, `modules.count` |
+| **Eval Harness** | `eval.suite`, `eval.benchmark` | `benchmark.id`, `model`, `success`, `cost_usd`, `code.preview`, `error.category`, `benchmark.repair_successful` |
+| **Messaging** | `messages.{send,list,read,search,ack,unack,cleanup,github_sync}` | `message.to_inbox`, `search.result_count`, `cleanup.deleted_count` |
+| **Coordinator & Executors** | `coordinator.execute_task`, `claude.execute`, `managed_agents.execute` | `task.id`, `task.type`, `task.stage`, `task.tokens_in/out`, `task.cost_usd` |
+| **AI Providers** | `{anthropic,openai,gemini,ollama}.generate` | `ai.model`, `ai.tokens_*`, `ai.prompt_preview`, `ai.response_preview`, `ai.finish_reason` |
+| **Errors & CLI Run** | Any span on error / `ailang run` | `error.message`, `error.category`, `error.location`, `error.snippet`, `caps.granted` |
+
+Use `internal/telemetry` helpers (`Truncate`, `CategorizeError`, `ShortHash`, `LineSnippet`) for consistent UTF-8-safe span attributes.
+
+## Cross-Process Trace Linking (`TRACEPARENT`)
+
+```mermaid
+flowchart LR
+    subgraph Coord["Coordinator & Subprocess"]
+        Exec["coordinator.execute_task"] -->|"inject TRACEPARENT,\nAILANG_TASK_ID,\nAILANG_SESSION_ID"| CLI["Claude Code / Subprocess"]
+    end
+    CLI -->|"Scenario A/B: TRACEPARENT propagates"| Run["ailang run\n(linked child span)"]
+    CLI -.->|"Scenario C: env stripped,\ncorrelated via AILANG_TASK_ID"| Run
+    CLI -->|"OTEL_RESOURCE_ATTRIBUTES\nailang.task_id=..."| Obs["Observatory (:1957)"]
+```
+
+`ailang run`, `ailang check`, `ailang eval-suite`, and `ailang repl` automatically extract `TRACEPARENT`/`TRACESTATE`, `AILANG_TASK_ID`, and `AILANG_SESSION_ID`. In Go, use `telemetry.InjectTraceContext`, `telemetry.InjectCorrelationIDs`, and `telemetry.ExtractTraceContext`.
+
+<details>
+<summary>CI/CD trace linking (GitHub Actions / Cloud Build) and local Jaeger verification</summary>
+
+```yaml
+# GitHub Actions
+env:
+  TRACEPARENT: "00-${{ github.run_id }}-${{ github.job }}-01"
+  AILANG_TASK_ID: ${{ github.run_id }}
+```
+
+```bash
+docker run -d --name jaeger -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one:latest
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+ailang run --caps IO --entry main examples/runnable/hello.ail
+ailang trace list --hours 1
+```
+
+</details>
+
+## Observatory Integration (`ailang serve`)
+
+```mermaid
+flowchart LR
+    CC["Claude Code\n(OTLP metrics + logs)"] -->|"POST /v1/logs, /v1/metrics\n(http/json :1957)"| Server["ailang serve\n(localhost:1957)"]
+    Run["ailang run / evals\n(full OTEL traces)"] -->|"POST /v1/traces"| Server
+    Server --> DB[("observatory.db\n(read via ailang chains)")]
+```
+
+Configure `~/.claude/settings.json` with `CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_LOGS_EXPORTER=otlp`, `OTEL_METRICS_EXPORTER=otlp`, `OTEL_EXPORTER_OTLP_PROTOCOL=http/json`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957`, and `OTEL_RESOURCE_ATTRIBUTES="ailang.source=user"`. `ailang serve` ignores `/health`, `/ws`, `/v1/*`, and `/api/*` polling routes, and fails silently when down so CLI work is never blocked.
+
+**Delivery & shutdown semantics**: Startup reports each exporter as `disabled`, `registered`, or `degraded` (`delivery unverified`). Export attempts use a 3s timeout, shutdown flushes within 2s (no durable disk spool on forced kill), and malformed endpoint URLs fail startup loudly. Verify Cloud Trace end-to-end with `go test -tags=integration -v -run TestGoogleCloudTrace ./internal/telemetry/...`.
 
 ## Troubleshooting
 
-### Traces not appearing in GCP?
-
-1. Verify ADC credentials: `gcloud auth application-default login`
-2. Check project: `gcloud config get-value project`
-3. Verify permissions: Cloud Trace Agent role required
-4. Run integration test: `go test -tags=integration ./internal/telemetry/...`
-
-### OTLP connection refused?
-
-1. Check collector is running: `curl http://localhost:4318/v1/traces`
-2. Verify endpoint URL includes protocol: `http://` not just `localhost:4318`
-3. Check firewall/port access
-
-### No spans from AI providers?
-
-1. Verify telemetry is initialized before AI calls
-2. Check spans are ending: `defer span.End()` in all paths
-3. Enable debug logging: set `OTEL_LOG_LEVEL=debug`
+| Problem | Fix |
+|---|---|
+| No traces in GCP | Run `gcloud auth application-default login`, verify `gcloud config get-value project`, check Cloud Trace Agent IAM role |
+| OTLP connection refused | Ensure endpoint includes `http://` and collector is listening (`curl http://localhost:4318/v1/traces`) |
+| Missing AI provider spans | Verify telemetry initializes before AI calls and set `OTEL_LOG_LEVEL=debug` |
 
 ## See Also
 
-- [Debugging Guide](/docs/guides/debugging) - Environment variables and CLI debug flags for troubleshooting
-- [Collaboration Hub](/docs/guides/collaboration-hub) - Coordinator and the headless dashboard API
-- [Coordinator Guide](/docs/guides/coordinator) - Task execution lifecycle with traced spans
-- [Evaluation Framework](/docs/guides/evaluation) - AI benchmarks with `eval.suite` and `eval.benchmark` traces
+- [Debugging Guide](./debugging) · [Collaboration Hub](./collaboration-hub) · [Coordinator Guide](./coordinator) · [Evaluation Framework](./evaluation)

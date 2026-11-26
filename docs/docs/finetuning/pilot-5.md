@@ -4,6 +4,7 @@ title: Pilot-5 (teach the language first)
 description: The fifth AILANG fine-tune — single-turn language SFT on verified repository and training-benchmark programs, scored against a fast single-shot language gate before agent evals.
 reviewed: 2026-11-25
 reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Pilot-5: teach the language first
