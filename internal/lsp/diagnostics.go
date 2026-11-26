@@ -1,11 +1,15 @@
 package lsp
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/parser"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/types"
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 )
@@ -51,8 +55,23 @@ func runPipelineForDiagnostics(path string, code string) []protocol.Diagnostic {
 	// available, fall back to result.Errors, and dedupe.
 	out := make([]protocol.Diagnostic, 0, 1+len(result.Errors)+len(result.Warnings))
 	seen := map[string]bool{}
-	addError := func(e error) {
+	var addError func(e error)
+	addError = func(e error) {
 		if e == nil {
+			return
+		}
+		var many types.MatchErrors
+		if errors.As(e, &many) && len(many) > 1 {
+			for _, me := range many {
+				addError(me)
+			}
+			return
+		}
+		var holes types.HoleErrors
+		if errors.As(e, &holes) && len(holes) > 1 {
+			for _, he := range holes {
+				addError(he)
+			}
 			return
 		}
 		if d, ok := errorToDiagnostic(e, path); ok {
@@ -100,6 +119,31 @@ func errorToDiagnostic(err error, path string) (protocol.Diagnostic, bool) {
 			Code:     rep.Code,
 			Message:  rep.Message,
 		}, true
+	}
+
+	// Unwrap loader.ParseErrors so structured parser error codes (PAR017,
+	// PAR018, PAR_HASH_COMMENT, etc.) and their exact positions are preserved,
+	// matching `ailang check --json`.
+	var pes *loader.ParseErrors
+	if errors.As(err, &pes) && len(pes.Errs) > 0 {
+		var pe *parser.ParserError
+		if errors.As(pes.Errs[0], &pe) && pe.Code != "" {
+			if pe.Pos.File != "" && pe.Pos.File != path {
+				return protocol.Diagnostic{}, false
+			}
+			line := uint32(max0(pe.Pos.Line - 1))
+			col := uint32(max0(pe.Pos.Column - 1))
+			return protocol.Diagnostic{
+				Range: protocol.Range{
+					Start: protocol.Position{Line: line, Character: col},
+					End:   protocol.Position{Line: line, Character: col + 1},
+				},
+				Severity: protocol.DiagnosticSeverityError,
+				Source:   DiagnosticSource,
+				Code:     pe.Code,
+				Message:  pe.Message,
+			}, true
+		}
 	}
 
 	// Fallback: error without a structured position. Place it at the start

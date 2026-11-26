@@ -208,6 +208,9 @@ func assertCapabilities(t *testing.T, caps protocol.ServerCapabilities) {
 	if !truthy(caps.DocumentSymbolProvider) {
 		t.Errorf("DocumentSymbolProvider must be true after M5, got %v", caps.DocumentSymbolProvider)
 	}
+	if !truthy(caps.CodeActionProvider) {
+		t.Errorf("CodeActionProvider must be advertised, got %v", caps.CodeActionProvider)
+	}
 	if caps.CompletionProvider != nil {
 		t.Error("CompletionProvider is deferred (out of MVP scope) — must stay nil")
 	}

@@ -80,6 +80,23 @@ func TestComputeCheckEdits_MechanicalFixes(t *testing.T) {
 			t.Fatalf("import disambiguation failed: n=%d got:\n%s", n, got)
 		}
 	})
+
+	t.Run("TC_MATCH_002_missing_arm_stub", func(t *testing.T) {
+		src := "module m\ntype Color = Red | Green | Blue\nexport pure func f(c: Color) -> int =\n  match c {\n    Red => 1,\n    Green => 2\n  }\n"
+		edits := computeCheckEdits(checkJSONError{
+			Code:    "TC_MATCH_002",
+			Message: "non-exhaustive match on Color — no arm matches: Blue",
+			Line:    4,
+			Column:  3,
+		}, "m.ail", src)
+		if len(edits) != 1 {
+			t.Fatalf("got %d edits, want 1", len(edits))
+		}
+		got, n := applyCheckEdits(src, edits)
+		if n != 1 || !strings.Contains(got, "Blue => _?") {
+			t.Fatalf("TC_MATCH_002 stub failed: n=%d got:\n%s", n, got)
+		}
+	})
 }
 
 func TestRunCheckFix_EndToEnd(t *testing.T) {

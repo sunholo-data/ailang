@@ -106,6 +106,10 @@ func (s *Server) Initialize(_ context.Context, _ *protocol.InitializeParams) (*p
 			ReferencesProvider: true,
 			// M5: outline view (functions, ADTs+constructors, type classes).
 			DocumentSymbolProvider: true,
+			// M-AI-PREFERRED-V2: deterministic quick-fixes backed by internal/quickfix.
+			CodeActionProvider: &protocol.CodeActionOptions{
+				CodeActionKinds: []protocol.CodeActionKind{protocol.QuickFix},
+			},
 		},
 		ServerInfo: &protocol.ServerInfo{
 			Name:    ServerName,
