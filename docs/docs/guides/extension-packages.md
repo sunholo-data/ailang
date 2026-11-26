@@ -1,6 +1,7 @@
 ---
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+tier: experimental
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Extension Packages
@@ -151,11 +152,11 @@ Every `motoko-ext-*` package depends on `motoko-ext-abi`. Bumping `ExtensionHook
 
 ### 2. Extension package structure
 
-```
+```text
 motoko-ext-compaction/
-  ailang.toml               ← declares motoko-ext-abi as dep
-  register.ail              ← exports register_with_config
-  compaction.ail            ← the actual compaction logic
+  ailang.toml               (declares motoko-ext-abi as dep)
+  register.ail              (exports register_with_config)
+  compaction.ail            (compaction logic)
 ```
 
 `ailang.toml` for an extension:
@@ -164,7 +165,7 @@ motoko-ext-compaction/
 [package]
 name = "motoko-ext-compaction"
 version = "0.2.0"
-edition = "2025"
+edition = "1"
 
 [dependencies]
 "motoko-ext-abi" = "1.0.0"
@@ -195,7 +196,7 @@ export func register_with_config(cfg: RuntimeConfig) -> ExtensionHooks ! {} {
 [package]
 name = "motoko_agent/src"
 version = "0.5.0"
-edition = "2025"
+edition = "1"
 
 [dependencies]
 "sunholo/motoko_ext_abi" = "1.0.0"
@@ -230,7 +231,7 @@ func lookupExt(extension_name: string, cfg: RuntimeConfig) =
 
 ### 5. Workflow for adding a new extension to motoko_agent
 
-**Recommended (AILANG ≥ 0.18.5):** scaffold the extension package in one command, then wire it into the host:
+Scaffold the extension package in one command, then wire it into the host:
 
 ```bash
 # 1. Scaffold the package (in your ailang-packages clone)
@@ -263,8 +264,6 @@ git commit -m "Add motoko-ext-<short> extension"
 
 For a step-by-step walkthrough including the contents of each generated file, see [Build Your First motoko Extension](./build-a-motoko-extension.md).
 
-**Manual scaffolding (any AILANG version):** see the [appendix in the build tutorial](./build-a-motoko-extension.md#appendix-manual-scaffolding) for the explicit file-by-file walkthrough.
-
 ### Path vs registry checklist
 
 Before opening a PR (or any time you want a portable lock file), verify your `[dependencies]` block is registry-resolved:
@@ -273,7 +272,7 @@ Before opening a PR (or any time you want a portable lock file), verify your `[d
 # 1. Inspect the lock file — every package should have "source": "registry"
 jq '[.packages[] | {name, version, source}]' ailang.lock
 
-# 2. If any have "source": "path" with an absolute path under your home dir,
+# 2. If any have "source": "path" with a path outside this repository,
 #    edit ailang.toml to declare the registry version instead:
 #      WRONG:  "sunholo/motoko_ext_foo" = { path = "../ailang-packages/packages/motoko-ext-foo" }
 #      RIGHT:  "sunholo/motoko_ext_foo" = "0.1.1"
@@ -284,17 +283,13 @@ jq '[.packages[] | select(.source=="path")]' ailang.lock
 # Output should be `[]` — no path-sourced packages
 
 # 4. Type-check still passes
-ailang check src/core/<your_module>.ail   # or your project's equivalent
+ailang check src/core/<your_module>.ail
 ```
-
-**Why the trap exists.** In package-author dev loops you frequently want to edit a package and immediately consume the change in the host. The `{ path = ... }` form does that without a publish round-trip. But once you stop iterating, the path is dead weight — it makes the lock file non-portable and breaks any external clone (PR reviewer, CI runner, fresh contributor).
-
-The fix is mechanical (TOML edit + `ailang lock`) but easy to forget. Make this part of your pre-PR checklist.
 
 ### Short name table for motoko_agent
 
 | Package ref | Key in `resolve()` |
-|-------------|-------------------|
+|---|---|
 | `motoko-ext-compaction@0.2.0` | `compaction` |
 | `motoko-ext-exa-search@0.4.1` | `exa_search` |
 | `motoko-ext-mcp@1.0.0` | `mcp` |
@@ -305,8 +300,6 @@ The fix is mechanical (TOML edit + `ailang lock`) but easy to forget. Make this 
 ## Using with other projects
 
 The generator is not motoko-specific. Any AILANG application with pluggable behaviour can use the same pattern. The only motoko-specific detail is the `motoko-ext-` prefix shortcut in short-name derivation — for other naming conventions the full package name (minus version, dashes replaced with underscores) becomes the key.
-
-Example for a hypothetical CMS application:
 
 ```toml
 [extensions]
@@ -321,11 +314,9 @@ output        = "src/plugins/registry_generated.ail"
 
 Generated keys: `acme_plugin_markdown`, `acme_plugin_syntax_highlight`.
 
-If you want cleaner keys, use `module_name` to override the module declaration and prefix-strip your names before `@version` doesn't apply — or adopt a naming convention where the key-relevant part comes after a stable prefix you can strip. Alternatively, name your packages `my-plugin-markdown@1.0.0` and the key is simply `my_plugin_markdown`.
-
 ---
 
-## Limitations (v0.17.1)
+## Limitations
 
 - All extensions in a single `[extensions]` block must share the same `config_import` and `hooks_import` types. Multiple hook contracts require separate generated files (use `--output` to give each one a different path).
 - The `resolve()` function does a linear scan; for large extension sets consider a map-based wrapper in your host code.

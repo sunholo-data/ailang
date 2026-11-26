@@ -2,8 +2,8 @@
 sidebar_position: 6
 title: Streaming & Real-Time I/O
 description: WebSocket, SSE, and multi-source event multiplexing in AILANG
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Streaming & Real-Time I/O
@@ -175,8 +175,6 @@ func streamMessages(apiKey: string) -> () ! {Stream, IO} {
 
 ## Multi-Source Event Multiplexing
 
-*Added in v0.9.0 (M-ASYNC-IO)*
-
 Read from multiple sources (WebSocket, stdin, subprocesses) in a single event loop with deterministic priority ordering.
 
 ### Functions
@@ -236,8 +234,6 @@ export func main() -> unit ! {Stream, IO} {
 ```
 
 ### Subprocess Streaming (asyncExecProcess)
-
-*Added in v0.9.0 (M-ASYNC-IO Phase 2)*
 
 Spawn a subprocess and receive its stdout as fixed-size byte chunks via `SourceBytes` events. Useful for:
 - **Audio capture**: `rec` / `arecord` producing PCM data
@@ -324,8 +320,6 @@ Run with `ailang run --quiet --caps IO,Process --process-allowlist crew-nonexist
 Allowlist entries match the literal command string: `name` and `/abs/path/name` are different keys.
 
 ### Subprocess Stdin Writing (spawnProcess)
-
-*Added in v0.9.0 (M-ASYNC-IO Phase 3)*
 
 Write data incrementally to a subprocess's stdin pipe. Complements `asyncExecProcess` (which reads stdout) — use `spawnProcess` when you need to **send data to** a subprocess rather than **read from** it.
 

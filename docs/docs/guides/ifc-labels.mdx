@@ -2,8 +2,9 @@
 sidebar_position: 9
 title: Information-Flow Control (IFC) Labels
 description: Type-level taint tracking with T<label> and T{not LABEL} for prompt-injection prevention
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+tier: experimental
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -17,447 +18,86 @@ import IfcXmodApp from '!!raw-loader!@site/../examples/runnable/secrets/ifc_xmod
 
 # Information-Flow Control (IFC) Labels
 
-AILANG v0.16.0 adds **information-flow control (IFC) labels** to the type
-system. Labels mark values as carrying source-level taint and let the
-compiler refuse to route untrusted data into sensitive sinks. The
-runtime cost is zero — labels exist only at the type-system layer.
+AILANG includes **compile-time information-flow control (IFC) labels** (`T<label>`, `T{not LABEL}`, and `! {Declassify}`) to block untrusted data (prompt injections, raw PII, secrets) from reaching sensitive sinks, with **zero runtime overhead**. Based on Meijer's [*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/) (CACM, Jan 2026).
 
-The design follows Erik Meijer's
-[*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/)
-(CACM, January 2026) and its
-[Python reference implementation `metareflection/guardians`](https://github.com/metareflection/guardians)
-(~1,900 LOC). Meijer's paper proposes a three-check guardian pipeline
-(taint + automata + Z3); AILANG already shipped the Z3 piece in v0.9.x,
-and this milestone adds the taint piece *as a language feature* rather
-than an external library.
+![IFC Taint Lattice](/img/diagrams/ifc-taint-lattice.svg)
 
-This guide is the user-facing companion to the
-[M-TAINT-TYPES design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md).
-For the motivating argument (Meijer's *Guardians of the Agents* and why two
-of its three checks are language features here), see the
-[Guardians deep dive](./three-camps-comparison.md#deep-dive-guardians-prompt-injection-as-a-type-system-problem).
+## The Three Syntax Forms
 
-:::tip When to reach for labels
-You want IFC labels when you have **untrusted input** flowing through
-your program toward **sinks that must not see it raw** — classic
-prompt-injection scenarios, SQL string assembly, shell-out builders,
-HTML rendering, or any boundary where "instructions" and "data" share
-a representation.
-:::
+| Form | Meaning | Example |
+|---|---|---|
+| `T<label>` | Value carries source taint `<label>` | `func fetchMail() -> string<email> ! {FS}` |
+| `T{not LABEL}` | Parameter sink rejects `<LABEL>` inputs | `func sendEmail(to: string, body: string{not email}) -> () ! {Net}` |
+| `! {Declassify}` / `! {Declassify[label=ℓ]}` | Auditable sanitizer allowed to change/lower labels | `func sanitize(s: string<email>) -> string<sanitized> ! {Declassify}` |
 
-## The Three Pieces of Syntax
+Labels are **open, lowercase snake_case identifiers** (`<email>`, `<user_input>`, `<pii>`, `<api_key>`, `<tenant_a>`) defined at point of use. Joins combine naturally (`<email ⊔ pii>`), and pure expressions propagate input labels automatically (`APP-PURE`).
 
-| Form | Read aloud | Use it for |
-|------|------------|------------|
-| `T<label>` | "T tainted with label" | Mark a value as carrying source-level taint. |
-| `T{not LABEL}` | "T refining-out LABEL" | Mark a parameter position as a sink that refuses LABEL. |
-| `! {Declassify}` | "may declassify" | Effect-row entry on functions that intentionally lower a label. |
+## Core Rules
 
-```ailang
--- A function returning a string carrying the <email> label (untrusted source)
-func fetchMailBody() -> string<email> = "raw email body"
-
--- A function whose body parameter rejects any <email>-tainted input
-func sendEmail(to: string, body: string{not email}) -> () ! {Net} = ()
-
--- A declassifier: <email> in, <sanitized> out, must declare ! {Declassify}
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} = "[sanitized]"
-```
-
-## Labels Are Open
-
-**Labels are not a fixed vocabulary.** `<email>` is just the demo label.
-You can use any lowercase identifier (kebab-case for compounds) and the
-type system will track it. There is no enum, no registry, no migration
-step — define labels at the point of use, in the type signature, in the
-language you already speak.
-
-The same lattice machinery handles all of them. Combinations join
-naturally: a value with both `<email>` and `<pii>` taint has type
-`string<email ⊔ pii>`, and a sink that refuses either label
-(`string{not pii}`) will reject it.
-
-Common patterns we expect you to write:
-
-| Domain | Source labels | Sink refinements |
-|--------|---------------|------------------|
-| **Agent / LLM** | `<user_input>`, `<email>`, `<tool_output>` | `{not user_input}` on `sendEmail`, `runShell`, `evalSql` |
-| **Web / API** | `<request_body>`, `<query_string>`, `<header>` | `{not request_body}` on `executeSQL`, `renderHTML` |
-| **Compliance** | `<pii>`, `<phi>`, `<gdpr_eu>` | `{not pii}` on `logEvent`, `analytics` |
-| **Secrets** | `<api_key>`, `<token>`, `<password>` | `{not api_key}` on `httpResponseBody`, `errorReport` |
-| **Multi-tenant** | `<tenant_a>`, `<tenant_b>` | `{not tenant_a}` on serialisers crossing tenant boundaries |
-
-The runtime cost is zero regardless of how many labels you define —
-they all erase at compile time. Pick the labels that match your threat
-model and add new ones whenever a new source/sink shape appears.
-
-## Naming Convention
-
-Labels are names. They should be short, lowercase, and descriptive of
-the **source** of the taint — not the sink, and not the policy.
-
-| Good | Why |
-|------|-----|
-| `<email>` | A string came from email content |
-| `<user_input>` | A string came from user input (snake_case for compounds: `-` does not parse in a label) |
-| `<sql_text>` | A string came from a SQL builder context |
-| `<pii>` | Personally identifiable info |
-| `<sanitized>` | Output of an explicit sanitiser (reset state) |
-
-| Avoid | Why |
-|-------|-----|
-| `<EMAIL>` | Use lowercase. Labels are not constructors. |
-| `<safe>` | Says nothing about provenance. Use `<sanitized>` or similar. |
-| `<bad>` / `<dirty>` | Subjective. Name the source, not the disposition. |
-
-## The Two Rules
-
-### 1. The Sink Rule
-
-A parameter typed `T{not LABEL}` **rejects** any argument whose type carries
-the `<LABEL>` annotation.
-
-```ailang
-func sendEmail(to: string, body: string{not email}) -> () ! {Net} = ()
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} = "[sanitized]"
-
--- ✅ Caller passes a declassified value
-func forwardSafely(rawBody: string<email>) -> () ! {Net, Declassify} =
-  sendEmail("alice@company.com", sanitize(rawBody))
-
--- ❌ Passing rawBody directly (`sendEmail("alice@company.com", rawBody)`)
---    is rejected: string<email> ↛ string{not email}
-```
-
-### 2. The DECLASS Rule
-
-A function that changes a value's label must declare `! {Declassify}` in
-its effect row. Identity (same label in and out) is free; any other
-transition needs the effect.
-
-```ailang
--- ✅ Allowed: explicit declassifier
-func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} {
-  "[sanitized]"
-}
-```
-
-Omitting `! {Declassify}` on a label-changing function is rejected at compile time:
+1. **Sink refinement (`{not LABEL}`):** Passing a value labelled `<email>` to `body: string{not email}` is a compile-time error (`CheckModuleIFC`).
+2. **Declassification (`! {Declassify}`):** Only functions declaring `! {Declassify}` (or scoped `! {Declassify[label=email]}`) may lower a label; identity helpers, record wrapping, and `let` bindings preserve taint.
+3. **Scoped & positive parameters:** `! {Declassify[label=email]}` drops only `<email>` (leaving unrelated labels intact); a positive parameter `value: string<sqlsafe>` accepts only values covered by `<sqlsafe>` (rejecting `<arg>`/`<secret>` with `param_label_cover`).
 
 ```ailang parse
--- ❌ Rejected: function changes label without declaring Declassify
+-- ✅ Allowed: explicit scoped declassifier
+func sanitizeEmail(raw: string<email>) -> string<sanitized> ! {Declassify[label=email]} {
+  "[sanitized]"
+}
+
+-- ❌ Rejected: changing a label without ! {Declassify}
 pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {} {
   "[sanitized]"
 }
 ```
 
-The `{Declassify}` effect makes label-lowering **auditable** — every
-sanitiser is locatable by `grep -r '! {Declassify}'`.
-
-### Scoped authority and positive call parameters
-
-`! {Declassify[label=email]}` authorizes dropping only `<email>`. A caller
-must declare that scope or bare `Declassify`; declaring `label=secret` does not
-cover it. Unrelated secret data and mixed joins remain protected, including
-labels carried by closures. Scoped call results retain unauthorized labels
-from actual arguments even when the formal parameter is unlabelled. This
-conservative rule also applies when the function ignores an argument. V1 supports one label per declaration and rejects
-duplicate Declassify atoms. Bare Declassify keeps its whole-body authority,
-which propagates to callers and can authorize unrelated relabels.
-
-At local call sites, a parameter `value: string<sqlsafe>` covers only arguments
-whose constituent labels are covered by `<sqlsafe>`. Matching labels, literals,
-and unlabelled (bottom) values pass; `<arg>` and `<secret>` fail with
-`param_label_cover`. Relabel through an explicit scoped declassifier or widen
-the parameter label. This rule constrains lattice coverage; it is not proof of
-sanitization or provenance. Negative sink refinements remain enforced too.
-
-A label or refinement written *inside* a parameter type binds the argument the
-same way: `xs: [string<sqlsafe>]` rejects `[s]` for an `<arg>` value `s`, and
-so do a record field (`{ q: string<sqlsafe> }`, or a declared record type), a
-tuple element, an `Option`/`Result` argument and an ADT constructor field;
-`[string{not email}]` rejects a list holding `<email>` data. A value carries one
-label for all its contents, so the check is per parameter, not per position:
-an unlabelled field beside a labelled one may only hold data the labelled
-positions admit. Labels inside a *function-typed* parameter are not a bound on
-the function you pass — they are what the callee must respect when it calls it.
-
-These checks are static and apply at every call — including calls to a function
-imported from another module, whose parameter labels, refinements, return label
-and Declassify authority travel in its interface (see
-[Imported sinks and sources](#imported-sinks-and-sources)). There is no runtime IFC.
-
-## Why Identity Bypass Doesn't Work
-
-Pure operations propagate labels through their result via the **APP-PURE**
-rule: the output label is the join of all input labels. Identity
-functions carry the input's label forward.
-
-```ailang
-type SendAction = { to: string, body: string }
-
--- Attempting to "launder" the label via an identity binding:
-pure func attemptLaunder(rawBody: string<email>, recipient: string) -> SendAction ! {} {
-  let laundered = rawBody;    -- laundered: string<email> (label preserved)
-  { to: recipient, body: laundered }  -- still rejected if passed to a {not email} sink
-}
-```
-
-There is no clever construction — wrapping in a record, routing through
-a let, calling an identity helper — that strips a label. Only an
-explicit `! {Declassify}` function can lower it. The sink side holds the same
-way: renaming a sink, passing it to a higher-order function or wrapping it in
-a lambda does not drop its `{not ℓ}` requirement (see
-[Sinks as values](#sinks-as-values)).
-
-Scope: the guarantee holds across module boundaries too — a sink imported from
-another module is checked at the importer's call site (#1134).
-
 ## Worked Example: Inbox Injection
-
-The single-module demo:
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/inbox_injection_v2.ail">{InboxV2}</CodeBlock>
 
-Run it:
-
 ```bash
 ailang verify examples/runnable/contracts/inbox_injection_v2.ail
+# ✓ VERIFIED safeForward, sanitizeBody, isInternal | ✗ VIOLATION injectedForward, attemptLaunder
 ```
 
-Output:
+## Cross-Module Enforcement (`#1134`) & Sinks as Values
 
-```
-✓ VERIFIED safeForward
-✓ VERIFIED sanitizeBody
-✓ VERIFIED isInternal
-✗ VIOLATION injectedForward
-✗ VIOLATION attemptLaunder
-
-5 functions: 3 verified, 2 violations
-```
-
-## Real-World Scenarios
-
-Each of the patterns below has been documented in published security
-research or incident write-ups. The labels you'd reach for, and a
-sketched signature of the sink that would have caught it.
-
-### 1. Indirect prompt injection via email or document
-
-An agent processes a document (email, PDF, web page, calendar invite)
-that contains instructions targeting the agent itself. Documented
-extensively in
-[Greshake et al., 2023](https://arxiv.org/abs/2302.12173) and listed as
-[OWASP LLM01](https://owasp.org/www-project-top-10-for-large-language-model-applications/).
-This is the headline scenario for IFC labels.
-
-```ailang
--- Source: any text fetched from external content carries one shared label
-func fetchEmailBody() -> string<untrusted> ! {FS} = "email body"
-func fetchWebPage(url: string) -> string<untrusted> ! {Net} = "page body"
-
--- Sink: tool calls that act in the world
-func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net} = ()
-func runShell(cmd: string{not untrusted}) -> () ! {Process} = ()
-```
-
-The `runShell` sink rejects anything fetched from email or the web, so a
-model that reads a PDF and tries to execute a shell command described
-inside it gets a structural type error before the shell runs.
-
-A value carries one label and a parameter takes one `not` refinement:
-`string{not email, not web}` does not parse. To forbid several sources at
-one sink, give those sources a shared label, as above.
-
-### 2. PII leakage in agent summaries
-
-An agent reads a customer record, summarises it for a downstream
-analytics call, and accidentally includes raw PII (names, account
-numbers) in the summary body. Categories: GDPR Art. 5(1)(c)
-(data minimisation), HIPAA §164.312(e). See
-[NIST AI RMF Profile: Generative AI, GV-1.3-006](https://airc.nist.gov/AI_RMF_Knowledge_Base/Playbook).
-
-```ailang
-type Customer = { id: string, name: string }
-type Summary = { text: string }
-
--- PII source from a customer record
-func loadCustomer(id: string) -> Customer<pii> ! {FS} = { id: id, name: "Alice" }
-
--- A redactor is the only path from <pii> → <redacted>
-func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify} = { text: "customer ${c.id}" }
-
--- Analytics sink refuses raw PII
-func logEvent(name: string, payload: string{not pii}) -> () ! {Net} = ()
-```
-
-A model that calls `logEvent("customer_seen", customer.name)` is
-rejected: `customer.name` carries `<pii>`, the sink refuses it. The
-only way through is `redactPII` — which has `! {Declassify}` and is
-grep-able for audit.
-
-### 3. Secret exfiltration via error responses
-
-An agent throws an error and the error handler embeds environment
-state — including an API key — in the response body returned to the
-user. Documented incident pattern after the
-[2024 OWASP LLM Top 10 v1.1 §LLM02 (Insecure Output Handling)](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
-update; analogous to log-injection bugs that have shipped credentials
-to telemetry pipelines for years.
-
-```ailang
-type Response = { status: int, body: string }
-
--- Secrets are tainted at the source
-func readSecret(name: string) -> string<api_key> ! {Env} = "sk-..."
-
--- Error responses cannot contain api-key-tainted strings
-pure func httpResponse(status: int, body: string{not api_key}) -> Response ! {} =
-  { status: status, body: body }
-```
-
-A debug handler that does `httpResponse(500, "config: ${getEnv("OPENAI_API_KEY")}")`
-is rejected at the type level. The fix is either *don't include the
-secret*, or pass it through an explicit `redactSecret(s) ! {Declassify}`
-function.
-
-### 4. SQL / command injection through LLM output
-
-An LLM generates a query fragment, which a tool runs against a
-database. The classic SQL injection problem reborn: the LLM output is
-indistinguishable from "trusted" template text by the time it reaches
-the executor. See
-[NVIDIA AI Red Team writeups](https://developer.nvidia.com/blog/nvidia-ai-red-team-an-introduction/)
-and the
-[MathGPT DEFCON 2023 demonstration](https://kai-greshake.de/posts/inject-my-pdf/)
-where an LLM-driven calculator was tricked into executing arbitrary
-Python.
-
-```ailang
-type Row = { id: int, value: string }
-
--- Output of any LLM is tainted as <llm>
-func askLLM(prompt: string) -> string<llm> ! {AI} = "SELECT 1"
-
--- The query executor refuses LLM-derived text
-func executeSQL(query: string{not llm}) -> [Row] ! {Net} = []
-```
-
-The only way to compose them is to run the LLM output through a
-parser/whitelister with `! {Declassify}` — and now you have an audit
-trail for every place the boundary is crossed.
-
-### 5. Multi-tenant data crossover
-
-A SaaS agent reads tenant A's data and serialises a response that
-gets dispatched to tenant B's webhook. Easy to do by accident in
-async pipelines; surfaced repeatedly in cross-tenant LLM scenarios
-where the prompt context is shared. Categories: SOC 2 CC6.6, ISO
-27001 A.9.4.1.
-
-```ailang
-type TenantId = string
-type Order = { id: int, total: float }
-
--- Per-tenant labels - open vocabulary, you make these up
-func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {Net} = []
-
--- Per-tenant webhook sink
-func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net} = ()
-```
-
-Routing tenant-A data into a tenant-B webhook produces a type error.
-This pattern is impractical to catch with runtime guards alone, since
-"the right tenant" is often a chain of let-bindings deep — but the
-compiler walks every binding.
-
-## Cross-Module Label Flow
-
-Labels travel across module boundaries through the iface JSON. The
-library exports a record with labelled fields:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_lib.ail">{InboxV2Lib}</CodeBlock>
-
-The consumer module imports the labelled type and operates on it:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_app.ail">{InboxV2App}</CodeBlock>
-
-Run it:
-
-```bash
-ailang verify examples/runnable/contracts/inbox_v2_app.ail
-```
-
-Output: `6 exported functions: 3 verified, 2 violations, 1 without contracts`
-— the `<email>` label flows from the lib's record field into the app's
-parameter type and on to the violating sink.
-
-### Imported sinks and sources
-
-A library's IFC contract binds its importers exactly as it binds callers in its
-own module (#1134). Each export's interface carries an IFC summary — parameter
-names, positive labels (`<ℓ>`), sink refinements (`{not ℓ}`), the declared
-return label, the body's intrinsic label and its Declassify authority — and the
-importer's static check reads it at every call, however the imported function is
-named (`import lib (deliver)`, `deliver as d`, `import lib as L` then
-`L.deliver`) or passed around (alias, higher-order argument, wrapper lambda):
+Imported functions carry an IFC summary in module `iface` metadata (parameter labels, `{not ℓ}` sinks, return labels, intrinsic body taint, and `Declassify` authority). Importers enforce imported sinks across aliases, qualified calls, higher-order functions, and wrappers (`#1134`, `#1719`):
 
 <CodeBlock language="ailang" title="examples/runnable/secrets/ifc_xmod_lib.ail">{IfcXmodLib}</CodeBlock>
 
 <CodeBlock language="ailang" title="examples/runnable/secrets/ifc_xmod_app.ail (accepted)">{IfcXmodApp}</CodeBlock>
 
-Passing the inbox value straight to the imported sink is rejected in the
-importer, naming the edge:
-
-```
+```text
 $ ailang check examples/runnable/secrets/ifc_xmod_leak.ail
-Error: ... information-flow violation: value labelled <email> reaches parameter
-"body" of imported function examples/runnable/secrets/ifc_xmod_lib.deliver
-(via deliver) which forbids it (string{not email})
+Error: information-flow violation: value labelled <email> reaches parameter "body" of imported function examples/runnable/secrets/ifc_xmod_lib.deliver which forbids it (string{not email})
 ```
 
-Sources cross too: an imported function that declares `-> string<email>`, or
-whose body carries taint without saying so (a wrapper around `secret()`, even
-through a second library), taints its result at the importer. A transparent
-imported function joins its intrinsic label with its arguments' labels; one
-declaring `! {Declassify}` or `! {Declassify[label=ℓ]}` relabels exactly as it
-would locally. An interface with missing or malformed IFC metadata is refused,
-never read as clean.
+Sinks are first-class values: aliasing a sink, storing it in a record, or passing it to `map` still tracks `{not ℓ}` back to the call site:
 
-## Static enforcement (v0.26.0)
+<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value.ail (rejected)">{SinkFnValue}</CodeBlock>
 
-As of v0.26.0 (M-SECRET-EFFECT), sink and declassification violations are
-caught as **compile-time type errors** by `CheckModuleIFC`, before Z3 runs:
+<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value_ok.ail (accepted)">{SinkFnValueOk}</CodeBlock>
 
-- **Sink refinement.** A value labelled `<ℓ>` that reaches a `T{not ℓ}`
-  parameter is rejected:
+<details>
+<summary>Cross-module labelled record flow (inbox_v2_lib / inbox_v2_app) & common domain label patterns</summary>
 
-  ```
-  $ ailang check examples/runnable/secrets/leak_attempt.ail
-  Error: ... information-flow violation: value labelled <secret> reaches
-  parameter "body" which forbids it (string{not secret})
-    Suggestion: declassify the value through a function declaring
-    ! {Declassify} before passing it to a {not secret} sink
-  ```
+<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_lib.ail">{InboxV2Lib}</CodeBlock>
 
-- **Declassification (no laundering).** A function that declares an explicit
-  return label cleaner than the taint its body actually carries — hiding a
-  `<secret>` behind a `<clean>` return, say — is rejected unless it declares
-  `! {Declassify}`.
+<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_app.ail">{InboxV2App}</CodeBlock>
 
-The check is a self-contained surface-AST analysis: it propagates source
-labels (explicit `<ℓ>` annotations and the `secret()` builtin) through
-`let`/`match`/record/call within a module and never injects labelled types
-into codegen, so there is no runtime cost and no impact on inference. See the
-worked pair `examples/runnable/secrets/{gated_secret,leak_attempt}.ail`.
+| Threat Scenario | Source Label | Sink Refinement |
+|---|---|---|
+| Indirect prompt injection | `<untrusted>` (`fetchEmailBody`, `fetchWebPage`) | `string{not untrusted}` on `sendEmail`, `runShell` |
+| PII leakage in summaries | `<pii>` (`loadCustomer`) | `string{not pii}` on `logEvent`, `analytics` |
+| Secret exfiltration | `<api_key>` (`readSecret`) | `string{not api_key}` on `httpResponse`, `errorReport` |
+| SQL / command injection | `<llm>` (`askLLM`) | `string{not llm}` on `executeSQL` |
+| Multi-tenant crossover | `<tenant_a>` (`loadOrders`) | `string{not tenant_a}` on `dispatchToTenantB` |
 
-## Labels inside types (v0.52.0)
+</details>
 
-A label written **anywhere inside a type** is a source for every value of that
-type — not only a top-level `<ℓ>` on a parameter or return type. Before
-v0.52.0 (#1523) the checker read only the top-level position, so a secret held
-in a declared record lost its label the moment you read the field:
+## Labels Inside Types
+
+Within a module, labels written inside declared records (`{ raw: string<authcode> }`), aliases (`type Code = string<authcode>`), ADT fields, tuples, and lists are tracked field-precisely on getters and conservatively on `match` destructuring:
 
 ```ailang parse
 type RawCode = { raw: string<authcode> }
@@ -466,118 +106,22 @@ pure func logLine(s: string{not authcode}) -> string = "log: ${s}"
 
 export pure func leak(x: string) -> string {
   let c = mk(x);
-  logLine(c.raw)   -- rejected since v0.52.0: <authcode> reaches {not authcode}
+  logLine(c.raw)   -- rejected: <authcode> reaches {not authcode}
 }
 ```
 
-The same rule covers every position a label can be written in a type, in the
-same module:
+## Caveats & Limitations
 
-| Where the label is written | Example that is now rejected |
-|---|---|
-| a declared record's field (also nested records, getters) | `logLine(s.code.raw)`, `logLine(getRaw(c))` |
-| record destructuring | `match c { {raw} => logLine(raw) }` |
-| an inline record annotation | `func f(c: {raw: string<authcode>})` |
-| an ADT constructor field | `match t { Tok(s) => logLine(s), NoTok => "" }` |
-| a tuple or list element | `match xs { h :: _ => logLine(h), [] => "" }` with `xs: [string<authcode>]` |
-| an alias | `type Code = string<authcode>`, `func f(c: Code) = logLine(c)` |
-| a `let` or lambda annotation | `let t: string<authcode> = plain(x); logLine(t)` |
-
-Field access is **field-precise**: an unlabelled field next to a labelled one
-stays clean (`logLine(s.user)` is accepted when only `s.code` is labelled),
-including through a getter. Destructuring with `match` is conservative: every
-variable a pattern binds gets the whole value's labels.
-
-An annotation can only **add** labels. `let s: {user: string, code: string<x>} = v`,
-where `v`'s type puts `<x>` on `user`, type-checks (labels do not take part in
-unification) but `s.user` keeps `<x>`. Only a `! {Declassify}` function lowers
-a label.
-
-## Sinks as values
-
-A sink's requirement belongs to the **function value**, not to the spelling of
-the call. Before the #1719 repair the `{not ℓ}` and positive `<ℓ>` parameter
-checks fired only when the callee was written as the sink's own name, so one
-`let` was enough to get `<email>` data past a `{not email}` sink. Every route
-below is now checked:
-
-| Route to the sink | Example that is now rejected |
-|---|---|
-| an alias | `let g = gate in g(fromInbox("hi"))` |
-| a higher-order parameter | `apply1(gate, fromInbox("hi"))` with `apply1(f, x) = f(x)` |
-| a HOF that applies it to its own data | `h(gate, "clean")` with `h(f, x) = { let _ = f(fromInbox("x")); x }` |
-| a function-type annotation | `apply2(gate, x)` with `apply2(f: string{not email} -> string, x: string)` |
-| a record field, list or tuple element, `if` branch | `r.f(…)`, `match [gate] { f :: _ => f(…) }` |
-| a returned or composed function | `getGate()(…)`, `compose(gate, ident)(…)` |
-| a wrapper | `wrap(y) = gate(y)`, `\y. gate(y)`, `func(y: string{not email}) -> string { y }` |
-
-Wrappers get their requirement **inferred**: `wrap(y) = gate(y)` forbids `<email>`
-on `y` exactly as `gate` does, so `wrap(fromInbox("hi"))` is rejected at the call
-that supplies the label. The diagnostic names the path the value took:
-
-```
-information-flow violation: value labelled <email> reaches parameter "body"
-of gate (via apply1 → f) which forbids it (string{not email})
-```
-
-<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value.ail (rejected)">{SinkFnValue}</CodeBlock>
-
-Sinks stay first-class: aliasing one, storing it in a record, or passing it to
-`map` is fine as long as the data that reaches it is clean or declassified.
-
-<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value_ok.ail (accepted)">{SinkFnValueOk}</CodeBlock>
-
-**Imported higher-order functions are conservative.** A function from another
-module (`std/list`'s `map`, say) exports no summary of what it does with its
-function arguments, so a sink passed to it is checked against the join of the
-*other* arguments' labels: `map(gate, cleanList)` is accepted and
-`map(gate, inboxList)` is rejected even though `map` is not written in your
-module. This over-approximates; it never under-approximates. If the checker reaches a
-defensive analysis limit, it reports `ifc_analysis_limit` and refuses to
-compile; it never drops a requirement to finish checking.
-
-## Limitations
-
-- **Inferred sink requirements stay in their module.** Within a module, flow
-  into an *unannotated* parameter that reaches a `{not ℓ}` sink is inferred and
-  enforced (#1719). An importer sees only what an export **declares**: a
-  library function `relay(x: string) = gate(x)` that forwards its parameter to
-  a sink without writing `x: string{not ℓ}` does not carry `{not ℓ}` to other
-  modules. Annotate the exported parameter to make the sink part of the
-  library's contract.
-- **Labels inside types are enforced within the declaring module only.** Since
-  v0.52.0 the static check reads labels in declared records, aliases
-  (`type EmailBody = string<email>`), ADTs, lists and tuples — but only for types
-  declared in the same module. A type imported from another module carries its
-  labels to Z3 contracts through the iface, not to the static sink check; that
-  hole is tracked in `design_docs/planned/m-ifc-cross-module-labels.md`.
-- **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
-  positions; you cannot annotate a return type with a refinement.
-- **Cross-module function calls in Z3.** Imported pure functions are
-  encoded since v0.15.0 (M-SMT-CROSS-MODULE-FUNCTIONS): non-recursive callees
-  are inlined, recursive ones are represented by their `ensures` — see
-  `examples/runnable/contracts/cross_module_functions.ail`. The callee's
-  `requires` is assumed, not checked, at the call site.
+- **Explicit-flow only (no implicit-flow tracking):** `CheckModuleIFC` tracks **explicit dataflow** through bindings, record fields, constructors, and calls. Implicit control-flow channels (branching on a secret `if secretBool then "a" else "b"`) are **not** tracked.
+- **One label per value / one `not` per parameter:** Multi-label syntax like `string{not a, not b}` does not parse; give untrusted sources a shared label (`<untrusted>`).
+- **Inferred sinks stay intra-module:** An importer sees only what an export declares (`x: string{not ℓ}`); annotate exported library sinks explicitly.
+- **Labels inside imported type definitions:** Structural labels nested inside an imported type flow to Z3 contracts via `iface`, not yet to `CheckModuleIFC` (`design_docs/planned/m-ifc-cross-module-labels.md`).
+- **Sink refinements are parameter-only:** Return types cannot carry `{not LABEL}`.
+- **No runtime IFC:** All labels erase at compile time (`ailang verify` additionally checks pure contracts across imported pure functions).
 
 ## Further Reading
 
-- [Contracts & Verification](contracts.mdx) — the Z3 contract layer that
-  IFC labels build on top of.
-- [Effects](../reference/effects.md) — the `! {Declassify}` effect is
-  part of the effect system.
-- [Modules](../reference/modules.md) — how labels travel through `iface` JSON.
-- Design doc: [`design_docs/implemented/v0_16_0/m-taint-types.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
-- Prompt for AI agents: `ailang prompt --version v0.16.0`
-- Benchmark: [`benchmarks/prompt_injection/`](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)
-
-### Prior art
-
-- Erik Meijer, [*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/),
-  CACM, January 2026 — the paper this work is built on.
-- [`metareflection/guardians`](https://github.com/metareflection/guardians)
-  — the original Python reference implementation (~1,900 LOC).
-  AILANG implements the same three-check vision (taint + automata + Z3)
-  as language features rather than as an external runtime library.
-- Bayless et al., [*A Neurosymbolic Approach to Natural Language
-  Formalization and Verification*](https://arxiv.org/abs/2511.09008)
-  (2025) — the AWS ARC paper that grounds AILANG's contract layer.
+- [Contracts & Verification](./contracts.mdx) — Z3 contract proofs
+- [Effects Reference](../reference/effects.md) — `! {Declassify}` effect semantics
+- [Modules Reference](../reference/modules.md) — how IFC summaries travel in `iface` JSON
+- [M-TAINT-TYPES Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)

@@ -1,75 +1,41 @@
 ---
-reviewBy: 2027-03-01
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Package System
 
-AILANG's package system enables multi-package projects with deterministic dependency resolution, export enforcement, and effect ceilings. Packages are the primary unit of autonomous coordination — they define what an agent can see, change, what authority it has, and what guarantees it must preserve.
+AILANG's package system provides deterministic dependency resolution, explicit module exports, effect ceilings, atomic lockfiles, and signature-aware upgrade cascades. Published package pages also render each package's `AGENT.md` guide for AI consumers.
 
-Published package pages also snapshot and display the package's `AGENT.md` guide as raw
-text, so consumers can review machine-facing usage instructions before installing.
+![Package Lock & Cascade](/img/diagrams/package-lock-cascade.svg)
 
 ## Quick Start
 
 ```bash
-# Create a package
 ailang init package --name myorg/mylib
-ailang init package --name sunholo/myapp --module-prefix myapp  # for existing apps
-
-# Add a dependency
+ailang init package --name sunholo/myapp --module-prefix myapp  # keep existing module paths
 ailang add --path ../shared-utils
-
-# Resolve dependencies and generate lock file
-ailang lock
-
-# Validate package (cross-module type checking)
+ailang lock                                                     # atomic ailang.lock write
+ailang lock --check                                             # CI drift check (read-only)
 ailang check --package .
-
-# Run tests
 ailang test --package .
-
-# View dependency tree
-ailang tree
-
-# Publish to registry
-ailang publish --dry-run
-ailang publish
-
-# Run (package resolution is automatic)
-ailang run main.ail
+ailang pkg docs sunholo/auth                                    # read package AGENT.md
+ailang publish --dry-run && ailang publish
 ```
 
-## Package Structure
-
-A package is defined by an `ailang.toml` manifest:
-
-```
-my-package/
-  ailang.toml          # Package manifest (human-written)
-  ailang.lock          # Resolved dependencies (machine-generated)
-  src/
-    core.ail           # Source modules
-    helpers.ail
-  tests/
-    core_test.ail
-```
-
-## Manifest (`ailang.toml`)
+## Manifest (`ailang.toml`) & Nested Packages
 
 ```toml
 [package]
 name = "sunholo/docparse"
 version = "0.3.0"
 edition = "1"
-ailang = ">=0.9.5"
+ailang = ">=0.64.0"
 description = "Parse documents into structured blocks"
 license = "MIT"
 
 [exports]
-modules = [
-  "sunholo/docparse/parser",
-  "sunholo/docparse/types"
-]
+modules = ["sunholo/docparse/parser", "sunholo/docparse/types"]
 
 [dependencies]
 "sunholo/json" = { path = "../json" }
@@ -78,513 +44,103 @@ modules = [
 max = ["IO", "FS"]
 
 [stability]
-level = "experimental"
+level = "experimental"   # experimental | stable | frozen
+
+[release]
+kind = "feature"         # security | fix | feature | breaking
 ```
 
-### Required Fields
+- **Module prefix (`module_prefix`):** Single-segment prefix mapping existing `module myapp/...` declarations to `pkg/sunholo/myapp/...` without renaming files.
+- **Exports (`[exports].modules`):** Modules outside `[exports]` are package-private.
+- **Nested `ailang.toml` packages:** Any subdirectory containing its own `ailang.toml` is treated as an independent package — excluded from the parent package's source discovery, compilation, content hash, and tarball.
+- **Effect ceiling (`[effects].max`):** Every module in the package must stay within `[effects].max` (including effects referenced on external/stdlib/builtin symbols; `Debug` is exempt as a ghost effect). Empty `max = []` enforces a pure package.
 
-- `[package].name` — Two-level `vendor/name` format
-- `[package].version` — Semantic version
-- `[package].edition` — Language edition (currently `"1"`)
+## Commands (`[bin]`)
 
-### Optional Fields
-
-- `[package].ailang` — Minimum AILANG version required (e.g., `">=0.9.5"`). Auto-set by `ailang init package`. Enforced on `ailang install` — incompatible packages are rejected with a clear error message.
-- `[package].module_prefix` — Maps existing module paths to the package namespace without renaming source files. See [Module Prefix](#module-prefix) below.
-
-### Module Prefix
-
-Existing applications can adopt the package system without renaming all module declarations. If your project uses `module myapp/services/api` but you want to publish as `sunholo/myapp`, set `module_prefix`:
-
-```toml
-[package]
-name = "sunholo/myapp"
-module_prefix = "myapp"
-
-[exports]
-modules = ["myapp/services/api", "myapp/handlers/parse"]
-```
-
-Source files keep their existing `module myapp/...` declarations. Consumers import via the canonical path:
-
-```ailang parse
-import pkg/sunholo/myapp/services/api (startServer)
-```
-
-The loader maps `sunholo/myapp/services/api` → `myapp/services/api` automatically.
-
-**Rules:**
-- `module_prefix` must be a single segment (no slashes)
-- Exports can use either `module_prefix/...` or `vendor/name/...` prefixes
-- CLI: `ailang init package --name sunholo/myapp --module-prefix myapp`
-
-### Exports
-
-Only modules listed in `[exports].modules` are accessible to dependents. Modules not in this list are package-private.
-
-```toml
-[exports]
-modules = ["sunholo/docparse/parser"]
-# sunholo/docparse/internal/helpers is NOT accessible from outside
-```
-
-### Effect Ceiling
-
-Packages declare their maximum allowed effects:
-
-```toml
-[effects]
-max = ["IO"]  # Only IO allowed; Net, FS, etc. would be a compile error
-```
-
-The ceiling covers what the package's **own** code can reach. The package's own modules are its
-local modules and its siblings, including any imported as `./x` or `pkg/<self>/x`. For each own
-module, compilation fails if either of these includes an effect not in `max`:
-
-- the effects a function **declares** in its signature;
-- the effects in the type of any **reference** to a function outside the package: a stdlib or
-  dependency function, or a builtin. The reference counts wherever it appears — called, passed
-  to a higher-order function, stored in a record, or returned inside a closure, even one that is
-  never called.
-
-```
-effect ceiling violation in package sunholo/mylib: effects [FS] not in max [IO]
-Add missing effects to [effects].max in ailang.toml
-```
-
-Imported modules' own bodies are **not** charged. Importing only `disconnect` from `std/stream`
-needs `Stream`, not the `Process` that `std/stream.asyncExecProcess` uses. An imported name
-that is never referenced charges nothing. The effect rows that appear only in the types of your
-own values are not charged either. For example, a hook must carry an ABI's fixed row even when
-its body uses less. Performing such a callback still requires declaring its effects.
-
-An empty `max = []` means the package is pure — no effects allowed.
-
-**Ghost effects** (like `Debug`) are exempt from ceiling checks. Packages can use `std/debug` or `sunholo/logging` without listing `Debug` in `[effects].max`. Ghost effects are invisible to callers, auto-granted at runtime, and erased in `--release` mode.
-
-### Stability
-
-```toml
-[stability]
-level = "experimental"  # or "stable" | "frozen"
-```
-
-### Commands (`[bin]`)
-
-A package can ship commands as well as modules. Each `[bin]` entry names a module
-whose exported entry function becomes a CLI; `ailang install` puts a shim for it on
-PATH, so a consumer gets the command with one command — no clone, no wrapper script.
+Packages can install CLI shims onto `~/.ailang/bin`:
 
 ```toml
 [bin]
-eparse   = "cli"                        # module sunholo/email/cli, entry main, caps auto
-docparse = { module = "docparse/main",   # module_prefix layouts work too
-             entry = "main",
-             caps = "IO,FS,Env,AI",      # pin caps instead of inferring them
-             run_flags = ["--max-recursion-depth", "50000", "--process-timeout", "5m"] }
+eparse   = "cli"
+docparse = { module = "docparse/main", entry = "main", caps = "IO,FS,Env,AI", run_flags = ["--max-recursion-depth", "50000"] }
 ```
-
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `module` | required | Resolved like an import: `cli`, `vendor/name/cli` and `src/cli.ail` all name the same file |
-| `entry` | `main` | Exported function to run |
-| `caps` | `auto` | `--caps` for the run; `auto` infers them from the entry's declared effects |
-| `run_flags` | `[]` | Extra `ailang run` flags, verbatim. `--caps`, `--entry`, `--package-dir` and `--quiet` are the shim's and are rejected here |
-
-The command receives its positional arguments through `std/env` `getArgs()`; arguments
-that look like flags (`eparse --triage 5`) reach the program untouched.
 
 ```bash
-ailang install sunholo/email            # library + `eparse` on PATH
-ailang install --path packages/email    # the developer loop: shim this checkout, no publish
-ailang install --no-bin sunholo/email   # library only
-ailang bin list                         # what is installed, from which package@version
-ailang bin uninstall eparse
+ailang install sunholo/email            # library + `eparse` shim on PATH
+ailang install --path packages/email    # local dev shim
+ailang bin list                         # inspect installed shims
 ```
 
-Shims live in `~/.ailang/bin` (`--bin-dir` overrides); install prints the `PATH` line to
-add when the directory is not on it, and warns when another `eparse` earlier on PATH
-would shadow the shim. A shim is a five-line `sh` file that `exec`s
-`ailang run --quiet --package-dir <pkg> --entry <entry> --caps <caps> <file> -- "$@"`:
-the installed package directory is the program root, and `ailang install` writes the
-package's `ailang.lock` beside its cached manifest so its own dependencies resolve
-from any working directory. `ailang publish` refuses a `[bin]` whose module does not
-exist or whose entry is not exported.
-
-## Lock File (`ailang.lock`)
-
-Generated by `ailang lock`. Committed to version control. Contains:
-
-- Content hash (SHA256 of all `.ail` source files)
-- Interface hash (SHA256 of exports + effects — stays same on internal refactor)
-- Resolved dependency paths
-
-The lock file is validated at build time — if a dependency's content has changed, you'll see:
-
-```
-Warning: dependency sunholo/json content changed (locked: sha256:a1b2c3... current: sha256:d4e5f6...)
-Run 'ailang lock' to update
-```
-
-## Importing from Packages
-
-Use the `pkg/` prefix for external package imports:
+## Importing from Packages & `export import` Status
 
 ```ailang parse
--- Stdlib (always available)
-import std/io (println)
-
--- Local module (same project)
-import myproject/parser (parse)
-
--- External package
-import pkg/sunholo/json/parser (parseJson)
+import std/io (println)                       -- Stdlib
+import ./types (Profile)                      -- Intra-package sibling (works before ailang lock)
+import myproject/parser (parse)               -- Canonical local module
+import pkg/sunholo/json/parser (parseJson)    -- External package (resolved via ailang.lock)
 ```
 
-The `pkg/` prefix tells the compiler to resolve against the lock file instead of the local filesystem.
+:::note `export import` re-export facades
+`export import ...` is **not yet supported** and fails with `PAR_EXPORT_REQUIRES_FUNC` (tracked in `#2475`). Export wrapper functions or import directly from the defining module.
+:::
 
-## Dependencies
+## Atomic & Portable Lockfile (`ailang.lock`)
 
-### Path Dependencies
+`ailang lock` writes `ailang.lock` **atomically** (staging bytes to a sibling temp file, `fsync`ing, and renaming over `ailang.lock`) so concurrent agents sharing a checkout never observe a truncated JSON file.
 
-Link to local packages:
+- **Portable paths:** Path dependencies are recorded relative to `ailang.toml` with forward slashes (never absolute paths).
+- **Deterministic metadata:** Unchanged resolutions preserve `generated_at`, `generator`, and `ailang_version`, keeping `ailang.lock` byte-identical across toolchain upgrades.
+- **CI drift check:** `ailang lock --check` exits non-zero if `ailang.lock` is out of date without modifying it.
+- **Flat resolution:** One version per `vendor/name` (priority: `path > git > registry`). Version conflicts abort loudly with actionable resolution suggestions.
 
-```toml
-[dependencies]
-"shared/utils" = { path = "../utils" }
-"shared/types" = { path = "../types" }
-```
+## Dual Hash & v2 Contract Signatures
 
-### Git Dependencies
+| Identity | Changes When | Purpose |
+|---|---|---|
+| **Content hash** | Any `.ail` source file changes | Reproducible builds & cache verification |
+| **Interface hash (v1)** | Exports or effect rows change | Lockfile stability on internal refactors |
+| **Interface hash (v2)** + `interface_signatures` | Export types, class constraints (`Eq[a]`, `Num[a]`), `literals`, or `requires`/`ensures` contracts change | Classifies publishes as **A** (internal), **B** (additive), or **C** (breaking/contract tightening) and notifies dependents with `affected_exports` |
 
-Pin to a specific tag or commit in a git repository:
-
-```toml
-[dependencies]
-"sunholo/auth" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/auth", tag = "main" }
-```
-
-### Registry Dependencies
-
-Install from the AILANG package registry:
-
-```toml
-[dependencies]
-"sunholo/auth" = "0.1.0"
-```
-
-Resolution priority: path > git > registry.
-
-## CLI Commands
+## Package Docs & Registry Commands
 
 | Command | Description |
-|---------|-------------|
-| `ailang init package --name vendor/name` | Create `ailang.toml` |
-| `ailang add --path ../dep` | Add path dependency |
-| `ailang add --git URL --subdir DIR --tag TAG` | Add git dependency |
-| `ailang install vendor/name` | Install latest from registry |
-| `ailang install vendor/name@version` | Install exact version from registry |
-| `ailang install --path DIR` | Shim a local package's `[bin]` commands onto PATH |
-| `ailang bin list` / `ailang bin uninstall NAME` | Manage installed `[bin]` shims |
-| `ailang lock` | Resolve deps, generate `ailang.lock` |
-| `ailang tree` | Display dependency tree |
-| `ailang search "query"` | Search registry packages |
-| `ailang publish` | Publish to registry |
-| `ailang pkg-docs vendor/name` | View package AGENT.md |
+|---|---|
+| `ailang pkg docs vendor/name` *(or `ailang pkg-docs`)* | Display `AGENT.md` + `pkg/` import paths |
+| `ailang search "query"` / `--tag gcp` | Search registry packages |
+| `ailang install vendor/name@0.1.0` | Pin exact version in `ailang.toml` (no semver ranges) |
+| `ailang pkg quality .` | Run local + server-equivalent publish gates (`PUBnnn`) |
+| `ailang publish --dry-run` / `ailang publish` | Validate and upload tarball (immutable versions) |
+| `ailang tree` | Display resolved dependency tree |
+| `ailang pkg affected-by vendor/name` | List downstream packages depending on `vendor/name` |
 
-## Registry
-
-The AILANG package registry is hosted on GCP at `https://storage.googleapis.com/ailang-registry`.
-
-### Publishing
-
-```bash
-cd my-package/
-ailang pkg quality .        # The report publish and the validator both run (v0.40.0)
-ailang publish --dry-run    # Same report + tarball preview; exits non-zero on any PUB gate
-ailang publish              # Upload to registry (requires AILANG_REGISTRY_API_KEY)
-```
-
-`publish` runs the quality report first and refuses on the same `PUBnnn` codes the
-validator would return. The validator then recomputes the `server` sections itself:
-- Compiles your package (`ailang check --package`)
-- Verifies effect ceilings match `[effects].max`
-- Verifies contracts package-wide (`ailang verify --package`) and banks the counts
-- Builds the signature-sensitive interface identity (v2) and refuses publisher/validator skew
-- Requires a `## <version>` section in `CHANGELOG.md` and a `[release] kind` (gates from v0.41.0)
-- Computes content + interface + tarball hashes
-
-Tests and `_smoke.ail` run only on your machine and travel as an *attested* block the
-registry displays but never gates on. Details: the
-[package publishing guide](package-publishing.md#what-publish-checks--the-quality-report-v0400).
-- Rejects duplicate versions (immutable once published)
-
-### Searching
-
-```bash
-ailang search "auth"         # Keyword search on name, ai_summary, tags
-ailang search --tag gcp      # Filter by tag
-ailang search                # List all packages
-```
-
-### Installing
-
-```bash
-ailang install sunholo/auth           # Install latest version
-ailang install sunholo/auth@latest    # Same as above
-ailang install sunholo/auth@0.1.0     # Install exact version
-```
-
-The resolved exact version is always written to `ailang.toml`. Semver ranges (`^`, `~`, `>=`) are not supported — AILANG requires exact versions for deterministic builds.
-
-### Lock File Portability
-
-`ailang.lock` is portable across machines and containers — it does not contain absolute paths. Cache paths for registry and git packages are resolved at runtime. This means you can `COPY ailang.lock` into Docker and run `ailang install` to populate the cache.
-
-Path dependencies (`{ path = "../sim" }`) are recorded relative to the depending package's `ailang.toml`, with forward slashes on every OS, and their content hash covers only the files' relative names and contents. A repo holding several packages (say `sim/` and `ai/`, with `ai` depending on `../sim`) can commit `ai/ailang.lock` and it stays valid in a CI clone or a copy unpacked anywhere else.
-
-Run `ailang lock --check` in CI to verify the committed lock is current without rewriting it; it exits non-zero and lists each drifted entry. A lock written by an older ailang that names a path dependency by absolute path still loads while that directory exists, is reported as drift by `--check`, and is rewritten relative by the next `ailang lock`. If the absolute directory is gone (another checkout), the error says so and tells you to run `ailang lock`.
-
-On a fresh machine, run `ailang lock` from the package directory to resolve every dependency
-in the committed manifest and populate the package cache. `ailang install <package>` adds
-a named dependency; it is not the restore command for an existing manifest. Resolution
-still runs when the lock is current so missing cache entries can be fetched.
-
-An unchanged resolution preserves `generated_at`, `generator`, and `ailang_version`
-together, leaving a CLI-generated lock byte-identical even after a toolchain upgrade.
-Changed resolutions receive fresh metadata. CI can therefore use either
-`ailang lock --check` (read-only drift detection) or `ailang lock` followed by
-`git diff --exit-code -- ailang.lock`; timestamp-ignore filters and restoring the file are
-unnecessary. Malformed or unreadable existing locks produce an error.
-
-
-### Version Conflict Detection
-
-AILANG uses flat dependencies — one version per package name. If a transitive dependency requires a different version than your root manifest pins, `ailang lock` fails with a structured error:
-
-```
-version conflict: sunholo/firestore
-  root requires: 0.2.0
-  already resolved: 0.1.0
-  transitive requires: 0.1.0 (via sunholo/billing_store)
-
-resolution aborted
-
-suggestion:
-  - republish sunholo/billing_store against sunholo/firestore@0.2.0
-  - or change root dependency to sunholo/firestore@0.1.0 explicitly
-```
-
-Direct dependencies are authoritative — the resolver never silently downgrades them. To fix a conflict, either republish the transitive package or change your root pin to match.
-
-### Package Documentation
-
-```bash
-ailang pkg-docs sunholo/auth    # Display AGENT.md usage guide
-```
-
-Each package can include an `AGENT.md` — a structured guide for AI agents with quick start, exported functions, and common patterns.
-
-### Environment Variables
+<details>
+<summary>Registry environment variables & cascade config</summary>
 
 | Variable | Purpose |
-|----------|---------|
-| `AILANG_REGISTRY` | Registry URL (default: `https://storage.googleapis.com/ailang-registry`) |
-| `AILANG_REGISTRY_VALIDATOR` | Validator service URL (for `ailang publish`) |
-| `AILANG_REGISTRY_API_KEY` | API key for publishing |
-| `AILANG_CLOUD_PROJECT` | GCP project hosting the cascade Pub/Sub topic (e.g. `ailang-multivac-dev`). When unset, `ailang publish` skips the cascade-topic publish and only emits legacy inbox messages. |
-| `AILANG_TOPIC_PREFIX` | Prefix for cascade topic names (default: `ailang`). Cloud envs use the env-specific prefix (`ailang-dev`, `ailang-test`, `ailang`). The full topic name is `<prefix>-cascade`. |
+|---|---|
+| `AILANG_REGISTRY` | Registry URL (default `https://storage.googleapis.com/ailang-registry`) |
+| `AILANG_REGISTRY_VALIDATOR` | Validator service URL |
+| `AILANG_REGISTRY_API_KEY` | Publish API key (or pass `--key-file PATH`) |
+| `AILANG_CLOUD_PROJECT` | GCP project for `*-cascade` Pub/Sub topic (e.g. `ailang-multivac-dev`) |
+| `AILANG_TOPIC_PREFIX` | Cascade topic prefix (`ailang-dev`, `ailang-test`, `ailang`) |
 
-**Cascade env vars:** Both `AILANG_CLOUD_PROJECT` and `AILANG_TOPIC_PREFIX` must match the cloud coordinator's deployment. For the public `ailang-dev` environment:
+</details>
 
-```bash
-export AILANG_CLOUD_PROJECT=ailang-multivac-dev
-export AILANG_TOPIC_PREFIX=ailang-dev
-```
+## Common Pitfalls & Troubleshooting
 
-Without these, `ailang publish` still uploads to the registry and notifies dependent inboxes, but the cloud coordinator never wakes up to open repair PRs — the cascade is effectively local-only.
-
-### Admin: Rebuild Index
-
-If the registry index becomes corrupted, an admin can rebuild it from all published metadata:
-
-```bash
-curl -X POST https://<validator-url>/rebuild-index \
-  -H "X-API-Key: $AILANG_REGISTRY_API_KEY"
-```
-
-This scans all `metadata.json` files in the bucket and reconstructs `index.json`. Same API key auth as publish.
-
-### Available Packages
-
-| Package | Description | Effects |
-|---------|-------------|---------|
-| `sunholo/auth` | API key validation, HMAC hashing, bearer tokens | Pure |
-| `sunholo/gcp_auth` | GCP ADC OAuth2 token exchange, project detection | FS, Net, Env |
-| `sunholo/http_helpers` | HTTP request builders, auth headers, JSON response parsing | Net |
-| `sunholo/logging` | Structured JSON logging for Cloud Run | IO |
-| `sunholo/config` | Config loading from env vars with validation | Env |
-| `sunholo/testing_utils` | Test assertion helpers | Pure |
-| `sunholo/registry_validator` | Package validator written in AILANG (dogfooding) | IO, FS |
-
-Source: [github.com/sunholo-data/ailang-packages](https://github.com/sunholo-data/ailang-packages)
-
-## Dual Hash Model
-
-Each package in the lock file has two hashes:
-
-| Hash | Changes When | Purpose |
-|------|-------------|---------|
-| Content hash | Any source file changes | Reproducibility |
-| Interface hash | Exports or effects change | Coordination — internal refactors don't cascade |
-
-## Backward Compatibility
-
-Projects without `ailang.toml` work exactly as before. The package system is opt-in — existing module imports (`std/...`, local modules) are unaffected.
-
-## Workspace Pattern
-
-Multi-package repos use path dependencies without needing a registry:
-
-```
-workspace/
-  types/
-    ailang.toml    # name = "myorg/types"
-  parser/
-    ailang.toml    # name = "myorg/parser", depends on types via path
-  app/
-    ailang.toml    # depends on types + parser via path
-```
-
-Each package is independently valid. Workspaces are emergent from path-linked packages, not a separate manifest type.
-
-## AI Agent Coordination
-
-The registry is more than a package manager — it's the coordination layer through which AI agents discover, share, and compose capabilities.
-
-### Why This Matters for Multi-Agent Workflows
-
-When multiple AI agents work on a project (or across projects), the registry provides the shared vocabulary:
-
-- **Effect ceilings** — An agent can inspect `[effects].max` to know exactly what authority a package has. A package with `max = ["IO"]` cannot access the network, filesystem, or environment. This lets agents reason about trust boundaries without reading source code.
-
-- **Interface hashes** — The interface hash changes only when exports or effects change. (The registry's signature-sensitive v2 hash also covers export types and class constraints, so it changes across the release that exports constraints (#2290) for a package with a constrained export; see [Interface identity (v2)](package-publishing.md#interface-identity-v2).) An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
-
-- **AGENT.md discovery** — Each package can include an `AGENT.md` — a structured guide written for AI consumption, not human prose. The registry indexes whether a package has one (`has_agent_doc: true`), and `ailang pkg-docs vendor/name` serves it directly.
-
-- **Immutability** — Once published, a version can never be overwritten. This means agents working concurrently can safely depend on a version without worrying about it changing underneath them.
-
-- **Machine-readable metadata** — `ai_summary`, `tags`, `effects`, and `has_agent_doc` are all in the registry index as structured JSON. Agents can programmatically search and filter without parsing documentation.
-
-### Typical Agent Workflow
-
-```bash
-# 1. Discover what's available
-ailang search "auth" --tag gcp
-
-# 2. Read the AI-specific documentation
-ailang pkg-docs sunholo/gcp-auth
-
-# 3. Install with hash verification
-#    Package names use underscores - the registry name is canonical.
-ailang install sunholo/gcp_auth@0.1.0
-
-# 4. Use in code (a hyphen here parses as subtraction: PAR_HYPHEN_IN_IMPORT)
-# import pkg/sunholo/gcp_auth/token (getAccessToken)
-
-# 5. Publish reusable work back to the registry
-ailang publish --dry-run    # Validate first
-ailang publish              # Share with other agents
-```
-
-### Writing Good AGENT.md
-
-Structure your `AGENT.md` for machine consumption:
-
-- **Quick Start** — minimal import + usage example (copy-pasteable)
-- **Exported Functions** — signatures with effect requirements
-- **Common Patterns** — typical workflows with the package
-- **Effect Requirements** — what `--caps` flags the consumer needs
-
-## Package Coordination Messages
-
-When packages are published or upgraded, the system emits structured coordination messages to notify affected workspaces. This enables multi-agent coordination at package scale.
-
-### Auto-Emitted Events
-
-Running `ailang publish` automatically emits:
-- **`upgrade-available`** — new version with change class (A=internal, B=additive, C=contract)
-- **`interface-change-notice`** — when exported API (interface hash) changed
-- **`effect-widening-warning`** — when effect ceiling expanded (e.g., added `Net`)
-
-### Package-Scoped Inboxes
-
-Messages route to typed inboxes: `pkg:sunholo/auth`, `workspace:docparse`, `team:registry-admin`.
-
-```bash
-# Notify downstream consumers
-ailang pkg notify-upgrade sunholo/auth@0.2.0 --summary "Tightened validation"
-
-# Find who depends on your package
-ailang pkg affected-by sunholo/auth
-
-# View coordination messages
-ailang messages list --inbox pkg:sunholo/auth
-```
-
-### For AI Agents
-
-When upgrading a dependency, check for coordination messages:
-1. `ailang messages list --inbox workspace:<your-workspace> --unread`
-2. Review any `upgrade-available` or `interface-change-notice` messages
-3. Run compatibility checks
-4. Send a `compatibility-report` back to the package inbox
-
-See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-messages-m-pkg-msg) for full details.
-
-## Troubleshooting
-
-### Common Errors
+- **Hyphens in module names:** Directory names may use hyphens (`billing-store/`), but AILANG module paths must use underscores (`sunholo/billing_store/...`) to avoid `PAR_HYPHEN_IN_MODULE`.
+- **Missing `export type`:** Any ADT or record type crossing a package boundary must be declared `export type`.
+- **Prelude types:** `Result`/`Ok`/`Err` and `Option`/`Some`/`None` are in the prelude outside `std/` (set `ailang = ">=0.64.0"` in `ailang.toml` for modern packages; helpers like `mapErr` still require `import std/result`).
 
 | Error | Cause | Fix |
-|-------|-------|-----|
-| `409 Conflict` on publish | Version already exists | Bump version in `ailang.toml` |
-| `401 Unauthorized` | Missing or invalid API key | Set `AILANG_REGISTRY_API_KEY` |
-| `hash mismatch` on install | Corrupted download or tampered package | Retry; if persistent, report to registry admin |
-| `effect ceiling violation` | Package uses effects not in `[effects].max` | Add missing effects to `ailang.toml` (note: Debug is exempt as a ghost effect) |
-| `package not found` | Wrong name or not yet published | Check spelling with `ailang search` |
-| `IMP010: symbol not exported` | Type missing `export` keyword | Add `export type Foo = ...` |
-| `LDR001: module not found` | Missing dependency or wrong import | Add dep + `ailang lock` |
-| `cannot unify type constructor X with TRecord` | Type alias not exported | Add `export type` in defining module |
-| `PAR_HYPHEN_IN_MODULE` | Hyphen in module path | Use underscores: `billing_store` |
+|---|---|---|
+| `409 Conflict` | Version already published | Bump `[package].version` + `CHANGELOG.md` |
+| `effect ceiling violation` | Used effect missing from `[effects].max` | Add effect to `[effects].max` (`Debug` exempt) |
+| `IMP010: symbol not exported` | Missing `export` on type/func | Add `export` in defining module |
+| `LDR001: module not found` | Missing dep or stale lock | Run `ailang add` + `ailang lock` |
 
-### Common Pitfalls
+## See Also
 
-**1. Hyphens in module names**: Directory names can use hyphens (`billing-store/`) but module paths must use underscores (`module sunholo/billing_store/...`). Hyphens parse as subtraction.
-
-**2. Missing `export type`**: Any type used by another package must have `export type`, not just `type`. This includes record types AND ADTs.
-
-**3. Use `./` for intra-package siblings, `pkg/` for external**: Three-way import distinction:
-```ailang parse
-import ./plan (Plan, lookupPlan)              -- LOCAL: sibling in same package
-import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
-import std/result (Ok, Err)                   -- STDLIB: bundled
-```
-`./` resolves in module namespace: if current module is `a/b/c`, then `./d` means `a/b/d`.
-
-**Intra-package sibling imports — three equivalent forms.** All three resolve to the same file and produce identical interface hashes. Pick whichever reads best:
-```ailang parse
--- 1. Bare canonical (matches what the imported module declares — useful when reading top-down)
-import sunholo/linkedin/types (Profile)
-
--- 2. Relative (shortest; mirrors filesystem layout)
-import ./types (Profile)
-
--- 3. Canonical with explicit pkg/ prefix (most explicit; matches consumer-side imports)
-import pkg/sunholo/linkedin/types (Profile)
-```
-Forms 1 and 2 work even before `ailang lock` runs — useful while authoring a fresh multi-module package. External dependencies (any `pkg/<other-vendor>/...` import) still require `ailang.lock`. See [`examples/intra_package_imports/`](https://github.com/sunholo-data/ailang/tree/dev/examples/intra_package_imports) for a runnable example.
-
-**4. `Ok`/`Err` are in the prelude**: every module outside `std/` gets `Result`/`Ok`/`Err` and `Option`/`Some`/`None` without an import (#2371; entry modules only before). Their helpers (`map`, `mapErr`, …) still need `import std/result (...)`. A package whose library modules rely on that — they use `Some`, `Ok`, `Option`, … without importing `std/option`/`std/result` — does not check on v0.60.5 or older, so set its minimum to the release after v0.60.5, the first that carries #2371: `ailang = ">=0.60.6"` in `[package]` (only `>=X.Y.Z` is accepted; whatever number that release gets, it satisfies this). Importing the names explicitly keeps the package working on older releases too.
-
-**5. Run `ailang lock` after changing dependencies**: The lockfile must be regenerated whenever `[dependencies]` changes.
+- [Publishing Your Package](./package-publishing.md) — quality gates, v2 identity, nested packages, scoped keys
+- [Autonomous Package Updates](./autonomous-package-updates.md) — cloud upgrade cascades
+- [Extension Packages](./extension-packages.md) — compile-time plugin registries (`experimental`)
