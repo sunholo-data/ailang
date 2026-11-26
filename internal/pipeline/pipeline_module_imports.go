@@ -211,6 +211,7 @@ func resolveModuleImports(
 				qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, name)
 				imports.ExplicitTypes[qualifiedName] = types.TypeRef{Module: depIface.Module, Name: name}
 			}
+			bindAliasedReexports(imports, imp.ModuleAlias, depIface)
 			for aliasName, aliasTarget := range depIface.TypeAliases {
 				importIfaceAlias(imports, depIface, aliasName, aliasTarget)
 				qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, aliasName)

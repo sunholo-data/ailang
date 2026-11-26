@@ -218,7 +218,7 @@ The content hash is kept as a recorded field, because it is what the lock's drif
 *Version skew.* The manifest loader **silently accepts unknown keys and tables**: `resolve = "checkpoint"` and a made-up `[workspace-resolution]` table both lock without complaint today. The root package's `ailang = ">= …"` floor is not enforced locally either: a floor of 9.0.0 still locked and ran on 0.61.1 (V33). An older binary would therefore build a checkpoint-resolved dependency **against live source, silently**. Mitigation:
 - Any lock containing a checkpoint entry is written as `schema: ailang.lock/v2`.
 - C2 makes an unrecognised `resolve` value an error.
-- Whether older binaries refuse a v2 lock is **PENDING** (V35). If they do not, the guide must say that every agent sharing a checkout runs the same AILANG version.
+- Older binaries refuse a v2 lock (V35, measured): `check`, `run` and `lock` all exit 1 with `unsupported lock file schema: ailang.lock/v2`, and `lock` does not overwrite it. An older binary therefore cannot silently build a checkpoint-resolved dependency from live source while the v2 lock exists. The one remaining path is deleting the lock and re-locking with an older binary, which writes v1 and ignores `resolve`; the guide says so.
 
 **C3: Package leases (coordination).**
 - `ailang pkg claim <pkg> --agent ID [--ttl 2h]`, plus `release` and `claims`.
@@ -286,17 +286,17 @@ The content hash is kept as a recorded field, because it is what the lock's drif
 - [ ] C4: PUB025 as a badge (D5).
 - [ ] C6: nested-manifest exclusion; IMP hint; `pkg docs` import lines; package-mode inline test discovery (TST-PKGPAR-23).
 
-**Phase 2: Re-exports** (~4 days)
-- [ ] C1: parser (import header loop), elaborator/import resolution (identity-preserving aliasing), interface hash v2 inclusion, MOD016, MOD003 removal.
-- [ ] C1: "moved" variant of `TC_DEPRECATED_001` (module-path replacement; applies to types and constructors) (V18).
-- [ ] C1: facade effect ceiling covers re-exported functions (TST-PKGPAR-16).
-- [ ] Engine parity: evaluator and strict VM.
+**Phase 2: Re-exports** (~4 days; done 2026-11-25, Sprint 2: identity is kept by a load-time rewrite of importers to the origin)
+- [x] C1: parser (import header loop), elaborator/import resolution (identity-preserving aliasing), interface hash v2 inclusion, MOD016, MOD003 removal.
+- [x] C1: "moved" variant of `TC_DEPRECATED_001` (module-path replacement; applies to types and constructors) (V18).
+- [x] C1: facade effect ceiling covers re-exported functions (TST-PKGPAR-16).
+- [x] Engine parity: evaluator and strict VM.
 
 **Phase 3: Checkpoints and leases** (~3–4 days; after Phase 0)
 - [ ] C2: `pkg checkpoint` (snapshot → validate snapshot → measure → rename → HEAD), `resolve = "checkpoint"` with read-side hash verification, MOD017/MOD018, `lock --refresh-checkpoints [--dry-run]`, `pkg checkpoints`.
 - [ ] Full Phase 0 run, extended with a checkpoint loop: dependents `check` in a loop while the dependency checkpoints 200 times (TST-PKGPAR-15).
 - [ ] C3: claim/release/claims; nearest-`ailang.toml` ownership; hook template; `pkg commit` with nested-root excludes (if D4 is accepted).
-- [ ] C2: HEAD lock (TST-PKGPAR-25); publish rule for checkpoint deps (PUB026, TST-PKGPAR-24); lock schema v2 for checkpoint entries; settle V35 before release.
+- [ ] C2: HEAD lock (TST-PKGPAR-25); publish rule for checkpoint deps (PUB026, TST-PKGPAR-24); lock schema v2 for checkpoint entries (V35: older binaries refuse it).
 
 **Phase 4: Moves** (~2–3 days)
 - [ ] C5: `pkg move` (both manifests, target dependency, facade, `[[migrations]]`); PUB027 target-first gate; `import_rewrites` + `add_dependency` schema and validation; `classifyDispatchPath` deterministic-first for C-class migration-requests with rewrites (TST-PKGPAR-26, -27).
@@ -479,7 +479,7 @@ All runs on `ailang v0.61.1` (dev, 2026-11-25), using scratch packages in the se
 | V32 | The `ReleaseGateHardFrom` grace precedent exists | `internal/pkg/changelog.go:23-26` (`ReleaseGateHardFrom = "0.41.0"`, PUB001/PUB002 block from it), used at `:111` and `quality.go:77` | **Confirmed**; D5 follows it |
 | V33 | The manifest loader silently accepts unknown keys and tables; the root `ailang` floor is not enforced locally | Scratch `demo/app`: added `resolve = "checkpoint"` to the dependency → `✓ Generated ailang.lock`; appended `[workspace-resolution]` → same; set `ailang = ">= 9.0.0"` → lock and `run` both succeeded on v0.61.1 | **Confirmed.** This drives the version-skew mitigation |
 | V34 | Publish pins path deps to the local manifest version and matches only `{ path = "…" }` | Read `internal/pkg/publish_rewrite.go:20-55` (regex `"<name>"\s*=\s*\{\s*path\s*=\s*"<path>"\s*\}`; replacement is `local.Package.Version`; mismatch → "unsupported manifest spelling"); called from `cmd/ailang/pkg_publish.go:195` | **Confirmed** |
-| V35 | Older binaries refuse an `ailang.lock/v2` lock | Not yet measured | **PENDING**: run v0.61.1 against a hand-written v2 lock before Phase 3 ships |
+| V35 | Older binaries refuse an `ailang.lock/v2` lock | **Measured** 2026-11-25: v0.61.1 built from its tag, path-dependency fixture. With the v1 lock, `check` passes and `run` prints the dependency's output (positive control). With `schema` edited to `ailang.lock/v2`: `check`, `run` and `lock` all exit 1 with `unsupported lock file schema: ailang.lock/v2 (expected ailang.lock/v1)`; `lock` leaves the file untouched. Cause: `schema.Accepts` (`internal/schema/registry.go:24`) accepts only `v1` and `v1.x` | Confirmed |
 | V36 | A pathspec exclude keeps a nested package out of a root commit | Scratch repo: root edit, staged `packages/child/c.ail`, unstaged `packages/child/d.ail`; `git commit -- . ':(exclude)packages/child'` | Commit contained only `root.ail`; afterwards `M  packages/child/c.ail` (still staged) and ` M packages/child/d.ail` (still unstaged). **Confirmed** |
 | V37 | PUB026 and PUB027 are unallocated | `grep -rln '"PUB026"\|PUB026:'` (and the same for PUB027) over `internal` and `cmd` | None found. **Confirmed** |
 | V17 | No shared atomic-write helper is reachable from `internal/pkg` | `grep -rn '^func [A-Za-z]*[Aa]tomic[A-Za-z]*(' internal cmd` | Only package-private copies: `eval_analysis/dashboard_io.go:154`, `mission/render.go:307`, `mission/activation/files.go:189`, `cmd/ailang/fmt.go:261`. **Confirmed.** Consolidating them is out of scope |
@@ -515,7 +515,7 @@ All runs on `ailang v0.61.1` (dev, 2026-11-25), using scratch packages in the se
 | Signature-based classing auto-applies a contract tightening inside an unchanged type | High | Contracts are in neither the signatures nor the hash projection (V24). C4 adds contract lines (D7); any contract difference → C; a pair missing contract lines on one side → U (TST-PKGPAR-19). If D7 is declined, signatures cannot see contracts. C4 must then **not** use signature classing for any package whose exports carry contracts; those packages keep today's legacy C for every interface change. Signature classing (A/B) applies only to contract-free packages |
 | Leases are advisory and an agent ignores them | Med | Hook template refuses writes; `pkg commit` refuses; `claims` makes violations visible. Not a security boundary, and the doc does not claim it is |
 | Checkpoint-resolved dependents lag behind live work | Low | `lock --refresh-checkpoints --dry-run` shows what is newer, with class and diff; refreshing is one command; live mode stays the default (D2). Push notification is deliberately absent (V22) |
-| Version skew: an older AILANG silently ignores `resolve = "checkpoint"` and builds live | High | Lock schema v2 for checkpoint entries; unknown `resolve` values are an error from this version on; V35 must confirm old binaries refuse v2, or the guide mandates one AILANG version per shared checkout |
+| Version skew: an older AILANG silently ignores `resolve = "checkpoint"` and builds live | High | Lock schema v2 for checkpoint entries; unknown `resolve` values are an error from this version on; older binaries refuse v2 (V35, measured); the guide warns that deleting the lock and re-locking with an older binary drops the pins |
 | Checkpoint store grows without bound | Low | GC is a deferred decision; content-addressed dirs make "keep HEAD plus anything a lock references" safe to compute |
 
 ## Quorum
@@ -570,7 +570,7 @@ Both C2 rounds found real defects, so (a) should focus on C2's identity and clos
 - **Kimi:**
   - Publishing with checkpoint dependencies was unspecified. Now there is a content-hash pin rule plus PUB026 (V34; TST-PKGPAR-24).
   - Concurrent HEAD writes could lose a digest. Now HEAD is written under an exclusive lock with a `prev_digest` chain (TST-PKGPAR-25).
-  - Manifest tolerance of unknown keys was unverified. It is verified now, and it is worse than assumed: unknown keys are silently ignored (V33). This adds the version-skew risk, with V35 PENDING.
+  - Manifest tolerance of unknown keys was unverified. It is verified now, and it is worse than assumed: unknown keys are silently ignored (V33). This adds the version-skew risk; V35 has since measured that older binaries refuse a v2 lock.
 - **Codex Astra:** a root commit swept in nested packages. Now ownership is the nearest `ailang.toml`, and commits use pathspec excludes (V36; TST-PKGPAR-13 extended).
 - **Carbon:**
   - C5 was inconsistent end to end. It is now redesigned as two releases: the move releases as B with the target dependency added and PUB027 enforcing target-first publish; facade removal releases as C with `[[migrations]]`-sourced `import_rewrites` and deterministic-first dispatch for C-class migration-requests (TST-PKGPAR-26, -27).

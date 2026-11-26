@@ -193,6 +193,14 @@ type ifaceFullJSON struct {
 	// served an interface with no tier, so `ailang iface std/<m>` and the
 	// stdlib goldens lost `"tier"` on a warm cache (cache key v12).
 	Tier string `json:"tier,omitempty"`
+	// Reexports: a facade's `export import` table (M-PKG-PARALLEL-AGENTS C1);
+	// Items is the nested interface of re-exported entries.
+	Reexports *reexportsJSON `json:"reexports,omitempty"`
+}
+
+type reexportsJSON struct {
+	Origins map[string]iface.ReexportOrigin `json:"origins"`
+	Items   json.RawMessage                 `json:"items"`
 }
 
 type ifaceItemJSON struct {
@@ -294,6 +302,14 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 		}
 	}
 
+	if rx := ifc.Reexported; rx != nil {
+		items, err := marshalIfaceFull(rx.Items)
+		if err != nil {
+			return nil, fmt.Errorf("marshal re-exports: %w", err)
+		}
+		result.Reexports = &reexportsJSON{Origins: rx.Origins, Items: items}
+	}
+
 	return json.Marshal(result)
 }
 
@@ -377,6 +393,14 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 	// AliasParams (M-XMOD-ALIAS-POLY)
 	for name, params := range d.AliasParams {
 		ifc.AliasParams[name] = params
+	}
+
+	if d.Reexports != nil {
+		items, err := unmarshalIfaceFull(d.Reexports.Items)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal re-exports: %w", err)
+		}
+		ifc.Reexported = &iface.Reexports{Origins: d.Reexports.Origins, Items: items}
 	}
 
 	if err := ifc.ValidateIFC(); err != nil {

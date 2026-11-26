@@ -204,6 +204,26 @@ names exactly one package: the loader lets several dependencies share a prefix a
 each. `ailang pkg docs <vendor/name>` ends with the `pkg/` import line for every exported
 module.
 
+### Moving a module without breaking dependents
+
+To move a module to another package (for example into a smaller core package), leave a
+**facade** at the old path that re-exports it:
+
+```ailang parse
+module docparse/types/document
+export import pkg/sunholo/docparse_core/types/document
+  (Block, Heading, Text, Table, ParsedDocument) @deprecated("pkg/sunholo/docparse_core/types/document")
+```
+
+Dependents compile unchanged: the names keep their identity, and a dependent needs no
+direct dependency on the new package. Each name they import through the line warns
+`TC_DEPRECATED_001` with the new path. The facade's signature lines are the moved
+module's lines, so the release measures as no removal. Removing the facade later is a
+class C change.
+
+The facade package's `[effects].max` must cover the functions it re-exports: re-exporting
+a `! {Net}` function under `max = []` fails `ailang check` and names the function.
+
 ### The package inbox
 
 Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from

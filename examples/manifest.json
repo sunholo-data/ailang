@@ -2039,6 +2039,38 @@
       "description": "M-SMT-CROSS-MODULE-FUNCTIONS: library with double (inlineable) and sumTo (recursive, contract fallback)"
     },
     {
+      "path": "runnable/reexport_facade/main.ail",
+      "status": "working",
+      "tags": [
+        "modules",
+        "reexport",
+        "m-pkg-parallel-agents"
+      ],
+      "description": "M-PKG-PARALLEL-AGENTS C1: imports Shape only through a facade (export import); values built with the facade's constructors match the origin's",
+      "modules": ["std/io"]
+    },
+    {
+      "path": "runnable/reexport_facade/api.ail",
+      "status": "working",
+      "tags": [
+        "modules",
+        "reexport",
+        "m-pkg-parallel-agents"
+      ],
+      "description": "M-PKG-PARALLEL-AGENTS C1: a facade that re-exports reexport_facade/shapes, renaming one constructor (Square as Box)"
+    },
+    {
+      "path": "runnable/reexport_facade/shapes.ail",
+      "status": "working",
+      "tags": [
+        "modules",
+        "reexport",
+        "m-pkg-parallel-agents"
+      ],
+      "description": "M-PKG-PARALLEL-AGENTS C1: the module the facade re-exports; its contract and inline tests travel with the names",
+      "modules": ["std/io"]
+    },
+    {
       "path": "runnable/contracts/finance.ail",
       "status": "working",
       "tags": [
@@ -4515,11 +4547,11 @@
     }
   ],
   "statistics": {
-    "total": 339,
-    "working": 331,
+    "total": 342,
+    "working": 334,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.976401179941003,
+    "coverage": 0.9766081871345029,
     "experimental": 0
   },
   "milestones": {

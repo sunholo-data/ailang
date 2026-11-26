@@ -27,7 +27,7 @@ Make the package cascade classify changes from measured symbol-level signatures,
 ### Remaining from the design doc
 - ⏳ **Phase 1** (this sprint): atomic lock write; C4 (signatures through publish, contract lines, short-circuit removal, PUB025); C6 (nested-manifest boundary, import hints).
 - 📋 Phase 2: C1 re-exports (Sprint 2).
-- 📋 Phase 3: C2 checkpoints, C3 leases, full Phase 0 run, V35 (Sprint 3).
+- 📋 Phase 3: C2 checkpoints, C3 leases, full Phase 0 run (Sprint 3). V35 is measured: older binaries refuse a v2 lock.
 - 📋 Phase 4: C5 moves (Sprint 4).
 - **Moved out of C6:** package-mode inline test discovery (TST-PKGPAR-23). It already has its own planned design, [m-package-test-discovery.md](../m-package-test-discovery.md) (issue #959, a 2-day estimate). This doc **depends on** it rather than duplicating it.
 
@@ -165,7 +165,7 @@ No milestone writes showcase `.ail` modules. Test fixtures are minimal scratch p
 | Sprint | Design phase | Content | Pre-work |
 |--------|--------------|---------|----------|
 | 2 | Phase 2 | C1 re-exports: parser header loop, identity-preserving import resolution, v2 inclusion, "moved" `TC_DEPRECATED_001` variant, facade ceiling, MOD016, MOD003 removal (TST-PKGPAR-06, -09, -10, -16); engine parity | Conflict Surface fixtures (V28) |
-| 3 | Phase 3 | C2 checkpoints (digest identity, snapshot-validate, HEAD lock, MOD017/018/019, PUB026, lock v2) and C3 leases and `pkg commit` (TST-PKGPAR-07, -08, -13, -15, -17, -18, -20..22, -24, -25) | Full Phase 0 run; V35 |
+| 3 | Phase 3 | C2 checkpoints (digest identity, snapshot-validate, HEAD lock, MOD017/018/019, PUB026, lock v2) and C3 leases and `pkg commit` (TST-PKGPAR-07, -08, -13, -15, -17, -18, -20..22, -24, -25) | Full Phase 0 run |
 | 4 | Phase 4 | C5 moves (`pkg move`, `[[migrations]]`, PUB027, `import_rewrites`, deterministic-first dispatch for C migration-requests) (TST-PKGPAR-11, -12, -26, -27); guide | Sprint 2 (facades) |
 
 ## Notes

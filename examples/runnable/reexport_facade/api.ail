@@ -1,0 +1,6 @@
+-- examples/runnable/reexport_facade/api.ail
+--
+-- A facade: the listed names are this module's exports, with the identity of
+-- their definitions in reexport_facade/shapes. `Square as Box` renames one.
+module examples/runnable/reexport_facade/api
+export import examples/runnable/reexport_facade/shapes (Shape, Square as Box, Rect, area, double)
