@@ -515,8 +515,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md) for
 - Current status analysis (completed, velocity, remaining)
 - Proposed milestones (with tasks, criteria, risks)
 - Swarm Worker & Model Assignment (optional — for `/swarm` sprints: assign models per worker/slice here rather than in the design doc; use top reasoning models for Coordinator + compiler/parser/typechecker slices and fast/standard models for well-scoped stdlib/tooling/verifier slices)
-- Success metrics
-- Dependencies and open questions
+- Success metrics, dependencies and open questions
 
 ## Progressive Disclosure
 
