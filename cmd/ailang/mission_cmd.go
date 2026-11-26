@@ -136,11 +136,12 @@ func printMissionHelp() {
                                    fleet-wide subscription spend per (bucket, window):
                                    Codex/Anthropic against the weekday pace (20% per
                                    weekday, weekends spend the slack), others 10%/day
-  ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status]
+  ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status] [--workdir <dir>]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)
                                    --index-only writes only the index from live + archive
                                    --stream status selects the STATUS-stamp archive instead
+                                   --workdir <dir> targets the selected stream in <dir>/design_docs
   ailang mission normalize [<name>] [--apply]
                                    rewrite mission-doc headings to the ONE canonical shape
                                    (dry run by default; reports what it will not convert)

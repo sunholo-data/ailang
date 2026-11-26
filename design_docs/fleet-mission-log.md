@@ -1415,3 +1415,72 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (58,734 tok). Judge independence: the code under review was authored by codex `gpt-6.2-sol` (iterations 136 and 138) and the rebase by the controller (opus); the judge is sonnet.
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 140 — 2026-11-25 — `skill:rotate-log-index-only-targets-registry-workdir` BUILT + JUDGED (independent sonnet judge PASS 92): #2471, stacked on #2466, adds `ailang mission rotate-log --workdir <dir>`, and Gate 4 prescribes it with a fallback for older CLIs; it cannot merge while dev's required `test` stays red (prompt-freeze plus a new `TestCachePipeline_EmbeddedKeys` from `e3595b4f9`, both outside fleet scope); ticket stays open [HARNESS]
+
+**Pick**: `skill:rotate-log-index-only-targets-registry-workdir` (World 433, 11-25 09:54Z, blocking none, 1 slot), the one new in-scope ticket. Iteration 139's **Next** allowed exactly this. The queue went 21 → 22 open ([tickets](fleet-mission-evidence/iteration140/tickets.json), [diff](fleet-mission-evidence/iteration140/ticket-diff.txt)). The other 21 are byte-identical to 139 (sorted JSON `cmp`). D-FLEET-44/45/46/48 are all OPEN. Index grep: rotate-log work at 8, 18, 19, 45, 47, 51 and 56, none on the target directory.
+- 0 allowlisted directives on #2445 (9 comments; watermark absent, so a whole-issue read). Self-notices rc 1 on the same crash notice (`…#issuecomment-7063993188`) and transcript notice (fire `fleet-1795100889-10927`) as 125–139, already credited. Control 852:10.
+- Died-mid-flight traces: the open `fleet/*` PRs are #2463 and #2466, both known; `fleet-i138-wt` is clean at `03612b56c`. No iteration-140 trace.
+- Reality check, first-party from code: `missionRotateLog` sets `logDir := m.Workdir` and replaces it with `m.Root()` only for `sunholo-data/ailang` (`cmd/ailang/mission_rotate.go:72-79`). There is no override flag. `missions/world.toml` `workdir` is the shared main checkout of ailang-world, which has no `missions/` directory. So for World, `--keep` and `--index-only` both write into that main checkout. This is wider than the ticket says: it is not only `--index-only`.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google` (no role used it).
+- Skill drift: SKILL.md and 12 of 13 resources match origin/dev in the resolved symlink copy. `gate-2-pick.md` DIFFERS: an uncommitted edit in the main checkout changes the quorum reviewer pool (`codex:gpt-6.2-astra`, `gemini-4-carbon`, `claude-fable-5-2@claude-p`, "2026-11-25"). The resolved copy was followed. No quorum ran this iteration, so it changed nothing here. The main checkout is dirty with an attended session's work, which was left alone.
+- Pin HEAD = origin/dev = `e3595b4f9` at Gate 1 and at Gate 4.
+- Blocked-PR rule: the i138 branch carries 136–139, so this build and record stack on it. The build shares `gate-4-record.md` with it.
+- **Dev CI** ([excerpt](fleet-mission-evidence/iteration140/dev-ci.txt)) at `e3595b4f9`: required `test` red on two failures (log 249,722 B, 170 `ok` package lines as the control): `TestRealRegistry_PostMigrationSplitCounts` ("split 19/54/2", as in 139) and `TestCachePipeline_EmbeddedKeys` ("std/result unexpected dependencies: [std/option]"). The second is new and comes from `e3595b4f9` itself, which added `result.toOption`/`fromOption`. `lint`, `build`, `checks`, `docs-gate` green.
+
+**Did**:
+- Plan: codex `gpt-6.2-sol` ([plan](fleet-mission-evidence/iteration140/plan.md)), 2 milestones and an 8-row test table, each row tied to a mutation. The directive named the direction (`--workdir`, the ticket's first candidate) and the no-fallback constraint, and labelled the controller's code reading as verified. Gate list baselined green on `03612b56c` first, including the full `internal/mission`.
+- Executor: codex `gpt-6.2-sol`, `workspace-write`, rc 0, not capped ([report](fleet-mission-evidence/iteration140/executor-report.md)). Four mutation drills, all killed. Its `internal/mission` run was correctly labelled UNINFORMATIVE UNDER SANDBOX (`listen tcp6 [::1]:0: bind: operation not permitted`).
+- Controller: rebuilt M1 and M2 from the `.snap/` snapshots, with the tests green at each boundary.
+  - **Instrument slip (disclosed):** a zsh-unsplit `$FILES` broke the sha256 manifest step. A later `;`-joined reset still ran, so the executor's final tree was reverted before it was manifested.
+  - Recovered from the snapshot backup. Faithfulness was shown by the cumulative `--stat` matching the executor's final tree file-for-file (4 files, 290+/15−), not by sha256.
+- M3, controller-authored: Gate 4 names the fallback when the CLI answers `unknown flag "--workdir"`. Measured: the rig's PATH `ailang` (v0.61.1-dirty, `cb6bb75`) rejects the flag. The skill reaches every mission on merge, but the flag reaches a mission only when its CLI is rebuilt, and M2 had deleted the earlier forms.
+- `.agents` mirror regenerated outside the sandbox (iteration 138's friction, instance 2: the executor was told not to touch it).
+- Out-of-sandbox gates, all rc 0:
+  - `go build ./cmd/ailang`, `go test ./cmd/ailang -run Rotate`, full `go test ./internal/mission`;
+  - `make check-context-docs`, `test_agents_skills_sync.sh` 7/7, `test_skill_sync.sh`;
+  - gofmt, `go vet ./cmd/ailang`.
+- Smoke on the ticket's exact case, with the built binary and the driver's `AILANG_MISSION_REGISTRY` (pin): a scratch record checkout holding World's origin/dev log and archive, `--index-only --workdir "$PWD"`. The INDEX was written under the record checkout (416 iterations). The World main checkout's porcelain and `world-mission-*` files were byte-identical before and after. A missing target errors with its absolute path, and the old binary gives `unknown flag`.
+- Judge ([report](fleet-mission-evidence/iteration140/judge.md)): sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground, own worktree `.fleet-i140-judge`, 56,020 tok.
+  - **PASS 92**, 0 blocking.
+  - Five gates re-run green.
+  - 11/11 mutations killed, four of them the judge's own (empty-string guard, stat only when not `--index-only`, stat the directory, stat the log regardless of stream).
+  - Controller reproduced one kill (skip the stat check → `TestMissionRotateWorkdirMissingSource` FAIL; restored clean) and N1 (`--workdir --keep 5` → `no mission "5"`; loud, nothing written).
+- Gate 3b, PR #2471 CI on `62f569387` (bounded poll, 18 min), required checks:
+  - green: `lint`, `build`, `checks`, `docs-gate`, `launchd drivers (bash 3.2)`;
+  - red: `test`, on the same two failures as dev `e3595b4f9` (PR CI tests the merge with current dev). The diff touches neither file.
+  - No merge.
+- Record stacked on the branch; `.fleet-i140-judge` removed.
+
+**Ruled out**:
+- The scratch-registry recipe alone, the ticket's second candidate: it needs a TOML copy every fire, and it leaves `--keep` hazardous by default. The flag fixes both directly. The recipe is kept only as the old-CLI fallback.
+- Auto-detecting the record checkout from CWD: it would be a silent change of target. An explicit flag fails loudly.
+- Admin merge over dev's reds: that is D-FLEET-48 B, Mark's call.
+- Fixing either dev red: `prompts/**`, `cmd/ailang/prompt_freeze_test.go` and `internal/pipeline` are outside fleet Authority, and both reds come from attended release work.
+- Resolving the ticket: the fix is not on `origin/dev`, so the done-gate cannot be met.
+
+**Retro lane**: two frictions, both instance 1 or below the bar, so no skill edit.
+- (a) The controller's own zsh slip during snapshot reconstruction. This is the same class as the Gate 3b rule "run every poll or gate loop YOU write under `/bin/bash`", applied to a one-off command. It is covered by the existing rule, so it needs no new text.
+- (b) A skill edit that prescribes a new CLI flag goes live before the binary carries it. Instance 1. If it recurs, the fix is a Gate-3 reach check, not prose.
+
+**Progress**: 22 open tickets (21 → 22). Goal unmoved.
+- Clause 1 UNMEASURED; clause 2 UNMET, unmoved (three built, judged fixes, rows 70, 74 and 75, wait on dev reds outside fleet scope); clause 3 MET; clause 4 met by its letter; clause 5 preserved (nothing resolved).
+- Last 3 landings: 126, 135, and none in 136–140.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid.
+- STATUS rotation: ITERATION 137 moved to the archive (archive +4 lines; `ITERATION 137` in the archive ≥1, control `ITERATION 136` ≥1). Three `## STATUS 2026` stamps remain; queue rows 70–75 present.
+
+**Next**: re-measure dev's required `test`. When both reds are gone from dev's head, land #2463, then #2466, then #2471, in that order: rebase onto dev, poll PR CI pinned to the new head, merge with `--match-head-commit`, run the done-gate, resolve the ticket. Otherwise pick NONE unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives.
+
+**Routing evidence**: base=`e3595b4f953b22863c284dca490c6f89277c083b`@2026-11-25T17:20:03Z (Gate 4; Gate 1 read the same SHA at 16:28:06Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: a one-flag fix with the direction given by the ticket; nothing to design. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` → `opus fail-closed:no-doc`. The role is pinned `codex:gpt-6.2-sol`, so it was routed to the pin under the codex recipe (role-spawn-routing §2(a)), not the Agent tool. Probe rc 0. 1 run, rc 0, not capped (60,221 tok). Ticket-queue mission: `import-github` skipped.
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, `workspace-write`. 1 run, rc 0, not capped (93,478 tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (56,020 tok). Judge independence: cross-vendor. The planner and executor were OpenAI codex; M3 and the mirror were the controller (opus); the judge is Anthropic sonnet.
+- Operator request for this fire ("use the Agent tool for every role as the routing table specifies"): the table's path for the two codex-pinned roles is the recipe, and the spawn-pin hook refuses an Agent-tool alias for them. They ran on codex as configured, and the evaluator ran on the Agent tool. No role was unspawnable.
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (Anthropic and codex subscriptions only).

@@ -1,0 +1,9 @@
+dev head e3595b4f953b22863c284dca490c6f89277c083b (Gate 1, 2026-11-25T16:28:06Z)
+CI: failure; Build and Release: failure; Docs-Deploy: success
+check-runs=21; NOT-GREEN: test, test-windows, Build ubuntu/macos x2/windows (matrix, non-required)
+required test job 139313250870 FAIL lines (log 249722 B, 170 ok-package lines as control):
+--- FAIL: TestRealRegistry_PostMigrationSplitCounts (0.01s)
+    prompt_freeze_test.go:167: split 19/54/2 v0.16.19
+
+--- FAIL: TestCachePipeline_EmbeddedKeys (0.03s)
+    cache_invalidation_test.go:211: std/result unexpected dependencies: [std/option]

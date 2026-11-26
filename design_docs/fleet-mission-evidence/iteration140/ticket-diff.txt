@@ -1,0 +1,5 @@
+iteration 140 vs 139 ticket snapshot (sorted signatures)
+new:
+skill:rotate-log-index-only-targets-registry-workdir
+gone: (none)
+common: 21 (sorted JSON of the 21 common tickets byte-identical to iteration 139)
