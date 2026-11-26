@@ -43,11 +43,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-26 — ITERATION 58: green dev and queue verdicts parked on the evaluator lane [ADMIN]
+
 ## STATUS 2026-11-25 — ITERATION 57: cross-vendor queue review and two reproducible dev CI failures [ADMIN]
 
 ## STATUS 2026-11-25 — ITERATION 56: independent review, execution holds and evaluator fallback [ADMIN]
-
-## STATUS 2026-11-24 — ITERATION 55: cross-vendor reviews, aged holds and new dev CI routes [HARNESS] [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
