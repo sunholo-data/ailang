@@ -38,8 +38,7 @@ type listDelegationExemption struct {
 }
 
 var listDelegationExemptions = map[string]listDelegationExemption{
-	"_list_extract": {NotNeeded, true, "std/list exposes no extract operation to delegate"},
-	"_list_head":    {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
+	"_list_head": {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
 }
 
 // registeredListBuiltins reads the LIVE registry rather than parsing source.

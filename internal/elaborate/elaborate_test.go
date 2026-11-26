@@ -305,7 +305,7 @@ func TestLetInIfElseBranchError(t *testing.T) {
 		errorSubstr string
 	}{
 		{
-			name: "let in else branch without braces",
+			name: "let in else branch without braces - allowed since M-AI-PREFERRED-V2 D1=b",
 			input: `module test
 pure func test(x: int) -> [int] {
     if x > 10 then []
@@ -313,11 +313,11 @@ pure func test(x: int) -> [int] {
         let v = x;
         [v]
 }`,
-			expectError: true,
-			errorSubstr: "if-else branches require explicit braces",
+			expectError: false,
+			errorSubstr: "",
 		},
 		{
-			name: "let in then branch without braces",
+			name: "let in then branch without braces - allowed since M-AI-PREFERRED-V2 D1=b",
 			input: `module test
 pure func test(x: int) -> [int] {
     if x > 10 then
@@ -325,8 +325,8 @@ pure func test(x: int) -> [int] {
         [v]
     else []
 }`,
-			expectError: true,
-			errorSubstr: "if-else branches require explicit braces",
+			expectError: false,
+			errorSubstr: "",
 		},
 		{
 			name: "let in else branch WITH braces - should work",
