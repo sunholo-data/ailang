@@ -53,6 +53,16 @@ func MapType(t types.Type) (string, error) {
 		return fmt.Sprintf("(Seq %s)", elemSort), nil
 	case *types.TRecord:
 		return MapRecordSortName(ty), nil
+	case *types.TTuple:
+		elems := make([]string, len(ty.Elements))
+		for i, el := range ty.Elements {
+			sort, err := MapType(el)
+			if err != nil {
+				return "", fmt.Errorf("tuple component %d: %w", i, err)
+			}
+			elems[i] = sort
+		}
+		return tupleSortOf(elems)
 	case *types.TApp:
 		// TApp with a TCon constructor may be a parameterized ADT or list
 		if con, ok := ty.Constructor.(*types.TCon); ok {

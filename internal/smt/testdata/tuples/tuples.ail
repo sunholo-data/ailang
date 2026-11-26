@@ -1,0 +1,126 @@
+module tuples
+import std/list (length as listLength)
+
+-- A tuple is the datatype TupleN of its components (tuple_sorts.go).
+
+export func swap(p: (int, string)) -> (string, int)
+  ensures { match result { (s, n) => match p { (a, b) => n == a && s == b } } }
+{
+  match p { (a, b) => (b, a) }
+}
+
+-- False: the components are swapped, not incremented.
+export func swapBad(p: (int, string)) -> (string, int)
+  ensures { match result { (s, n) => match p { (a, b) => n == a + 1 && s == b } } }
+{
+  match p { (a, b) => (b, a) }
+}
+
+export func third(t: (int, bool, string)) -> string
+  ensures { match t { (_, _, s) => result == s } }
+{
+  match t { (_, _, s) => s }
+}
+
+-- An empty-list component takes the declared element sort.
+export func emptyFirst(n: int) -> ([string], int)
+  ensures { match result { (xs, m) => listLength(xs) == 0 && m == n } }
+{
+  ([], n)
+}
+
+-- Literal patterns inside a tuple.
+export func classify(p: (int, int)) -> int
+  ensures { result >= 0 && result <= 2 }
+{
+  match p {
+    (0, _) => 0,
+    (_, 0) => 1,
+    _ => 2
+  }
+}
+
+-- False: (1, 0) is classified 1.
+export func classifyBad(p: (int, int)) -> int
+  ensures { result != 1 }
+{
+  match p {
+    (0, _) => 0,
+    (_, 0) => 1,
+    _ => 2
+  }
+}
+
+-- A tuple inside a constructor pattern.
+export func someSum(o: Option[(int, int)]) -> int
+  ensures { match o { None => result == 0, Some(_) => true } }
+{
+  match o {
+    Some((a, b)) => a + b,
+    None => 0
+  }
+}
+
+-- A list of tuples, through a list pattern.
+export func firstKey(ps: [(string, int)]) -> string
+  ensures { match ps { [] => result == "", [(k, _), ..._] => result == k } }
+{
+  match ps {
+    [] => "",
+    [(k, _), ..._] => k
+  }
+}
+
+-- Destructuring let.
+export func sumPair(p: (int, int)) -> int
+  requires { match p { (a, b) => a >= 0 && b >= 0 && a < 1000 && b < 1000 } }
+  ensures { result >= 0 }
+{
+  let (a, b) = p;
+  a + b
+}
+
+-- Tuple equality is component-wise.
+export func pairEq(p: (int, int), q: (int, int)) -> bool
+  requires { match p { (a, b) => match q { (c, d) => a == c && b == d } } }
+  ensures { result }
+{
+  p == q
+}
+
+-- False: equal first components do not make the pairs equal.
+export func pairEqBad(p: (int, int), q: (int, int)) -> bool
+  requires { match p { (a, _) => match q { (c, _) => a == c } } }
+  ensures { result }
+{
+  p == q
+}
+
+-- A helper returning a tuple is defined by its body.
+func split(x: int) -> (int, int) = (x, 0 - x)
+
+export func viaSplit(x: int) -> int
+  requires { x >= 0 && x < 1000 }
+  ensures { result == 0 }
+{
+  match split(x) { (a, b) => a + b }
+}
+
+-- A tuple built and compared in the body alone.
+export func sameLiteral(x: int) -> bool
+  ensures { result }
+{
+  (x, 1) == (x, 1)
+}
+
+-- An ADT payload can be a tuple.
+type Edge = Edge((int, int)) | Loop(int)
+
+export func edgeSum(e: Edge) -> int
+  ensures { match e { Loop(n) => result == n, Edge(_) => true } }
+{
+  match e {
+    Edge((a, b)) => a + b,
+    Loop(n) => n
+  }
+}

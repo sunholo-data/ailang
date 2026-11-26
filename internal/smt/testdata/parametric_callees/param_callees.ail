@@ -86,6 +86,7 @@ pure func usePlain(n: int) -> int
   match plain(n) { Some(k) => k, None => 0 }
 }
 
+-- A tuple signature is the datatype Tuple2 (tuple_sorts.go).
 pure func twice(x: int) -> (int, int) = (x, x)
 
 pure func fst(p: (int, int)) -> int = match p { (a, _) => a }

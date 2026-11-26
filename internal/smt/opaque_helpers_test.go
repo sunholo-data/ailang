@@ -18,7 +18,7 @@ func TestOpaqueHelpers(t *testing.T) {
 		status, reasonCode string
 		caveat             string // fragment of the helpers_not_checked caveat; "" = none
 	}{
-		"ignoresHelper":       {"verified", "", "swapSum (tuple expressions cannot be encoded"},
+		"ignoresHelper":       {"verified", "", `swapSum (Callee "swapSum" uses an unencodable builtin: std/string.stringToFloat`},
 		"dependsOnHelper":     {"inconclusive", "", ""},
 		"callsWithinRequires": {"verified", "", "halfOfPos ("},
 		"breaksRequires":      {"counterexample", "requires_violation", ""},
@@ -28,16 +28,16 @@ func TestOpaqueHelpers(t *testing.T) {
 		"paramNamedResult":    {"verified", "", ""},
 		"definedEmptyArg":     {"verified", "", ""},
 		"hoistedEmptyArgs":    {"verified", "", "nested ("},
-		"viaUntypedReturn":    {"skipped", "", ""},
+		"viaUntypedReturn":    {"verified", "", "untypedTag ("},
 		"throughMasked":       {"verified", "", `masked (calls user function "escapePairs" that is not SMT-encodable in this context: its signature uses an unencodable type`},
 		"callsPairsDirectly":  {"skipped", "", ""},
 		"throughBadMap":       {"verified", "", "bumpAll ("},
 		"throughRecordResult": {"verified", "", "splitAt ("},
 		"flattenLen":          {"verified", "", ""},
 		// Was a false VERIFIED: Tagged was declared without pairs.
-		"same":               {"skipped", "", ""},
+		"same":               {"counterexample", "", ""},
 		"throughNamedResult": {"verified", "", "mkPt ("},
-		"sameBag":            {"skipped", "", ""},
+		"sameBag":            {"verified", "", ""},
 	}
 	for _, r := range report.Results {
 		w, ok := want[r.Function]

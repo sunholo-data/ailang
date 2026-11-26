@@ -13,8 +13,8 @@ import (
 func TestOpaqueHelperCaveatNamesTheBlocker(t *testing.T) {
 	// Each fragment must appear, in this order, in the helpers_not_checked caveat.
 	want := map[string][]string{
-		// top → mid → leaf, whose match on a tuple does not encode.
-		"top": {"leaf (", "tuple expressions cannot be encoded"},
+		// top → mid → leaf, whose let-bound lambda does not encode.
+		"top": {"leaf (", "lambda expressions cannot be encoded"},
 		// A helper's unencodable builtin is named, not "uses unencodable types".
 		"viaParse": {"parsed (", `Callee "parsed" uses an unencodable builtin: std/string.stringToFloat`},
 	}

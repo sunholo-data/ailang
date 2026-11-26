@@ -158,8 +158,9 @@ ensures { result >= 0 } {
 // TestVerify_ContractCalleeSortGate: callees reached from a contract predicate are
 // resolved as define-funs, so the callee-sort gate covers contracts too. An
 // Option[float] callee is a concrete datatype and encodes (grade verifies,
-// gradeBad is a violation); a tuple-typed callee still skips with
-// UNENCODABLE_TYPE rather than leaking an undeclared sort into Z3.
+// gradeBad is a violation), and so does a tuple-typed one (tup verifies); a
+// generic callee still skips with UNENCODABLE_TYPE rather than leaking an
+// undeclared sort into Z3.
 func TestVerify_ContractCalleeSortGate(t *testing.T) {
 	if !smt.Z3Available() {
 		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
@@ -179,6 +180,10 @@ export func fst(p: (float, float)) -> float ! {} { match p { (a, _) => a } }
 export func tup(x: float) -> float ! {}
 requires { x >= 0.0 }
 ensures { fst(twice(result)) >= 0.0 } { x }
+export func pick[a](x: a, y: a) -> a ! {} { x }
+export func gen(x: float) -> float ! {}
+requires { x >= 0.0 }
+ensures { pick(result, 0.0) >= 0.0 } { x }
 `)
 	got := verifyStatuses(t, bin, "--relax-modules", f)
 	if r := got["grade"]; r.Status != "verified" {
@@ -187,7 +192,10 @@ ensures { fst(twice(result)) >= 0.0 } { x }
 	if r := got["gradeBad"]; r.Status != "counterexample" {
 		t.Errorf("gradeBad = %+v, want counterexample", r)
 	}
-	if r := got["tup"]; r.Status != "skipped" || !strings.Contains(r.Reason, "(float, float)") {
-		t.Errorf("tup = %+v, want skipped naming (float, float)", r)
+	if r := got["tup"]; r.Status != "verified" {
+		t.Errorf("tup = %+v, want verified", r)
+	}
+	if r := got["gen"]; r.Status != "skipped" || !strings.Contains(r.Reason, `"a"`) {
+		t.Errorf("gen = %+v, want skipped naming the type variable a", r)
 	}
 }

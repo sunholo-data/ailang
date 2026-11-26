@@ -153,10 +153,28 @@ func formatModelTerm(term, sort *SExpr, dtors map[string]ctorInfo) (string, bool
 			return "", false
 		}
 		return "[" + strings.Join(elems, ", ") + "]", true
+	case isTupleValue(term, sort):
+		vals := make([]string, len(sort.List)-1)
+		for i := range vals {
+			v, ok := formatModelTerm(term.List[i+1], sort.List[i+1], dtors)
+			if !ok {
+				return "", false
+			}
+			vals[i] = v
+		}
+		return "(" + strings.Join(vals, ", ") + ")", true
 	case !sort.IsList:
 		return formatModelDatatype(term, dtors)
 	}
 	return "", false
+}
+
+// isTupleValue reports whether term is a value (mk_TupleN c0 … cn-1) of the
+// tuple sort (TupleN s0 … sn-1). The component sorts come from the sort, as
+// the datatype's own fields are its type parameters.
+func isTupleValue(term, sort *SExpr) bool {
+	n := tupleArity(sort.Head())
+	return n > 0 && len(sort.List) == n+1 && term.IsList && term.Head() == tupleConstructor(n) && len(term.List) == n+1
 }
 
 // formatModelInt renders arbitrary-precision SMT Int literals (including values

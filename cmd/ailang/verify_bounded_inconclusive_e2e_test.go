@@ -248,8 +248,8 @@ func TestBounded_HumanOutput(t *testing.T) {
 
 // TestBounded_UnencodableErrorSurfaceUntouched (AC-11): the sibling
 // "unencodable" surface is out of scope and must not move. (The design pinned
-// 3 verified / 1 error; that row has since landed — the base binary measured
-// 3 verified / 1 skipped on 2026-11-09, which is what is pinned here.)
+// 3 verified / 1 error; the error became a skip by 2026-11-09, and tuple sorts
+// verified it on 2026-11-26: 4 verified is pinned here.)
 func TestBounded_UnencodableErrorSurfaceUntouched(t *testing.T) {
 	requireZ3(t)
 	bin := buildAilang(t)
@@ -260,7 +260,7 @@ func TestBounded_UnencodableErrorSurfaceUntouched(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &p); err != nil {
 		t.Fatalf("invalid JSON (exit %d): %v\n%s", code, err, stderr)
 	}
-	if p.Verify.Verified != 3 || p.Verify.Skipped != 1 || p.Verify.Errors != 0 || p.Verify.Inconclusive != 0 || p.Verify.Counterexample != 0 {
+	if p.Verify.Verified != 4 || p.Verify.Skipped != 0 || p.Verify.Errors != 0 || p.Verify.Inconclusive != 0 || p.Verify.Counterexample != 0 {
 		t.Fatalf("shapes_verify surface moved: %+v", p.Verify)
 	}
 }

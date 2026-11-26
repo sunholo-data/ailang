@@ -655,6 +655,7 @@ func EncodeFunction(
 	lines = append(lines, fmt.Sprintf("; Verification of %s", funcName))
 	lines = append(lines, "(set-logic ALL)")
 	lines = append(lines, "")
+	result.OpaqueHelpers = referencedOpaqueHelpers(result.OpaqueHelpers, result.Declarations, result.Assertions)
 	result.Uninterpreted = append(usedUninterpreted(), opaqueSymbols(result.OpaqueHelpers)...)
 	lines = append(lines, front...) // before any use, including callee define-funs
 	lines = append(lines, result.Declarations...)

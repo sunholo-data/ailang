@@ -40,7 +40,7 @@ func TestParametricCallees(t *testing.T) {
 		"usePlain":      {"verified", "", ""},
 		"rowlessCaller": {"verified", "", ""},
 		"useTraced":     {"skipped", verification.UnsupportedEncoding, "\"traced\" declares effects"},
-		"useTuple":      {"skipped", verification.UnsupportedEncoding, "unencodable type \"(int, int)\""},
+		"useTuple":      {"verified", "", ""},
 	}
 	report, _ := verifySource(t, path, string(src))
 	seen := map[string]bool{}

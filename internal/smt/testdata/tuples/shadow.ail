@@ -1,0 +1,16 @@
+module shadow
+
+-- A declared type named like the verifier's 2-tuple datatype.
+type Tuple2 = Tuple2(int)
+
+export func fst(p: (int, int)) -> int
+  ensures { match p { (a, _) => result == a } }
+{
+  match p { (a, _) => a }
+}
+
+export func plain(x: int) -> int
+  ensures { result == x }
+{
+  x
+}

@@ -38,6 +38,11 @@ func encodeMatch(m *core.Match) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("match scrutinee: %w", err)
 	}
+	// A tuple pattern is the constructor pattern of its tuple datatype
+	// (tuple_sorts.go); the nested encoder tests and binds it by accessor.
+	if tm := matchWithoutTuplePatterns(m); tm != m {
+		return encodeNestedMatch(tm, scrutinee)
+	}
 	for _, arm := range m.Arms {
 		if needsNestedMatch(arm.Pattern) {
 			return encodeNestedMatch(m, scrutinee)

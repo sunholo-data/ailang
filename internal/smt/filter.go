@@ -340,6 +340,7 @@ func collectSortsFromType(t types.Type, sorts map[string]bool) {
 	case *types.TList:
 		collectSortsFromType(ty.Element, sorts)
 	case *types.TTuple:
+		sorts[tupleSortName(len(ty.Elements))] = true
 		for _, elem := range ty.Elements {
 			collectSortsFromType(elem, sorts)
 		}
@@ -427,6 +428,7 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 			collectSortsFromBody(elem, sorts)
 		}
 	case *core.Tuple:
+		sorts[tupleSortName(len(e.Elements))] = true
 		for _, elem := range e.Elements {
 			collectSortsFromBody(elem, sorts)
 		}

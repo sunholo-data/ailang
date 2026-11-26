@@ -253,6 +253,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	}
 
 	conflictingRecords := conflictingRecordSorts(adtRecordDecls, recordConflicts)
+	tupleShadowed := addTupleDatatypes(adtTypes, adtParams)
 
 	// Build Surface AST function lookup for param extraction
 	surfaceFuncs := make(map[string]*ast.FuncDecl)
@@ -536,8 +537,8 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			report.Skipped++
 			continue
 		}
-		if name := firstNeededConflict(seeds, conflictingRecords); name != "" {
-			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, fmt.Errorf("two record types with the fields of %s have different field types, and the verifier names an anonymous record by its field names alone", name)))
+		if err := neededSortConflict(seeds, conflictingRecords, tupleShadowed); err != nil {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, err))
 			report.Skipped++
 			continue
 		}

@@ -257,6 +257,18 @@ func ASTTypeToSMTSort(t ast.Type) string {
 		return MapRecordSortName(trec)
 	case *ast.TypeVar:
 		return ty.Name
+	case *ast.TupleType:
+		elems := make([]string, len(ty.Elements))
+		for i, el := range ty.Elements {
+			if elems[i] = ASTTypeToSMTSort(el); elems[i] == "" {
+				return ""
+			}
+		}
+		sort, err := tupleSortOf(elems)
+		if err != nil {
+			return ""
+		}
+		return sort
 	case *ast.LabelledType:
 		// Strip IFC label metadata — labels do not affect SMT sorts.
 		return ASTTypeToSMTSort(ty.Base)
@@ -330,8 +342,19 @@ func astTypeEncodable(t ast.Type, declarable map[string]int) bool {
 		return astTypeEncodable(ty.Base, declarable)
 	case *ast.TypeVar:
 		return false // unbound type variable in a signature
+	case *ast.TupleType:
+		// A tuple is the datatype TupleN of its components (tuple_sorts.go).
+		if len(ty.Elements) < minTupleArity || len(ty.Elements) > maxTupleArity {
+			return false
+		}
+		for _, el := range ty.Elements {
+			if !astTypeEncodable(el, declarable) {
+				return false
+			}
+		}
+		return true
 	default:
-		return false // tuples, function types, and other shapes are not encodable
+		return false // function types and other shapes are not encodable
 	}
 }
 
@@ -654,6 +677,14 @@ func ConvertASTTypeToType(t ast.Type) types.Type {
 			fields[f.Name] = ft
 		}
 		return &types.TRecord{Fields: fields}
+	case *ast.TupleType:
+		elems := make([]types.Type, len(ty.Elements))
+		for i, el := range ty.Elements {
+			if elems[i] = ConvertASTTypeToType(el); elems[i] == nil {
+				return nil
+			}
+		}
+		return &types.TTuple{Elements: elems}
 	case *ast.LabelledType:
 		// Strip IFC label metadata — labels do not affect type structure.
 		return ConvertASTTypeToType(ty.Base)

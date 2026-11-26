@@ -35,6 +35,12 @@ func patternBinders(p core.CorePattern) []string {
 			names = append(names, patternBinders(*x.Tail)...)
 		}
 		return names
+	case *core.TuplePattern:
+		var names []string
+		for _, el := range x.Elements {
+			names = append(names, patternBinders(el)...)
+		}
+		return names
 	case *core.RecordPattern:
 		var names []string
 		for _, arg := range x.Fields {

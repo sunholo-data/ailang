@@ -154,6 +154,19 @@ Next, in order:
    Totals against M0: verified 590 → **642**, skipped 125 → **67**, inconclusive 3 → 19, errors 1 → 0.
 
    The `flush*` rows are honest skips now: `MdParseState` has a tuple field. **Tuple sorts** are the next lever: an SMT datatype per arity and component sorts. They block `MdParseState`, `mdEscapePairs`/`replaceMany` (7 rows), `fst2` and `gradeNumeric`.
+4d. ~~**Tuple sorts**~~ **Done 2026-11-26.** A tuple of 2–8 components is the built-in parametric datatype `TupleN` (`(Tuple2 Int String)`), added to the ADT table by `Verify` and kept per function by the sort filter. A tuple expression is `mk_TupleN`, encoded under its checked component sorts. A tuple pattern is rewritten to the constructor pattern `mk_TupleN` and goes through the nested-pattern encoder and its coverage check, so literals inside it and tuples inside constructor and list patterns work. Counterexamples show `(a, b)`, and witness replay passes `ast.Tuple`s. A declared type named `TupleN` shadows the datatype, and a function needing it is skipped with the clash named.
+
+   Two bugs it exposed, both fixed:
+   - An unannotated helper was defined as returning `Int` (a Z3 ERROR for any other return). It now takes its checked return type, fails loudly without one, and can be opaque.
+   - The `helpers_not_checked` caveat named helpers reached only inside a contract-called helper's body. It now names only the opaque helpers the script applies.
+
+   The opaque-helper fixtures used tuples as their unencodable body; they now use `stringToFloat` and a let-bound lambda. `unencodable_callee_skip.ail` now demonstrates the skip with a generic callee.
+
+   Gap map: +5 verified (`fst2`, ailang-parse `emptyParseState`, `flushList`, `flushTable`, `flushText`), 0 regressions. `parseMarkdown`, `parseEml` and `parseMbox` move from the tuple blocker to "the solver could not decide" (the `reverse` facts), and `parseMboxThreaded` moves to an inline record in a map lambda; all four are still skipped.
+
+   Totals against M0: verified 590 → **647**, skipped 125 → **62**, inconclusive 3 → 19, errors 1 → 0. (The snapshot also carries one verified row from another session's new `reexport_facade` example, not counted here.)
+
+   Next levers by row count: `Function has effects` (12 sole, out of scope), the `Result[a, e]`/type-variable signatures (`isErr`, `foldChars`: needs instantiation at the call site, S7's seam), the `Record_desc_key` collision (4, needs disambiguated record naming), unit `()` as a sort (`stoppedCase`, `validateRun`: `Result[(), _]`), and the `option.map` bare-name gate (3 sole).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

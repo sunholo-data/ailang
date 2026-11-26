@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Opaque helpers (M-VERIFY-SOUNDNESS-COVERAGE, ruled by Mark 2026-11-25).
@@ -105,6 +106,42 @@ func opaqueSymbols(hs []OpaqueHelper) []string {
 	return out
 }
 
+// referencedOpaqueHelpers keeps the opaque helpers the script calls. A helper
+// reached only inside the body of one called by its contract is declared but
+// never applied; naming it in the caveat claimed the proof went through it.
+func referencedOpaqueHelpers(hs []OpaqueHelper, decls, assertions []string) []OpaqueHelper {
+	var out []OpaqueHelper
+	for _, h := range hs {
+		symbol := contractSymbol(ContractSpec{FuncName: h.Name})
+		own := "(declare-fun " + symbol + " "
+		for _, line := range append(append([]string(nil), decls...), assertions...) {
+			if !strings.HasPrefix(line, own) && mentionsSymbol(line, symbol) {
+				out = append(out, h)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// mentionsSymbol reports whether the SMT symbol occurs in s as a whole token.
+func mentionsSymbol(s, symbol string) bool {
+	for i := strings.Index(s, symbol); i >= 0; {
+		end := i + len(symbol)
+		before := i == 0 || s[i-1] == '(' || s[i-1] == ' ' || s[i-1] == '\n'
+		after := end == len(s) || s[end] == ')' || s[end] == ' ' || s[end] == '\n'
+		if before && after {
+			return true
+		}
+		next := strings.Index(s[end:], symbol)
+		if next < 0 {
+			return false
+		}
+		i = end + next
+	}
+	return false
+}
+
 // opaqueHelpersCaveat names, on a VERIFIED result, the helpers whose bodies
 // were not encoded: the proof holds for every value they could return, but
 // the obligations inside them were not checked.
@@ -121,4 +158,31 @@ func opaqueHelpersCaveat(vr VerifyResult, hs []OpaqueHelper) VerifyResult {
 		Detail: "proved for every value these helpers could return; their bodies were not encoded, so the checks inside them (callee requires, overflow, NaN) were not made: " + strings.Join(parts, "; "),
 	})
 	return vr
+}
+
+// checkedReturnSort is the SMT sort of the return type the type checker gave
+// a function whose body is body (its lambda) in prog, or "" when that type is
+// unknown or has no sort.
+func checkedReturnSort(body core.CoreExpr, prog *core.Program) string {
+	c := activeADTContext
+	if c == nil {
+		return ""
+	}
+	ti, ok := c.programTI[prog]
+	if !ok || ti == nil {
+		return ""
+	}
+	typ, ok := ti.GetForExpr(body)
+	if !ok {
+		return ""
+	}
+	fn, ok := typ.(*types.TFunc2)
+	if !ok {
+		return ""
+	}
+	sort, err := MapType(fn.Return)
+	if err != nil {
+		return ""
+	}
+	return sort
 }

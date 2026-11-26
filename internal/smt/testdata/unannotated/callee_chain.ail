@@ -2,12 +2,13 @@ module callee_chain
 import std/option (Option, Some, None)
 import std/string (stringToFloat)
 
--- leaf matches on a tuple inside an unrolled recursion, which the encoder
--- cannot encode, so it is called opaquely; mid calls leaf; top calls mid.
+-- leaf binds a lambda inside an unrolled recursion, which the encoder cannot
+-- encode, so it is called opaquely; mid calls leaf; top calls mid.
 func leaf(xs: [int], acc: int) -> int {
-  match (xs, acc) {
-    ([], a) => a,
-    (x :: rest, a) => leaf(rest, a + x)
+  let done = \y. y + acc;
+  match xs {
+    [] => done(0),
+    x :: rest => leaf(rest, acc + x)
   }
 }
 
@@ -19,9 +20,11 @@ export func top(n: int) -> int
   mid(n)
 }
 
--- Depends on leaf's value: inconclusive, not a counterexample.
+-- True (leaf sums), but provable only from leaf's value: inconclusive, and
+-- witness replay finds no violation to promote it.
 export func topFalse(n: int) -> int
-  ensures { result >= 0 }
+  requires { n >= 0 && n < 1000 }
+  ensures { result >= 1 }
 {
   mid(n)
 }

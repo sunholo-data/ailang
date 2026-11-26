@@ -1,13 +1,14 @@
 module opaque_helpers
-import std/string (length)
+import std/string (length, stringToFloat)
 import std/list (map, foldl, concat)
 import std/list (length as listLength)
 
--- A helper whose body does not encode (a tuple) and that has no ensures is an
--- uninterpreted function: a proof that does not depend on its value holds,
--- with a caveat naming it; a refutation through it is inconclusive.
+-- A helper whose body does not encode (stringToFloat has no SMT form) and
+-- that has no ensures is an uninterpreted function: a proof that does not
+-- depend on its value holds, with a caveat naming it; a refutation through it
+-- is inconclusive.
 func swapSum(a: int, b: int) -> int {
-  match (a, b) { (x, y) => y + x }
+  match stringToFloat("1") { Some(_) => b + a, None => a + b }
 }
 
 export func ignoresHelper(n: int) -> int
@@ -27,7 +28,7 @@ export func dependsOnHelper(n: int) -> int
 func halfOfPos(n: int) -> int
   requires { n > 0 }
 {
-  match (n, 2) { (x, d) => x / d }
+  match stringToFloat("2") { Some(_) => n / 2, None => n / 2 }
 }
 
 export func callsWithinRequires(n: int) -> int
@@ -58,7 +59,7 @@ export func parityLabel(xs: [int]) -> string
 func nonNegPair(n: int) -> int
   ensures { result >= 0 }
 {
-  match (n, 0) { (x, z) => if x > z then x else z }
+  match stringToFloat("0") { Some(_) => if n > 0 then n else 0, None => 0 }
 }
 
 export func viaContract(n: int) -> int
@@ -71,7 +72,7 @@ export func viaContract(n: int) -> int
 -- An empty list passed to a helper takes the parameter's sort; ANF hoists it
 -- into a let that defaulted to (Seq Int), a Z3 ERROR.
 func countWords(ws: [string], n: int) -> int {
-  match (ws, n) { (_, k) => k }
+  match stringToFloat("1") { Some(_) => n, None => n }
 }
 
 export func emptyListArg(n: int) -> int
@@ -101,7 +102,7 @@ export func definedEmptyArg(n: int) -> int
 }
 
 func nested(a: [[string]], b: [string], n: int) -> int {
-  match (a, n) { (_, k) => k }
+  match stringToFloat("1") { Some(_) => n, None => n }
 }
 
 export func hoistedEmptyArgs(xs: [int], n: int) -> int
@@ -113,8 +114,9 @@ export func hoistedEmptyArgs(xs: [int], n: int) -> int
   }
 }
 
--- A helper without a return annotation has no sort to be opaque at: still a skip.
-func untypedTag(n: int) = match (n, "x") { (_, s) => s }
+-- A helper without a return annotation is opaque at its checked return type
+-- (an invented Int made it a Z3 sort error).
+func untypedTag(n: int) = match stringToFloat("1") { Some(_) => "x", None => "y" }
 
 export func viaUntypedReturn(n: int) -> int
   ensures { result >= 0 }
@@ -122,10 +124,10 @@ export func viaUntypedReturn(n: int) -> int
   length(untypedTag(n))
 }
 
--- A helper whose SIGNATURE has no sort (a list of tuples) is never defined.
+-- A helper whose SIGNATURE has no sort (a list of functions) is never defined.
 -- Reached through a helper with a good signature, it makes that helper
 -- opaque; called directly, it still skips the function.
-func escapePairs() -> [(string, string)] = [("<", "&lt;")]
+func escapePairs() -> [(string) -> string] = [\s. s]
 
 func masked(s: string) -> string {
   match escapePairs() { [] => s, _ => s }
@@ -144,9 +146,9 @@ export func callsPairsDirectly(n: int) -> int
   match escapePairs() { [] => n, _ => n }
 }
 
--- A helper whose map does not specialise (its lambda matches on a tuple) is
+-- A helper whose map does not specialise (its lambda calls stringToFloat) is
 -- opaque like any other unencodable body.
-func bumpAll(xs: [int]) -> [int] = map(\x. match (x, 1) { (a, b) => a + b }, xs)
+func bumpAll(xs: [int]) -> [int] = map(\x. match stringToFloat("1") { Some(_) => x, None => x }, xs)
 
 export func throughBadMap(n: int) -> int
   ensures { result == n }
@@ -157,7 +159,7 @@ export func throughBadMap(n: int) -> int
 
 -- An opaque helper's signature names an anonymous record: it is declared.
 func splitAt(n: int) -> { left: string, n: int } {
-  match (n, "x") { (k, s) => { left: s, n: k } }
+  match stringToFloat("1") { Some(_) => { left: "x", n: n }, None => { left: "y", n: n } }
 }
 
 export func throughRecordResult(n: int) -> int
@@ -176,9 +178,9 @@ export func flattenLen(acc: [[string]]) -> int
   listLength(flatten(acc))
 }
 
--- A record with a field of no sort (a tuple list) is never declared with the
--- rest: two values differing only there compared equal, so `same` was
--- VERIFIED although pairs may differ.
+-- A record with a tuple-list field is declared with it. Before tuple sorts it
+-- was declared without that field, so two values differing only in pairs
+-- compared equal and `same` was a false VERIFIED.
 type Tagged = { tag: int, pairs: [(int, int)] } deriving (Eq)
 
 export func same(r1: Tagged, r2: Tagged) -> bool
@@ -192,7 +194,7 @@ export func same(r1: Tagged, r2: Tagged) -> bool
 type Pt = { x: int, y: int }
 
 func mkPt(n: int) -> Pt {
-  match (n, 0) { (a, b) => { x: a, y: b } }
+  match stringToFloat("1") { Some(_) => { x: n, y: 0 }, None => { x: n, y: 1 } }
 }
 
 export func throughNamedResult(n: int) -> int
@@ -202,7 +204,7 @@ export func throughNamedResult(n: int) -> int
   if p.x == p.x then n else 0
 }
 
--- An inline record with a field of no sort, inside an ADT: never declared.
+-- An inline record with a tuple-list field, inside an ADT, is declared with it.
 type Bag = Bag({ tag: int, pairs: [(int, int)] }) deriving (Eq)
 
 export func sameBag(b1: Bag, b2: Bag) -> bool

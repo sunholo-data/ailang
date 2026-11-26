@@ -167,6 +167,16 @@ func modelTermToLiteral(term, sort *SExpr, records map[string][]recordField) (as
 			return nil, err
 		}
 		return &ast.List{Elements: elems}, nil
+	case isTupleValue(term, sort):
+		out := &ast.Tuple{Elements: make([]ast.Expr, len(sort.List)-1)}
+		for i := range out.Elements {
+			v, err := modelTermToLiteral(term.List[i+1], sort.List[i+1], records)
+			if err != nil {
+				return nil, fmt.Errorf("tuple component %d: %w", i, err)
+			}
+			out.Elements[i] = v
+		}
+		return out, nil
 	case !sort.IsList && !term.IsList && term.Str == nil && hasKey(records, nullaryCtorKey(term.Atom)):
 		// A nullary constructor of an enum ADT (`Failed`), declared in the script.
 		return &ast.Identifier{Name: term.Atom}, nil

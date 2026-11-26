@@ -104,7 +104,7 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return "", fmt.Errorf("%w: recursive let bindings cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
 
 	case *core.Tuple:
-		return "", fmt.Errorf("%w: tuple expressions cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
+		return encodeTuple(e)
 
 	case *core.Record:
 		return encodeRecord(e)

@@ -156,14 +156,19 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 
 		// Get params and return sort
 		params := surfaceParams[calleeName]
-		returnSort := surfaceReturnSorts[calleeName]
-		if returnSort == "" {
-			returnSort = "Int"
-		}
 
 		// Contract-as-spec reasoning must not bypass the declaration row gate.
 		if !smtAdmissible(meta, declarations[meta]) {
 			return nil, inadmissibleCalleeError{calleeName}
+		}
+		returnSort := surfaceReturnSorts[calleeName]
+		if returnSort == "" {
+			// No annotation: the checked type says what it returns. An
+			// invented Int made any other return a Z3 sort error.
+			if returnSort = checkedReturnSort(calleeBody, calleeProg); returnSort == "" {
+				recordCalleeFailure(calleeName, "it has no return annotation, and its checked return type has no SMT sort")
+				continue
+			}
 		}
 		encodable, rejections := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
 		if cycle := cyclic[calleeName]; cycle != "" {
@@ -188,7 +193,7 @@ func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.
 				activeContractSpecs[calleeName] = &spec
 				activeContractCallees[calleeName] = contractSymbol(spec)
 			} else {
-				defs = appendSpecOrOpaque(defs, calleeName, meta, params, surfaceReturnSorts[calleeName], rejectionsReason(rejections))
+				defs = appendSpecOrOpaque(defs, calleeName, meta, params, returnSort, rejectionsReason(rejections))
 			}
 			continue
 		}

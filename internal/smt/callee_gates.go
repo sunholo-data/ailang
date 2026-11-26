@@ -18,7 +18,7 @@ import (
 //   - unannotated parameters (S5): a callee parameter without a type has no sort
 //     and would reach Z3 as an unknown constant;
 //   - callee sorts (M-SMT-CALLEE-SORT-GATE): an unencodable signature type (a
-//     type variable, tuple, function type or bytes) would leak an undeclared
+//     type variable, function type or bytes) would leak an undeclared
 //     sort into the script. Contract predicates are gated too: their callees are
 //     resolved as define-funs (resolveCalleesFromRoots).
 func calleeGateRejections(
@@ -53,7 +53,7 @@ func calleeGateRejections(
 		out = append(out, SMTRejectionReason{
 			Code:    RejectUnencodable,
 			Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-			Hint:    "Cross-function verification cannot encode type variables, tuples, function types or bytes in a callee signature (Option/Result and other ADTs at a concrete type are fine). Give the callee a concrete signature, or inline its logic into the caller.",
+			Hint:    "Cross-function verification cannot encode type variables, function types or bytes in a callee signature (Option/Result, other ADTs at a concrete type, and tuples are fine). Give the callee a concrete signature, or inline its logic into the caller.",
 		})
 	}
 	return out

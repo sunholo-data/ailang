@@ -12,7 +12,7 @@ import (
 
 // TestVerify_UnencodableCalleeSkipsNotErrors is the end-to-end acceptance test for
 // M-SMT-CALLEE-SORT-GATE: `ailang verify` on a contracted function whose callee
-// returns a tuple (no SMT sort) must SKIP it with an UNENCODABLE_TYPE reason — NOT
+// has a type variable in its signature (no SMT sort) must SKIP it with an UNENCODABLE_TYPE reason — NOT
 // crash Z3 with a hard error. The example doubles as the regression fixture.
 func TestVerify_UnencodableCalleeSkipsNotErrors(t *testing.T) {
 	if !smt.Z3Available() {
