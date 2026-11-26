@@ -35,7 +35,7 @@ sequenceDiagram
 
 ## 1. Two Surfaces from One Module
 
-When any export uses `@mcp_auth`, `@mcp_secret`, or `@mcp_agent_only`, `serve-api --mcp-http` exposes two endpoints (see [Serve API Guide](./serve-api.md#mcp-model-context-protocol) for full annotation semantics):
+When any export uses `@mcp_auth`, `@mcp_secret`, or `@mcp_agent_only`, `serve-api --mcp-http` exposes two endpoints (see [Serve API Guide](./serve-api.md#mcp-model-context-protocol--directory-connectors) for full annotation semantics):
 
 | Endpoint | Audience | Auth Model | Tool Surface |
 |---|---|---|---|

@@ -537,7 +537,7 @@ embeddings:
     neural_threshold: 0.75
 ```
 
-See [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-search) for full documentation.
+See [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#github-integration--semantic-search) for full documentation.
 
 ---
 

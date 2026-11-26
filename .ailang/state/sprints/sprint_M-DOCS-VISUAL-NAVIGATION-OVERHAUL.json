@@ -108,28 +108,28 @@
       "id": "M7",
       "description": "Independent Full-Site Verification (docs-verifier)",
       "estimated_loc": 0,
-      "actual_loc": null,
+      "actual_loc": 0,
       "dependencies": ["M6"],
       "acceptance_criteria": [
         "All 12 TST-DOCOV-01..12 checks pass with zero open blocking findings"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-26T20:06:00Z",
+      "completed": "2026-11-26T20:15:00Z",
+      "notes": "12/12 TST-DOCOV gates passed (docs-verifier PASS 98/100; all 11 broken anchor warnings resolved in finalization commit)"
     }
   ],
   "velocity": {
     "target_loc_per_day": 2920,
     "actual_loc_per_day": 2990,
     "target_milestones_per_week": 7,
-    "actual_milestones_per_week": 6,
+    "actual_milestones_per_week": 7,
     "estimated_total_loc": 2920,
     "actual_total_loc": 2990,
     "estimated_days": 1,
     "actual_days": 1
   },
-  "last_session": "2026-11-26T20:05:00Z",
-  "last_checkpoint": "M1-M6 integrated and verified; ready for M7 independent verification",
-  "status": "in_progress"
+  "last_session": "2026-11-26T20:16:00Z",
+  "last_checkpoint": "M1-M7 complete (12/12 TST-DOCOV gates passed, 0 broken anchor warnings)",
+  "status": "completed"
 }

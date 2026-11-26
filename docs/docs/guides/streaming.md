@@ -490,7 +490,7 @@ option, and why `--policy` runs refuse the flag.
 ## Related Resources
 
 - [Effect System](/docs/reference/effects) — How effects work in AILANG
-- [Process Effect](/docs/reference/effects#process-effect) — Command execution and security
+- [Process Effect](/docs/reference/effects#process-effect-stdprocess) — Command execution and security
 - [Examples](/docs/examples) — Working AILANG programs
 - [Capability Budgets](/docs/reference/capability-budgets) — Rate-limiting effects
 
@@ -498,7 +498,7 @@ option, and why `--policy` runs refuse the flag.
 
 `std/process.cancelProcess(handle)` returns `Result[(), WorkerCancelError] ! {Process}`. `std/stream.cancelProcessSource(source)` returns the same result with `! {Stream, Process}` and accepts sources created by `asyncExecProcess`. `Ok(())` confirms reaping and completion of runtime-owned IO. A managed or async child running the same runtime executable also acknowledges its owned cleanup, including separately grouped `--policy` workers. Missing acknowledgements return a typed cancellation failure. Explicit cancellation may discard queued stdin writes. Closing stdin alone signals EOF while keeping the worker owned until it finishes. Workers that exit are automatically reaped; a later `cancelProcess` returning `WorkerHandleInvalid` is the normal reaped case.
 
-The host shuts down owned workers when a run, batch item, embedded call, or REPL session ends. On macOS/Linux, this stops the owned process group within one two-second shutdown deadline. Released or foreign handles return `WorkerHandleInvalid`; Windows and JS/WASM return `WorkerCancelUnsupported` for explicit cancellation. See the [Process effect reference](/docs/reference/effects#process-effect) for all failure variants, embedding ownership, and platform limits.
+The host shuts down owned workers when a run, batch item, embedded call, or REPL session ends. On macOS/Linux, this stops the owned process group within one two-second shutdown deadline. Released or foreign handles return `WorkerHandleInvalid`; Windows and JS/WASM return `WorkerCancelUnsupported` for explicit cancellation. See the [Process effect reference](/docs/reference/effects#process-effect-stdprocess) for all failure variants, embedding ownership, and platform limits.
 
 `selectEvents` borrows its sources. A handler returning false ends that selection and allows later reuse; it does not implicitly cancel a process. Worker cleanup leaves borrowed WebSocket transports and stdin open. A blocked borrowed stdin reader can remain pending until the read finishes, and retains its input lease during that time. Cancelling an OS worker that is waiting for an AI response does not promise cancellation of remote inference or provider charges.
 

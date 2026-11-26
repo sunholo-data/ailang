@@ -184,7 +184,7 @@ make eval-suite
 `agent_suite` routes the same benchmarks through the supported CLI-subprocess
 harnesses — Claude Code, Codex, and opencode — using the executor factory. One
 command, identical result schema. (Gemini-family agent evals run through the
-hosted [Managed Agents API](./harness-setup.md#managed-agents-api-managed_agents)
+hosted [Managed Agents API](./harness-setup.md#supported-harnesses)
 — it has no local CLI and is opt-in rather than part of the routine suite.)
 
 ```bash

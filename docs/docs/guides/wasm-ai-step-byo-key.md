@@ -14,7 +14,7 @@ reviewBy: 2027-02-26
 
 Browser-AILANG (the WASM build) can call the typed [`std/ai`](/docs/reference/stdlib) Step family — `ai.step`, `ai.stepWithCache`, `ai.stepWithStream` — against a real LLM provider directly from the browser, with no AILANG coordinator or backend in the loop. The user's API key lives in `localStorage` and is sent only to the provider they pick.
 
-This is the proven [`ai.call` BYO-key pattern](./wasm-integration#aihandler) extended to the typed multi-turn Step API. Use it when you want a "try this AI agent in your browser, no signup" landing page that talks to OpenRouter or Anthropic directly.
+This is the proven [`ai.call` BYO-key pattern](./wasm-integration#effect-handlers-in-the-browser) extended to the typed multi-turn Step API. Use it when you want a "try this AI agent in your browser, no signup" landing page that talks to OpenRouter or Anthropic directly.
 
 For server-mediated calls (centralized cost tracking, no CORS limitations, full tool dispatch on backend), see [M-WASM-AI-STEP-VIA-MESSAGES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md) — the complementary message-bus path.
 

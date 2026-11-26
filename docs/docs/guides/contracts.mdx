@@ -92,7 +92,7 @@ Every `ailang verify` run prints its `Scope:` line (and JSON `numeric_model` / `
 | Call-site `requires` | Checked at every call inside verified bodies | Unsatisfied callee preconditions fail as `VIOLATION` (`requires_violation`), including inside helpers, HOF lambdas, and recursive self-calls. |
 | Opaque helpers | Callee with unencodable body & no `ensures` | Represented as an uninterpreted function of its signature; proofs hold for any return value and carry `caveats: helpers_not_checked` (models are `INCONCLUSIVE`, never violations). |
 
-### Exit Codes (`verify`, `check --verify`, `ai-check`)
+### Exit Codes (`verify`, `check --verify`, `ai-check`) {#exit-codes}
 
 | Outcome | Exit | `outcome` field |
 |---|---:|---|

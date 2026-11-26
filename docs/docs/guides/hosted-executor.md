@@ -134,8 +134,8 @@ program and its real output. Either way, a Gemini Enterprise admin needs a clien
 through `submit_feedback` or the AILANG repository. The agent answers a limited number of requests a
 day, and over the limit it says so. It can also file feedback for the user. Steps and traps
 (including Gemini Enterprise's daily agent-creation quota):
-[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us)
-and [Gemini Enterprise A2A agent](./mcp-connectors.md#gemini-enterprise-a2a-agent).
+[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#5-vendor-walkthroughs--submission-checklist)
+and [Gemini Enterprise A2A agent](./mcp-connectors.md#5-vendor-walkthroughs--submission-checklist).
 
 **Microsoft Copilot.** Not on this server yet: it needs dynamic registration or a pre-registered
 client, and has not been tried.

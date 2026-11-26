@@ -240,7 +240,7 @@ flowchart LR
 4. Post final measured before→after scorecard to `@coordinator [done]`.
 
 **Acceptance Criteria:**
-- [ ] All 12 `TST-DOCOV-01..12` checks pass with zero open blocking findings.
+- [x] All 12 `TST-DOCOV-01..12` checks pass with zero open blocking findings.
 
 ---
 
