@@ -121,7 +121,7 @@ Salesforce AI Research's [LoCoBench (arXiv:2509.09614)](https://arxiv.org/abs/25
 | Memory model | Managed (GC) | Manual / borrow checker | **Managed (Go runtime)** |
 | Dependencies | Dynamic imports | Headers / linkers | **Static, explicit imports** |
 | Error handling | Exceptions | Return codes / panic | **Typed `Result` / `Option` + `expr?`** |
-| Structural flexibility | Duck typing | Rigid structs | **Row polymorphism (`{a: int | r}`)** |
+| Structural flexibility | Duck typing | Rigid structs | **Row polymorphism (`{a: int \| r}`)** |
 
 See the live [Benchmark Dashboard](/docs/benchmarks/performance) for our ongoing empirical measurements across frontier and local models.
 
