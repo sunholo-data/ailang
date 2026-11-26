@@ -1545,3 +1545,68 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Operator request for this fire ("spawn designer, planner, executor and evaluator exactly as the routing table specifies; the evaluator is REQUIRED"): the evaluator ran as specified. The other three roles had no work in a landing-only pick, so none was spawned; this is a scope fact, not a spawn failure. No role was unspawnable, and no fallback was used.
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 142 — 2026-11-26 — `idle-fingerprint:record-eval-json-moves-head` BUILT + JUDGED (independent sonnet judge PASS 88): #2473 excludes stapledon's record-only `eval_MISSION-ITER-*_record.json` verdicts from the idle fingerprint's `head=`; it cannot merge while dev `94026beac` keeps two required `test` reds from language-core commits outside fleet scope; ticket stays open [HARNESS]
+
+**Pick**: `idle-fingerprint:record-eval-json-moves-head` (stapledon 118, 11-25 19:35Z, 1 slot, `blocking: none`), iteration 141's **Next**. The two higher-ranked tickets (`reporting:daneel-reports-not-declared-triage` 20 slots, `skill:idle-record-barred-on-degraded-no-pick-fire` 14) sit behind OPEN rulings D-FLEET-44 and D-FLEET-45. A wrong path, so mechanical, not HD-2a. It moves clause 2.
+- Gate 1: pin `2bd2fe72b`, origin/dev `162f2dcd1` (Release v0.62.2, 1 ahead); base recorded there. Dev CI in flight at Gate 1, no red. No open `fleet/*` PR.
+- 0 allowlisted directives on #2445 (12 comments; watermark absent, whole-issue read). Self-notices rc 1 on the same crash (`…#issuecomment-7063993188`) and transcript (fire `fleet-1795100889-10927`) notices as 125–141, already credited. Control 852:10.
+- Died-mid-flight traces: no iteration-142 worktree or PR. Open tickets 20, unchanged from 141's list after its three resolutions.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google` (no role used it).
+- Skill drift: SKILL.md and all 13 resources byte-identical to origin/dev in the resolved symlink copy, per file. My first loop dropped the `resources/` prefix and printed DIFF for all 13; the re-run with full paths printed SAME for all 13.
+- The main checkout is dirty with attended work; left alone.
+
+**Reality check** (controller, first-party):
+- At HEAD the helper's `head=` pathspec excludes only `design_docs/<name>-mission*`, `verification/<name>-iter*` and `design_docs/verification/<name>-iter*`.
+- stapledon `origin/main` `891c3bc0`: the old pathspec selects `a510c43b` (iteration 119 record); `git show --stat` restricted to the pathspec lists one file, `eval_MISSION-ITER-119_record.json` (same for `6fd5f76c`, iteration 118). With the new exclusion, `head=` is `beb17c4a`, a product commit.
+- `eval_MISSION-ITER-*` files: stapledon 7, world 0, this repo 0. Ordinary verdicts are `eval_<sprint>_round_<n>.json`. Nothing in the skills names the record filename; it is stapledon's own convention.
+
+**Did** (generator ≠ judge):
+- **Designer: not spawned.** The spec is the ticket plus the repro, a one-line path fix (precedent 87, 105, 109, 123, 126). Rotation pointer unchanged.
+- **Planner** codex `gpt-6.2-sol` (recipe, own detached worktree `.planner-wt-fleet-iter142`, probe rc 0; 91,201 tok). [Plan](fleet-mission-evidence/iteration142/plan.md): exclude exactly `eval_MISSION-ITER-*_record.json`; a record-only arm; an ordinary-verdict negative control (`eval_M-FOO_round_1.json` must move the hash); mutants `exclude-record-eval` and `exclude-evaluations-broad`, each checked against its exact expected FAIL line.
+- **Executor** codex `gpt-6.2-sol` (recipe, `fleet-i142-wt`, 85,296 tok, rc 0). Applied the plan verbatim; the changelog's link line was dropped per the directive. [Report](fleet-mission-evidence/iteration142/executor-report.md).
+- **Controller** re-ran every gate outside the sandbox: plain rc 0; `--mutations` 17/17; shellcheck rc 0; `make check-changelog` rc 0; `make test-launchd-drivers` rc 0 (388 s). The diff writes nothing outside the test's temp fixture. Committed `b79be251f`, secret scan clean.
+- **Judge** sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `fleet-i142-judge` at `b79be251f`; 83,804 tok, 669 s). **PASS 88/100, LAND**, 0 blocking ([report](fleet-mission-evidence/iteration142/judge.md)).
+  - Re-measured: 17/17 mutants; the helper reverted alone fails on the intended assertion; stapledon repro matches; `make test-launchd-drivers` 61 passed.
+  - Strongest objection, non-blocking: the `_record.json` suffix is not pinned. Four widening mutants survive (`eval_MISSION-ITER-*`, `eval_*_record.json`, `eval_MISSION-ITER-*_*.json`, `*_record.json`). No real file is affected. A second negative control such as `eval_MISSION-ITER-9_round_1.json` would kill two of them.
+- **PR** [#2473](https://github.com/sunholo-data/ailang/pull/2473).
+  - Round 1, head `8bf73c131`: the merge ref was built on dev `8571e7449`, whose own `launchd drivers (bash 3.2)` is red on a stale `.agents/skills/sprint-planner` mirror (`e0f7d431f` synced it). Inherited. The poller was killed by PID.
+  - Rebased onto `94026beac`: range-diff 2/2 `=`, 0 files overlap, dev touched nothing under `tools/launchd`. The judge's verdict carries over. Force-pushed with lease → `3c99211fa`.
+  - Round 2: 23 checks, 17 green, including `launchd drivers (bash 3.2)`, `lint`, `build`, `checks`, `docs-gate` and govulncheck. 6 red (`test`, `test-windows`, `Build ubuntu-latest`, `Build macos-latest` ×2, `Build windows-latest`), every leg on the same two tests, `TestEveryListBuiltinIsDelegatedOrExplained` (`internal/builtins`) and `TestLetInIfElseBranchError` (`internal/elaborate`).
+  - Dev `94026beac` has the same two failures in its own required `test` (contexts `test, lint, build, docs-gate, checks`). They come from language-core commits on dev (`4498d1c2d` parser, `a6e5304f5` std; M-AI-PREFERRED-V2), outside fleet Authority. A bounded 30-min watch saw no new dev commit.
+- **Not merged; ticket stays open.** Same posture as D-FLEET-48's default: each fleet fire re-measures dev's required `test` and lands #2473 once it is green. No new decision row; this is an external predicate, not a judgment.
+- Done-gate not run (nothing merged). [Gates](fleet-mission-evidence/iteration142/gates.md).
+
+**Ruled out**:
+- Excluding the whole `.ailang/state/evaluations/` directory: it would hide ordinary sprint verdicts (the `exclude-evaluations-broad` mutant pins this).
+- A mission-namespaced pattern (`eval_${name}-iter*`): no mission writes that; stapledon's convention is the literal `MISSION-ITER`.
+- Re-running PR CI on the round-1 head: a PR re-run reuses the same merge ref, so it would rebuild the stale mirror.
+- Admin-merging over the inherited reds: branch protection stays unbypassed (D-FLEET-48 recommendation A).
+- Strengthening the suffix control after the judge's PASS: a post-verdict edit needs a re-judge; it is a follow-up.
+
+**Retro lane**: two frictions, no skill edit.
+- (a) Instance 2 of 141(a): killing the superseded poller with an `awk` match over full argv also matched its wrapper shell, and `ps` output printed the harness's inbox env dump into the transcript (message bodies, no secret values). The poller was superseded, so nothing was lost. Two instances now point at one gap: standing rule 7's `pgrep` amendment covers "is it alive?" but not "kill it". The fix is a line there: kill a poller by the PID its launcher records, never by pattern. Not edited this fire (the edit would ride a PR that cannot merge while dev is red).
+- (b) My Gate-1 drift loop used `$(cd "$R" && ls resources/)`, which yields bare basenames, so all 13 read DIFF. The re-run caught it; one instance, below the bar.
+- (c) I ran `ailang mission rotate-log fleet --stream status --keep 3` expecting it to rotate the charter's STATUS block. It rotates the status ARCHIVE as a log: 131 of 134 entries moved into a new untracked `fleet-mission-status-archive-old.md`, rc 0, with a plausible summary. The charter was untouched (still 4 stamps), which is what gave it away. I restored the two files the command wrote in my own worktree, deleted its new file, and moved ITERATION 139 by script with both-end assertions (charter 445 → 441, archive 815 → 819; `ITERATION 139` in archive 1, control `ITERATION 138` 2). One instance, my misuse; Gate 4 never prescribes this form for the charter rotation.
+
+**Progress**: 20 open tickets (unchanged). Clause 2 not yet moved: the fix is built and judged but not on origin/dev.
+- Clause 1 UNMEASURED; clause 2 pending on #2473; clause 3 MET; clause 4 met by its letter; clause 5 preserved (no resolve without the done-gate).
+- Last 3 landings: 126, 135, 141.
+
+**Validation**: darwin/arm64, bash 3.2.57 (`/bin/bash`).
+- `test_mission_idle_fingerprint.sh` rc 0 and `--mutations` 17/17 (controller, executor, judge).
+- `make test-launchd-drivers` rc 0 (controller 388 s; judge 61 passed); CI `launchd drivers (bash 3.2)` green on `3c99211fa`.
+
+**Next**: re-measure dev's required `test`. If green: rebase #2473, re-check the required set, squash-merge with `--match-head-commit`, run the done-gate on the merge, resolve `idle-fingerprint:record-eval-json-moves-head` (reply to stapledon: expect one more full fire, because its pending snapshot was computed under the old rule). Otherwise pick NONE unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives. Optional follow-ups (not tickets): the suffix negative control (judge, this iteration) and the `mission-base.sh` call-site grep gate (judge N1, iteration 141).
+
+**Routing evidence**: base=`94026beac12ecffb9663220369292da1f0d46a2c`@2026-11-26T09:49:01Z (Gate 4; Gate 1 read `162f2dcd117f81d66385ef54b056e55b40e891d3`, drift 7 commits, all dev work outside fleet scope).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: no doc warranted. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` with no doc `opus fail-closed:no-doc`. The role is pinned `codex:gpt-6.2-sol`, so per role-spawn-routing §2(a) it ran on the pin under the codex recipe (probe rc 0), 1 run (91,201 tok). `import-github` skipped (ticket-queue mission).
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, 1 run (85,296 tok, rc 0).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (83,804 tok). Judge independence: cross-vendor against the builders (codex planned and built), distinct from the controller (opus). Generator ≠ judge holds.
+- Operator request for this fire: spawn the roles as the routing table specifies, the evaluator required. Planner and executor ran on their codex pins (the table's lane, not the Agent tool); the evaluator ran on the Agent tool. The designer had no doc to write. No role was unspawnable, and no fallback was used.
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (codex and Anthropic subscriptions only).
