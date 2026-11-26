@@ -76,6 +76,23 @@ coordinator:
 
 - **Script agents (`invoke.type: script`)**: Run deterministic shell scripts (`$0.00` AI cost). With `env_from_payload: true`, JSON payload keys become uppercase env vars alongside `AILANG_TASK_ID`, `AILANG_MESSAGE_ID`, and `AILANG_WORKSPACE` (see `scripts/coordinator/echo_payload.sh`).
 - **Cloud task inputs (`AILANG_TASK_INPUTS`)**: Cloud-only (`inputs_allow` must grant each repo). The job parent shallow-clones refs with its fleet credential, verifies `sha256` / `manifest.sha256`, rejects symlinks/traversal/overwrites, and stages bytes before agent startup (see [`examples/task_inputs`](https://github.com/sunholo-data/ailang/tree/dev/examples/task_inputs)).
+- **Auto-merge examples** (docs-only vs check-gated code PRs):
+
+```yaml
+- id: docs-writer
+  auto_merge: true
+  artifact_patterns: ["documents/**/*.md"]
+```
+
+```yaml
+- id: site-agent
+  auto_merge: true
+  auto_merge_code: true
+  artifact_patterns: ["site/**"]
+  auto_merge_required_checks: ["site-wellformed", "image-size"]
+  auto_merge_approver_secret: site-approver-token
+  auto_merge_approver_identity: sunholo-voight-approver
+```
 
 </details>
 
