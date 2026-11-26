@@ -18,11 +18,12 @@ import (
 //   - the result stays inside its budget.
 
 // executorPromptBudget is the most the tool may return, in characters as
-// `ailang run` prints the result. Over MCP the same result is ~8% longer
-// (84,808 bytes for 78,719 here, 2026-11-25). Claude Code's limit is 25k
-// tokens, ~100k characters at ~4 a token; 80k printed is ~86k on the wire,
-// which leaves room for the token estimate to be off.
-const executorPromptBudget = 80_000
+// `ailang run` prints the result, which is within a few percent of what goes
+// on the wire. Claude Code refuses an MCP result over 25k tokens, and this
+// text (code-heavy, JSON-escaped) runs at about 3 characters a token, not 4:
+// prod v0.62.1 served 77,090 characters on 2026-11-26 and Claude Code refused
+// it. 58k characters is about 19k tokens, which leaves a quarter in hand.
+const executorPromptBudget = 58_000
 
 // The sections a caller of the executor cannot do without.
 var executorPromptMustKeep = []string{

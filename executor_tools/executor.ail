@@ -398,11 +398,20 @@ export pure func sandboxOmitted() -> [string] = [
   "## Running Programs",
   "## Process Exit",
   "## Cost Model",
+  "## Output Discipline",
+  "## Quick Reference Examples",
+  "## Hashing & Crypto",
+  "## Arrays — Construction Primitives",
+  "## High-Performance String Builtins",
+  "## Regular Expressions",
+  "## Polymorphic ADTs with Mixed Field Types",
+  "## JSON",
+  "## Maps",
   "# Information-Flow Control"
 ]
 
 pure func sandboxNote() -> string =
-  "> This is the AILANG prompt for the executor's sandbox, which grants console output only. Sections on the network, AI calls, archives, XML, JWT, time, process exit, performance costs, packages, multi-module projects and information-flow labels are left out, and the stdlib listing is replaced by the stdlib_search and stdlib_module tools. The whole prompt: prompt_get with kind \"\"."
+  "> This is the AILANG prompt for the executor's sandbox, which grants console output only. Sections on the network, AI calls, archives, XML, JWT, time, process exit, performance costs, packages, multi-module projects and information-flow labels are left out, as are the worked examples and the JSON, maps, arrays, regex, crypto and fast-string library sections; for any library, stdlib_search and stdlib_module give the exports and example_for_concept a working program. The whole prompt: prompt_get with kind \"\"."
 
 pure func sandboxPromptJson(out: ProcessOutput) -> Json =
   if out.exitCode != 0 then outputJson(out) else
