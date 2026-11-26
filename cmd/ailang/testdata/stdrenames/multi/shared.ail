@@ -1,7 +1,7 @@
 -- Shared by a.ail and b.ail; its one deprecated use must print once per
 -- `ailang test a.ail b.ail` run (TestTestCommandDeduplicatesDeprecations).
-module cmd/ailang/testdata/stdrenames/multi/shared
+module test/stdrenames/multi/shared
 
-import std/list (head_or)
+import test/stdrenames/deplib/list (head_or)
 
 export pure func first(xs: [int]) -> int = head_or(xs, 0)

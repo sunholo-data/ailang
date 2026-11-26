@@ -1,4 +1,4 @@
-module cmd/ailang/testdata/stdrenames/qualified_missing
+module test/stdrenames/qualified_missing
 
 -- Deliberately fails: L.nthOrx is not an export of std/list.
 import std/list as L

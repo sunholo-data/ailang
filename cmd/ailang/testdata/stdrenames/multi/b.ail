@@ -1,6 +1,6 @@
-module cmd/ailang/testdata/stdrenames/multi/b
+module test/stdrenames/multi/b
 
-import cmd/ailang/testdata/stdrenames/multi/shared (first)
+import test/stdrenames/multi/shared (first)
 
 export pure func one() -> int = first([1])
 

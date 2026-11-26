@@ -1,0 +1,14 @@
+-- Deliberately uses every deprecated export of local fixture modules once
+-- (5 TC_DEPRECATED_001 warnings) for TestDeprecatedWarningCheckOutputs.
+module test/stdrenames/deprecated_uses
+
+import test/stdrenames/deplib/list (head_or, nth_or, member)
+import test/stdrenames/deplib/math (abs_Int, abs_Float)
+
+export pure func checkAll(xs: [int]) -> bool {
+  let a = head_or(xs, 0)
+  let b = nth_or(xs, 1, 0)
+  let c = abs_Int(0 - 42)
+  let _ = abs_Float(0.0 - 2.5)
+  member(a + b + c, xs)
+}

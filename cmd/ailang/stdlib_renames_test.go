@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,33 +13,49 @@ import (
 	"github.com/sunholo-data/ailang/internal/importhint"
 )
 
-// M-V1-STDLIB-SURFACE-POLISH M1/M2: every deprecated std spelling still runs,
-// gives exactly the replacement's result on both engines, and warns once per
-// use on stderr only — stdout stays the program's.
-//
-// aliases.ail uses all 16 names; it runs on the evaluator and the default
-// bytecode VM (the strict VM does not yet run the FS and Rand builtins the
-// rand/fs aliases forward to — pre-existing, BC001 "not yet wired"). The pure
-// aliases also run on the STRICT VM in aliases_pure.ail.
+// Post-removal contract (M-V1-STDLIB-SURFACE-POLISH / M-V1-CLOSEOUT-SWARM):
+//  1. Importing any of the 16 removed stdlib aliases from std/* fails `check`
+//     with IMP010 naming its live replacement (and Note where present).
+//  2. All 16 canonical camelCase exports in aliases.ail run with zero
+//     deprecation warnings and identical transcripts on the evaluator and VM,
+//     and the pure subset in aliases_pure.ail agrees on the strict bytecode VM.
 func TestStdlibRenameAliases(t *testing.T) {
 	bin := buildAilang(t)
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+
+	negDir := t.TempDir()
+	for i, r := range importhint.StdlibRenames {
+		modName := fmt.Sprintf("removed_cli_%d", i)
+		p := filepath.Join(negDir, modName+".ail")
+		src := fmt.Sprintf("module %s\nimport %s (%s)\nexport pure func one() -> int = 1\n", modName, r.Module, r.Old)
+		if err := os.WriteFile(p, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, stderr, code := runWithStdin(t, bin, "", "check", p)
+		wantRepl := fmt.Sprintf("use '%s' from '%s'", r.New, r.Module)
+		if code == 0 || !strings.Contains(stderr, "IMP010") || !strings.Contains(stderr, wantRepl) {
+			t.Errorf("check import %s (%s): exit %d, want IMP010 with %q:\n%s", r.Module, r.Old, code, wantRepl, stderr)
+		}
+		if r.Note != "" && !strings.Contains(stderr, r.Note) {
+			t.Errorf("check import %s (%s): missing note %q:\n%s", r.Module, r.Old, r.Note, stderr)
+		}
+	}
+
 	all := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "aliases.ail")
 	pure := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "aliases_pure.ail")
 	type engineRun struct {
-		args     []string
-		warnings int
-		pairs    int
-		stderr   string
+		args   []string
+		rows   int
+		stderr string
 	}
 	fixtures := map[string]map[string]engineRun{
 		"all": {
-			"evaluator": {[]string{"run", "--quiet", "--caps", "IO,FS,Rand", "--entry", "main", all}, 16, 14, "printErr|eprint|"},
-			"vm":        {[]string{"run", "--quiet", "--bytecode", "--caps", "IO,FS,Rand", "--entry", "main", all}, 16, 14, "printErr|eprint|"},
+			"evaluator": {[]string{"run", "--quiet", "--caps", "IO,FS,Rand", "--entry", "main", all}, 14, "eprint|"},
+			"vm":        {[]string{"run", "--quiet", "--bytecode", "--caps", "IO,FS,Rand", "--entry", "main", all}, 14, "eprint|"},
 		},
 		"pure": {
-			"evaluator": {[]string{"run", "--quiet", "--caps", "IO", "--entry", "main", pure}, 10, 10, ""},
-			"strict-vm": {[]string{"run", "--quiet", "--bytecode", "--strict-bytecode", "--caps", "IO", "--entry", "main", pure}, 10, 10, ""},
+			"evaluator": {[]string{"run", "--quiet", "--caps", "IO", "--entry", "main", pure}, 10, ""},
+			"strict-vm": {[]string{"run", "--quiet", "--bytecode", "--strict-bytecode", "--caps", "IO", "--entry", "main", pure}, 10, ""},
 		},
 	}
 	lf := func(s string) string { return strings.ReplaceAll(s, "\r\n", "\n") }
@@ -53,24 +70,20 @@ func TestStdlibRenameAliases(t *testing.T) {
 				}
 				stdout, stderr = lf(stdout), lf(stderr)
 				outs[engine] = stdout
-				if strings.Contains(stdout, "TC_DEPRECATED_001") {
-					t.Errorf("%s: a deprecation warning reached stdout", tag)
-				}
-				if n := strings.Count(stderr, "TC_DEPRECATED_001 at "); n != er.warnings {
-					t.Errorf("%s: %d deprecation warnings on stderr, want %d\n%s", tag, n, er.warnings, stderr)
+				if strings.Contains(stdout, "TC_DEPRECATED_001") || strings.Contains(stderr, "TC_DEPRECATED_001") {
+					t.Errorf("%s: unexpected deprecation warning:\nstdout: %s\nstderr: %s", tag, stdout, stderr)
 				}
 				if er.stderr != "" && !strings.Contains(stderr, er.stderr) {
-					t.Errorf("%s: printErr and eprint must both write stderr without a newline: %q", tag, stderr)
+					t.Errorf("%s: eprint must write stderr without a newline: %q", tag, stderr)
 				}
 				lines := strings.Split(strings.TrimSpace(stdout), "\n")
-				if len(lines) != er.pairs+1 || lines[len(lines)-1] != "done" {
-					t.Fatalf("%s: transcript has %d lines, want %d pairs + done:\n%s", tag, len(lines), er.pairs, stdout)
+				if len(lines) != er.rows+1 || lines[len(lines)-1] != "done" {
+					t.Fatalf("%s: transcript has %d lines, want %d rows + done:\n%s", tag, len(lines), er.rows, stdout)
 				}
 				for _, l := range lines[:len(lines)-1] {
-					name, results, ok := strings.Cut(l, ": ")
-					old, new, ok2 := strings.Cut(results, " | ")
-					if !ok || !ok2 || old != new || old == "" {
-						t.Errorf("%s: %s: old and new spellings disagree: %q vs %q", tag, name, old, new)
+					name, val, ok := strings.Cut(l, ": ")
+					if !ok || name == "" || val == "" {
+						t.Errorf("%s: malformed row %q", tag, l)
 					}
 				}
 			}
@@ -86,17 +99,25 @@ func TestStdlibRenameAliases(t *testing.T) {
 	}
 }
 
-// check --json carries one TC_DEPRECATED_001 per use, with the replacement in
-// the message and the fix, on a cold and a warm cache; --format agent has a
-// warn: line for each; and the human output names the replacement.
+// check --json carries one TC_DEPRECATED_001 per use of a local @deprecated
+// fixture export, with the replacement in the message and the fix, on a cold
+// and a warm cache; --format agent has a warn: line for each; and the human
+// output names the replacement.
 func TestDeprecatedWarningCheckOutputs(t *testing.T) {
 	bin := buildAilang(t)
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
-	src := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "aliases.ail")
+	src := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "deprecated_uses.ail")
+	wantSuffixes := []string{
+		"deplib/list.head_or is deprecated; use headOr",
+		"deplib/list.nth_or is deprecated; use nthOr",
+		"deplib/list.member is deprecated; use contains",
+		"deplib/math.abs_Int is deprecated; use absInt",
+		"deplib/math.abs_Float is deprecated; use absFloat",
+	}
 	for _, run := range []string{"cold", "warm"} {
 		_, stderr, code := runWithStdin(t, bin, "", "check", src)
-		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 16 ||
-			!strings.Contains(stderr, "std/list.head_or is deprecated; use headOr") {
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != len(wantSuffixes) ||
+			!strings.Contains(stderr, "deplib/list.head_or is deprecated; use headOr") {
 			t.Errorf("%s: human check: exit %d, stderr:\n%s", run, code, stderr)
 		}
 
@@ -115,50 +136,56 @@ func TestDeprecatedWarningCheckOutputs(t *testing.T) {
 			t.Fatalf("%s: check --json: %v\n%s", run, err, stdout)
 		}
 		var named []string
+		sawSwapNote := false
 		for _, w := range out.Warnings {
 			if w.Code != "TC_DEPRECATED_001" {
 				continue
 			}
-			if w.Line == 0 || !strings.HasSuffix(filepath.ToSlash(w.File), "stdrenames/aliases.ail") ||
+			if w.Line == 0 || !strings.HasSuffix(filepath.ToSlash(w.File), "stdrenames/deprecated_uses.ail") ||
 				!strings.Contains(w.Message, " is deprecated; use ") || w.Suggestion == "" {
 				t.Errorf("%s: malformed warning %+v", run, w)
 			}
+			if strings.Contains(w.Suggestion, "arguments swap: member(x, xs) becomes contains(xs, x)") {
+				sawSwapNote = true
+			}
 			named = append(named, w.Message)
 		}
-		if code != 0 || !out.Passed || len(named) != 16 {
-			t.Errorf("%s: check --json: exit %d passed %v, %d TC_DEPRECATED_001 warnings, want 16\n%s", run, code, out.Passed, len(named), stdout)
+		if code != 0 || !out.Passed || len(named) != len(wantSuffixes) || !sawSwapNote {
+			t.Errorf("%s: check --json: exit %d passed %v sawSwapNote %v, %d TC_DEPRECATED_001 warnings, want %d\n%s",
+				run, code, out.Passed, sawSwapNote, len(named), len(wantSuffixes), stdout)
 		}
-		// Each deprecated name exactly once.
-		for _, r := range importhint.StdlibRenames {
-			want := r.Module + "." + r.Old + " is deprecated; use " + r.New
+		for _, suffix := range wantSuffixes {
 			n := 0
 			for _, m := range named {
-				if m == want {
+				if strings.HasSuffix(m, suffix) {
 					n++
 				}
 			}
 			if n != 1 {
-				t.Errorf("%s: %q appears %d times, want 1", run, want, n)
+				t.Errorf("%s: suffix %q appears %d times, want 1 in %v", run, suffix, n, named)
 			}
 		}
 
 		stdout, _, _ = runWithStdin(t, bin, "", "check", "--format", "agent", src)
-		if strings.Count(stdout, "TC_DEPRECATED_001") != 16 {
-			t.Errorf("%s: --format agent: want 16 TC_DEPRECATED_001 lines:\n%s", run, stdout)
+		if strings.Count(stdout, "TC_DEPRECATED_001") != len(wantSuffixes) {
+			t.Errorf("%s: --format agent: want %d TC_DEPRECATED_001 lines:\n%s", run, len(wantSuffixes), stdout)
 		}
 	}
 }
 
-// `ailang iface std/<m>` carries tier and replaced_by on a cold AND a warm
-// cache (the cache's iface.json codec used to drop both), and the compact view
-// marks deprecated and experimental functions.
+// `ailang iface` carries tier and replaced_by on a cold AND a warm cache (the
+// cache's iface.json codec used to drop both), and the compact view marks
+// deprecated and experimental functions. Checked against both live `std/list`
+// (tier marks, 0 deprecations) and local fixture `deplib/list.ail` (@deprecated
+// + @experimental).
 func TestIfaceTierSurvivesWarmCache(t *testing.T) {
 	bin := buildAilang(t)
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	depList := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "deplib", "list.ail")
 	for _, run := range []string{"cold", "warm"} {
 		stdout, stderr, code := runWithStdin(t, bin, "", "iface", "std/list")
 		if code != 0 {
-			t.Fatalf("%s: iface exit %d: %s", run, code, stderr)
+			t.Fatalf("%s: iface std/list exit %d: %s", run, code, stderr)
 		}
 		var g struct {
 			Funcs []struct {
@@ -175,16 +202,44 @@ func TestIfaceTierSurvivesWarmCache(t *testing.T) {
 			if f.Tier == "" {
 				t.Errorf("%s: std/list.%s has no tier", run, f.Name)
 			}
+			if f.ReplacedBy != "" {
+				t.Errorf("%s: std/list.%s still carries replaced_by=%q", run, f.Name, f.ReplacedBy)
+			}
 			marks[f.Name] = f.Tier + "/" + f.ReplacedBy
 		}
-		if marks["head_or"] != "stable/headOr" || marks["headOr"] != "stable/" || marks["takeMap"] != "experimental/" {
-			t.Errorf("%s: marks head_or=%q headOr=%q takeMap=%q", run, marks["head_or"], marks["headOr"], marks["takeMap"])
+		if marks["headOr"] != "stable/" || marks["takeMap"] != "experimental/" {
+			t.Errorf("%s: std/list marks headOr=%q takeMap=%q", run, marks["headOr"], marks["takeMap"])
 		}
 		compact, _, _ := runWithStdin(t, bin, "", "iface", "--compact", "std/list")
-		if !strings.Contains(compact, "head_or : (list[a],a)->a  -- deprecated: use headOr") ||
+		if strings.Contains(compact, "-- deprecated:") ||
 			!strings.Contains(compact, "takeMap : (int,(a)->b,list[a])->list[b]  -- experimental") ||
 			!strings.Contains(compact, "headOr : (list[a],a)->a\n") {
-			t.Errorf("%s: compact iface lacks the marks:\n%s", run, compact)
+			t.Errorf("%s: compact std/list iface lacks expected marks:\n%s", run, compact)
+		}
+
+		// Local fixture module exercises @deprecated replaced_by + @experimental across warm cache.
+		depOut, depErr, depCode := runWithStdin(t, bin, "", "iface", depList)
+		if depCode != 0 {
+			t.Fatalf("%s: iface %s exit %d: %s", run, depList, depCode, depErr)
+		}
+		if err := json.Unmarshal([]byte(depOut), &g); err != nil {
+			t.Fatal(err)
+		}
+		depMarks := map[string]string{}
+		for _, f := range g.Funcs {
+			depMarks[f.Name] = f.Tier + "/" + f.ReplacedBy
+		}
+		if depMarks["head_or"] != "stable/headOr" || depMarks["member"] != "stable/contains" ||
+			depMarks["headOr"] != "stable/" || depMarks["takeMap"] != "experimental/" {
+			t.Errorf("%s: deplib marks head_or=%q member=%q headOr=%q takeMap=%q",
+				run, depMarks["head_or"], depMarks["member"], depMarks["headOr"], depMarks["takeMap"])
+		}
+		depCompact, _, _ := runWithStdin(t, bin, "", "iface", "--compact", depList)
+		if !strings.Contains(depCompact, "head_or : (list[a],a)->a  -- deprecated: use headOr") ||
+			!strings.Contains(depCompact, "member : (a,list[a])->bool  -- deprecated: use contains") ||
+			!strings.Contains(depCompact, "takeMap : (int,(a)->b,list[a])->list[b]  -- experimental") ||
+			!strings.Contains(depCompact, "headOr : (list[a],a)->a\n") {
+			t.Errorf("%s: compact deplib iface lacks the marks:\n%s", run, depCompact)
 		}
 	}
 }
@@ -243,23 +298,71 @@ func TestDocsTiersMatchGoldens(t *testing.T) {
 }
 
 // The docs line scraper keeps an export's doc comment across an annotation
-// line, and the module page shows the marks.
+// line, and the module page shows both live tier marks and @deprecated marks.
 func TestDocsShowsTierMarks(t *testing.T) {
 	bin := buildAilang(t)
 	stdout, stderr, code := runWithStdin(t, bin, "", "docs", "std/list")
 	if code != 0 {
 		t.Fatalf("docs exit %d: %s", code, stderr)
 	}
+	if strings.Contains(stdout, "[deprecated") {
+		t.Errorf("live ailang docs std/list still shows a deprecated export:\n%s", stdout)
+	}
 	for _, want := range []string{
 		"Tier: stable",
-		"head_or[a](list[a], a) -> a  [deprecated → headOr]",
-		"member[a](a, list[a]) -> bool  [deprecated → contains]",
 		"takeMap[a, b](int, (a -> b), list[a]) -> list[b]  [experimental]",
 		// takeMap's doc comment sits above `@experimental`; it must survive.
 		"Fused take + map",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("ailang docs std/list lacks %q", want)
+		}
+	}
+
+	// Synthetic stdlib fixture exercises [deprecated → ...] rendering and doc survival.
+	tmpStd := t.TempDir()
+	ioBytes, err := os.ReadFile(filepath.Join("..", "..", "std", "io.ail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpStd, "io.ail"), ioBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	synthList := `-- std/list synthetic fixture
+module std/list
+
+export pure func headOr[a](xs: [a], d: a) -> a = d
+export pure func contains[a](xs: [a], x: a) -> bool = _list_contains(xs, x)
+
+-- Legacy head_or doc survives across @deprecated.
+@deprecated("headOr")
+export pure func head_or[a](xs: [a], d: a) -> a = headOr(xs, d)
+
+@deprecated("contains")
+export pure func member[a](x: a, xs: [a]) -> bool = contains(xs, x)
+
+-- Fused take + map
+@experimental
+export pure func takeMap[a, b](n: int, f: a -> b, xs: [a]) -> [b] = _list_takeMap(n, f, xs)
+`
+	if err := os.WriteFile(filepath.Join(tmpStd, "list.ail"), []byte(synthList), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_STDLIB_PATH", tmpStd)
+	synthOut, synthErr, synthCode := runWithStdin(t, bin, "", "docs", "std/list")
+	if synthCode != 0 {
+		t.Fatalf("synthetic docs exit %d: %s", synthCode, synthErr)
+	}
+	for _, want := range []string{
+		"Tier: stable",
+		"head_or[a](list[a], a) -> a  [deprecated → headOr]",
+		"Legacy head_or doc survives across @deprecated.",
+		"member[a](a, list[a]) -> bool  [deprecated → contains]",
+		"takeMap[a, b](int, (a -> b), list[a]) -> list[b]  [experimental]",
+		"Fused take + map",
+	} {
+		if !strings.Contains(synthOut, want) {
+			t.Errorf("synthetic ailang docs std/list lacks %q:\n%s", want, synthOut)
 		}
 	}
 }
@@ -273,8 +376,9 @@ func TestCheckPackageReportsDeprecations(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
 	files := map[string]string{
-		"ailang.toml": "[package]\nname = \"depvendor/deppkg\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[exports]\nmodules = [\"depvendor/deppkg/a\", \"depvendor/deppkg/b\"]\n",
-		"a.ail":       "module depvendor/deppkg/a\nimport std/list (head_or)\n\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n",
+		"ailang.toml": "[package]\nname = \"depvendor/deppkg\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[exports]\nmodules = [\"depvendor/deppkg/deplib\", \"depvendor/deppkg/a\", \"depvendor/deppkg/b\"]\n",
+		"deplib.ail":  "module depvendor/deppkg/deplib\n\nexport pure func headOr(xs: [int], d: int) -> int = match xs { [] => d, [x, ..._] => x }\n\n@deprecated(\"headOr\")\nexport pure func head_or(xs: [int], d: int) -> int = headOr(xs, d)\n",
+		"a.ail":       "module depvendor/deppkg/a\nimport depvendor/deppkg/deplib (head_or)\n\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n",
 		"b.ail":       "module depvendor/deppkg/b\nimport depvendor/deppkg/a (first)\n\nexport pure func firstPlusOne(xs: [int]) -> int = first(xs) + 1\n",
 	}
 	for name, src := range files {
@@ -284,7 +388,7 @@ func TestCheckPackageReportsDeprecations(t *testing.T) {
 	}
 	for _, run := range []string{"cold", "warm"} {
 		_, stderr, code := runAilangBin(t, bin, "check", "--package", dir)
-		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 1 || !strings.Contains(stderr, "std/list.head_or is deprecated; use headOr") {
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 1 || !strings.Contains(stderr, "depvendor/deppkg/deplib.head_or is deprecated; use headOr") {
 			t.Errorf("%s: human: exit %d, want 1 TC_DEPRECATED_001 on stderr:\n%s", run, code, stderr)
 		}
 		stdout, _, code := runAilangBin(t, bin, "check", "--package", "--json", dir)
@@ -372,7 +476,7 @@ func TestDeprecatedUnusedImport(t *testing.T) {
 	for _, run := range []string{"cold", "warm"} {
 		_, stderr, code := runWithStdin(t, bin, "", "check", src)
 		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 2 ||
-			!strings.Contains(stderr, "unused_import.ail:6:27") || !strings.Contains(stderr, "std/list.nth_or is deprecated; use nthOr (it is imported here and never used)") ||
+			!strings.Contains(stderr, "unused_import.ail:6:46") || !strings.Contains(stderr, "deplib/list.nth_or is deprecated; use nthOr (it is imported here and never used)") ||
 			!strings.Contains(stderr, "unused_import.ail:8:") {
 			t.Errorf("%s: check:\n%s", run, stderr)
 		}
@@ -418,7 +522,10 @@ func TestTestCommandDeduplicatesDeprecations(t *testing.T) {
 		"two files": {"test", filepath.Join(dir, "a.ail"), filepath.Join(dir, "b.ail")},
 		"directory": {"test", dir},
 	} {
-		_, stderr, _ := runWithStdin(t, bin, "", args...)
+		_, stderr, code := runWithStdin(t, bin, "", args...)
+		if code != 0 {
+			t.Errorf("%s: exit %d:\n%s", name, code, stderr)
+		}
 		if n := strings.Count(stderr, "TC_DEPRECATED_001 at "); n != 1 {
 			t.Errorf("%s: %d TC_DEPRECATED_001 lines, want 1:\n%s", name, n, stderr)
 		}
@@ -441,7 +548,10 @@ func TestTestCommandReportsSamePositionInTwoFiles(t *testing.T) {
 		"two files": {"test", b, c},
 		"directory": {"test", dir},
 	} {
-		_, stderr, _ := runWithStdin(t, bin, "", args...)
+		_, stderr, code := runWithStdin(t, bin, "", args...)
+		if code != 0 {
+			t.Errorf("%s: exit %d:\n%s", name, code, stderr)
+		}
 		got := filepath.ToSlash(stderr)
 		if n := strings.Count(got, "TC_DEPRECATED_001 at "); n != 2 {
 			t.Errorf("%s: %d TC_DEPRECATED_001 lines, want 2:\n%s", name, n, stderr)

@@ -1,0 +1,13 @@
+module test/stdrenames/deplib/math
+
+import std/math (absInt as stdAbsInt, absFloat as stdAbsFloat)
+
+export pure func absInt(x: int) -> int = stdAbsInt(x)
+
+export pure func absFloat(x: float) -> float = stdAbsFloat(x)
+
+@deprecated("absInt")
+export pure func abs_Int(x: int) -> int = absInt(x)
+
+@deprecated("absFloat")
+export pure func abs_Float(x: float) -> float = absFloat(x)

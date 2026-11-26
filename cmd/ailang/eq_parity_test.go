@@ -45,14 +45,14 @@ func TestEqEvaluatorVMParity(t *testing.T) {
 		// std/list membership and set operations follow the same rule: a NaN is
 		// never found and never merged (round-1 evaluation: member and contains
 		// disagreed across backends, and dedup/intersect merged NaNs).
-		{"member NaN", "member(nan(), [nan()])", "false", "false"},
+		{"contains fresh NaN", "contains([nan()], nan())", "false", "false"},
 		{"contains same NaN", "{ let n = nan() in contains([n], n) }", "false", "false"},
 		{"dedup keeps NaNs", "length(dedup([nan(), nan()])) == 2", "true", "true"},
 		{"intersect drops NaN", "length(intersect([nan()], [nan()])) == 0", "true", "true"},
 		{"union keeps both NaNs", "length(union([nan()], [nan()])) == 2", "true", "true"},
 		{"difference keeps NaN", "length(difference([nan()], [nan()])) == 1", "true", "true"},
 		{"dedup signed zero", "length(dedup([0.0, 0.0 * -1.0])) == 1", "true", "true"},
-		{"member ordinary float", "member(1.5, [0.5, 1.5])", "true", "true"},
+		{"contains ordinary float", "contains([0.5, 1.5], 1.5)", "true", "true"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestEqEvaluatorVMParity(t *testing.T) {
 			prog := fmt.Sprintf(`module test/eqparity
 
 import std/math (isNaN)
-import std/list (member, contains, dedup, intersect, union, difference, length)
+import std/list (contains, dedup, intersect, union, difference, length)
 
 type P = {x: int, y: string} deriving (Eq)
 

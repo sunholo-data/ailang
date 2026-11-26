@@ -1,0 +1,28 @@
+-- Local synthetic fixture for CLI @deprecated warning tests (std/* has zero
+-- @deprecated exports after pre-v1.0 alias removal).
+module test/stdrenames/deplib/list
+
+export pure func headOr[a](xs: [a], default: a) -> a = match xs {
+  [] => default,
+  [x, ..._] => x
+}
+
+export pure func nthOr[a](xs: [a], idx: int, default: a) -> a = match xs {
+  [] => default,
+  [x, ...rest] => if idx == 0 then x else nthOr(rest, idx - 1, default)
+}
+
+export pure func contains[a](xs: [a], x: a) -> bool = _list_contains(xs, x)
+
+@deprecated("headOr")
+export pure func head_or[a](xs: [a], default: a) -> a = headOr(xs, default)
+
+@deprecated("nthOr")
+export pure func nth_or[a](xs: [a], idx: int, default: a) -> a = nthOr(xs, idx, default)
+
+@deprecated("contains", "arguments swap: member(x, xs) becomes contains(xs, x)")
+export pure func member[a](x: a, xs: [a]) -> bool = contains(xs, x)
+
+-- Fused take + map fixture for iface experimental tier tests.
+@experimental
+export pure func takeMap[a, b](n: int, f: a -> b, xs: [a]) -> [b] = _list_takeMap(n, f, xs)

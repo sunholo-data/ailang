@@ -1,10 +1,10 @@
 -- Deprecated names used only in test code: two named test blocks and a
 -- property block. TestDeprecatedWarningsInTestCode expects one
 -- TC_DEPRECATED_001 per use from check, check --json and ailang test.
-module cmd/ailang/testdata/stdrenames/testblock
+module test/stdrenames/testblock
 
-import std/math (abs_Int, abs_Float)
-import std/list as L
+import test/stdrenames/deplib/math (abs_Int, abs_Float)
+import test/stdrenames/deplib/list as L
 
 export pure func double(x: int) -> int
   tests [(2, 4)]
