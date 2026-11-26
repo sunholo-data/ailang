@@ -107,6 +107,6 @@ Program determinism — byte-identical outputs across the evaluator and bytecode
 
 Please do **not** open public GitHub issues for security vulnerabilities. Report privately via **GitHub Security Advisories**:
 
-- <https://github.com/sunholo-data/ailang/security/advisories/new>
+- [https://github.com/sunholo-data/ailang/security/advisories/new](https://github.com/sunholo-data/ailang/security/advisories/new)
 
 See [SECURITY.md](https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md) for response SLAs and scope.
