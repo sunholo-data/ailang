@@ -2,8 +2,8 @@
 sidebar_position: 7
 title: Semantic Search
 description: Two-tier semantic search with SimHash and neural embeddings for AI agents
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Semantic Search in AILANG
@@ -104,7 +104,7 @@ ollama pull embeddinggemma
 ollama pull embeddinggemma:300m-qat-q4_0
 ```
 
-**Benchmark Results (v0.6.0):**
+**Benchmark Results:**
 
 All variants have similar warm inference speed (~100ms), difference is memory footprint:
 
@@ -498,7 +498,7 @@ ailang docs search --rebuild        # Rebuild all embeddings
 - `--neural` - Enable neural embeddings via Ollama
 - `--neural-candidates N` - Number of SimHash candidates to re-rank (default: 10)
 
-**Performance with neural search (v0.6.0 benchmarks):**
+**Performance with neural search:**
 - First run: ~4-6s per document (embedding with chunking for large docs)
 - Full corpus (29 design docs): ~128s cold start
 - Subsequent runs: &lt;1s (using cached embeddings)

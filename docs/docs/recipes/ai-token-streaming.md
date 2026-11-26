@@ -1,13 +1,11 @@
 ---
 title: AI Token Streaming
 sidebar_position: 10
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AI Token Streaming
-
-**Status**: Available since AILANG **v0.15.0**. The accumulator wrapper [`callStream`](#quick-start-callstream) is **v0.15.1+**.
 
 Stream LLM token-by-token responses through the AI effect with full budget tracking, capability gating, and trace integration. Composes [`std/stream`](../guides/streaming.md)'s SSE-via-POST primitive with the [M-AI-PROVIDER-CONFIG registry](../guides/custom-ai-providers.md) so URL, auth, and request body shape come from `[[ai_provider]]` config in your `ailang.toml` — no caller-supplied URLs or API keys.
 
@@ -63,7 +61,7 @@ For per-token UI updates, drop down to `openaiCompatStream` + the manual event l
 
 All three streaming functions take a registered provider name + model + a pre-serialised messages JSON array. The Go layer injects `"stream": true` into the request body for `openai_chat`/`simple_completion` request shapes; Anthropic streaming is selected via the `anthropic_messages` request shape and SSE event types in the response (no body flag needed).
 
-Reasoning fields (`reasoning_content`, `thinking`) emitted by reasoning models are READ by `callStream` but not included in the returned string in v0.15.1 — only visible content accumulates. v0.15.2's `callStreamWithReasoning` will surface both.
+Reasoning fields (`reasoning_content`, `thinking`) emitted by reasoning models are read by `callStream` but not included in the returned string — only visible content accumulates. Use `openaiCompatStream` + `extractDelta` (or `std/ai.stepWithStream` with `ThinkingDelta`) to surface both.
 
 ## Advanced: token-by-token control flow
 

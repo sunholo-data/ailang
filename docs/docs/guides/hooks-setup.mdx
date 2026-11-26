@@ -2,12 +2,13 @@
 sidebar_position: 5
 title: Hooks Setup
 description: Configure Claude Code hooks for telemetry and agent integration
-reviewBy: 2027-02-01
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Claude Code Hooks Setup
 
-**Status**: ✅ **Working** (v0.9.0 — HTTP hooks)
+**Status**: ✅ **Working** (HTTP hooks)
 
 AILANG uses Claude Code's native HTTP hooks (`type: "http"`) for telemetry and agent integration. This eliminates shell script dependencies and enables cloud deployment.
 
@@ -29,22 +30,11 @@ AILANG configures hooks in `.claude/settings.json` for the following events:
 
 ### HTTP Hook Architecture
 
-```
-Claude Code event (JSON)
-    │
-    ▼
-POST http://127.0.0.1:1957/api/hooks/claude
-    │  ├── Headers: X-Ailang-Task-Id, Chain-Id, Stage-Id, Message-Id
-    │  └── Body: Full hook JSON payload
-    │
-    ▼
-AILANG Server (handlers_claude_hooks.go)
-    │  ├── Routes by hook_event_name
-    │  ├── Stores in observatory (SQLite/Firestore)
-    │  └── Broadcasts via WebSocket to dashboard
-    │
-    ▼
-Dashboard (real-time session monitoring)
+```mermaid
+flowchart TD
+    E["Claude Code Event (JSON)"] -->|"POST /api/hooks/claude\nHeaders: Task-Id, Chain-Id, Stage-Id, Message-Id"| S["AILANG Server (127.0.0.1:1957)\nhandlers_claude_hooks.go"]
+    S -->|"Route by hook_event_name"| DB["Observatory Store\n(SQLite / Firestore)"]
+    S -->|"WebSocket broadcast"| D["Dashboard\n(Real-time monitoring)"]
 ```
 
 ### Configuration File
