@@ -2,6 +2,9 @@ package lsp
 
 import (
 	"errors"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -9,10 +12,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/parser"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/quickfix"
 	"github.com/sunholo-data/ailang/internal/types"
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 )
+
+// embeddedLocRe extracts an embedded "at <file>:<line>:<col>:" span from
+// non-Report compiler errors (e.g. `++ operator at file:line:col: ...` or
+// `undefined variable: x at file:line:col`) so LSP diagnostics and range-
+// filtered codeAction requests land on the exact offending line/column.
+var embeddedLocRe = regexp.MustCompile(`\bat ([^\s:]+):(\d+):(\d+)(?::|\b)`)
 
 // DiagnosticSource is the value placed in protocol.Diagnostic.Source so
 // editors can disambiguate AILANG-checker output from other LSP servers
@@ -74,7 +84,7 @@ func runPipelineForDiagnostics(path string, code string) []protocol.Diagnostic {
 			}
 			return
 		}
-		if d, ok := errorToDiagnostic(e, path); ok {
+		if d, ok := errorToDiagnostic(e, path, code); ok {
 			codeStr, _ := d.Code.(string)
 			key := codeStr + "|" + d.Message
 			if !seen[key] {
@@ -100,7 +110,7 @@ func runPipelineForDiagnostics(path string, code string) []protocol.Diagnostic {
 // carries enough position info to be placed in the editor. The bool is false
 // when the error has no position (we drop those rather than dumping them at
 // {0,0} where they'd cover legitimate code).
-func errorToDiagnostic(err error, path string) (protocol.Diagnostic, bool) {
+func errorToDiagnostic(err error, path string, code string) (protocol.Diagnostic, bool) {
 	if err == nil {
 		return protocol.Diagnostic{}, false
 	}
@@ -146,6 +156,50 @@ func errorToDiagnostic(err error, path string) (protocol.Diagnostic, bool) {
 		}
 	}
 
+	msg := err.Error()
+
+	// Extract embedded `at <file>:<line>:<col>` spans from non-Report compiler
+	// errors (e.g. `++ operator at file:line:col: ...` or `undefined variable`)
+	// so LSP squiggles and range-filtered codeAction requests hit the exact line.
+	if m := embeddedLocRe.FindStringSubmatch(msg); m != nil {
+		embFile := m[1]
+		if path == "" || embFile == path || filepath.Clean(embFile) == filepath.Clean(path) {
+			lineNum, errL := strconv.Atoi(m[2])
+			colNum, errC := strconv.Atoi(m[3])
+			if errL == nil && errC == nil && lineNum >= 1 {
+				line := uint32(max0(lineNum - 1))
+				col := uint32(max0(colNum - 1))
+				return protocol.Diagnostic{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: line, Character: col},
+						End:   protocol.Position{Line: line, Character: col + 1},
+					},
+					Severity: protocol.DiagnosticSeverityError,
+					Source:   DiagnosticSource,
+					Code:     "ERROR",
+					Message:  msg,
+				}, true
+			}
+		}
+	}
+
+	// Place effect-checking failures on the offending `func <name>` header line.
+	if fn := quickfix.ExtractEffectFailureFunc(msg); fn != "" && code != "" {
+		if fnLine := quickfix.FindFuncDeclLine(code, fn); fnLine >= 1 {
+			line := uint32(fnLine - 1)
+			return protocol.Diagnostic{
+				Range: protocol.Range{
+					Start: protocol.Position{Line: line, Character: 0},
+					End:   protocol.Position{Line: line, Character: 1},
+				},
+				Severity: protocol.DiagnosticSeverityError,
+				Source:   DiagnosticSource,
+				Code:     "ERROR",
+				Message:  msg,
+			}, true
+		}
+	}
+
 	// Fallback: error without a structured position. Place it at the start
 	// of the file so it's still visible, but only for errors we can be sure
 	// originated from THIS file (we have no way to tell, so we surface them).
@@ -154,7 +208,7 @@ func errorToDiagnostic(err error, path string) (protocol.Diagnostic, bool) {
 		Severity: protocol.DiagnosticSeverityError,
 		Source:   DiagnosticSource,
 		Code:     "ERROR",
-		Message:  err.Error(),
+		Message:  msg,
 	}, true
 }
 

@@ -129,3 +129,81 @@ export pure func sumAll(xs: [int]) -> int =
 		t.Fatalf("fixed file still fails check: err=%v res.Errors=%v\nfile:\n%s", err, res.Errors, string(fixedBytes))
 	}
 }
+
+func TestRunCheckFix_Phase2_EffectsAndStringConcat(t *testing.T) {
+	t.Run("pure_missing_effect_and_string_concat", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "greet.ail")
+		src := `module greet
+import std/io (println)
+
+export pure func greet(name: string) -> () {
+  println("Hello, " ++ name ++ "!")
+}
+`
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg := pipeline.Config{DryLink: true, RelaxModules: true}
+		applied, err := runCheckFix(path, cfg)
+		if err != nil {
+			t.Fatalf("runCheckFix error: %v", err)
+		}
+		if applied < 2 {
+			t.Fatalf("expected >=2 mechanical fixes applied, got %d", applied)
+		}
+		fixedBytes, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixed := string(fixedBytes)
+		if !strings.Contains(fixed, "export func greet(name: string) -> () ! {IO}") {
+			t.Errorf("expected stamped ! {IO} without pure, got:\n%s", fixed)
+		}
+		if !strings.Contains(fixed, `println("Hello, ${name}!")`) {
+			t.Errorf("expected interpolated string, got:\n%s", fixed)
+		}
+		res, err := pipeline.Run(cfg, pipeline.Source{Code: fixed, Filename: path})
+		if err != nil || len(res.Errors) > 0 {
+			t.Fatalf("fixed file still fails check: err=%v res.Errors=%v\nfile:\n%s", err, res.Errors, fixed)
+		}
+	})
+
+	t.Run("partial_effect_row_with_limit_and_record_return", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "rec_eff.ail")
+		src := `module rec_eff
+import std/io (println)
+import std/fs (readFile)
+
+export func loadInfo(p: string) -> { path: string, body: string } ! {IO @limit=5} {
+  println(p);
+  let body = readFile(p);
+  { path: p, body: body }
+}
+`
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg := pipeline.Config{DryLink: true, RelaxModules: true}
+		applied, err := runCheckFix(path, cfg)
+		if err != nil {
+			t.Fatalf("runCheckFix error: %v", err)
+		}
+		if applied != 1 {
+			t.Fatalf("expected 1 edit, got %d", applied)
+		}
+		fixedBytes, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixed := string(fixedBytes)
+		if !strings.Contains(fixed, "! {FS, IO @limit=5}") {
+			t.Errorf("expected merged ! {FS, IO @limit=5}, got:\n%s", fixed)
+		}
+		res, err := pipeline.Run(cfg, pipeline.Source{Code: fixed, Filename: path})
+		if err != nil || len(res.Errors) > 0 {
+			t.Fatalf("fixed file still fails check: err=%v res.Errors=%v\nfile:\n%s", err, res.Errors, fixed)
+		}
+	})
+}

@@ -144,6 +144,15 @@ func ComputeEdits(diag Diagnostic, fallbackFile, src string) []TextEdit {
 			}
 		}
 	}
+
+	// Phase 2 (M-AI-GO-TO-LANGUAGE D3=a): auto-stamp missing `! {Effects}`
+	// onto function signatures and rewrite `s1 ++ s2` on strings to `"${s1}${s2}"`.
+	if edits := computeEffectStampEdits(file, src, diag.Message); len(edits) > 0 {
+		return edits
+	}
+	if edits := computeStringConcatEdits(file, src, diag); len(edits) > 0 {
+		return edits
+	}
 	return nil
 }
 

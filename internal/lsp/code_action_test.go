@@ -57,6 +57,25 @@ export pure func code(c: Color) -> int =
 			wantNewTextSub:  "import std/list (foldl)",
 			wantTitlePrefix: "Add",
 		},
+		{
+			name: "missing_effect_stamp",
+			src: `module fixture
+import std/io (println)
+export pure func greet(name: string) -> () {
+  println(name)
+}
+`,
+			wantCode:        "ERROR",
+			wantNewTextSub:  "! {IO}",
+			wantTitlePrefix: "Add",
+		},
+		{
+			name:            "string_concat_plus_plus",
+			src:             "module fixture\nexport pure func greet(name: string) -> string = \"Hello, \" ++ name\n",
+			wantCode:        "ERROR",
+			wantNewTextSub:  "\"Hello, ${name}\"",
+			wantTitlePrefix: "Replace",
+		},
 	}
 
 	for _, tc := range cases {
@@ -188,6 +207,26 @@ func TestCodeAction_ParityWithQuickFix(t *testing.T) {
 				Column:  3,
 			},
 		},
+		{
+			name: "missing_effect_stamp_pure",
+			src:  "module m\nexport pure func greet(name: string) -> () {\n  println(name)\n}\n",
+			diag: quickfix.Diagnostic{
+				Code:    "ERROR",
+				Message: "Effect checking failed for function 'greet'\n  Missing effects: IO\n  Suggested fix:     func greet(...) -> T ! {IO}\n",
+				Line:    2,
+				Column:  1,
+			},
+		},
+		{
+			name: "string_concat_plus_plus",
+			src:  "module m\nexport pure func greet(name: string) -> string = \"Hello, \" ++ name\n",
+			diag: quickfix.Diagnostic{
+				Code:    "ERROR",
+				Message: "++ operator at m.ail:2:60: `++` is for lists only.",
+				Line:    2,
+				Column:  60,
+			},
+		},
 	}
 
 	srv := NewServer(nil)
@@ -198,8 +237,8 @@ func TestCodeAction_ParityWithQuickFix(t *testing.T) {
 			srv.docs.Store(docURI, tc.src)
 
 			cliEdits := quickfix.ComputeEdits(tc.diag, path, tc.src)
-			if len(cliEdits) != 1 {
-				t.Fatalf("quickfix.ComputeEdits returned %d edits, want 1", len(cliEdits))
+			if len(cliEdits) == 0 {
+				t.Fatalf("quickfix.ComputeEdits returned 0 edits, want >= 1")
 			}
 
 			lspDiag := protocol.Diagnostic{
@@ -234,12 +273,69 @@ func TestCodeAction_ParityWithQuickFix(t *testing.T) {
 			if len(lspEdits) != len(cliEdits) {
 				t.Fatalf("edit count mismatch: lsp=%d cli=%d", len(lspEdits), len(cliEdits))
 			}
-			want := quickfixEditToLSP(cliEdits[0])
-			if lspEdits[0] != want {
-				t.Errorf("LSP edit %+v != CLI edit %+v", lspEdits[0], want)
+			for i := range cliEdits {
+				want := quickfixEditToLSP(cliEdits[i])
+				if lspEdits[i] != want {
+					t.Errorf("edit[%d]: LSP %+v != CLI %+v", i, lspEdits[i], want)
+				}
 			}
 		})
 	}
+}
+
+func TestCodeAction_RangeFiltered_Phase2(t *testing.T) {
+	t.Parallel()
+	srv := NewServer(nil)
+
+	t.Run("string_concat_range_on_operator_line", func(t *testing.T) {
+		src := "module fixture\nexport pure func greet(name: string) -> string = \"Hello, \" ++ name\n"
+		docURI, _ := fileURI(t, src)
+		srv.docs.Store(docURI, src)
+
+		actions, err := srv.CodeAction(context.Background(), &protocol.CodeActionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: docURI},
+			Range: protocol.Range{
+				Start: protocol.Position{Line: 1, Character: 0},
+				End:   protocol.Position{Line: 1, Character: 70},
+			},
+			Context: protocol.CodeActionContext{},
+		})
+		if err != nil {
+			t.Fatalf("CodeAction error: %v", err)
+		}
+		if len(actions) != 1 {
+			t.Fatalf("got %d actions, want 1", len(actions))
+		}
+		edits := actions[0].Edit.Changes[docURI]
+		if len(edits) != 1 || edits[0].NewText != `"Hello, ${name}"` {
+			t.Fatalf("unexpected edits: %+v", edits)
+		}
+	})
+
+	t.Run("effect_stamp_range_on_func_header_line", func(t *testing.T) {
+		src := "module fixture\nimport std/io (println)\nexport pure func greet(name: string) -> () {\n  println(name)\n}\n"
+		docURI, _ := fileURI(t, src)
+		srv.docs.Store(docURI, src)
+
+		actions, err := srv.CodeAction(context.Background(), &protocol.CodeActionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: docURI},
+			Range: protocol.Range{
+				Start: protocol.Position{Line: 2, Character: 0},
+				End:   protocol.Position{Line: 2, Character: 40},
+			},
+			Context: protocol.CodeActionContext{},
+		})
+		if err != nil {
+			t.Fatalf("CodeAction error: %v", err)
+		}
+		if len(actions) != 1 {
+			t.Fatalf("got %d actions, want 1", len(actions))
+		}
+		edits := actions[0].Edit.Changes[docURI]
+		if len(edits) != 2 {
+			t.Fatalf("got %d edits, want 2 (stamp ! {IO} + strip pure): %+v", len(edits), edits)
+		}
+	})
 }
 
 func TestCodeAction_OnlyFilter(t *testing.T) {
