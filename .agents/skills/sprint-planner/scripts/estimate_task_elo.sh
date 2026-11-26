@@ -52,9 +52,10 @@ ROUTINE_PREFIXES = (
 )
 
 BANDS = (
-    (1700, "Frontier", ["gemini-4-hydrogen-high", "claude-opus-5-5-high"]),
-    (1450, "Core", ["gemini-4-neon-medium", "claude-sonnet-5-5-medium"]),
-    (0, "Routine", ["gemini-3.8-flash-high", "gemini-3.8-flash-medium"]),
+    (2800, "Deep Frontier", ["gemini-4-carbon-high", "claude-opus-5-5-high"]),
+    (2650, "Frontier SWE", ["gemini-4-neon-high", "gemini-4-argon-high"]),
+    (2400, "Core SWE", ["gemini-4-neon-medium", "claude-sonnet-5-5-medium"]),
+    (0, "Routine", ["gemini-4-hydrogen-medium", "gemini-4-hydrogen-high"]),
 )
 
 SKIP_DIRS = {
@@ -106,16 +107,16 @@ def matches_prefix(path: str, prefix: str) -> bool:
 def classify_base_elo(path: str) -> tuple[int, str, str]:
     for pref in FRONTIER_PREFIXES:
         if matches_prefix(path, pref):
-            return 1700, "Frontier", f"{pref}/"
+            return 2650, "Frontier", f"{pref}/"
     for pref in CORE_PREFIXES:
         if matches_prefix(path, pref):
-            return 1500, "Core", f"{pref}/"
+            return 2400, "Core SWE", f"{pref}/"
     for pref in ROUTINE_PREFIXES:
         if matches_prefix(path, pref):
-            return 1300, "Routine", f"{pref}/"
+            return 2100, "Routine", f"{pref}/"
     if matches_prefix(path, "internal"):
-        return 1450, "Core", "internal/* (default)"
-    return 1300, "Routine", "other (default)"
+        return 2350, "Core SWE", "internal/* (default)"
+    return 2100, "Routine", "other (default)"
 
 
 def top_level_package(path: str) -> str:
@@ -296,7 +297,7 @@ def map_elo_to_band(total_elo: int) -> tuple[str, list[str]]:
     for threshold, band, models in BANDS:
         if total_elo >= threshold:
             return band, models
-    return "Routine", ["gemini-3.8-flash-high", "gemini-3.8-flash-medium"]
+    return "Routine", ["gemini-4-hydrogen-medium", "gemini-4-hydrogen-high"]
 
 
 def main() -> int:

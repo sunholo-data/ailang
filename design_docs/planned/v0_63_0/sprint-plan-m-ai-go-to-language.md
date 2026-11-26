@@ -164,89 +164,89 @@ Computed deterministically on `94026beac` via `.agents/skills/sprint-planner/scr
 
 | Worker | Slice / Milestone | Workspace | Base ELO | Modifiers | Total ELO | Band | Assigned Model |
 |--------|-------------------|-----------|---------:|----------:|----------:|------|----------------|
-| `coordinator` | M6 (merge, `.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`, `changelogs/`) | main | — | — | **1900+** | **Frontier** | `gemini-4-hydrogen-high` (or inherit top reasoning) |
-| `derive-json` | Slice 1 (M1) | `share` | 1700 (`internal/parser/`) | +50 fan-in, +75 cross-pkg (4), +25 churn | **1850** | **Frontier** | `gemini-4-hydrogen-high` |
-| `try-let` | Slice 2 (M2) | `share` | 1700 (`internal/parser/`) | +50 >600L, +50 fan-in, +75 cross-pkg (5), +25 churn | **1900** | **Frontier** | `gemini-4-hydrogen-high` |
-| `check-fix-types` | Slice 3 (M3) | `share` | 1500 (`internal/quickfix/`) | +50 >600L (`quickfix.go` 719L), +75 cross-pkg (3), +25 churn | **1650** | **Core** | `gemini-4-neon-medium` |
-| `ailang-inspect` | Slice 4 (M4) | `share` | 1500 (`cmd/ailang/`) | +25 churn (`commands_language.go` 10 commits/30d) | **1525** | **Core** | `gemini-4-neon-medium` |
-| `stdlib-scripting` | Slice 5 (M5) | `share` | 1300 (`std/`) | +0 (all 4 modifiers clear) | **1300** | **Routine** | `gemini-3.8-flash-high` |
-| `verifier` | M6 read-only verification & evals | `inherit` | 1300 (`examples/`) | +50 >600L (`manifest.json`), +25 churn | **1375** | **Routine** | `gemini-3.8-flash-high` |
+| `coordinator` | M6 (merge, `.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`, `changelogs/`) | main | — | — | **2850+** | **Deep Frontier** | `gemini-4-carbon-high` (or inherit top reasoning) |
+| `derive-json` | Slice 1 (M1) | `share` | 2650 (`internal/parser/`) | +50 fan-in, +75 cross-pkg (4), +25 churn | **2800** | **Deep Frontier** | `gemini-4-carbon-high` |
+| `try-let` | Slice 2 (M2) | `share` | 2650 (`internal/parser/`) | +50 >600L, +50 fan-in, +75 cross-pkg (5), +25 churn | **2850** | **Deep Frontier** | `gemini-4-carbon-high` |
+| `check-fix-types` | Slice 3 (M3) | `share` | 2400 (`internal/quickfix/`) | +50 >600L (`quickfix.go` 719L), +75 cross-pkg (3), +25 churn | **2550** | **Core SWE** | `gemini-4-neon-medium` |
+| `ailang-inspect` | Slice 4 (M4) | `share` | 2400 (`cmd/ailang/`) | +25 churn (`commands_language.go` 10 commits/30d) | **2425** | **Core SWE** | `gemini-4-neon-medium` |
+| `stdlib-scripting` | Slice 5 (M5) | `share` | 2100 (`std/`) | +0 (all 4 modifiers clear) | **2100** | **Routine** | `gemini-4-hydrogen-medium` |
+| `verifier` | M6 read-only verification & evals | `inherit` | 2100 (`examples/`) | +50 >600L (`manifest.json`), +25 churn | **2175** | **Routine** | `gemini-4-hydrogen-medium` |
 
-- **Mid-run quota fallback**: Switch any `waiting` worker in-place via `swarm(action:"model", ...)` (`gemini-4-hydrogen-high` ↔ `claude-opus-5-5-high` for Frontier; `gemini-4-neon-medium` ↔ `claude-sonnet-5-5-medium` for Core; `gemini-3.8-flash-high` ↔ `gemini-3.8-flash-medium` for Routine) without losing conversation history or deleting its workspace.
+- **Mid-run quota fallback**: Switch any `waiting` worker in-place via `swarm(action:"model", ...)` (`gemini-4-carbon-high` ↔ `claude-opus-5-5-high` for Deep Frontier; `gemini-4-neon-high` ↔ `gemini-4-argon-high` for Frontier SWE; `gemini-4-neon-medium` ↔ `claude-sonnet-5-5-medium` for Core SWE; `gemini-4-hydrogen-medium` ↔ `gemini-4-hydrogen-high` for Routine) without losing conversation history or deleting its workspace.
 
 ### Exact Per-Slice `estimate_task_elo.sh` Signal Breakdowns
 
-#### 1. `derive-json` — **1850 (Frontier → `gemini-4-hydrogen-high`)**
+#### 1. `derive-json` — **2800 (Deep Frontier → `gemini-4-carbon-high`)**
 `estimate_task_elo.sh internal/ast/ast_decl.go internal/parser/parser_type.go internal/elaborate/file.go internal/elaborate/file_funcs.go internal/elaborate/derive_json.go examples/tests/derive_json_test.ail examples/runnable/derive_json.ail`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`internal/parser/`) | 1700 | Frontier | `internal/parser/parser_type.go` |
+| Base location (`internal/parser/`) | 2650 | Frontier | `internal/parser/parser_type.go` |
 | `large_file_near_800l` | +0 | clear | no target file > 600 lines |
 | `high_fan_in_go_pkg` | +50 | triggered | `internal/ast` (27 internal importers), `internal/parser` (17 internal importers) |
 | `cross_package_span` | +75 | triggered | 4 package(s): `examples`, `internal/ast`, `internal/elaborate`, `internal/parser` |
 | `recent_churn_30d` | +25 | triggered | `internal/elaborate/file.go` (7 commits/30d), `internal/elaborate/file_funcs.go` (9 commits/30d) |
-| **Total ELO** | **1850** | **Frontier** | `gemini-4-hydrogen-high / claude-opus-5-5-high` |
+| **Total ELO** | **2800** | **Deep Frontier** | `gemini-4-carbon-high / claude-opus-5-5-high` |
 
-#### 2. `try-let` — **1900 (Frontier → `gemini-4-hydrogen-high`)**
+#### 2. `try-let` — **2850 (Deep Frontier → `gemini-4-carbon-high`)**
 `estimate_task_elo.sh internal/ast/ast_expr.go internal/parser/parser_expr.go internal/parser/parser_branch.go internal/format/expr.go internal/format/format.go internal/elaborate/expr_simple.go internal/elaborate/expr_control.go internal/elaborate/rigid_sig.go internal/elaborate/try_let.go examples/tests/try_let_test.ail examples/runnable/error_propagation.ail`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`internal/parser/`) | 1700 | Frontier | `internal/parser/parser_expr.go` |
+| Base location (`internal/parser/`) | 2650 | Frontier | `internal/parser/parser_expr.go` |
 | `large_file_near_800l` | +50 | triggered | `internal/ast/ast_expr.go` (613L), `internal/parser/parser_expr.go` (633L), `internal/format/expr.go` (608L) |
 | `high_fan_in_go_pkg` | +50 | triggered | `internal/ast` (27 internal importers), `internal/parser` (17 internal importers) |
 | `cross_package_span` | +75 | triggered | 5 package(s): `examples`, `internal/ast`, `internal/elaborate`, `internal/format`, `internal/parser` |
 | `recent_churn_30d` | +25 | triggered | `internal/parser/parser_expr.go` (6 commits/30d), `internal/elaborate/expr_simple.go` (5 commits/30d) |
-| **Total ELO** | **1900** | **Frontier** | `gemini-4-hydrogen-high / claude-opus-5-5-high` |
+| **Total ELO** | **2850** | **Deep Frontier** | `gemini-4-carbon-high / claude-opus-5-5-high` |
 
-#### 3. `check-fix-types` — **1650 (Core → `gemini-4-neon-medium`)**
+#### 3. `check-fix-types` — **2550 (Core SWE → `gemini-4-neon-medium`)**
 `estimate_task_elo.sh internal/quickfix internal/lsp cmd/ailang/check_fix.go cmd/ailang/check_fix_test.go cmd/ailang/check_output.go`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`internal/quickfix/`) | 1500 | Core | `internal/quickfix` |
+| Base location (`internal/quickfix/`) | 2400 | Core SWE | `internal/quickfix` |
 | `large_file_near_800l` | +50 | triggered | `internal/quickfix/quickfix.go` (719L) — split new rules into `effect_stamp.go` & `string_concat.go` |
 | `high_fan_in_go_pkg` | +0 | clear | max `internal/quickfix` (2 internal importers, < 10) |
 | `cross_package_span` | +75 | triggered | 3 package(s): `cmd/ailang`, `internal/lsp`, `internal/quickfix` |
 | `recent_churn_30d` | +25 | triggered | `cmd/ailang/check_output.go` (15 commits/30d) |
-| **Total ELO** | **1650** | **Core** | `gemini-4-neon-medium / claude-sonnet-5-5-medium` |
+| **Total ELO** | **2550** | **Core SWE** | `gemini-4-neon-medium / claude-sonnet-5-5-medium` |
 
-#### 4. `ailang-inspect` — **1525 (Core → `gemini-4-neon-medium`)**
+#### 4. `ailang-inspect` — **2425 (Core SWE → `gemini-4-neon-medium`)**
 `estimate_task_elo.sh cmd/ailang/inspect.go cmd/ailang/inspect_test.go cmd/ailang/commands_language.go cmd/ailang/commands_table_test.go`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`cmd/ailang/`) | 1500 | Core | `cmd/ailang/inspect.go` |
+| Base location (`cmd/ailang/`) | 2400 | Core SWE | `cmd/ailang/inspect.go` |
 | `large_file_near_800l` | +0 | clear | no target file > 600 lines |
 | `high_fan_in_go_pkg` | +0 | clear | max `cmd/ailang` (0 internal importers, < 10) |
 | `cross_package_span` | +0 | clear | 1 package(s): `cmd/ailang` |
 | `recent_churn_30d` | +25 | triggered | `cmd/ailang/commands_language.go` (10 commits/30d) |
-| **Total ELO** | **1525** | **Core** | `gemini-4-neon-medium / claude-sonnet-5-5-medium` |
+| **Total ELO** | **2425** | **Core SWE** | `gemini-4-neon-medium / claude-sonnet-5-5-medium` |
 
-#### 5. `stdlib-scripting` — **1300 (Routine → `gemini-3.8-flash-high`)**
+#### 5. `stdlib-scripting` — **2100 (Routine → `gemini-4-hydrogen-medium`)**
 `estimate_task_elo.sh std/string.ail std/fs.ail examples/tests/stdlib_scripting_test.ail examples/runnable/string_fs_scripting.ail`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`std/`) | 1300 | Routine | `std/string.ail` |
+| Base location (`std/`) | 2100 | Routine | `std/string.ail` |
 | `large_file_near_800l` | +0 | clear | no target file > 600 lines |
 | `high_fan_in_go_pkg` | +0 | clear | no Go target packages |
 | `cross_package_span` | +0 | clear | 2 package(s): `examples`, `std` |
 | `recent_churn_30d` | +0 | clear | no target path with >= 5 commits in last 30d |
-| **Total ELO** | **1300** | **Routine** | `gemini-3.8-flash-high / gemini-3.8-flash-medium` |
+| **Total ELO** | **2100** | **Routine** | `gemini-4-hydrogen-medium / gemini-4-hydrogen-high` |
 
-#### 6. `verifier` — **1375 (Routine → `gemini-3.8-flash-high`)**
+#### 6. `verifier` — **2175 (Routine → `gemini-4-hydrogen-medium`)**
 `estimate_task_elo.sh examples benchmarks`
 
 | Signal | Delta | Status | Detail |
 |--------|------:|--------|--------|
-| Base location (`examples/`) | 1300 | Routine | `examples` |
+| Base location (`examples/`) | 2100 | Routine | `examples` |
 | `large_file_near_800l` | +50 | triggered | `examples/manifest.json` (4516L), `benchmarks/docx_reimplement.yml` (619L) |
 | `high_fan_in_go_pkg` | +0 | clear | max `examples` (1 internal importers, < 10) |
 | `cross_package_span` | +0 | clear | 2 package(s): `benchmarks`, `examples` |
 | `recent_churn_30d` | +25 | triggered | `examples` (65 commits/30d), `benchmarks` (13 commits/30d) |
-| **Total ELO** | **1375** | **Routine** | `gemini-3.8-flash-high / gemini-3.8-flash-medium` |
+| **Total ELO** | **2175** | **Routine** | `gemini-4-hydrogen-medium / gemini-4-hydrogen-high` |
 
 ---
 

@@ -63,12 +63,13 @@ For every implementable milestone, record the `ailang pkg search` terms, package
 
 | Worker | Milestone(s) | Est. ELO | Workspace | Assigned Model | Rationale |
 |--------|--------------|----------|-----------|----------------|-----------|
-| `coordinator` | Integration, shared hotspots (`.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`) | `1700+ (Frontier)` | main | `[gemini-4-hydrogen-high / claude-opus-5-5-high / inherit]` | Owns merge order, conflict resolution, and final verification |
-| `[worker-a]` | M1 | `[e.g., 1825 (Frontier)]` | `share` | `[gemini-4-hydrogen-high / claude-opus-5-5-high]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/parser/` + large file + high fan-in] |
-| `[worker-b]` | M2 | `[e.g., 1500 (Core)]` | `share` | `[gemini-4-neon-medium / claude-sonnet-5-5-medium]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/lsp/`, `cmd/ailang/`] |
-| `verifier` | Post-merge checks & evals | `[e.g., 1300 (Routine)]` | `inherit` | `[gemini-3.8-flash-high / gemini-3.8-flash-medium]` | Read-only tests, `--strict-bytecode`, eval A/B |
+| `coordinator` | Integration, shared hotspots (`.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`) | `2800+ (Deep Frontier)` | main | `[gemini-4-carbon-high / claude-opus-5-5-high / inherit]` | Owns merge order, conflict resolution, and final verification |
+| `[worker-a]` | M1 | `[e.g., 2800 (Deep Frontier)]` | `share` | `[gemini-4-carbon-high / claude-opus-5-5-high]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/parser/` + large file + high fan-in] |
+| `[worker-b]` | M2 | `[e.g., 2650 (Frontier SWE)]` | `share` | `[gemini-4-neon-high / gemini-4-argon-high]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/elaborate/`] |
+| `[worker-c]` | M3 | `[e.g., 2425 (Core SWE)]` | `share` | `[gemini-4-neon-medium / claude-sonnet-5-5-medium]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/lsp/`, `cmd/ailang/`] |
+| `verifier` | Post-merge checks & evals | `[e.g., 2175 (Routine)]` | `inherit` | `[gemini-4-hydrogen-medium / gemini-4-hydrogen-high]` | Read-only tests, `--strict-bytecode`, eval A/B |
 
-- **ELO-to-band mapping**: `>= 1700` → Frontier (`gemini-4-hydrogen-high` / `claude-opus-5-5-high`), `1450–1699` → Core (`gemini-4-neon-medium` / `claude-sonnet-5-5-medium`), `< 1450` → Routine (`gemini-3.8-flash-high` / `gemini-3.8-flash-medium`).
+- **ELO-to-band mapping** (anchored to `internal/modelreg/models.yml`): `>= 2800` → Deep Frontier (`gemini-4-carbon-high` / `claude-opus-5-5-high`, ELO 2872–2969+), `2650–2799` → Frontier SWE (`gemini-4-neon-high` / `gemini-4-argon-high`, ELO 2735–2778), `2400–2649` → Core SWE (`gemini-4-neon-medium` / `claude-sonnet-5-5-medium`, ELO 2296–2735), `< 2400` → Routine / Verifier (`gemini-4-hydrogen-medium` / `gemini-4-hydrogen-high`, ELO 2179).
 - **Mid-run quota fallback**: Switch any `waiting` worker in-place via `swarm(action:"model", ...)` without losing conversation history or deleting its workspace.
 
 ## Success Metrics
