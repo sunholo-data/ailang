@@ -1107,52 +1107,6 @@
             }
           },
           {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "head_or",
-      "type": "(list[a],a)-\u003ea",
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "headOr"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
             "name": "ys",
             "label": {
               "constants": [],
@@ -1262,52 +1216,6 @@
       "effects": [],
       "pure": true,
       "tier": "stable"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "last_or",
-      "type": "(list[a],a)-\u003ea",
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "lastOr"
     },
     {
       "ifc": {
@@ -1592,56 +1500,6 @@
       "ifc": {
         "params": [
           {
-            "name": "elem",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "member",
-      "type": "(a,list[a])-\u003ebool",
-      "constraints": [
-        "Eq[a]"
-      ],
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "contains",
-      "deprecation_note": "arguments swap: member(x, xs) becomes contains(xs, x)"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
             "name": "xs",
             "label": {
               "constants": [],
@@ -1838,64 +1696,6 @@
       "effects": [],
       "pure": true,
       "tier": "stable"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "nth_or",
-      "type": "(list[a],int,a)-\u003ea",
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "nthOr"
     },
     {
       "ifc": {

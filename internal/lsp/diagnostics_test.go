@@ -287,3 +287,17 @@ func TestDidSaveRepublishes(t *testing.T) {
 		t.Fatal("didSave with type-error text expected ≥1 diagnostic, got 0")
 	}
 }
+
+func TestEmbeddedLocReWindowsDriveLetterPath(t *testing.T) {
+	msg := `type error in m (decl 0): ++ operator at C:\Users\Runner\AppData\Local\Temp\fixture.ail:4:14: ++ is for lists only`
+	m := embeddedLocRe.FindStringSubmatch(msg)
+	if m == nil {
+		t.Fatalf("embeddedLocRe did not match Windows drive-letter path in %q", msg)
+	}
+	if want := `C:\Users\Runner\AppData\Local\Temp\fixture.ail`; m[1] != want {
+		t.Errorf("file = %q, want %q", m[1], want)
+	}
+	if m[2] != "4" || m[3] != "14" {
+		t.Errorf("line:col = %s:%s, want 4:14", m[2], m[3])
+	}
+}

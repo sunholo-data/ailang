@@ -108,12 +108,13 @@ func TestLoadRealStdlibFromFiles(t *testing.T) {
 	// the full WASM initialization path.
 	reg := NewModuleRegistry()
 
-	// These are the stdlib files that should have no dependencies
-	// and should load first
+	// These are the stdlib files that should load before std/string
+	// (std/string.lines imports std/list (map) as of v0.63.0).
 	baseModules := []string{
 		"std/option",
 		"std/result",
 		"std/prelude",
+		"std/list",
 	}
 
 	for _, modName := range baseModules {

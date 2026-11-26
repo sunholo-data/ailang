@@ -153,64 +153,6 @@
       "ifc": {
         "params": [
           {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "i",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "charAt_or",
-      "type": "(string,int,string)-\u003estring",
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "charAtOr"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
             "name": "c",
             "label": {
               "constants": [],

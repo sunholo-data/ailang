@@ -1,6 +1,6 @@
 # M-V1-CLOSEOUT-SWARM: v1.0.0 Pre-Soak Close-Out Swarm
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.64.0 (last 0.x pre-soak release) → `v1.0.0-rc.1` → `v1.0.0`
 **Priority**: P0 (Final engineering close-out before the 7-day soak and `v1.0.0-rc.1`)
 **Estimated**: 1 swarm wave (~4–6 agent-hours wall time across 3 parallel slices + integrator + verifier)
@@ -80,11 +80,11 @@ Every premise below was measured directly against `release-v063` (`cc58e9a8a`) o
 
 ### Design Freeze Checklist
 
-- [ ] **D1** ratified (fix any remaining downstream alias callers before `v0.64.0` tag)
-- [ ] **D2** ratified (keep `prompts/v0.16.20.md` frozen during Step 16)
-- [ ] **D3** ratified (`SECURITY.md` role email vs Advisories-only)
-- [ ] **D4** ratified (Bar `G5` waiver policy for Phase 4 / `D6` rows)
-- [ ] **D5** ratified (`intro.mdx` / `why-ailang.mdx` `pre-1.0` flip deferred to `v1.0.0` tag commit)
+- [x] **D1** ratified (`D1=a`: fix any remaining downstream alias callers before `v0.64.0` tag)
+- [x] **D2** ratified (`D2=a`: keep `prompts/v0.16.20.md` frozen during Step 16)
+- [x] **D3** ratified (`D3=a`: `SECURITY.md` uses GitHub Security Advisories only)
+- [x] **D4** ratified (`D4=a`: Bar `G5` waiver policy for Phase 4 / `D6` rows)
+- [x] **D5** ratified (`D5=a`: `intro.mdx` / `why-ailang.mdx` `pre-1.0` flip deferred to `v1.0.0` tag commit)
 
 ---
 

@@ -1,6 +1,7 @@
 package quickfix
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -236,6 +237,23 @@ func TestComputeEdits_StringConcat(t *testing.T) {
 		}
 		got, n := ApplyEdits(src, edits)
 		want := "module m\nexport pure func f() -> string = \"a\\n\\\"b\\\"\"\n"
+		if n != 1 || got != want {
+			t.Fatalf("applied=%d\ngot:\n%s\nwant:\n%s", n, got, want)
+		}
+	})
+
+	t.Run("windows_drive_letter_path_in_message", func(t *testing.T) {
+		src := "module m\n\n\nexport pure func greet(name: string) -> string = \"Hello, \" ++ name\n"
+		col := strings.Index(strings.Split(src, "\n")[3], "++") + 1
+		edits := ComputeEdits(Diagnostic{
+			Code:    "ERROR",
+			Message: "type error in m (decl 0): ++ operator at C:\\Users\\Runner\\AppData\\Local\\Temp\\fixture.ail:4:" + strconv.Itoa(col) + ": `++` is for lists only.",
+		}, "C:\\Users\\Runner\\AppData\\Local\\Temp\\fixture.ail", src)
+		if len(edits) != 1 {
+			t.Fatalf("got %d edits, want 1", len(edits))
+		}
+		got, n := ApplyEdits(src, edits)
+		want := "module m\n\n\nexport pure func greet(name: string) -> string = \"Hello, ${name}\"\n"
 		if n != 1 || got != want {
 			t.Fatalf("applied=%d\ngot:\n%s\nwant:\n%s", n, got, want)
 		}

@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	strConcatLocRe = regexp.MustCompile(`\+\+ operator at ([^\s:]+):(\d+):(\d+):`)
+	strConcatLocRe = regexp.MustCompile(`\+\+ operator at ((?:[A-Za-z]:)?[^\s:]+):(\d+):(\d+):`)
 )
 
 // computeStringConcatEdits rewrites `s1 ++ s2` (and chained `a ++ b ++ c`) on

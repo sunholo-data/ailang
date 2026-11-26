@@ -182,54 +182,6 @@
       "ifc": {
         "params": [
           {
-            "name": "root",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
-            "name": "suffix",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "glob",
-      "type": "(string,string)-\u003elist[string]!{FS}",
-      "effects": [
-        "FS"
-      ],
-      "pure": false,
-      "tier": "stable",
-      "replaced_by": "walkWithSuffix"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
             "name": "path",
             "label": {
               "constants": [],
@@ -540,42 +492,6 @@
       ],
       "pure": false,
       "tier": "stable"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
-            "name": "path",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "readFileBytes",
-      "type": "(string)-\u003eResult[string,string]!{FS}",
-      "effects": [
-        "FS"
-      ],
-      "pure": false,
-      "tier": "stable",
-      "replaced_by": "readFileBase64"
     },
     {
       "ifc": {

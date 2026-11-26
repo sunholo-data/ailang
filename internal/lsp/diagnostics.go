@@ -22,7 +22,7 @@ import (
 // non-Report compiler errors (e.g. `++ operator at file:line:col: ...` or
 // `undefined variable: x at file:line:col`) so LSP diagnostics and range-
 // filtered codeAction requests land on the exact offending line/column.
-var embeddedLocRe = regexp.MustCompile(`\bat ([^\s:]+):(\d+):(\d+)(?::|\b)`)
+var embeddedLocRe = regexp.MustCompile(`\bat ((?:[A-Za-z]:)?[^\s:]+):(\d+):(\d+)(?::|\b)`)
 
 // DiagnosticSource is the value placed in protocol.Diagnostic.Source so
 // editors can disambiguate AILANG-checker output from other LSP servers

@@ -981,53 +981,6 @@
             }
           },
           {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
-      "name": "unsafeGet",
-      "type": "(Array[a],int)-\u003ea",
-      "effects": [],
-      "pure": true,
-      "tier": "stable",
-      "replaced_by": "get",
-      "deprecation_note": "identical behaviour; if get collides with an imported json.get, import it as `get as arrayGet`"
-    },
-    {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": [],
-            "applied": {
-              "constants": [],
-              "variables": []
-            }
-          },
-          {
             "name": "writes",
             "label": {
               "constants": [],
