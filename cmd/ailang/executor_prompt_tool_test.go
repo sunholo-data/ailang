@@ -7,25 +7,24 @@ import (
 )
 
 // The hosted executor's `ailang_prompt` serves the teaching prompt cut for its
-// sandbox (executor_tools/executor.ail sandboxPrompt): the whole prompt is
-// ~120 KB, and Claude Code refuses an MCP result over 25k tokens. That was
-// measured on prod 2026-11-25: 127,495 characters, "exceeds maximum allowed
-// tokens". The cut is by heading, against whatever prompt the binary ships,
-// so this test is what keeps it in step with prompt edits:
-//   - every heading sandboxOmitted names still exists in the prompt (a
-//     renamed section would otherwise come back silently and grow the result);
-//   - the sections an executor caller needs are still there;
-//   - the result stays inside its budget.
+// sandbox, in two parts (executor_tools/executor.ail sandboxPrompt): "core"
+// (the sections in sandboxCore) and "reference" (every other kept section).
+// The cut is by heading, against whatever prompt the binary ships, so this
+// test is what keeps it in step with prompt edits:
+//   - every heading sandboxOmitted and sandboxCore name still exists;
+//   - the sections an executor caller needs are in core;
+//   - every kept section is in exactly one part, and no omitted one in either;
+//   - each part stays inside its budget.
 
-// executorPromptBudget is the most the tool may return, in characters as
-// `ailang run` prints the result, which is within a few percent of what goes
-// on the wire. Claude Code refuses an MCP result over 25k tokens, and this
-// text (code-heavy, JSON-escaped) runs at about 3 characters a token, not 4:
-// prod v0.62.1 served 77,090 characters on 2026-11-26 and Claude Code refused
-// it. 58k characters is about 19k tokens, which leaves a quarter in hand.
-const executorPromptBudget = 58_000
+// executorPromptPartBudget is the most one part may return, in characters as
+// `ailang run` prints the result, which is within a few percent of the wire.
+// Claude Code refuses an MCP result over 25k tokens, counted by the API, and
+// this text runs at about 2.2 characters a token: on prod, 77,090 characters
+// (v0.62.1) and then 56,411 (v0.62.2) were both refused, 2026-11-26. 45k
+// characters is about 20k tokens.
+const executorPromptPartBudget = 45_000
 
-// The sections a caller of the executor cannot do without.
+// The sections a caller of the executor cannot do without; they must be in core.
 var executorPromptMustKeep = []string{
 	"## Required Program Structure",
 	"## Effects",
@@ -44,57 +43,123 @@ func TestExecutorPromptTool_InSyncWithPrompt(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("ailang prompt failed (exit %d): %s", rc, stderr)
 	}
-	headings := map[string]bool{}
-	for _, l := range strings.Split(full, "\n") {
-		if strings.HasPrefix(l, "#") {
-			headings[l] = true
+	omitted := headingList(t, bin, "sandboxOmitted")
+	core := headingList(t, bin, "sandboxCore")
+	headings := promptHeadings(full)
+	for _, h := range append(append([]string{}, omitted...), core...) {
+		if !anyHasPrefix(headings, h) {
+			t.Errorf("executor.ail names %q, which is no longer a heading in `ailang prompt`: rename it to match, or drop it", h)
 		}
 	}
-	hasHeading := func(prefix string) bool {
-		for h := range headings {
-			if strings.HasPrefix(h, prefix) {
-				return true
+
+	parts := map[string]string{}
+	for _, p := range []string{"core", "reference"} {
+		out, stderr, rc := runAilangBin(t, bin, "run", "--quiet", "--caps", "Clock,Debug,Env,Process",
+			"--entry", "ailangPrompt", "--args-json", `"`+p+`"`, "executor_tools/executor.ail")
+		if rc != 0 {
+			t.Fatalf("ailangPrompt(%q) failed (exit %d): %s", p, rc, stderr)
+		}
+		if len(out) > executorPromptPartBudget {
+			t.Errorf("ailang_prompt part %q returns %d characters, over its %d budget (Claude Code refuses results over 25k tokens): move sections between sandboxCore and reference, or omit ones a sandboxed program cannot use", p, len(out), executorPromptPartBudget)
+		}
+		t.Logf("ailang_prompt part %q: %d characters", p, len(out))
+		parts[p] = out
+	}
+
+	for _, h := range executorPromptMustKeep {
+		if !anyHasPrefix(headings, h) {
+			t.Errorf("the prompt no longer has %q: update executorPromptMustKeep to the section that replaced it", h)
+		} else if !strings.Contains(parts["core"], h) {
+			t.Errorf("ailang_prompt core dropped %q, which an executor caller needs", h)
+		}
+	}
+	for _, h := range keptHeadings(full, omitted) {
+		in := 0
+		for _, out := range parts {
+			if strings.Contains(out, `\n`+escapeShown(h)+`\n`) {
+				in++
 			}
 		}
-		return false
-	}
-
-	listOut, stderr, rc := runAilangBin(t, bin, "run", "--quiet", "--entry", "sandboxOmitted", "executor_tools/executor.ail")
-	if rc != 0 {
-		t.Fatalf("sandboxOmitted failed (exit %d): %s", rc, stderr)
-	}
-	var omitted []string
-	if err := json.Unmarshal([]byte(strings.TrimSpace(listOut)), &omitted); err != nil || len(omitted) == 0 {
-		t.Fatalf("sandboxOmitted is not a list of headings (%v): %s", err, listOut)
-	}
-	for _, h := range omitted {
-		if !hasHeading(h) {
-			t.Errorf("sandboxOmitted names %q, which is no longer a heading in `ailang prompt`: rename it to match, or drop it", h)
-		}
-	}
-
-	out, stderr, rc := runAilangBin(t, bin, "run", "--quiet", "--caps", "Clock,Debug,Env,Process",
-		"--entry", "ailangPrompt", "executor_tools/executor.ail")
-	if rc != 0 {
-		t.Fatalf("ailangPrompt failed (exit %d): %s", rc, stderr)
-	}
-	if len(out) > executorPromptBudget {
-		t.Errorf("ailang_prompt returns %d characters, over its %d budget (Claude Code refuses results over 25k tokens): add the new or grown sections a sandboxed program cannot use to sandboxOmitted", len(out), executorPromptBudget)
-	}
-	if len(out) < len(full)/4 {
-		t.Errorf("ailang_prompt returns %d characters of a %d-character prompt: the cut took too much", len(out), len(full))
-	}
-	for _, h := range executorPromptMustKeep {
-		if !hasHeading(h) {
-			t.Errorf("the prompt no longer has %q: update executorPromptMustKeep to the section that replaced it", h)
-		} else if !strings.Contains(out, h) {
-			t.Errorf("ailang_prompt dropped %q, which an executor caller needs", h)
+		if in != 1 {
+			t.Errorf("kept section %q is in %d parts, want exactly 1", h, in)
 		}
 	}
 	for _, h := range omitted {
-		if strings.Contains(out, "\\n"+h) || strings.HasPrefix(out, h) {
-			t.Errorf("ailang_prompt still contains omitted section %q", h)
+		for p, out := range parts {
+			if strings.Contains(out, `\n`+escapeShown(h)) {
+				t.Errorf("ailang_prompt part %q still contains omitted section %q", p, h)
+			}
 		}
 	}
-	t.Logf("ailang_prompt: %d characters of %d", len(out), len(full))
+
+	bad, _, rc := runAilangBin(t, bin, "run", "--quiet", "--caps", "Clock,Debug,Env,Process",
+		"--entry", "ailangPrompt", "--args-json", `"everything"`, "executor_tools/executor.ail")
+	if rc != 0 || !strings.Contains(bad, "invalid_part") {
+		t.Errorf("ailangPrompt(\"everything\") should refuse with invalid_part, got (exit %d): %s", rc, bad)
+	}
+}
+
+func headingList(t *testing.T, bin, entry string) []string {
+	t.Helper()
+	out, stderr, rc := runAilangBin(t, bin, "run", "--quiet", "--entry", entry, "executor_tools/executor.ail")
+	if rc != 0 {
+		t.Fatalf("%s failed (exit %d): %s", entry, rc, stderr)
+	}
+	var hs []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &hs); err != nil || len(hs) == 0 {
+		t.Fatalf("%s is not a list of headings (%v): %s", entry, err, out)
+	}
+	return hs
+}
+
+// promptHeadings returns the "# " and "## " lines outside code fences.
+func promptHeadings(full string) []string {
+	var hs []string
+	fence := false
+	for _, l := range strings.Split(full, "\n") {
+		if strings.HasPrefix(l, "```") {
+			fence = !fence
+		} else if !fence && (strings.HasPrefix(l, "# ") || strings.HasPrefix(l, "## ")) {
+			hs = append(hs, l)
+		}
+	}
+	return hs
+}
+
+// keptHeadings returns the "## " headings the cut keeps: not omitted, and not
+// under an omitted "# " section.
+func keptHeadings(full string, omitted []string) []string {
+	var hs []string
+	off := false
+	for _, h := range promptHeadings(full) {
+		if strings.HasPrefix(h, "# ") {
+			off = anyPrefixOf(h, omitted)
+		} else if !off && !anyPrefixOf(h, omitted) {
+			hs = append(hs, h)
+		}
+	}
+	return hs
+}
+
+func anyHasPrefix(lines []string, prefix string) bool {
+	for _, l := range lines {
+		if strings.HasPrefix(l, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func anyPrefixOf(line string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(line, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// escapeShown escapes a line the way `ailang run` prints it inside a string.
+func escapeShown(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s)
 }

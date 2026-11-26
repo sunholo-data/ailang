@@ -544,7 +544,7 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 
 | Tool | Source | What it does |
 |------|--------|--------------|
-| `ailang_prompt` | `executor_tools/` | The teaching prompt; meant to be called first |
+| `ailang_prompt` | `executor_tools/` | The teaching prompt, in two parts (`part`: `core`, `reference`); `core` is meant to be called first |
 | `ailang_check` | `executor_tools/` | Type-check source and verify contracts. ⚠ close call — the tool is Stable, but its `stdout` carries the `ai-check` JSON report, which is Experimental (see CLI) |
 | `ailang_run` | `executor_tools/` | Run source in the sandbox. Only `IO` is granted, and the policy timeout applies |
 | `ailang_eval` | `executor_tools/` | Evaluate one pure expression with `show()` |

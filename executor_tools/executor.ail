@@ -348,17 +348,23 @@ func runCode(tool: string, code: string, source: string) -> Json ! {Clock, Debug
   logged(tool, t0, codeFields(code), withRequestFile(source, \dir. execAilangIn(dir, ["run", "--policy", policyPath(), "--chdir", dir, "main.ail"], \out. runOutcome(out, dir))))
 }
 
--- Call this FIRST: the AILANG teaching prompt (syntax rules, templates,
--- contracts, common mistakes) for programs this sandbox runs. AILANG is not in
--- your training data the way Python is; code written without this prompt
--- rarely type-checks. For a stdlib function, use stdlib_search or stdlib_module.
+-- Call this FIRST, with part "core": the AILANG teaching prompt for programs
+-- this sandbox runs (syntax, effects, pattern matching, contracts, common
+-- mistakes). AILANG is not in your training data the way Python is; code
+-- written without it rarely type-checks. part "reference" adds types, the
+-- JSON/maps/regex/strings libraries and worked examples. For one stdlib
+-- function, use stdlib_search or stdlib_module.
 @route("POST", "/api/executor/ailang_prompt")
 @mcp_name("ailang_prompt")
 @mcp_title("AILANG syntax prompt")
 @mcp_hints("readOnly", "idempotent")
-export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
+export func ailangPrompt(part: string) -> Json ! {Clock, Debug, Env, Process} {
   let t0 = now();
-  logged("ailang_prompt", t0, [], execAilangWith(["prompt"], \out. sandboxPromptJson(out), \out. outcomeFields(if out.exitCode == 0 then "ok" else "failed", "")))
+  let which = if part == "" then "core" else part;
+  if which != "core" && which != "reference" then
+    logged("ailang_prompt", t0, [kv("part", js(part))], (errorJson("invalid_part", "part must be core, reference or empty, not '${part}'"), outcomeFields("invalid_part", "")))
+  else
+    logged("ailang_prompt", t0, [kv("part", js(which))], execAilangWith(["prompt"], \out. sandboxPromptJson(which, out), \out. outcomeFields(if out.exitCode == 0 then "ok" else "failed", "")))
 }
 
 -- The whole prompt, as the binary ships it: the A2A agent's reference text.
@@ -369,14 +375,18 @@ export func fullPrompt() -> string ! {Env, Process} = match exec(ailangBin(), ["
   Err(_) => ""
 }
 
--- The prompt less the sections a program in this sandbox cannot use (it grants
--- console output only) and the stdlib listing, which stdlib_search and
--- stdlib_module serve. The whole prompt is ~120 KB, over the 25k-token result
--- limit of Claude Code. The cut is made by heading against the prompt the
--- binary ships, so edits to kept sections flow through untouched;
--- cmd/ailang/executor_prompt_tool_test.go fails when an entry here stops
--- matching a heading, a must-keep section goes, or the result outgrows its
--- budget. A "# " entry drops everything up to the next "# " heading.
+-- ailang_prompt serves the prompt less the sections a program in this sandbox
+-- cannot use (it grants console output only), in two parts. Claude Code
+-- refuses an MCP result over 25k tokens, and this text runs at ~2.2
+-- characters a token (prod 2026-11-26: 56,411 characters refused), so the
+-- ~75 KB that is left does not fit in one result. "core" holds the sections
+-- in sandboxCore; every other kept section goes to "reference", so a section
+-- added to the prompt lands there by default. The cut is made by heading
+-- against the prompt the binary ships, so edits to kept sections flow
+-- through untouched; cmd/ailang/executor_prompt_tool_test.go fails when an
+-- entry stops matching a heading, a must-keep section leaves core, a part
+-- outgrows its budget, or the two parts stop adding up to the whole cut.
+-- A "# " entry drops everything up to the next "# " heading.
 @noexpose
 @nomcp
 export pure func sandboxOmitted() -> [string] = [
@@ -399,42 +409,62 @@ export pure func sandboxOmitted() -> [string] = [
   "## Process Exit",
   "## Cost Model",
   "## Output Discipline",
-  "## Quick Reference Examples",
-  "## Hashing & Crypto",
-  "## Arrays — Construction Primitives",
-  "## High-Performance String Builtins",
-  "## Regular Expressions",
-  "## Polymorphic ADTs with Mixed Field Types",
-  "## JSON",
-  "## Maps",
   "# Information-Flow Control"
 ]
 
-pure func sandboxNote() -> string =
-  "> This is the AILANG prompt for the executor's sandbox, which grants console output only. Sections on the network, AI calls, archives, XML, JWT, time, process exit, performance costs, packages, multi-module projects and information-flow labels are left out, as are the worked examples and the JSON, maps, arrays, regex, crypto and fast-string library sections; for any library, stdlib_search and stdlib_module give the exports and example_for_concept a working program. The whole prompt: prompt_get with kind \"\"."
+-- The sections of part "core". The text before the first "## " is core too.
+@noexpose
+@nomcp
+export pure func sandboxCore() -> [string] = [
+  "## Required Program Structure",
+  "## What AILANG Does NOT Have",
+  "## Let Bindings",
+  "## Function Calls",
+  "## Syntax Reference",
+  "## Effects",
+  "## Error Handling with Result Type",
+  "## String Interpolation",
+  "## Pattern Matching",
+  "## Contracts & Verification",
+  "## Reserved Keywords",
+  "## Module Import Rules",
+  "## Common Mistakes"
+]
 
-pure func sandboxPromptJson(out: ProcessOutput) -> Json =
+pure func sandboxNote(part: string) -> string =
+  if part == "core" then
+    "> AILANG prompt for the executor's sandbox (console output only), part 1 of 2: core. Call ailang_prompt with part \"reference\" for operators, print vs println, types (Option, ADTs, newtypes), lists, strings, JSON, maps, arrays, regex, crypto and worked examples. Network, AI calls, archives, XML, JWT, time, process exit, packages, multi-module projects and information-flow labels are left out, since the sandbox cannot use them. For one stdlib function: stdlib_search or stdlib_module. The whole prompt: prompt_get with kind \"\"."
+  else
+    "> AILANG prompt for the executor's sandbox, part 2 of 2: reference. Part \"core\" has program structure, effects, pattern matching, contracts and common mistakes; read it first. For one stdlib function: stdlib_search or stdlib_module."
+
+pure func sandboxPromptJson(part: string, out: ProcessOutput) -> Json =
   if out.exitCode != 0 then outputJson(out) else
-  jo([kv("ok", jb(true)), kv("exit_code", jint(0)), kv("stdout", js(sandboxPrompt(toString(out.stdout)))), kv("stderr", js("")), kv("truncated", jb(out.truncated))])
+  jo([kv("ok", jb(true)), kv("exit_code", jint(0)), kv("part", js(part)), kv("stdout", js(sandboxPrompt(part, toString(out.stdout)))), kv("stderr", js("")), kv("truncated", jb(out.truncated))])
 
-pure func sandboxPrompt(full: string) -> string =
-  join("\n", [sandboxNote(), ""] ++ keepLines(split(full, "\n"), false, false, false, []))
+pure func sandboxPrompt(part: string, full: string) -> string =
+  join("\n", [sandboxNote(part), ""] ++ keepLines(split(full, "\n"), part == "core", false, false, 1, []))
 
-pure func omits(line: string) -> bool = any(\p. startsWith(line, p), sandboxOmitted())
+pure func listed(line: string, heads: [string]) -> bool = any(\p. startsWith(line, p), heads)
+
+-- Which part a "## " section belongs to: 0 omitted, 1 core, 2 reference.
+pure func sectionOf(heading: string) -> int =
+  if listed(heading, sandboxOmitted()) then 0 else if listed(heading, sandboxCore()) then 1 else 2
 
 -- Walk the lines: a fence toggles code; outside code, "# " starts a top-level
--- section and "## " a subsection, each dropped when sandboxOmitted names it.
-pure func keepLines(lines: [string], fence: bool, top: bool, sub: bool, acc: [string]) -> [string] = match lines {
+-- section (off when omitted; its text before the first "## " is core) and
+-- "## " a subsection. A line is kept when its top-level section is on and its
+-- subsection is in the part asked for.
+pure func keepLines(lines: [string], core: bool, fence: bool, off: bool, sec: int, acc: [string]) -> [string] = match lines {
   [] => reverse(acc),
   l :: rest =>
-    if startsWith(l, "```") then step(rest, !fence, top, sub, l, acc)
-    else if !fence && startsWith(l, "# ") then step(rest, fence, omits(l), false, l, acc)
-    else if !fence && startsWith(l, "## ") then step(rest, fence, top, omits(l), l, acc)
-    else step(rest, fence, top, sub, l, acc)
+    if startsWith(l, "```") then step(rest, core, !fence, off, sec, l, acc)
+    else if !fence && startsWith(l, "# ") then step(rest, core, fence, listed(l, sandboxOmitted()), 1, l, acc)
+    else if !fence && startsWith(l, "## ") then step(rest, core, fence, off, sectionOf(l), l, acc)
+    else step(rest, core, fence, off, sec, l, acc)
 }
 
-pure func step(rest: [string], fence: bool, top: bool, sub: bool, l: string, acc: [string]) -> [string] =
-  keepLines(rest, fence, top, sub, if top || sub then acc else l :: acc)
+pure func step(rest: [string], core: bool, fence: bool, off: bool, sec: int, l: string, acc: [string]) -> [string] =
+  keepLines(rest, core, fence, off, sec, if !off && sec == (if core then 1 else 2) then l :: acc else acc)
 
 -- Type-check AILANG source. `code` is a whole module; the module line may be
 -- omitted or be `module main`. Returns the ai-check JSON report on stdout:

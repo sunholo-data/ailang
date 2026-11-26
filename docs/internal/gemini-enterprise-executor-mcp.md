@@ -57,7 +57,7 @@ the values used. Design: [m-ailang-executor-gemini-enterprise](../../design_docs
 ```
 AILANG code executor and documentation. AILANG is a deterministic, effect-typed functional programming language for AI-written code. Use this connector whenever the user asks to write, check, run, or explain AILANG code (.ail files), or asks about AILANG syntax, stdlib, or builtins.
 
-Always call ailang_prompt first. It returns the syntax rules and stdlib reference, and AILANG written without it rarely type-checks. Then:
+Always call ailang_prompt first, with part "core". It returns the syntax rules, effects, contracts and common mistakes, and AILANG written without it rarely type-checks; part "reference" adds types, libraries and worked examples. Then:
 - ailang_check: type-check a module and verify its contracts; returns errors with fixes
 - ailang_run: run a module whose entry point is main, in a sandbox (println only; no file, network, or process access; 60 second limit)
 - ailang_eval: evaluate one expression
