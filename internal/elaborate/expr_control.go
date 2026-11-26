@@ -81,6 +81,9 @@ For more details, see: docs/LIMITATIONS.md#if-else-branches-require-explicit-bra
 
 // normalizeLet handles let bindings
 func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
+	if let.IsTry {
+		return e.normalizeTryLet(let)
+	}
 	// Handle let statements without body (e.g., "let x = 1;" in a block)
 	// These are created by the parser for semicolon-terminated lets
 	// They should only appear as part of a Block, which will sequence them properly
@@ -210,6 +213,9 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 // normalizeLetPattern desugars `let (a, b) = value in body` into a single-arm
 // core.Match on the elaborated tuple pattern (M-SYNTAX-ERGONOMICS-V1 E1).
 func (e *Elaborator) normalizeLetPattern(lp *ast.LetPattern) (core.CoreExpr, error) {
+	if lp.IsTry {
+		return e.normalizeTryLetPattern(lp)
+	}
 	scrutinee, binds, err := e.normalizeToAtomic(lp.Value)
 	if err != nil {
 		return nil, err
@@ -335,6 +341,14 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 		// Special case: if this is a Let with nil body (statement form),
 		// normalize its value and use the let's name directly
 		if letExpr, ok := expr.(*ast.Let); ok && letExpr.Body == nil {
+			if letExpr.IsTry {
+				e.scope[frame] = boundBefore[i]
+				result, err = e.normalizeTryBlockLet(letExpr, result)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
 			value, err := normalizeAt(i, letExpr.Value)
 			if err != nil {
 				return nil, err
@@ -355,6 +369,14 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 			}
 			result = letNode
 		} else if lpExpr, ok := expr.(*ast.LetPattern); ok && lpExpr.Body == nil {
+			if lpExpr.IsTry {
+				e.scope[frame] = boundBefore[i]
+				result, err = e.normalizeTryBlockLetPattern(lpExpr, result)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
 			// Statement-form tuple destructuring inside a block (`let (a, b) = expr; <rest>`):
 			// desugar to a single-arm core.Match wrapping the rest of the block.
 			e.scope[frame] = boundBefore[i]

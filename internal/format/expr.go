@@ -289,13 +289,28 @@ func (p *printer) letPatternIn(n *ast.LetPattern) error {
 		p.w.write(": " + ts)
 	}
 	p.w.write(" = ")
-	if err := p.expr(n.Value, precLowest); err != nil {
+	if err := p.letValue(n.Value, n.IsTry); err != nil {
 		return err
 	}
 	if n.Body != nil {
 		p.w.write(" in ")
 		return p.expr(n.Body, precLowest)
 	}
+	return nil
+}
+
+// letValue prints the RHS of a `let` or `let <pattern>` binding, appending `?`
+// when isTry is true and parenthesising lower-precedence expressions (such as
+// `if`, `match`, `let..in`, or binary operators) so `(if c then a else b)?`
+// re-parses as a single `let`-bound try rather than hitting PAR_TRY_LET_ONLY.
+func (p *printer) letValue(val ast.Expr, isTry bool) error {
+	if !isTry {
+		return p.expr(val, precLowest)
+	}
+	if err := p.expr(val, precCall); err != nil {
+		return err
+	}
+	p.w.write("?")
 	return nil
 }
 
@@ -317,7 +332,7 @@ func (p *printer) letInInline(n *ast.Let) error {
 		p.w.write(": " + ts)
 	}
 	p.w.write(" = ")
-	if err := p.expr(n.Value, precLowest); err != nil {
+	if err := p.letValue(n.Value, n.IsTry); err != nil {
 		return err
 	}
 	p.w.write(" in ")
@@ -358,7 +373,7 @@ func (p *printer) letChainMultiline(root *ast.Let) error {
 			p.w.write(": " + ts)
 		}
 		p.w.write(" = ")
-		if err := p.expr(b.Value, precLowest); err != nil {
+		if err := p.letValue(b.Value, b.IsTry); err != nil {
 			return err
 		}
 		// Write `in` BEFORE any trailing comment so the comment cannot swallow it.

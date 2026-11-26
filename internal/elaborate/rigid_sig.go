@@ -58,6 +58,7 @@ func (e *Elaborator) lookupSigTyvar(name string) (string, bool) {
 // variables (nil when it introduces none). The caller pops with
 // closeSignature once the body and the annotations are elaborated.
 func (e *Elaborator) openSignature(fn *ast.FuncDecl) *types.RigidSig {
+	e.openTryFuncDecl(fn)
 	frame := sigTyvarScope{}
 	e.sigTyvars = append(e.sigTyvars, frame)
 	if fn == nil {
@@ -134,6 +135,7 @@ func (e *Elaborator) openSignature(fn *ast.FuncDecl) *types.RigidSig {
 // closeSignature pops the scope openSignature pushed and records sig for the
 // lambda the declaration elaborated to.
 func (e *Elaborator) closeSignature(sig *types.RigidSig, lam core.CoreExpr) {
+	e.closeTryScope()
 	e.sigTyvars = e.sigTyvars[:len(e.sigTyvars)-1]
 	if n := len(e.sigOcc); n > 0 && len(e.sigOcc) > len(e.sigTyvars) {
 		e.sigOcc = e.sigOcc[:n-1]

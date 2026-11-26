@@ -381,19 +381,21 @@ func PrintAILANGSource(expr ast.Expr) string {
 			PrintAILANGSource(e.Then),
 			PrintAILANGSource(e.Else))
 	case *ast.Let:
+		valStr := printLetValue(e.Value, e.IsTry)
 		if e.Body == nil {
 			// Standalone let-binding (no 'in'): emit as "let name = val" — callers
 			// that need a complete expression should use FoldBodyExprs first.
-			return fmt.Sprintf("let %s = %s", e.Name, PrintAILANGSource(e.Value))
+			return fmt.Sprintf("let %s = %s", e.Name, valStr)
 		}
 		return fmt.Sprintf("let %s = %s in\n%s",
-			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+			e.Name, valStr, PrintAILANGSource(e.Body))
 	case *ast.LetPattern:
+		valStr := printLetValue(e.Value, e.IsTry)
 		if e.Body == nil {
-			return fmt.Sprintf("let %s = %s", e.Pattern, PrintAILANGSource(e.Value))
+			return fmt.Sprintf("let %s = %s", e.Pattern, valStr)
 		}
 		return fmt.Sprintf("let %s = %s in\n%s",
-			e.Pattern, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+			e.Pattern, valStr, PrintAILANGSource(e.Body))
 	case *ast.LetRec:
 		if e.Body == nil {
 			return fmt.Sprintf("letrec %s = %s", e.Name, PrintAILANGSource(e.Value))
@@ -495,9 +497,16 @@ func PrintAILANGSource(expr ast.Expr) string {
 // `if c then a else (b ++ ys)`, and `(\f. f)(g)` as `\f. f(g)`. Those forms are
 // parenthesised; everything else already prints as an atom or parenthesises
 // itself.
+func printLetValue(expr ast.Expr, isTry bool) string {
+	if !isTry {
+		return PrintAILANGSource(expr)
+	}
+	return printOperand(expr) + "?"
+}
+
 func printOperand(expr ast.Expr) string {
 	switch expr.(type) {
-	case *ast.If, *ast.Let, *ast.LetRec, *ast.Match, *ast.Lambda, *ast.FuncLit:
+	case *ast.If, *ast.Let, *ast.LetPattern, *ast.LetRec, *ast.Match, *ast.Lambda, *ast.FuncLit:
 		return "(" + PrintAILANGSource(expr) + ")"
 	default:
 		return PrintAILANGSource(expr)

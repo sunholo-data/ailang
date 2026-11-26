@@ -305,32 +305,44 @@ func (f *FuncCall) exprNode()     {}
 
 // Let represents a let binding
 type Let struct {
-	Name  string
-	Type  Type // Optional type annotation
-	Value Expr
-	Body  Expr
-	Pos   Pos
+	Name   string
+	Type   Type // Optional type annotation
+	Value  Expr
+	Body   Expr
+	IsTry  bool // True for `let x = expr?` Result/Option propagation (M-AI-GO-TO-LANGUAGE M2)
+	TryPos Pos  // Position of trailing `?` token when IsTry is true
+	Pos    Pos
 }
 
 func (l *Let) String() string {
-	return fmt.Sprintf("(let %s = %s in %s)", l.Name, l.Value, l.Body)
+	trySuffix := ""
+	if l.IsTry {
+		trySuffix = "?"
+	}
+	return fmt.Sprintf("(let %s = %s%s in %s)", l.Name, l.Value, trySuffix, l.Body)
 }
 func (l *Let) Position() Pos { return l.Pos }
 func (l *Let) exprNode()     {}
 
 // LetPattern represents a destructuring let binding (M-SYNTAX-ERGONOMICS-V1 E1).
-// Syntax: let (a, b) = expr [in body]
-// Elaborates to a single-arm core.Match on the irrefutable tuple pattern.
+// Syntax: let (a, b) = expr[?] [in body]
+// Elaborates to a single-arm core.Match on the irrefutable tuple/record pattern.
 type LetPattern struct {
 	Pattern Pattern
 	Type    Type // Optional type annotation
 	Value   Expr
 	Body    Expr
+	IsTry   bool // True for `let (a, b) = expr?` Result/Option propagation
+	TryPos  Pos  // Position of trailing `?` token when IsTry is true
 	Pos     Pos
 }
 
 func (l *LetPattern) String() string {
-	return fmt.Sprintf("(let %s = %s in %s)", l.Pattern, l.Value, l.Body)
+	trySuffix := ""
+	if l.IsTry {
+		trySuffix = "?"
+	}
+	return fmt.Sprintf("(let %s = %s%s in %s)", l.Pattern, l.Value, trySuffix, l.Body)
 }
 func (l *LetPattern) Position() Pos { return l.Pos }
 func (l *LetPattern) exprNode()     {}

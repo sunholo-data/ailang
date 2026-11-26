@@ -1,0 +1,144 @@
+module examples/tests/try_let_test
+import std/list (map)
+import std/string (stringToInt, split)
+
+-- TST-TL-02: `let`-bound `?` error and option propagation across Result[T, E] and Option[T]
+
+pure func parseIntRes(s: string) -> Result[int, string] = match stringToInt(s) {
+  Some(n) => Ok(n),
+  None => Err("invalid int: ${s}")
+}
+
+pure func safeDiv(a: int, b: int) -> Result[int, string] = if b == 0 then Err("division by zero") else Ok(a / b)
+
+pure func requirePositive(n: int) -> Result[(), string] = if n > 0 then Ok() else Err("must be positive: ${show(n)}")
+
+-- 1. Multi-step Result block with newline & semicolon separators + `let _ = ...?` guard
+export pure func computeRatio(aStr: string, bStr: string) -> Result[int, string] {
+  let a: int = parseIntRes(aStr)?
+  let b = parseIntRes(bStr)?
+  let _ = requirePositive(a)?
+  let q = safeDiv(a, b)?
+  Ok(q * 10)
+}
+
+-- 2. Expression-form `let ... = expr? in` chain
+export pure func sumThree(s1: string, s2: string, s3: string) -> Result[int, string] =
+  let a = parseIntRes(s1)? in
+  let b = parseIntRes(s2)? in
+  let c = parseIntRes(s3)? in
+  Ok(a + b + c)
+
+-- 3. Option[T] propagation (`Some` pass-through & `None` short-circuit)
+pure func headOpt[a](xs: [a]) -> Option[a] = match xs {
+  [] => None,
+  x :: _ => Some(x)
+}
+
+pure func tailOpt[a](xs: [a]) -> Option[[a]] = match xs {
+  [] => None,
+  _ :: rest => Some(rest)
+}
+
+export pure func parseFirstTwoSum(csv: string) -> Option[int] {
+  let parts = split(csv, ",")
+  let firstStr = headOpt(parts)?
+  let rest = tailOpt(parts)?
+  let secondStr = headOpt(rest)?
+  let a = stringToInt(firstStr)?
+  let b = stringToInt(secondStr)?
+  Some(a + b)
+}
+
+-- 4. Tuple and record destructuring with `?`
+type PairRec = { left: int, right: int }
+
+pure func parseKeyVal(raw: string) -> Result[(string, int), string] = match split(raw, "=") {
+  [k, v] => {
+    let n = parseIntRes(v)?
+    Ok((k, n))
+  },
+  _ => Err("expected key=int")
+}
+
+pure func makePairRec(n: int) -> Result[PairRec, string] =
+  if n < 0 then Err("negative") else Ok({ left: n, right: n * 2 })
+
+export pure func decodeEntry(raw: string) -> Result[string, string] {
+  let (key, count) = parseKeyVal(raw)?
+  let { left, right } = makePairRec(count)?
+  Ok("${key}:${show(left + right)}")
+}
+
+-- 5. Tail `if`/`else` and `match` spine arms + annotated `func(...) -> Result` literal
+export pure func conditionalPipeline(mode: string, input: string) -> Result[int, string] = match mode {
+  "double" => {
+    let n = parseIntRes(input)?
+    Ok(n * 2)
+  },
+  "guarded" => {
+    let n = parseIntRes(input)?
+    if n > 100 then {
+      let half = safeDiv(n, 2)?
+      Ok(half)
+    } else Ok(n)
+  },
+  _ => Err("unknown mode: ${mode}")
+}
+
+export pure func mapParsePositive(items: [string]) -> [Result[int, string]] =
+  map(func(s: string) -> Result[int, string] {
+    let n = parseIntRes(s)?
+    let _ = requirePositive(n)?
+    Ok(n)
+  }, items)
+
+-- 6. Single-evaluation & short-circuit proof: step 2 uses a trap division that would
+-- fail if evaluated after step 1 returns Err, and RHS counter advances once per step.
+pure func stepWithCounter(state: (int, int), fail: bool) -> Result[(int, int), string] =
+  let (calls, acc) = state in if fail then Err("stopped at call ${show(calls + 1)}") else Ok((calls + 1, acc + 10))
+
+export pure func runTrackedSteps(failSecond: bool) -> Result[(int, int), string] {
+  let s1 = stepWithCounter((0, 0), false)?
+  let s2 = stepWithCounter(s1, failSecond)?
+  let s3 = stepWithCounter(s2, false)?
+  Ok(s3)
+}
+
+test "Result block propagation succeeds and short-circuits on each Err" {
+  assert computeRatio("20", "4") == Ok(50);
+  assert computeRatio("bad", "4") == Err("invalid int: bad");
+  assert computeRatio("20", "nope") == Err("invalid int: nope");
+  assert computeRatio("-5", "1") == Err("must be positive: -5");
+  assert computeRatio("20", "0") == Err("division by zero")
+}
+
+test "let-in Result chain propagates Ok and Err" {
+  assert sumThree("10", "20", "30") == Ok(60);
+  assert sumThree("10", "x", "30") == Err("invalid int: x")
+}
+
+test "Option propagation unwraps Some and short-circuits None" {
+  assert parseFirstTwoSum("12,30,99") == Some(42);
+  assert parseFirstTwoSum("onlyone") == None;
+  assert parseFirstTwoSum("12,notanint") == None
+}
+
+test "tuple and record destructuring let-try" {
+  assert decodeEntry("port=80") == Ok("port:240");
+  assert decodeEntry("port=-1") == Err("negative");
+  assert decodeEntry("broken") == Err("expected key=int")
+}
+
+test "spine match/if branches and func literal callback" {
+  assert conditionalPipeline("double", "21") == Ok(42);
+  assert conditionalPipeline("guarded", "120") == Ok(60);
+  assert conditionalPipeline("guarded", "50") == Ok(50);
+  assert conditionalPipeline("other", "21") == Err("unknown mode: other");
+  assert mapParsePositive(["5", "0", "bad"]) == [Ok(5), Err("must be positive: 0"), Err("invalid int: bad")]
+}
+
+test "each RHS evaluates exactly once and short-circuits remaining steps" {
+  assert runTrackedSteps(false) == Ok((3, 30));
+  assert runTrackedSteps(true) == Err("stopped at call 2")
+}

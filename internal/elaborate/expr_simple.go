@@ -111,9 +111,11 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 	}
 
 	// Normalize body with the parameters (and pattern binders) in scope (#1467)
+	popTry := e.enterTryLambda(lam)
 	e.pushScope(scopeNames...)
 	body, err := e.normalize(lam.Body)
 	e.popScope()
+	popTry()
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +175,11 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 	}
 
 	// Normalize body with the parameters in scope (#1467)
+	popTry := e.enterTryFuncLit(funcLit)
 	e.pushScope(params...)
 	body, err := e.normalize(funcLit.Body)
 	e.popScope()
+	popTry()
 	if err != nil {
 		return nil, err
 	}

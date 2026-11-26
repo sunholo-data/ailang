@@ -1,0 +1,59 @@
+-- error_propagation.ail - Flat Result & Option pipelines with let-bound `?`
+-- Demonstrates M-AI-GO-TO-LANGUAGE Slice 2 (D2=a): `let x = expr?` unwraps
+-- Ok/Some values along a function's return spine and early-returns Err/None.
+
+module examples/runnable/error_propagation
+import std/io (println)
+import std/string (stringToInt, split, trim)
+
+-- Pure validator with a contract ensuring positive bounds match `n > 0`.
+pure func isPositiveBound(n: int) -> bool
+ensures { result == n > 0 } {
+  n > 0
+}
+
+-- Parse a positive integer, returning a descriptive Err on failure.
+export pure func parsePositive(s: string) -> Result[int, string] = match stringToInt(trim(s)) {
+  None => Err("not an integer: '${s}'"),
+  Some(n) => if isPositiveBound(n) then Ok(n) else Err("expected positive integer, got ${show(n)}")
+}
+
+-- Parse a "host:port" endpoint and retry count without nested match pyramids.
+export pure func parseEndpointConfig(endpoint: string, retriesRaw: string) -> Result[string, string] {
+  let (host, portStr) = splitHostPort(endpoint)?
+  let port = parsePositive(portStr)?
+  let retries = parsePositive(retriesRaw)?
+  Ok("${host}:${show(port)} (retries=${show(retries)})")
+}
+
+pure func splitHostPort(s: string) -> Result[(string, string), string] = match split(s, ":") {
+  [host, port] => if trim(host) == "" then Err("empty host") else Ok((trim(host), port)),
+  _ => Err("expected host:port, got '${s}'")
+}
+
+-- Option[T] pipeline using `let x = opt?`
+export pure func parseOptionalScore(raw: Option[string], bonusRaw: Option[string]) -> Option[int] {
+  let baseStr = raw?
+  let bonusStr = bonusRaw?
+  let base = stringToInt(baseStr)?
+  let bonus = stringToInt(bonusStr)?
+  Some(base + bonus)
+}
+
+pure func showResult(r: Result[string, string]) -> string = match r {
+  Ok(v) => "Ok(${v})",
+  Err(e) => "Err(${e})"
+}
+
+pure func showOptInt(o: Option[int]) -> string = match o {
+  Some(v) => "Some(${show(v)})",
+  None => "None"
+}
+
+export func main() -> () ! {IO} {
+  println(showResult(parseEndpointConfig("api.ailang.dev:443", "3")))
+  println(showResult(parseEndpointConfig("api.ailang.dev:0", "3")))
+  println(showResult(parseEndpointConfig("malformed", "3")))
+  println(showOptInt(parseOptionalScore(Some("85"), Some("15"))))
+  println(showOptInt(parseOptionalScore(Some("85"), None)))
+}

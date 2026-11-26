@@ -9,6 +9,13 @@ import (
 
 // parseExpression parses an expression with precedence
 func (p *Parser) parseExpression(precedence int) ast.Expr {
+	expr := p.parseExpressionCore(precedence)
+	return p.rejectDisallowedTrySuffix(expr, precedence)
+}
+
+// parseExpressionCore parses a prefix + infix expression without rejecting a
+// trailing same-line `?` at the outermost `let` RHS boundary (see parser_try_let.go).
+func (p *Parser) parseExpressionCore(precedence int) ast.Expr {
 	p.debugEnter("parseExpression")
 	defer p.debugExit("parseExpression")
 
@@ -48,7 +55,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 // (parseCase's `{...}` arm body) can continue it exactly like any other
 // expression position does.
 func (p *Parser) parseInfixTail(leftExp ast.Expr, precedence int) ast.Expr {
-	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
+	for {
+		// M-AI-GO-TO-LANGUAGE M2: detect mid-expression `expr? <op> ...` (e.g.
+		// `g()? + 1`, `g()?.field`) and emit PAR_TRY_LET_ONLY while recovering
+		// cleanly into the remaining infix tail.
+		p.checkMidExprTrySuffix(leftExp)
+
+		if p.peekTokenIs(lexer.SEMICOLON) || precedence >= p.peekPrecedence() {
+			break
+		}
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp
@@ -113,7 +128,7 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	}
 
 	if p.peekTokenIs(lexer.LPAREN) || p.peekTokenIs(lexer.LBRACE) {
-		return p.parseLetPattern(let.Pos)
+		return p.parseLetPatternWithTry(let.Pos)
 	}
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
@@ -151,11 +166,7 @@ func (p *Parser) parseLetExpression() ast.Expr {
 		return let // Return partial AST
 	}
 	p.nextToken()
-	let.Value = p.parseExpression(LOWEST)
-	if let.Value == nil {
-		// If value parsing failed, create error node
-		let.Value = &ast.Error{Pos: p.curPos()}
-	}
+	let.Value, let.IsTry, let.TryPos = p.parseLetRHS()
 
 	if p.peekTokenIs(lexer.IN) {
 		p.nextToken()
@@ -165,6 +176,21 @@ func (p *Parser) parseLetExpression() ast.Expr {
 			// If body parsing failed, create error node
 			let.Body = &ast.Error{Pos: p.curPos()}
 		}
+	} else if let.IsTry && p.isModuleTopLevelLet() {
+		// Module-level `let x = expr?` has no enclosing function; ElaborateFile's
+		// collectModuleLets extracts Let.Value directly, so preserve the try-let in
+		// Value so elaboration reports TC_TRY_RETURN_TYPE instead of dropping `?`.
+		let.Value = &ast.Let{
+			Name:   let.Name,
+			Type:   let.Type,
+			Value:  let.Value,
+			Body:   &ast.Identifier{Name: let.Name, Pos: let.Pos},
+			IsTry:  true,
+			TryPos: let.TryPos,
+			Pos:    let.Pos,
+		}
+		let.IsTry = false
+		let.TryPos = ast.Pos{}
 	}
 
 	return let
@@ -355,6 +381,7 @@ func (p *Parser) parseCase() *ast.Case {
 func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// We're at LBRACE
 	startPos := p.curPos()
+	defer p.enterTryBlock()()
 	p.traceDelimiterOpen(delimCtxBlock)
 	p.traceDelimiterToken(lexer.LBRACE, "consume")
 	p.nextToken() // consume LBRACE

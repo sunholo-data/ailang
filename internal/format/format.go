@@ -556,7 +556,7 @@ func (p *printer) statementLet(let *ast.Let) error {
 		p.w.write(": " + ts)
 	}
 	p.w.write(" = ")
-	return p.expr(let.Value, precLowest)
+	return p.letValue(let.Value, let.IsTry)
 }
 
 func (p *printer) statementLetPattern(lp *ast.LetPattern) error {
@@ -573,7 +573,7 @@ func (p *printer) statementLetPattern(lp *ast.LetPattern) error {
 		p.w.write(": " + ts)
 	}
 	p.w.write(" = ")
-	return p.expr(lp.Value, precLowest)
+	return p.letValue(lp.Value, lp.IsTry)
 }
 
 func (p *printer) statementLetRec(lr *ast.LetRec) error {
