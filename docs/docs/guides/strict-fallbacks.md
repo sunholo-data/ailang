@@ -1,8 +1,8 @@
 ---
 title: Strict Fallbacks (STRICT_FALLBACK_001)
 sidebar_label: Strict Fallbacks
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Strict Fallbacks — `STRICT_FALLBACK_001`

@@ -2,7 +2,8 @@
 sidebar_position: 2
 sidebar_label: Quick Start Examples
 title: Quick Start Examples
-reviewBy: 2026-12-21
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
@@ -18,343 +19,230 @@ import RecordsPersonExample from '!!raw-loader!@site/../examples/docs/records_pe
 import ADTOptionExample from '!!raw-loader!@site/../examples/docs/adt_option_pattern.ail';
 import LambdasFullExample from '!!raw-loader!@site/../examples/docs/lambdas_full.ail';
 import ConwayGridExample from '!!raw-loader!@site/../examples/runnable/conway_grid.ail';
+import DestructuringExample from '!!raw-loader!@site/../examples/runnable/destructuring.ail';
+import DeriveJsonExample from '!!raw-loader!@site/../examples/runnable/derive_json.ail';
+import ErrorPropagationExample from '!!raw-loader!@site/../examples/runnable/error_propagation.ail';
 
 # Quick Start Examples
 
-**The fastest way to see AILANG in action: ask an AI agent to build something.**
+Runnable AILANG examples covering core syntax, modern idioms (`|>`, destructuring, `deriving (Json)`, `?` propagation), effects, and tests.
 
 ## Prerequisites
 
-Make sure you have AILANG installed via your AI agent. See [Getting Started](./getting-started) for installation options.
+Install AILANG and check your setup with [Getting Started](./getting-started):
+
+```bash
+ailang --version
+```
 
 ---
 
-## Coding Challenges: Watch AI Build Applications
+## Coding Challenges
 
-The AILANG plugin includes **coding challenges** - guided tasks where you can watch an AI agent build real applications in AILANG. This is the best way to verify AILANG works and see it in action.
+The `ailang_bootstrap` plugin includes guided challenges (`ask-ai`, `summarize-file`, `ai-debate`, `game-of-life`):
 
-### Available Challenges
-
-| Challenge | Difficulty | What It Builds |
-|-----------|------------|----------------|
-| `ask-ai` | Beginner | Simple AI Q&A tool |
-| `summarize-file` | Intermediate | AI-powered file summarizer |
-| `ai-debate` | Intermediate | Multi-model AI debate orchestrator |
-| `game-of-life` | Intermediate | Conway's Game of Life with HTML visualization |
-
-### How to Use Challenges
-
-**With Claude Code or Codex CLI:**
 ```
-/ailang-challenge game-of-life
+/ailang:challenge game-of-life
 ```
 
-Or ask your AI agent directly:
-```
-Complete the AILANG Game of Life challenge. Show me each step.
-```
-
-### What Happens
-
-1. The AI loads the challenge description
-2. It explores AILANG's stdlib with `ailang builtins list --verbose`
-3. It writes AILANG code step-by-step
-4. It type-checks with `ailang check`
-5. It runs with `ailang run --caps ...`
-6. You watch it work and see the output!
-
-### Example: Watch AI Build Game of Life
-
-Ask your agent:
-```
-Build Conway's Game of Life in AILANG. Use std/array for the grid,
-create Cell ADT with Alive/Dead, implement the rules as pure functions,
-and output an HTML file that animates the evolution.
-```
-
-The AI will:
-- <CheckIcon inline size={14} /> Design data structures using AILANG's type system
-- <CheckIcon inline size={14} /> Implement Conway's rules with pattern matching
-- <CheckIcon inline size={14} /> Compute 60 generations using pure functions
-- <CheckIcon inline size={14} /> Generate HTML output via FS effect
-- <CheckIcon inline size={14} /> Produce a working animation you can open in a browser
-
-**This proves:**
-- AILANG is a real programming language
-- AI agents can learn and use it correctly
-- The effect system tracks capabilities (IO, FS)
-- Pure functions enable deterministic computation
-
-### Suggested Learning Path
-
-1. **ask-ai** - Start here. Simplest AI integration (5 min)
-2. **summarize-file** - Add file I/O to AI calls (10 min)
-3. **ai-debate** - Orchestrate multiple AI calls (15 min)
-4. **game-of-life** - Pure computation showcase (20 min)
-
-### Challenge Structure
-
-Each challenge folder contains:
-```
-challenges/<name>/
-├── challenge.md    # Guided prompt (what the AI sees)
-├── solution.ail    # Working reference
-└── hints.md        # Progressive hints (optional)
-```
-
-Challenges live in the [ailang_bootstrap repo](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges).
+Each challenge directory in [`ailang_bootstrap/challenges`](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges) pairs `challenge.md` (prompt) with `solution.ail` (verified reference) and optional `hints.md`.
 
 ---
 
-## Language Reference Examples
+## Core Examples
 
-The following examples show AILANG syntax for reference. **You don't need to write this yourself** - just ask your AI agent to build what you need!
-
-### Example 1: Hello World
-
-The simplest AILANG program:
+### 1. Hello World
 
 <CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
 ailang run --caps IO --entry main examples/runnable/hello.ail
 ```
 
-<InfoIcon inline size={14} /> **Key concepts:**
-- `module` declaration names your file
-- `export func main()` is the entry point
-- `-> () ! {IO}` means returns unit `()` with IO effect
-- `print` is auto-imported from prelude (no import needed)
-
----
-
-## Example 2: Pure Functions, Recursion, and Inline Tests
-
-AILANG is a pure functional language with built-in testing. This example shows both:
+### 2. Pure Functions, Recursion, and Inline Tests
 
 <CodeBlock language="ailang" title="examples/runnable/recursion_factorial.ail">
   {FactorialExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
 ailang run --caps IO --entry main examples/runnable/recursion_factorial.ail
-```
-
-**Output:** `factorial(5) = 120`
-
-**Run the inline tests:**
-```bash
 ailang test examples/runnable/recursion_factorial.ail
 ```
 
-<InfoIcon inline size={14} /> **Key concepts:**
-- `pure func` declares a function with no side effects
-- `tests [(input, expected), ...]` defines inline tests
-- `show()` converts values to strings (auto-imported)
-- `++` concatenates strings
-- Recursion is the primary iteration mechanism
-
----
-
-## Example 4: Reading Files
-
-Use the FS (file system) effect to read files:
+### 3. Reading Files (`FS` Effect)
 
 <CodeBlock language="ailang" title="examples/docs/read_file.ail">
   {ReadFileExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
 ailang run --caps IO,FS --args-json '"README.md"' --entry main examples/docs/read_file.ail
 ```
 
-<InfoIcon inline size={14} /> **Key concepts:**
-- `import std/fs (readFile)` imports specific functions
-- `--caps IO,FS` grants required capabilities
-- `--args-json` passes arguments to main
-- Effects are declared in the function signature: `! {IO, FS}`
-
----
-
-## Example 5: AI Integration
-
-Call AI models directly from AILANG:
+### 4. AI Effect & File Summarizer
 
 <CodeBlock language="ailang" title="examples/runnable/ai_effect.ail">
   {AIEffectExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
-# Set your API key first
 export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Run with AI capability
 ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/runnable/ai_effect.ail
 ```
 
-**Supported AI models:**
-- `claude-haiku-4-5` - Fast, affordable (Anthropic)
-- `claude-sonnet-4` - Balanced (Anthropic)
-- `gpt-4o-mini` - Fast (OpenAI)
-- `gemini-2.0-flash` - Fast (Google)
-
----
-
-## Example 6: File Summarizer (Practical Tool)
-
-Combine FS and AI effects for a useful tool:
+<details>
+<summary>File Summarizer combining FS + AI (examples/docs/summarize_file.ail)</summary>
 
 <CodeBlock language="ailang" title="examples/docs/summarize_file.ail">
   {SummarizeFileExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
 ailang run --caps IO,FS,AI --ai claude-haiku-4-5 \
   --args-json '"README.md"' --entry main examples/docs/summarize_file.ail
 ```
 
----
+</details>
 
-## Example 7: Records and Data Types
-
-Work with structured data:
+### 5. Records, ADTs, and Lambdas
 
 <CodeBlock language="ailang" title="examples/docs/records_person.ail">
   {RecordsPersonExample}
 </CodeBlock>
 
-**Run it:**
-```bash
-ailang run --caps IO --entry main examples/docs/records_person.ail
-```
-
----
-
-## Example 8: Algebraic Data Types (ADTs)
-
-Define custom types with variants and pattern matching:
-
 <CodeBlock language="ailang" title="examples/docs/adt_option_pattern.ail">
   {ADTOptionExample}
 </CodeBlock>
-
-**Run it:**
-```bash
-ailang run --caps IO --entry main examples/docs/adt_option_pattern.ail
-```
-
-**Output:**
-```
-Some value: 42
-None value: -1
-Doubled: 84
-```
-
----
-
-## Example 9: Lambda Expressions
-
-Functional programming with lambdas and higher-order functions:
 
 <CodeBlock language="ailang" title="examples/docs/lambdas_full.ail">
   {LambdasFullExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
+ailang run --caps IO --entry main examples/docs/records_person.ail
+ailang run --caps IO --entry main examples/docs/adt_option_pattern.ail
 ailang run --caps IO --entry main examples/docs/lambdas_full.ail
-```
-
-**Output:**
-```
-double(5) = 10
-add(3)(4) = 7
-add10(5) = 15
-doubleThenInc(5) = 11
 ```
 
 ---
 
-## Example 10: Conway's Game of Life
+## Modern Idioms
 
-A complete implementation showing arrays, ADTs, and pure functions:
+### 6. Pipes (`|>`) and Unbraced `match`/`if`
+
+```ailang
+module docs/pipes_and_unbraced
+
+import std/list (filter, map, foldl)
+import std/option (Option, Some, None)
+
+export pure func scorePipeline(scores: [int]) -> int =
+  scores
+    |> (\xs. filter(\n. n >= 0, xs))
+    |> (\xs. map(\n. if n > 100 then 100 else n, xs))
+    |> (\xs. foldl(\acc n. acc + n, 0, xs))
+
+export pure func classify(opt: Option[int], bonus: bool) -> int =
+  match opt {
+    Some(n) =>
+      let base = n * 10;
+      if bonus then
+        let total = base + 5;
+        total
+      else base,
+    None => 0
+  }
+```
+
+### 7. Record & Tuple Destructuring (`let` and Lambdas)
+
+<CodeBlock language="ailang" title="examples/runnable/destructuring.ail">
+  {DestructuringExample}
+</CodeBlock>
+
+```bash
+ailang run --caps IO examples/runnable/destructuring.ail
+```
+
+Notice the distinction between closed `{ name, age, city }` (exact fields) and open `{ name, age, ... }` (row-polymorphic rest). Tuple lambdas use `\(k, v). ...`.
+
+### 8. Automatic JSON Codecs (`deriving (Json)`)
+
+<CodeBlock language="ailang" title="examples/runnable/derive_json.ail">
+  {DeriveJsonExample}
+</CodeBlock>
+
+```bash
+ailang run --caps IO examples/runnable/derive_json.ail
+```
+
+### 9. Flat Error & Option Pipelines (`let x = expr?`)
+
+<CodeBlock language="ailang" title="examples/runnable/error_propagation.ail">
+  {ErrorPropagationExample}
+</CodeBlock>
+
+```bash
+ailang run --caps IO examples/runnable/error_propagation.ail
+```
+
+### 10. Conway's Game of Life
 
 <CodeBlock language="ailang" title="examples/runnable/conway_grid.ail">
   {ConwayGridExample}
 </CodeBlock>
 
-**Run it:**
 ```bash
 ailang run --caps IO --entry main examples/runnable/conway_grid.ail
 ```
 
-This example demonstrates:
-- <CheckIcon inline size={14} /> ADT pattern matching (`match cell { Alive => ... }`)
-- <CheckIcon inline size={14} /> Inline tests for pure functions
-- <CheckIcon inline size={14} /> Array operations for grid management
-- <CheckIcon inline size={14} /> Pure computation with no side effects
-
 ---
 
-## REPL: Interactive Exploration
-
-Start the REPL to experiment:
+## Tooling Loop: `inspect`, `check --fix`, and REPL
 
 ```bash
-ailang repl
+# X-ray a module's exports, effects, and contracts without reading the whole file
+ailang inspect --format=agent examples/runnable/derive_json.ail
+
+# Auto-apply safe mechanical fixes (! {Effects}, ++ -> "${...}", TC_MATCH_002 stubs)
+ailang check --fix path/to/file.ail
 ```
 
-**Try these expressions:**
+Start an interactive session with `ailang repl`:
+
 ```ailang repl
-λ> 1 + 2
+λ[Debug,IO]> 1 + 2
 3 :: Int
 
-λ> "Hello World"
+λ[Debug,IO]> "Hello World"
 Hello World :: String
 
-λ> let double = \x. x * 2 in double(21)
+λ[Debug,IO]> let double = \x. x * 2 in double(21)
 42 :: Int
 
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
+λ[Debug,IO]> :type \x. x + x
+\x. x + x :: int -> int
 
-λ> :quit
+λ[Debug,IO]> :quit
 ```
-
----
 
 ## CLI Quick Reference
 
 | Command | Description |
-|---------|-------------|
-| `ailang run --caps CAPS --entry main file.ail` | Run a program |
-| `ailang check file.ail` | Type-check without running |
-| `ailang test file.ail` | Run inline tests |
-| `ailang repl` | Start interactive REPL |
-| `ailang prompt` | Get AI teaching prompt |
-| `ailang builtins list --verbose --by-module` | Full stdlib docs |
-
-**Available Capabilities:**
-- `IO` - Console input/output
-- `FS` - File system operations
-- `AI` - AI model calls
-- `Net` - Network requests
-- `Clock` - Time operations
-- `Env` - Environment variables
-
----
+|---|---|
+| `ailang inspect --format=agent file.ail` | Compact X-ray of types, exports, effects, contracts |
+| `ailang check --fix file.ail` | Apply compiler-verified quick-fixes and type-check |
+| `ailang verify file.ail` | Prove `requires`/`ensures` contracts with Z3 |
+| `ailang test file.ail` | Run inline `tests`, unit `test`, and `property` checks |
+| `ailang run --caps CAPS --entry main file.ail` | Execute a module with explicit capabilities |
+| `ailang prompt` | Print the current AI teaching prompt |
 
 ## Next Steps
 
-- Try the [Coding Challenges](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges) - watch AI build real apps
-- Explore [Language Syntax Reference](../reference/language-syntax)
-- Learn about [Effects and Capabilities](../reference/effects)
-- See the [AI Prompt Guide](./ai-prompt-guide) for AI agent integration
-- Browse [working examples on GitHub](https://github.com/sunholo-data/ailang/tree/main/examples)
+- [Language Syntax Reference](../reference/language-syntax)
+- [Effects and Capabilities](../reference/effects)
+- [LSP & Typed Holes](./lsp)
+- [Browse examples on GitHub](https://github.com/sunholo-data/ailang/tree/dev/examples)
