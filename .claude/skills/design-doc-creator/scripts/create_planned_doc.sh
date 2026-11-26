@@ -7,11 +7,8 @@ set -euo pipefail
 #   doc-name: Lowercase with hyphens (e.g., m-dx2-feature-name)
 #   version:  Optional version folder (e.g., v0_4_0)
 
-# The skill may be installed outside the project (for example /plugins).
-if ! PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
-    echo "Run this skill from the target Git worktree." >&2
-    exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 DESIGN_DOCS_DIR="$PROJECT_ROOT/design_docs"
 
 # Colors for output
@@ -116,8 +113,8 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         local neural="$2"
         # Combine, dedupe by path. Neural listed first so its scores take priority.
         # Format: "1. path/to/file.md (0.85)" - $2 is the path
-        { echo "$neural"; echo "$simhash"; } | \
-            awk '/^[0-9]+\./ { path = $2; if (path && !seen[path]++) print }' | head -5
+        { echo "$neural"; echo "$simhash"; } | grep -E "^[0-9]+\." | \
+            awk '{ path = $2; if (path && !seen[path]++) print }' | head -5
     }
 
     # --- IMPLEMENTED DOCS ---
@@ -141,8 +138,10 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         echo "    (none found)"
     fi
 
-    # Merge for template (neural preferred)
-    IMPLEMENTED=$(merge_results "$IMPL_SIMHASH" "$IMPL_NEURAL")
+    # Merge for template (neural preferred). `|| true`: with zero matches the
+    # pipeline inside merge_results ends in grep|head whose status is 1, and under
+    # set -e + pipefail that would abort the whole script instead of yielding "".
+    IMPLEMENTED=$(merge_results "$IMPL_SIMHASH" "$IMPL_NEURAL" || true)
     [ -z "$IMPLEMENTED" ] && IMPLEMENTED="  (none found)"
     echo ""
 
@@ -167,8 +166,8 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         echo "    (none found)"
     fi
 
-    # Merge for template (neural preferred)
-    PLANNED=$(merge_results "$PLAN_SIMHASH" "$PLAN_NEURAL")
+    # Merge for template (neural preferred). Same `|| true` guard as IMPLEMENTED.
+    PLANNED=$(merge_results "$PLAN_SIMHASH" "$PLAN_NEURAL" || true)
     [ -z "$PLANNED" ] && PLANNED="  (none found)"
     echo ""
 
@@ -186,11 +185,11 @@ fi
 # Determine target directory
 if [ -n "$VERSION" ]; then
     TARGET_DIR="$DESIGN_DOCS_DIR/planned/$VERSION"
+    mkdir -p "$TARGET_DIR"
 else
     TARGET_DIR="$DESIGN_DOCS_DIR/planned"
 fi
 
-mkdir -p "$TARGET_DIR"
 DOC_PATH="$TARGET_DIR/${DOC_NAME}.md"
 
 # Check if document already exists
@@ -365,30 +364,23 @@ Before implementation begins, these must be resolved:
 
 ## Success Criteria
 
-- [ ] Criterion 1 — TST-TAG-01, TST-TAG-02
-- [ ] Criterion 2 — TST-TAG-03
+- [ ] Criterion 1 (with acceptance test)
+- [ ] Criterion 2 (with acceptance test)
+- [ ] Criterion 3 (with acceptance test)
 - [ ] All tests passing
 - [ ] Documentation updated
 - [ ] Examples added
 
 ## Testing Strategy
 
-<!-- Each behaviour gets a stable ID. The test that proves it carries the ID in a comment;
-     acceptance criteria name IDs, and sprint-evaluator finds and runs those tests.
-     TAG = 3-12 caps/digits, unique: `grep -rn "TST-TAG-" .` must be empty before you claim it.
-     State surprising rules outright ("an empty list is allowed", "unknown key → Err"). -->
+**Unit tests:**
+- [What to test]
 
-| ID | Level | Given / When / Then |
-|----|-------|---------------------|
-| TST-TAG-01 | unit | Given [state], when [action], then [observable result] |
-| TST-TAG-02 | integration | Given [state], when [action], then [observable result] |
-| TST-TAG-03 | e2e | Given [state], when [action], then [observable result] |
-
-**Regression surface** (required if the Conflict Surface section lists anything): one row per
-program that must still work.
+**Integration tests:**
+- [What to test]
 
 **Manual testing:**
-- [What to verify manually — no ID; the evaluator cannot run it]
+- [What to verify manually]
 
 ## Deferred Decisions
 
@@ -447,6 +439,21 @@ RELATED_PLANNED_PLACEHOLDER
 - [Design Lineage](/docs/references/design-lineage) - What we adopted/rejected and why
 - [Link to related design docs]
 - [Link to issues or discussions]
+
+## Swarm Execution Contract (Optional — omit if single-agent)
+
+> Include this section when the design will be executed in parallel via `/swarm`. Keep model assignments in the **sprint plan** (`sprint-planner`), not here.
+
+### File Ownership Matrix
+| Worker | Workspace | Owns (Write) | Do Not Touch |
+|--------|-----------|--------------|--------------|
+| `[worker-a]` | `share` | `[path/globs/**]` | `.stdlib-golden/**`, `prompts/**`, `llms.txt`, `examples/manifest.json` |
+| `verifier` | `inherit` | *(none — read-only)* | Everything (reports only) |
+| **Coordinator** | main | Merges slices in order; owns shared hotspots (`.stdlib-golden/**`, `prompts/**`, `llms.txt`, `examples/manifest.json`, `changelogs/unreleased/`) | Never pushes/releases without explicit user OK |
+
+### Hard Stop-Gates
+- Workers edit ONLY their owned paths; if an out-of-slice edit is needed, post on the board and wait.
+- Each worker runs its slice tests, posts a concise summary (`files`, `tests`, `open questions`), and goes idle (`waiting`).
 
 ## Future Work
 

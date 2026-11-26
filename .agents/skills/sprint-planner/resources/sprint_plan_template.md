@@ -57,6 +57,19 @@ For every implementable milestone, record the `ailang pkg search` terms, package
 ### Milestone 2: [Name]
 [Repeat structure for each milestone]
 
+## Swarm Worker & Model Assignment (Optional — for `/swarm` execution)
+
+> Assign models here (not in the design doc) based on currently available models (`swarm(action:"models")`) and slice complexity. Omit if executing single-agent.
+
+| Worker | Milestone(s) | Workspace | Assigned Model | Rationale |
+|--------|--------------|-----------|----------------|-----------|
+| `coordinator` | Integration, shared hotspots (`.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`) | main | `[top reasoning / inherit]` | Owns merge order, conflict resolution, and final verification |
+| `[worker-a]` | M1 | `share` | `[top reasoning / fast / inherit]` | [e.g., complex parser/typechecker work] |
+| `[worker-b]` | M2 | `share` | `[fast / standard / inherit]` | [e.g., well-scoped stdlib/tooling slice] |
+| `verifier` | Post-merge checks & evals | `inherit` | `[fast / standard / inherit]` | Read-only tests, `--strict-bytecode`, eval A/B |
+
+- **Mid-run quota fallback**: Switch any `waiting` worker in-place via `swarm(action:"model", ...)` without losing conversation history or deleting its workspace.
+
 ## Success Metrics
 - Test coverage: >[X]%
 - Examples passing: [Y]+

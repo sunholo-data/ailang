@@ -440,6 +440,21 @@ RELATED_PLANNED_PLACEHOLDER
 - [Link to related design docs]
 - [Link to issues or discussions]
 
+## Swarm Execution Contract (Optional — omit if single-agent)
+
+> Include this section when the design will be executed in parallel via `/swarm`. Keep model assignments in the **sprint plan** (`sprint-planner`), not here.
+
+### File Ownership Matrix
+| Worker | Workspace | Owns (Write) | Do Not Touch |
+|--------|-----------|--------------|--------------|
+| `[worker-a]` | `share` | `[path/globs/**]` | `.stdlib-golden/**`, `prompts/**`, `llms.txt`, `examples/manifest.json` |
+| `verifier` | `inherit` | *(none — read-only)* | Everything (reports only) |
+| **Coordinator** | main | Merges slices in order; owns shared hotspots (`.stdlib-golden/**`, `prompts/**`, `llms.txt`, `examples/manifest.json`, `changelogs/unreleased/`) | Never pushes/releases without explicit user OK |
+
+### Hard Stop-Gates
+- Workers edit ONLY their owned paths; if an out-of-slice edit is needed, post on the board and wait.
+- Each worker runs its slice tests, posts a concise summary (`files`, `tests`, `open questions`), and goes idle (`waiting`).
+
 ## Future Work
 
 [Features that build on this but are out of scope for now]
