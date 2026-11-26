@@ -25,13 +25,22 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
+    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
+      expected_fail=''
       case "$mutant" in
         excludes) sed '/:(exclude)/d' "$HELPER" >"$TMP/helper" ;;
         exclude-root-verification) sed '/(exclude)verification\//d' "$HELPER" >"$TMP/helper" ;;
         exclude-dd-verification) sed '/(exclude)design_docs\/verification\//d' "$HELPER" >"$TMP/helper" ;;
         exclude-dd-broad) sed 's|(exclude)design_docs/verification/${name}-iter\*|(exclude)design_docs/verification/*|' "$HELPER" >"$TMP/helper" ;;
+        exclude-record-eval)
+          sed '\|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|d' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL record-only evaluation JSON commit moved hash'
+          ;;
+        exclude-evaluations-broad)
+          sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude).ailang/state/evaluations/*|' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL ordinary evaluation JSON commit did not move hash'
+          ;;
         wrong-record) sed 's|_mi_file="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"|_mi_file="$STATE_DIR/mission-wrong-idle-fingerprint"|' "$DRIVER" >"$TMP/driver" ;;
         keep-changed) awk '/rm -f "\$_mi_file" # changed/{next} {print}' "$DRIVER" >"$TMP/driver" ;;
         fail-closed) sed '/# failed read consumed/a\
@@ -52,7 +61,11 @@ case "${1:-}" in
       if [ "$rc" -eq 0 ] || ! grep -q '^FAIL ' "$TMP/mutant.log"; then
         cat "$TMP/mutant.log"; fail "$mutant survived or fixture failed"
       fi
-      echo "MUTATION $mutant KILLED: $(sed -n '/^FAIL /{p;q;}' "$TMP/mutant.log")"
+      first_fail=$(sed -n '/^FAIL /{p;q;}' "$TMP/mutant.log")
+      if [ -n "$expected_fail" ] && [ "$first_fail" != "$expected_fail" ]; then
+        cat "$TMP/mutant.log"; fail "$mutant expected '$expected_fail', got '$first_fail'"
+      fi
+      echo "MUTATION $mutant KILLED: $first_fail"
     done
     exit 0 ;;
   '') ;;
@@ -255,7 +268,7 @@ base=$(fp) || fail "good helper: $(cat "$TMP/herr")"
 printf '%s\n' "$base" | grep -Eq '^[0-9a-f]{64} head=[0-9a-f]{7} ledger=1 open=1 directives=0 inbox=0 red=0$' || fail "format: $base"
 h0=${base%% *}
 [ ! -f "$STATE_DIR/mission-world-idle-fingerprint" ] || fail 'bare run wrote record'
-# Both exclusion patterns must work on the rig Git, using commits in a real origin.
+# Exercise the record exclusions using commits in a real origin.
 echo log >"$MISSION_WORKDIR/design_docs/world-mission-log.md"; commit
 [ "$(hash)" = "$h0" ] || fail 'record-only design doc commit moved hash'
 mkdir -p "$MISSION_WORKDIR/verification/world-iter9"
@@ -269,9 +282,18 @@ mkdir -p "$MISSION_WORKDIR/design_docs/verification/world-notes"
 echo note >"$MISSION_WORKDIR/design_docs/verification/world-notes/x.txt"; commit
 hn=$(hash); [ -n "$hn" ] && [ "$hn" != "$h0" ] || fail 'non-iter design_docs/verification commit did not move hash'
 h0=$hn
+mkdir -p "$MISSION_WORKDIR/.ailang/state/evaluations"
+echo '{}' >"$MISSION_WORKDIR/.ailang/state/evaluations/eval_MISSION-ITER-9_record.json"; commit
+hr=$(hash) || fail "record evaluation fingerprint read: $(cat "$TMP/herr")"
+[ "$hr" = "$h0" ] || fail 'record-only evaluation JSON commit moved hash'
 # Red checks are read on the branch TIP (which a record-only merge moves), not on head=.
 tip=$("$REAL_GIT" -C "$MISSION_WORKDIR" rev-parse origin/dev)
 grep -q "/commits/$tip/check-runs" "$S/checks_path" || fail "check-runs not read on the branch tip ($tip): $(cat "$S/checks_path")"
+# An ordinary sprint verdict is a wake input.
+echo '{}' >"$MISSION_WORKDIR/.ailang/state/evaluations/eval_M-FOO_round_1.json"; commit
+hn=$(hash) || fail "ordinary evaluation fingerprint read: $(cat "$TMP/herr")"
+[ -n "$hn" ] && [ "$hn" != "$h0" ] || fail 'ordinary evaluation JSON commit did not move hash'
+h0=$hn
 echo changed >>"$MISSION_WORKDIR/product.txt"; commit
 h1=$(hash); [ -n "$h1" ] && [ "$h1" != "$h0" ] || fail 'non-record head did not move hash'
 # Charter is read from origin, never the working tree; ledger-only record commits still wake.
