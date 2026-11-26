@@ -29,6 +29,9 @@ var s5AddedLanguageRoutes = []string{
 	// M2: the alias spelling of `internal-dump-iface`, named by the Phase 3
 	// item-2 dev list. Same row, same contract.
 	"dump-iface",
+	// M-AI-GO-TO-LANGUAGE (D4=a): `ailang inspect <file-or-dir>` (and `ailang dev inspect`).
+	// Language-layer <100ms semantic X-ray; must not stat observatory DB or probe git.
+	"inspect",
 }
 
 // TestTable_LanguageRoutesMatchPreS5List compares ROUTES, not names, because

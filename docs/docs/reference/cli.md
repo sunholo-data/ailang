@@ -106,6 +106,7 @@ Reachable as `ailang dev <command>` and, unchanged, as `ailang <command>`.
 | `ailang dev editor` | `ailang editor` | Install editor syntax highlighting (vscode, vim, neovim) |
 | `ailang dev export-training` | `ailang export-training` | Export traces as AI training data |
 | `ailang dev generate-extension-registry` | `ailang generate-extension-registry` | Emit the static extension dispatch file from [extensions] |
+| `ailang dev inspect` | `ailang inspect` | Semantic module X-ray (types, signatures, effects, contracts, calls) |
 | `ailang dev micro-rag` | `ailang micro-rag`, `ailang microrag`, `ailang urag` | Micro-RAG index and retrieval operations |
 | `ailang dev pi` | `ailang pi` | Manage pi extensions (install, uninstall, status) |
 | `ailang dev policy-check` | `ailang policy-check` | Evaluate a policy program against its cases |
@@ -216,4 +217,4 @@ behind it (`cmd/ailang/commands_probe_test.go` counts the probes), not a present
 and it holds for a command's group spelling too: `ailang dev builtins` is as quiet as
 `ailang builtins`.
 
-The language commands are `ast-edit`, `builtins`, `check`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.
+The language commands are `ast-edit`, `builtins`, `check`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `inspect`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.

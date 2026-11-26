@@ -104,6 +104,13 @@ func languageCommands() []Command {
 			Run:      runIfaceCommand,
 		},
 		{
+			Name:     "inspect",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Semantic module X-ray (types, signatures, effects, contracts, calls)",
+			Run:      runInspectCommand,
+		},
+		{
 			Name: "internal-dump-iface",
 			// `dump-iface` is the group-list spelling Phase 3 item 2 names;
 			// `internal-dump-iface` is what internal/pkg/iface_subprocess.go
