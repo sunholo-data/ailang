@@ -62,7 +62,7 @@ kind = "fix"
 
 ## Scoped Publish Keys & CI
 
-Prefer `--key-file PATH` (regular non-symlink file owned by you, mode `0400` or `0600`, <= 16 KiB, not inherited by child processes) over `AILANG_REGISTRY_API_KEY`:
+Prefer `--key-file PATH` (regular non-symlink file owned by you, mode `0400` or `0600`, `<= 16 KiB`, not inherited by child processes) over `AILANG_REGISTRY_API_KEY`:
 
 | Key Kind | Scope Example | Authority |
 |---|---|---|

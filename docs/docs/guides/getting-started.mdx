@@ -204,7 +204,7 @@ export pure func pairSummary(pairs: [(string, int)]) -> [string] =
   map(\(k, v). "${k}=${show(v)}", pairs)
 ```
 
-- **Records use row polymorphism**, not record subsumption: closed `{ name, qty, note }` requires all fields; open `{ qty, ... }` matches any record containing `qty`.
+- **Records use row polymorphism**, not width subtyping: closed `{ name, qty, note }` requires all fields; open `{ qty, ... }` matches any record containing `qty`.
 - **`deriving (Json)`** synthesizes pure `encodeItem` and `decodeItem` codecs automatically.
 - **`let x = expr?`** unwraps `Ok`/`Some` along a `Result`/`Option` return spine and early-returns `Err`/`None`.
 
