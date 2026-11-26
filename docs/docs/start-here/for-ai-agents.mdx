@@ -1,8 +1,9 @@
 ---
 title: I'm an AI agent (or configuring one)
-description: Onboarding paths for AI coding agents and the humans who set them up
+description: Zero-fluff Agent Command & MCP Routing Hub for AI coding agents and the humans configuring them
 sidebar_label: AI agents
-reviewBy: 2026-11-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon from '@site/src/components/Icon';
@@ -10,29 +11,53 @@ import { ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # I'm an AI agent (or configuring one)
 
-AILANG is built for AI coding agents. Every doc is structured, every example runnable, every prompt versioned. Two audiences land here.
+AILANG is built for autonomous AI synthesis and mechanical verification. Never write AILANG from memory: load the canonical prompt first, X-ray existing modules with `ailang inspect`, and run `ailang check --fix` in a tight loop.
+
+![Agent Knowledge Stack](/img/diagrams/agent-knowledge-stack.svg)
+
+## Agent Task Routing Table
+
+| Agent Task | Local CLI Command | Hosted MCP Tool (`mcp.ailang.sunholo.com/mcp/`) | Reference / Example |
+|---|---|---|---|
+| **1. Load current syntax before coding** | `ailang prompt` | `prompt_get(part="core")` + `prompt_get(part="reference")` | [Current Prompt](/docs/prompts/current) |
+| **2. X-ray an existing `.ail` file/dir (`<100ms`)** | `ailang inspect --format=agent <path>` | — (local CLI) | [Debugging Guide](/docs/guides/debugging) |
+| **3. Type + effect check (compact agent output)** | `ailang check --format=agent <file.ail>` | `ailang_check` (executor MCP) | [Language Syntax](/docs/reference/language-syntax) |
+| **4. Auto-repair missing `! {Effects}`, `++`, `TC_MATCH_002`** | `ailang check --fix <file.ail>` | — (local CLI / `ailang lsp`) | [LSP & Quick-Fix](/docs/guides/lsp) |
+| **5. Query expected type & bindings at expression** | Put `_?` or `?goal` in code → `ailang check --format=agent` | `ailang_check` | [LSP Typed Holes](/docs/guides/lsp) |
+| **6. Prove `requires`/`ensures` contracts via Z3** | `ailang verify --json <file.ail>` (add `--int-model=int64` for overflow) | — (local CLI) | [Contracts & Z3](/docs/guides/contracts) |
+| **7. Run inline `tests [...]` & property checks** | `ailang test <file.ail>` (or `--package`) | — (local CLI) | [Testing Guide](/docs/guides/testing) |
+| **8. Execute deterministically (interpreter or VM)** | `ailang run --caps IO,FS --bytecode <file.ail>` | `ailang_run` (sandboxed) | [Effects Reference](/docs/reference/effects) |
+| **9. Look up stdlib module exports & signatures** | `ailang docs --list` / `ailang docs std/json` | `stdlib_modules`, `stdlib_module` | [Stdlib Reference](/docs/reference/stdlib) |
+| **10. Find working runnable `.ail` examples** | `ailang examples search "<query>"` | `example_for_concept`, `example_get` | [Examples](/docs/examples) |
+| **11. Inspect JSON module interface & lock packages** | `ailang iface <mod>` / `ailang pkg docs <pkg>` | `docs_search` | [Packages Guide](/docs/guides/packages) |
+| **12. Capture JSONL execution trace for repair** | `ailang run --emit-trace jsonl --quiet --caps IO <file.ail>` | — (local CLI) | [Execution Traces](/docs/guides/traces) |
+
+## Agent Repair Loop
+
+```mermaid
+flowchart LR
+    P["1. prompt\nailang prompt"] --> I["2. inspect\nailang inspect --format=agent"]
+    I --> W["3. write\nmodule + types + ! {Effects}"]
+    W --> C["4. check --fix\nailang check --fix / --format=agent"]
+    C -->|"TC_HOLE / fix applied"| W
+    C -->|"0 type/effect errors"| V["5. verify\nailang verify --json"]
+    V -->|"counterexample"| W
+    V -->|"verified"| T["6. test & run\nailang test && ailang run --bytecode"]
+```
 
 ## I'm a human configuring an agent
 
-You want Claude Code, Cursor, or a custom harness to write good AILANG.
+Set up Claude Code, Cursor, Codex, or a confined `ailang_only` harness:
 
-- <Icon name="bot" inline /> **[AILANG vs Agent Frameworks](/docs/guides/ailang-vs-agents)** — read this first.
-- <Icon name="rocket" inline /> **[Onboard an Agent](/docs/guides/agent-integration)** — Claude Code, GPT, Gemini, custom.
-- <Icon name="wrench" inline /> **[Hooks Setup](/docs/guides/hooks-setup)** — drop-in for Claude Code.
-- <Icon name="zap" inline /> **[MCP Server](/docs/guides/agent-mcp)** — hosted, structured docs/stdlib/examples for any MCP-capable client.
+- <Icon name="bot" inline /> **[AILANG vs Agent Frameworks](/docs/guides/ailang-vs-agents)** — why AILANG sits *below* agents as a deterministic semantic substrate.
+- <Icon name="rocket" inline /> **[Agent Integration Guide](/docs/guides/agent-integration)** — 4-step quick start + pre-flight checklist.
+- <Icon name="shield" inline /> **[Agent Tool Policy (`ailang_only`)](/docs/guides/agent-tool-policy)** — no-shell sandbox, `os.Root` confinement, and capability ceilings.
+- <Icon name="wrench" inline /> **[Hooks Setup](/docs/guides/hooks-setup)** & **[Claude Code Integration](/docs/guides/claude-code-integration)** — HTTP telemetry hooks and inbox handoffs.
+- <Icon name="zap" inline /> **[Hosted Docs MCP](/docs/guides/agent-mcp)** — attach `https://mcp.ailang.sunholo.com/mcp/` for version-pinned docs, stdlib, and benchmarks.
 
 ## I'm an AI agent reading this directly
 
-You can consume AILANG knowledge through machine-readable surfaces.
-
-- <Icon name="globe" inline /> **Hosted MCP**: `https://mcp.ailang.sunholo.com/mcp/` — 21+ typed tools (`docs_search`, `stdlib_modules`, `example_get`, `prompt_get`, `benchmarks_for_model`, …).
-- <Icon name="book" inline /> **[Current Teaching Prompt](/docs/prompts/current)** ({ACTIVE_PROMPT}) — paste into your system prompt.
-- <Icon name="code" inline /> **[`llms.txt`](https://ailang.sunholo.com/llms.txt)** — full corpus index in one file.
-- <Icon name="play" inline /> **[The `ai` Effect](/docs/guides/ai-effect)** — how AILANG programs call you back.
-
-## Build agent workflows with AILANG
-
-- <Icon name="info" inline /> **[Agent Workflows](/docs/guides/agent-workflows)** — overview of the patterns.
-- <Icon name="check" inline /> **[State System](/docs/guides/state-system-workflow)** — durable workflow state.
-- <Icon name="bot" inline /> **[Agent Messaging](/docs/guides/agent-messaging)** — agent-to-agent communication.
-- <Icon name="brain" inline /> **[Brain Cache](/docs/guides/brain-cache)** & **[μRAG](/docs/guides/microrag)** — the knowledge layer.
+- <Icon name="book" inline /> **[Current Teaching Prompt](/docs/prompts/current)** (`{ACTIVE_PROMPT}`) — canonical syntax and idioms.
+- <Icon name="code" inline /> **[`llms.txt`](https://ailang.sunholo.com/llms.txt)** & **[`llms-full.txt`](https://ailang.sunholo.com/llms-full.txt)** — lightweight routing index and full reference corpus.
+- <Icon name="play" inline /> **[The `ai` Effect (`std/ai`)](/docs/guides/ai-effect)** — typed `callJsonResult`, `step`, and `runTools` loops inside AILANG.
+- <Icon name="brain" inline /> **[Brain Cache](/docs/guides/brain-cache)** & **[μRAG](/docs/guides/microrag)** — persistent semantic memory and just-in-time syntax injection.

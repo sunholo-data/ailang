@@ -1,131 +1,57 @@
 ---
-reviewBy: 2026-12-14
+title: AI Provider Routing (OpenRouter)
+description: Replayable multi-vendor LLM routing through OpenRouter with explicit opt-in flags and trace resolution payloads.
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AI Provider Routing (OpenRouter)
 
-> Available since v0.16.0 (M-AI-OPENROUTER).
+[OpenRouter](https://openrouter.ai) proxies ~100 models behind one Chat Completions API. AILANG's OpenRouter adapter supports `<vendor>/<model>` targets (such as `anthropic/claude-sonnet-4.5` or `openrouter/auto`) while preserving two replayability guarantees:
 
-[OpenRouter](https://openrouter.ai) is a meta-provider that proxies one
-HTTP API to ~100 frontier models behind a unified Chat Completions
-shape. AILANG ships an OpenRouter adapter so you can target
-`<vendor>/<model>` strings (e.g. `anthropic/claude-sonnet-4.5`,
-`google/gemini-2.5-flash`, `meta-llama/llama-3.3-70b-instruct`) without
-adding per-vendor SDK code.
+1. **Replayable resolution**: Every routed call records `requested_model`, `resolved_model`, `fallback_chain`, token counts, and `cost_usd` in the trace's `ResolvedRoute` payload.
+2. **Explicit opt-in**: Multi-vendor routing requires `--allow-routing` (or `! {AI[mode=routeable]}`), preventing accidental fallback chains.
 
-The interesting part is **how AILANG keeps dynamic provider routing
-replayable** without violating the determinism / replayability axioms.
-Two safety properties hold:
-
-1. **Replayable resolution.** Every routed call records the resolved
-   model, fallback chain, prompt/completion/cached tokens and USD cost
-   in the trace's `ResolvedRoute` payload. Replaying a trace can pin
-   the call to the exact model that ran originally.
-2. **Explicit opt-in.** Routing-capable behaviour is gated behind an
-   explicit `--allow-routing` runtime flag. Programs that don't
-   declare routing intent cannot accidentally pick up a multi-vendor
-   fallback chain.
-
-## Quick start
+## Quick Start
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-...
 
-# Pinned model — no routing
-ailang run \
-  --caps IO,AI \
-  --ai openrouter/anthropic/claude-sonnet-4.5 \
-  --entry main \
-  examples/ai_openrouter_routing.ail
+# Pinned model — no --allow-routing required
+ailang run --caps IO,AI --ai openrouter/anthropic/claude-sonnet-4.5 \
+  --entry main examples/ai_openrouter_routing.ail
 
-# Routing policy — ordered fallback, structured-output capable, cheapest
-ailang run \
-  --caps IO,AI \
-  --ai openrouter/auto \
+# Routing policy — ordered fallback + structured output + cheapest
+ailang run --caps IO,AI --ai openrouter/auto \
   --routing-fallback "anthropic,openai,google" \
   --routing-require structured_outputs \
   --routing-prefer cheapest \
   --allow-routing \
-  --entry main \
-  examples/ai_openrouter_routing.ail
+  --entry main examples/ai_openrouter_routing.ail
 ```
 
-The first invocation pins to one model — no `--allow-routing` needed.
-The second declares a routing policy and therefore must include
-`--allow-routing` (otherwise the CLI errors before submitting the
-request).
+## Routing Policy Flags
 
-## Routing policies
-
-OpenRouter accepts a `provider` block on each call that constrains how
-it picks an upstream. AILANG exposes that surface as four CLI flags
-plus the safety gate.
-
-| Flag | Maps to OpenRouter `provider`... | Notes |
+| Flag | OpenRouter `provider` Mapping | Notes |
 |---|---|---|
-| `--routing-fallback "vendor1,vendor2,..."` | `order: [...]` + `allow_fallbacks: true` | Ordered list of preferred upstreams. OpenRouter tries them in order and falls through on failure. |
-| `--routing-require "cap1,cap2,..."` | `require_parameters: [...]` | Hard capability requirements (e.g. `structured_outputs`, `tool_calling`, `vision`). Models that lack a required capability are skipped. |
-| `--routing-prefer cheapest\|fastest\|most_reliable` | `sort: ...` | Tie-breaker among models that satisfy the requirements. `cheapest` is the most common choice. |
-| `--routing-max-price <usd>` | (carried in IR; not yet forwarded) | The IR carries this value but the OpenRouter `provider` field doesn't accept it on the standard path — OpenRouter's per-call max-price filter lives behind their `transforms` API, which is deferred. The flag is accepted today and surfaced in the trace, but does not bind the upstream. |
-| `--allow-routing` | (no upstream mapping) | **Required** whenever any other `--routing-*` flag is set. Runtime safety gate — see below. |
+| `--routing-fallback "v1,v2,..."` | `order: [...]` + `allow_fallbacks: true` | Ordered upstream fallback chain |
+| `--routing-require "cap1,cap2"` | `require_parameters: [...]` | Skips models lacking capabilities (`structured_outputs`, `tool_calling`, `vision`) |
+| `--routing-prefer cheapest\|fastest\|most_reliable` | `sort: ...` | Tie-breaker across eligible models |
+| `--routing-max-price <usd>` | Recorded in IR/trace only | Accepted and logged, not forwarded to OpenRouter (`transforms` deferred) |
+| `--allow-routing` | Runtime safety gate | Required whenever any `--routing-*` flag is set unless entry uses `! {AI[mode=routeable]}` |
 
-The CLI rejects a call with `--routing-fallback "anthropic,..."` but no
-`--allow-routing` flag with a typed error before any HTTP request goes
-out. This is the runtime equivalent of the `!{AI[mode=routeable]}`
-type-level marker that is planned but deferred (see [BYOK and
-AI[Routeable] (future)](#byok-and-airouteable-future) below).
+## Effect Modes & `Parameterised Effects`
 
-## Type-level mode markers (v0.15.0+)
+| Effect Annotation | Meaning |
+|---|---|
+| `! {AI}` | Bare; desugars to `! {AI[mode=fixed]}` (direct provider call) |
+| `! {AI[mode=fixed]}` | Rejects routed providers via invariant unification |
+| `! {AI[mode=routeable]}` | Opts into routing without needing `--allow-routing` |
+| `! {AI[mode=replay-only]}` / `! {AI[scope=byok]}` | Reserved (tracked in [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)) |
 
-AILANG v0.15.0 (M-AI-EFFECT-MODES) lifts the runtime `--allow-routing`
-gate into a type-level marker. Functions can declare their AI mode in
-the effect row:
+See [`examples/ai_modes.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_modes.ail) and [Parameterised Effects](./parameterised-effects.md).
 
-| Form                          | Meaning                                  |
-|-------------------------------|------------------------------------------|
-| `!{AI}`                       | Bare; desugars to `!{AI[mode=fixed]}`    |
-| `!{AI[mode=fixed]}`           | Explicit form of the default; direct provider call |
-| `!{AI[mode=routeable]}`       | Opts into runtime provider routing       |
-| `!{AI[mode=replay-only]}`     | Reserved (parser accepts; runtime stub)  |
-| `!{AI[scope=byok]}`           | Reserved (parser accepts; runtime stub)  |
-
-When the entry function declares `!{AI[mode=routeable]}`, the CLI
-safety gate is **skipped** — the type-level marker attests intent,
-making `--allow-routing` redundant:
-
-```bash
-# v0.14.x (still works in v0.15.0 as back-compat fallback):
-ailang run --caps AI,IO --ai openrouter/auto \
-  --routing-fallback "anthropic,openai" \
-  --allow-routing \
-  --entry main my_module.ail   # main: ! {AI, IO}
-
-# v0.15.0+ (preferred):
-ailang run --caps AI,IO --ai openrouter/auto \
-  --routing-fallback "anthropic,openai" \
-  --entry main my_module.ail   # main: ! {AI[mode=routeable], IO}
-```
-
-Functions declared `!{AI[mode=fixed]}` (or bare `!{AI}` which desugars)
-that try to use routing-capable providers are rejected at compile time
-via invariant unification: `!{AI[mode=fixed]}` and `!{AI[mode=routeable]}`
-are distinct effect rows.
-
-For the worked example, see
-[`examples/ai_modes.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_modes.ail).
-
-For the type-system mechanism, see
-[Parameterised Effects](./parameterised-effects.md).
-
-## Trace and replay
-
-When a routed call completes, the AI effect op emits a trace event
-with a `route` payload. This payload is the M3 deliverable: AI ops
-previously did not write trace events at all; they now do, and the
-OpenRouter handler populates `ResolvedRoute` via the
-`AIHandlerWithRouting` interface.
-
-A complete trace event for a routed call looks like:
+## Trace & Replay
 
 ```json
 {
@@ -134,79 +60,31 @@ A complete trace event for a routed call looks like:
     "effect_name": "AI",
     "op": "call",
     "route": {
-      "requested_model":   "openrouter/auto",
-      "resolved_model":    "anthropic/claude-sonnet-4.5",
+      "requested_model": "openrouter/auto",
+      "resolved_model": "anthropic/claude-sonnet-4.5",
       "resolved_provider": "anthropic",
-      "fallback_chain":    ["anthropic/claude-sonnet-4.5"],
-      "prompt_tokens":     1234,
+      "fallback_chain": ["anthropic/claude-sonnet-4.5"],
+      "prompt_tokens": 1234,
       "completion_tokens": 312,
-      "cached_tokens":     1000,
-      "reasoning_tokens":  0,
-      "cost_usd":          "0.00428"
+      "cached_tokens": 1000,
+      "reasoning_tokens": 0,
+      "cost_usd": "0.00428"
     }
   }
 }
 ```
 
-Useful `jq` recipes against an `--emit-trace jsonl` capture:
-
 ```bash
-# Show all routed calls and their resolved model
+# Inspect resolved models and total cost from an --emit-trace jsonl capture
 jq -c 'select(.event=="effect" and (.effect.effect_name//"")=="AI") | .effect.route' trace.jsonl
-
-# Sum cost across all AI calls in a trace
 jq -s '[.[] | select(.event=="effect" and (.effect.effect_name//"")=="AI") | .effect.route.cost_usd | tonumber] | add' trace.jsonl
-
-# Show the fallback chain that actually fired (more than one model = a fallback happened)
-jq -c 'select(.event=="effect" and (.effect.effect_name//"")=="AI") | {requested: .effect.route.requested_model, chain: .effect.route.fallback_chain}' trace.jsonl
 ```
 
-**Replay status:** the trace data is captured in v0.16.0, but the
-replay engine itself is currently trace-naive — it reruns the source
-file with a fresh AI handler instead of pinning to the trace's
-`resolved_model`. A trace-aware replay handler that consults the
-baseline trace per call (and an optional `--reroute` flag for
-"what would happen now") is tracked as deferred work. The trace data
-is now there for the replay engine to consume when implemented.
+*Note*: Trace data captures `resolved_model` today; trace-pinning replay (`--reroute`) and AILANG-side `ai.complete(...)` constructors are deferred to [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
 
-## Models supported
+## Supported Models (`models.yml`)
 
-Any model OpenRouter exposes is callable via the
-`openrouter/<vendor>/<model>` form (e.g. `openrouter/anthropic/claude-sonnet-4.5`).
-
-The eval harness pre-registers a set of representative models in
-[`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/models.yml)
-under the `or-*` prefix.
-
-**OpenRouter is reserved for models with no native API** (z-ai/GLM,
-MiniMax, DeepSeek, Kimi, Qwen, Gemma). Frontier Google/Anthropic/OpenAI
-models must use their native provider — use `claude-sonnet-4-6`,
-`gpt5-5`, `gemini-3-1-pro` (etc.), **not** an `or-` route. The legacy
-frontier `or-` entries (`or-claude-sonnet-4-5`, `or-gpt5`,
-`or-gpt5-mini`, `or-gemini-2-5-pro`, `or-gemini-2-5-flash`) are
-deprecated and being removed for this reason — do not use them.
-
-Representative open-model `or-*` entries include:
-
-- `or-glm-5` / `or-glm-5-1`, `or-minimax-m2-7` / `or-minimax-m3` — z-ai / MiniMax
-- `or-deepseek-v3`, `or-qwen-2-5-72b`, `or-gemma-4-26b` — open weights
-- `or-mistral-large` — proprietary, but no native API in the harness
-- `or-auto` — `openrouter/auto` (OpenRouter picks for you)
-
-Adding new entries is YAML-only; no Go code changes are required to
-benchmark a new model.
-
-## BYOK and AI[Routeable] (future)
-
-The `--allow-routing` runtime flag is a **back-compat fallback** for a
-type-level marker that is planned but not yet shipped. The canonical
-home for that work is
-[M-EFFECT-REFINEMENT (v1.1 track)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md),
-which generalises `!{E[mode=...]}` across `Rand`, `Clock`, `Net`,
-`FS`, and `AI`. See [Example 4: Modal AI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai)
-for the design.
-
-When that lands, programs will be able to write:
+Use native providers for frontier Google/Anthropic/OpenAI models (`claude-sonnet-4-6`, `gpt-5`, `gemini-2-5-pro`). Reserve `or-*` routes in [`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/models.yml) for models without a direct API (`or-glm-5`, `or-minimax-m2-7`, `or-deepseek-v3`, `or-qwen-2-5-72b`, `or-gemma-4-26b`, `or-mistral-large`, `or-auto`).
 
 ```ailang sketch
 func summarise(text: string) -> Result[string, AIError]
@@ -214,55 +92,7 @@ func summarise(text: string) -> Result[string, AIError]
     ai.complete({ ... })
 ```
 
-and the type system will reject any attempt to use a routing-capable
-provider under plain `!{AI}`. Until then, the runtime gate carries the
-same explicit-opt-in intent — programs that don't pass
-`--allow-routing` cannot accidentally inherit a fallback chain.
-
-`AI[scope=byok]` (per-call BYOK key passing) and
-`AI[mode=replay-only]` (forbid live calls; force read-from-trace) live
-in the same M-EFFECT-REFINEMENT milestone.
-
-## Deferred (intentionally)
-
-The M-AI-OPENROUTER sprint deferred the following items by design.
-None of them block usage of OpenRouter today; they are listed here so
-you know what to expect.
-
-- **Type-level effect-row markers** — `!{AI[mode=routeable]}`,
-  `!{AI[mode=replay-only]}`, `!{AI[scope=byok]}`. AILANG effects are
-  flat label-strings today, not parameterised rows. Adding them needs
-  parser + AST + elaborator + typechecker work — a multi-day language
-  feature scoped to
-  [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
-- **Replay-engine pin-to-resolved + `--reroute` flag** — Trace data is
-  captured today; the replay engine itself is still trace-naive. The
-  pin-to-resolved replay handler is a separate replay-engine refactor.
-- **AILANG-side `ai.complete(req)` entry point** —
-  `stdlib/std/ai.ail` exposes `call`/`callJson` only; a value-level
-  `provider({...route: {...}})` constructor needs new builtins.
-  Today, routing is configured via CLI flags only.
-- **Streaming** — Phase 1 is request/response only.
-- **OpenRouter `transforms` / web-search / image features** —
-  OpenRouter's preview features (middle-out compression, web-search
-  tool, image inputs) are not wired through the adapter.
-- **Cost budget enforcement** — `--routing-max-price` is captured in
-  the policy but not forwarded to OpenRouter (their max-price filter
-  lives under `transforms`). AILANG-side budget enforcement (halt on
-  exceed) is also out of scope; the trace records cost so a follow-up
-  can build budgets on top.
-
-## Worked examples
-
-For the type-level mode markers shipped in v0.15.0
-(M-AI-EFFECT-MODES), see
-[`examples/ai_modes.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_modes.ail) —
-demonstrates `!{AI}`, `!{AI[mode=fixed]}`, and `!{AI[mode=routeable]}`
-side by side.
-
-The original M-AI-OPENROUTER example file uses CLI-flag routing — the
-AILANG-side `provider({...})` constructor is deferred (see above). See
-[`examples/ai_openrouter_routing.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_openrouter_routing.ail):
+## Worked Example
 
 ```ailang
 module examples/ai_openrouter_routing
@@ -278,60 +108,12 @@ export func main() -> () ! {AI, IO} {
 }
 ```
 
-Run it under stub mode (no API key, deterministic for tests):
-
 ```bash
-ailang run --caps IO,AI --ai-stub --entry main \
-  examples/ai_openrouter_routing.ail
+ailang run --caps IO,AI --ai-stub --entry main examples/ai_openrouter_routing.ail
 ```
-
-Run it against real OpenRouter with a routing policy:
-
-```bash
-export OPENROUTER_API_KEY=sk-or-...
-ailang run \
-  --caps IO,AI \
-  --ai openrouter/auto \
-  --routing-fallback "anthropic,openai,google" \
-  --routing-require structured_outputs \
-  --routing-prefer cheapest \
-  --allow-routing \
-  --emit-trace jsonl \
-  --entry main \
-  examples/ai_openrouter_routing.ail \
-  > trace.jsonl
-
-jq 'select(.event=="effect" and (.effect.effect_name//"")=="AI") | .effect.route' trace.jsonl
-```
-
-The expected `route` payload shape is the JSON shown in [Trace and
-replay](#trace-and-replay) above. The `resolved_model` reflects which
-upstream OpenRouter actually used; the `fallback_chain` lists every
-model tried in order.
-
-## Cost-comparison benchmark
-
-The sprint ships a small benchmark that runs the same prompt across
-several models and emits a CSV with per-model cost, tokens, and
-latency:
-
-```bash
-export OPENROUTER_API_KEY=sk-or-...
-./benchmarks/openrouter_cost_compare/run.sh > results.csv
-column -t -s, results.csv
-```
-
-This benchmark is **not** part of `make ci` — it makes real billable
-calls. When `OPENROUTER_API_KEY` is unset, `run.sh` exits 0 with a
-skip message. See
-[`benchmarks/openrouter_cost_compare/README.md`](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/openrouter_cost_compare)
-for details.
 
 ## Related
 
-- [AI Effect: calling LLMs from AILANG](ai-effect.mdx) — the underlying
-  `std/ai` effect this guide builds on.
+- [AI Effect Guide](./ai-effect.mdx) — `std/ai` (`callJsonResult`, `step`, `runTools`)
+- [Custom AI Providers](./custom-ai-providers.md) — `[[ai_provider]]` TOML configuration
 - [M-AI-OPENROUTER design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
-  — the canonical design, including the implementation report.
-- [M-EFFECT-REFINEMENT design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)
-  — the parent effect-refinement design (its remaining sprints are on the v1.1 track).
