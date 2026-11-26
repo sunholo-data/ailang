@@ -1,701 +1,122 @@
 ---
 sidebar_position: 5
 title: Known Limitations
-description: Known limitations, workarounds, and design constraints in AILANG
-reviewBy: 2027-02-15
+description: Live-verified capability & cliff matrix, workarounds, and design constraints in AILANG
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Known Limitations
 
-This document tracks known limitations, workarounds, and design constraints in AILANG.
+**Live-verified at AILANG `v0.64.1` (`2026-11-26`).** Every entry below reflects measured compiler, verifier, or runtime behavior rather than historical speculation. See [Design Documents](/docs/design-docs) for implemented features and [Stability Promise](/docs/reference/stability) for tier guarantees.
 
-For features that have been implemented, see [Design Documents](/docs/design-docs).
+## Capability & Cliff Matrix
 
-**All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17** with
-`ailang check` / `ailang run` transcripts. Each open entry carries a **Verified at** date; fixed
-items are listed under [Recently Resolved](#recently-resolved). This is the entry policy from
-[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md):
-every remaining limitation is a reproducible artifact, not lore.
-
----
-
-## Named-test effects (by design)
-
-Named-test bodies and `forall` property predicates are checked pure. Module helpers
-are visible regardless of whether they use the `pure` keyword, but effectful calls
-require verification through an exported entry run with explicit capabilities.
-See the [Testing Guide](/docs/guides/testing#named-test-and-property-purity) for examples
-and the FS fixture verification route. An invalid module-level helper retains its
-own compiler diagnostic.
-
-## Type System Limitations
-
-### Concrete Function-Effect Annotations Remain Open
-
-**Status**: Deferred upper-bound enforcement (M-EFFECT-LATENT-FUNCTION-VALUES Phase 3)
-**Verified at**: v0.53.0 implementation working tree over `48f4b5ef929532cc6bf89d32034435ec616f80e7`, 2026-10-08
-
-Function-type annotations preserve their concrete effects, but currently permit a
-wider callback when storing it. This checks successfully:
-
-```ailang
-module width
-import std/io (println)
-import std/env (getEnv)
-type Hooks = {f: int -> int ! {IO}}
-func wider(x: int) -> int ! {IO, Env} {
-  let _ = getEnv("HOME");
-  let _ = println("wider");
-  x
-}
-pure func mk() -> Hooks = {f: wider}
-```
-
-`AILANG_NO_CACHE=1 ailang check width.ail` exits 0. Do not use a stored callback's
-annotation as an upper bound on its runtime capabilities; declare every effect its
-implementation performs. Calling an annotated field and passing an effectful value
-to an effect-polymorphic HOF do now charge latent effects. Closed annotation bounds
-remain a separate spike under the existing [#573](https://github.com/sunholo-data/ailang/issues/573)
-and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
-
-
-Direct effect-polymorphic callback calls now share and resolve their call row
-([#616](https://github.com/sunholo-data/ailang/issues/616)). A pure callback can
-be called from a pure wrapper. A helper that invokes a callback with an explicitly
-open effect row must propagate that row; omitting it is rejected before execution.
-This also applies to repeated callback invocations. Runtime capabilities remain
-required for concrete effects.
-
-
-### Y-Combinator and Recursive Lambdas (By Design)
-
-**Status**: Design constraint, not a bug
-**Verified at**: v0.33.1 (2026-08-17, `ailang check` reproduces the transcript below verbatim)
-
-The Y-combinator and similar recursive lambda expressions fail with "occurs check" errors:
-
-```ailang parse
--- Fails type checking (occurs check):
-func yCombinator() = let y = \f. (\x. f(x(x)))(\x. f(x(x))) in y
-```
-
-**Root Cause**: Hindley-Milner type inference prevents infinite types to ensure decidability. The Y-combinator requires a recursive type `α = α → β`, which would create an infinite type.
-
-**Why This Exists**:
-1. **Type Inference Decidability** — Allowing infinite types makes type inference undecidable
-2. **AI-Friendly Design** — AILANG prioritizes deterministic, verifiable type checking
-3. **Semantic Clarity** — Named recursion is more explicit than anonymous recursion
-
-**Workaround**: Use named recursive functions:
-
-```ailang
-func factorial(n: int) -> int =
-  if n <= 1 then 1 else n * factorial(n - 1)
-```
-
-Named `func` recursion is also handled by `ailang verify` via bounded unrolling
-(`--verify-recursive-depth N`, default 2): it is VERIFIED only when `requires` bounds the depth,
-and INCONCLUSIVE otherwise (see [Static verification](#static-verification-what-a-verified-result-does-not-cover)).
-
----
-
-### WASM Type-Checker Depth Limit (By Design, WASM-only)
-
-**Status**: WASM-specific constraint with structured error; the limit is **host-configurable** (unreleased, lands after v0.33.1)
-**Since**: v0.22.x
-**Verified at**: v0.33.1+unreleased (2026-08-18 — guard in `internal/types/typecheck_budget.go`, armed only by `internal/types/typechecker_wasm_depth_wasm.go`; WASM-host-only, not reproducible from the CLI, which is unaffected)
-**Affects**: AILANG modules compiled to WebAssembly (browser demos using `wasm/ailang.wasm`). **CLI is unaffected.**
-
-The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox) and by single-threaded execution. Modules with deeply-recursive or pathologically-slow type structure freeze the browser. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
-
-**Enforcement**: a **wall-clock budget** on the type-check of each module, default 2 s — it
-catches both true stack-depth blowups *and* pathologically slow analysis with the same
-structured error (earlier builds used a frame-count budget; the current guard is time-based).
-
-**The budget is wall-clock, so it is hardware-dependent** ([ailang#662](https://github.com/sunholo-data/ailang/issues/662)):
-the same bytes that load on a fast desktop can fail on a slower laptop, or under a slower
-browser engine, and CI on fast runners cannot catch it. A module is not "big enough" or "too
-big" in the abstract — it is too big *for the machine in front of it*. Two things follow.
-
-*Raise the limit if your modules are large rather than pathological.* Hosts choose their own
-tolerance:
-
-```js
-// milliseconds; 0 disables the wall-clock limit entirely.
-const r = ailangSetTypeCheckBudget(8000);
-// -> {success: true, budgetMs: 8000}
-// A rejected value (negative, NaN, > 24h, non-number) leaves the previous
-// budget in force and returns {success: false, budgetMs: <unchanged>, error}.
-```
-
-*Watch your headroom instead of discovering the limit in production.*
-`ailangLoadModule()` reports consumption on **every** outcome:
-
-```js
-const r = ailangLoadModule(name, src);
-// r.typeCheckMs    — wall-clock spent (hardware-dependent)
-// r.typeCheckSteps — instrumented type-checker entries; DETERMINISTIC, so the
-//                    same source gives the same count on every machine
-// r.budgetMs       — the limit in force for that load
-```
-
-`typeCheckSteps` is the number worth tracking over time and worth quoting in a bug report:
-unlike `typeCheckMs` it does not move when the hardware does. Gating on a step ceiling rather
-than on the clock — which would make the outcome reproducible and CI-testable — is not done
-yet; the counter ships first so the ceiling can be chosen from real corpora.
-
-**Example failure**:
-
-```
-loadModule cognitive_commons/services/citizen failed:
-WASM type-checker budget exceeded (2s, <N> type-checker steps) while
-checking module "cognitive_commons/services/citizen".
-
-This limit is WALL-CLOCK, so it depends on how fast this machine and browser
-are: the same source may load elsewhere and fail here. The step count above is
-hardware-independent — quote it if you report this.
-
-If the module is simply large (rather than pathological), raise the limit from
-the host and reload:
-    ailangSetTypeCheckBudget(8000);   // milliseconds; 0 disables the limit
-```
-
-**Common triggers**:
-1. Triple-nested `match` patterns (match inside match inside match)
-2. Multiple back-to-back matches on the same tagged-union value with field access:
-   ```ailang
-   -- Each line is a separate match on the same Result — the type-checker
-   -- repeats tagged-union analysis on `s` three times.
-   type Vec3 = { x: float, y: float, z: float }
-
-   func repeatedMatches(r: Result[Vec3, string]) -> (float, float, float) {
-     let x = match r { Ok(s) => s.x, Err(_) => 0.0 };
-     let y = match r { Ok(s) => s.y, Err(_) => 0.0 };
-     let z = match r { Ok(s) => s.z, Err(_) => 0.0 };
-     (x, y, z)
-   }
-   ```
-3. Long chains of intra-package imports with many destructured constructors
-
-**Workarounds** (in order of simplicity):
-
-1. **Flatten nested matches** into sequential `let`-bindings:
-   ```ailang
-   import std/json (Json, decode, getString)
-   import std/string (length)
-
-   func optionalString(j: Json, key: string) -> string =
-     match getString(j, key) { Some(v) => v, None => "" }
-
-   -- Before: triple-nested
-   func nested(raw: string) -> Result[string, string] =
-     match decode(raw) {
-       Err(e) => Err(e),
-       Ok(j) => match getString(j, "error") {
-         Some(p) => Err(p),
-         None => match getString(j, "text") {
-           Some(t) => Ok(t),
-           None => Err("missing text")
-         }
-       }
-     }
-
-   -- After: flat
-   func flat(raw: string) -> Result[string, string] =
-     match decode(raw) {
-       Err(e) => Err(e),
-       Ok(j) => {
-         let err = optionalString(j, "error");
-         if length(err) > 0 then Err(err)
-         else match getString(j, "text") {
-           Some(t) => Ok(t),
-           None => Err("missing text")
-         }
-       }
-     }
-   ```
-
-2. **Extract a helper** that does one match and returns a record:
-   ```ailang
-   type Score = { x: float, y: float }
-
-   pure func unpack(r: Result[Score, string]) -> { has: bool, x: float, y: float } =
-     match r {
-       Ok(s)  => { has: true,  x: s.x, y: s.y },
-       Err(_) => { has: false, x: 0.0, y: 0.0 }
-     }
-   -- Now `unpack(r)` returns everything at once; one match instead of three.
-   ```
-
-3. **Split the function** into smaller top-level functions — each gets its own type-check pass.
-
-**Why This Exists**:
-1. **Host-stack limit** — Go compiled to WebAssembly shares the host JavaScript engine's call stack, which has a fixed limit (~10K frames in Node/Chromium). Native Go has dynamically-growable per-goroutine stacks; WASM does not.
-2. **Silent failure mode otherwise** — Before this limit, the browser would freeze for 80–120 seconds before the JS engine threw `Maximum call stack size exceeded`. The structured error fires immediately with actionable workarounds instead.
-3. **Workarounds are idiomatic** — Helper extraction and flat matches are the AILANG style anyway; the cliff catches patterns that are also harder to read.
-
-**History**: First hit 2026-05-20 by `cognitive_commons/services/citizen.ail` in the demos repo. The half-day diagnostic trail (silent freeze, no console error, DevTools locked) led to the limit being added so future demo authors get a clear error in seconds instead of an opaque hang. Full postmortem: [demos/debug-notes/wasm-citizen-stack-overflow.md](https://github.com/sunholo-data/ailang-demos/blob/main/debug-notes/wasm-citizen-stack-overflow.md).
-
-**Prevention guide**: the five patterns that trigger this cliff are actually general AILANG style — pure core, single-effect leaves, multi-effect orchestrator, destructure once, flat matches. Run `ailang prompt | grep -B 1 -A 200 "Idiomatic AILANG: Pure Core"` for the full guide with bad/good examples. (The WASM budget is just the toolchain-side enforcement mechanism; the patterns themselves are the architecture, so they live in the syntax prompt. The devtools prompt has a short toolchain-side pointer at `ailang devtools-prompt | grep -A 20 "WASM Type-Checker Budget"`.) The patterns produce more readable, more testable code regardless of target — the WASM cliff is the universe nudging you toward the style.
-
-**Headless smoke test**: [demos/scripts/wasm-loadmodule-harness.js](https://github.com/sunholo-data/ailang-demos/blob/main/scripts/wasm-loadmodule-harness.js) runs the actual WASM in Node and exits with code 4 when this limit fires (vs 0 for clean modules). CI-friendly.
-
-**Future improvement**: Converting the type-checker to iterative work-stack passes would remove the limit entirely. Tracked in [M-WASM-TYPECHECK-ITERATIVE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/deferred/m-wasm-typecheck-iterative.md) (deferred — high-risk refactor for a low-frequency cliff).
-
----
-
-## Parser Limitations
-
-### If-Else Branches Require Explicit Braces
-
-**Status**: Design constraint (improved error message in v0.5.9)
-**Verified at**: v0.33.1 (2026-08-17 — `ailang check` emits "if-else branches require explicit braces when using let bindings", now with the `if` position and the branch whose `let` has no body)
-**Affects**: Multi-statement branches in if-else expressions
-
-AILANG is not layout-sensitive, so multi-statement branches must be wrapped in
-explicit braces. Without them, only the first `let` is parsed as the branch:
-
-```not-ailang
--- Fails: if-else branches require explicit braces when using let bindings
-func buildList(x: int, maxX: int) -> [int] =
-  if x > maxX then [] else
-    let v = x * 2;
-    let rest = buildList(x + 1, maxX);
-    v :: rest
-```
-
-**Fix**:
-
-```ailang
-func buildList(x: int, maxX: int) -> [int] =
-  if x > maxX then [] else {
-    let v = x * 2;
-    let rest = buildList(x + 1, maxX);
-    v :: rest
-  }
-```
-
-Single-expression branches don't need braces.
-
----
-
-## Language Feature Gaps
-
-### VM list views retain backing storage
-
-Since v0.54.10 (#1827), bytecode list tail bindings and builtin-backed `take`/`drop`
-share capacity-capped subslices. A small live suffix or prefix of a large list can
-retain the whole source backing allocation until all views referencing it become
-unreachable. Capacity caps prevent append writes into the source; they do not
-release the backing allocation. Avoid keeping small views of large temporary lists
-alive longer than needed.
-
-This improves list consumption; quadratic `::`/`++` construction remains parked
-on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
-compares equivalent range inputs and includes a separate construction contrast.
-
-### Runtime contracts are checked only on the evaluator, and not in named tests
-
-**Status**: Open
-**Verified at**: dev, 2026-11-10 (M-V1-VERIFICATION-HONESTY M2). A `half(x) = x - 100` with
-`ensures { result >= 0 }`, called as `half(5)`:
-- `ailang run --verify-contracts` → `contract violation: ensures failed in half at k1.ail:5:11`, exit 1.
-- `ailang run --bytecode --verify-contracts` → `CTR004: --verify-contracts is not enforced on the
-  bytecode VM yet`, exit 2 (it used to print `-95` and exit 0, [#1956](https://github.com/sunholo-data/ailang/issues/1956)).
-- `ailang run` without the flag → `-95`, exit 0. Contracts are off by default.
-- `test "half five" { half(5) == -95 }` passes: named-test bodies do not check contracts. Contracts
-  reach `ailang test` only as the generated property tests.
-
-**Affects**: run-time contract checking. `ailang verify` and `check --verify` (static) are unaffected.
-
-**Workaround**: check contracts on the evaluator (`run --verify-contracts`, no `--bytecode`), and
-assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-runtime-contract-parity.md).
-
----
-
-### Static verification: what a `VERIFIED` result does not cover
-
-**Status**: Open
-**Verified at**: v0.60.6-128-g3fb62e616c, Z3 4.16.0 (2026-11-23), `ailang verify` on one probe file per row:
-- **Call-site preconditions (partly closed on dev, 2026-11-24).** `one(n)` declares
-  `requires { n > 0 }`; `caller(n)` declares `requires { n < 0 }` and returns `one(n)`. `caller` is now
-  `✗ VIOLATION` with reason `requires_violation` ("a call to one may break its requires"); before,
-  both reported `✓ VERIFIED`. Calls in the verified function's own body are checked, under the
-  branch and `let` that reach them, and so are calls inside the helpers it calls, inside a lambda
-  passed to `map`/`filter`/`foldl`, and its own recursive calls (which must meet its own `requires`).
-  Inside a recursive helper or a lambda the check reaches only the unrolling depth (depth 3), and
-  the result carries an `obligations_checked_to_depth` note. Not checked: calls inside
-  `requires`/`ensures`, calls from an unverified caller, and calls inside an opaque helper (a
-  helper whose body does not encode; the result carries a `helpers_not_checked` note naming it).
-- **int64 overflow (reported on dev, 2026-11-24).** `inc(x) requires { x >= 0 } ensures { result > x }
-  { x + 1 }` is `✓ VERIFIED` with a note (`caveats: int_overflow`) showing `x = 9223372036854775807`;
-  `ailang run` of that input prints `-9223372036854775808`. By default the note does not change the
-  verdict or exit code; `ailang verify --int-model=int64` makes it a VIOLATION (`int_overflow`).
-  Arithmetic inside helpers, lambdas and recursion is checked the same way (to the unrolling depth
-  in recursive helpers and lambdas); arithmetic inside contracts is not.
-- **NaN (partly closed on dev, 2026-11-24).** Float `/` and `%` by a possible zero, `sqrt` of a
-  possible negative and `log` of a possible non-positive are VIOLATIONS (`float_nan_or_inf`). Float
-  inputs are still assumed non-NaN: `selfEq(x: float) ensures { result == true } { x == x }` is
-  `✓ VERIFIED` (with caveat `float_inputs_assumed_non_nan`), while at runtime `NaN == NaN` is false.
-- **Recursion.** `sumTo(n) requires { n >= 0 }` reports `? INCONCLUSIVE (bounded: depth 2)`, exit 1 (on dev, a *buggy* recursive or HOF function now gets a VIOLATION by witness replay; a correct unbounded one stays inconclusive).
-  There is no induction: a recursive function is proved only when `requires` bounds its depth
-  within the unrolling limit.
-- **Higher-order list functions.** A caller of `map`/`filter`/`foldl`/`any`/`flatMap` with a
-  lambda or a named top-level function is unrolled to depth 3 (dev, after v0.60.6; it was SKIPPED,
-  #1375). `map` and `filter` length relations are proved for any list. Other properties are VERIFIED
-  only when `requires` bounds the list, and INCONCLUSIVE otherwise. A function-typed parameter
-  (`map(f, xs)` where `f` is an argument) is still skipped.
-- **Bitwise operators.** `x & 255` reports `⚠ SKIPPED … unencodable builtin: bitwiseAnd_Int`.
-- **Two imported functions with the same name.** A module imports `a/good (clamp0 as goodClamp)`
-  and `a/bad (clamp0)`; `usesBad(x) ensures { result >= 0 } { clamp0(x) }` calls the bad one
-  (`x - 1`). `ailang verify` reported `✓ VERIFIED` in 5 of 6 runs: callee bodies are looked up by
-  bare name, so the other module's `clamp0` can be inlined. **Fixed on dev after v0.60.6**: a call
-  whose bare name would bind another module's function is now SKIPPED, naming both modules
-  ([M-VERIFY-SOUNDNESS-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_61_0/m-verify-soundness-coverage-program.md) M1).
-  On v0.60.6 and earlier, avoid same-named functions across a verified function's imports.
-- **Unannotated generic parameters.** `pure func inc(x) requires {…} ensures {…}` reports
-  `! ERROR … unknown constant x` instead of a skip ([#2400](https://github.com/sunholo-data/ailang/issues/2400)).
-
-**Affects**: `ailang verify`, `ailang check --verify`, `ailang ai-check`.
-
-**Workaround**: guard callee preconditions in code (or with `--verify-contracts` on the evaluator);
-bound ints explicitly in `requires` where overflow is possible; guard floats with `std/math.isNaN`;
-give recursive functions a depth-bounding `requires` or test them by running them; write a
-`requires` that bounds a list passed to `map`/`filter`/`foldl`; annotate every parameter type. Guide:
-[Contracts & Verification](/docs/guides/contracts#reading-verification-evidence).
-
----
-
-### `--bytecode` silently falls back to the evaluator; the VM is slower than CPython
-
-**Status**: Partly fixed. The main fallback causes were closed by
-[M-VM-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md)
-(#1989); the rest are open.
-**Verified at**: dev after #1989 (2026-10-28)
-**Affects**: `ailang run --bytecode`
-
-- **Fallback:** when the VM compiler cannot handle a function, `--bytecode` runs it on the
-  evaluator and prints no warning. Of the 205 `examples/runnable` files that pass on the
-  evaluator, 186 run fully on the VM and 18 fall back (before #1989: 142 and 61). Prelude
-  `println` without an import, local `letrec` and module-level value `let`s now run
-  natively. The remaining causes are effectful builtins not yet wired into the VM (file
-  system, clock sleep, archives, game, debug log), ADTs from contract modules, and passing a
-  user ADT or a closure to a function that only the evaluator can run; that last case now
-  falls back before the program prints anything. Use `--strict-bytecode` to fail instead of
-  falling back. The wrong answer a local `letrec` used to give when it shared its name with a
-  top-level function is fixed.
-- **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but still
-  slower than CPython. Measured best of 3 after M-VM-QUICK-WINS (2026-10-28): `fib(32)` took
-  0.33 s on the VM and 0.14 s in Python (it was 0.50 s before). A 10M-step tail-recursive loop
-  took 0.55 s and 0.32 s (it was 1.07 s).
-
----
-
-### Prepending with `::` is quadratic; evaluator recursion is capped at 10,000 frames
-
-**Status**: Known runtime limitations; the list fix is a multi-week representation change now in progress, not yet shipped
-**Verified at**: v0.33.1-171-gc62e64878 (2026-08-21)
-
-These are two separate limits that often meet in hand-written recursive list builders:
-
-#### 1. Quadratic list construction by prepending (`::` / cons)
-
-The evaluator does not currently represent a list as cons cells. `eval.ListValue` stores a flat Go
-slice (`internal/eval/value.go:84-86`), and every `::` allocates a new slice and appends every element
-of the tail (`internal/builtins/list.go:87,98-103`). One prepend is therefore O(length of tail), and a
-list built by repeatedly prepending is O(n²) in copied element references and allocation volume.
-
-The LC-1 representation spike measured this same current-slice control on 2026-08-20: its heaviest
-branching-prepend cell (4,096 prepends onto a retained 16,384-element tail) took **54.8 ms/op**,
-versus **73 µs/op** for the candidate cons-cell representation. The n=12,800 current-slice workload
-also produced a median **417 Go GC cycles** across five trials. Those are dated spike measurements,
-not estimates; see
-[`m-list-repr-spike-M6-report.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-list-repr-spike-M6-report.md).
-
-**Workarounds**:
-
-1. Prefer the iterative builtin-backed `std/list.map` when transforming an entire existing list,
-   or `std/list.takeMap` when only a prefix is required. Their Go implementations allocate the
-   result slice directly and fill it in one pass (`internal/builtins/list_iterative.go:68-89` and
-   `internal/builtins/list_bounded.go:78-113`); neither invokes `::` per result.
-2. Use builtin-backed `std/list.foldl` for scalar or record aggregation instead of hand-written
-   recursion (`internal/builtins/list_iterative.go:202-223`). Do **not** grow a *list* accumulator
-   inside the fold: the fold itself is iterative, but its callback still pays the per-call copy.
-   This applies to **`++` exactly as much as to `::`** — `listConcatImpl`
-   (`internal/builtins/list.go:161`) allocates a fresh slice and copies both operands, so
-   `acc ++ [x]` is O(len(`acc`)) per step and `foldl(\acc. \x. acc ++ [x], [], xs)` is quadratic
-   in the same way `x :: acc` is. `++` is the idiom the AILANG prompt teaches for list
-   concatenation, so it is the likelier of the two mistakes, not the safer one. `foldl` is a
-   workaround only when the accumulator is a **scalar or record**.
-
-The permanent fix changes the evaluator's list representation and its consumers. That is a
-multi-week programme currently in progress; the representation spike returned GO, but no runtime
-representation fix has shipped yet.
-
-#### 2. Recursion depth caps
-
-`ailang run` defaults to a **10,000** recursion-depth ceiling in the evaluator and a
-**10,000** frame ceiling in the bytecode VM. Positive `--max-recursion-depth N` values
-set the ceiling for both backends; zero or negative values retain the defaults.
-The evaluator counts evaluation depth, including builtin callback re-entry, while the VM
-counts live call frames, so exact boundary depths can differ. Tail calls run at constant
-depth on both backends.
-
-An evaluator overrun reports `RT_REC_003`; a strict bytecode overrun reports `stack overflow`.
-Non-strict `--bytecode` can still restart on the evaluator after overflow, replaying committed
-IO or seeing already-consumed stdin. Aligning the limits avoids this fallback for ordinary
-deep recursion within the default ceiling; it does not make replay safe (Refs #1576).
-
-The executable remedy test at v0.33.1-171-gc62e64878 (2026-08-21) measured a right-recursive
-`sum(300)`: it raises `RT_REC_003` with a 100-frame ceiling and completes after the ceiling is raised
-to 10,000 (`internal/eval/rt_rec_003_message_test.go:31-112`).
-
-**Workaround**: pass `--max-recursion-depth N` to raise both backends' depth ceilings. Prefer the
-iterative `map`, `foldl`, and `takeMap` paths above where they express the operation.
-
-**Raised ceilings are honoured (2026-09-26, #1317).** Before, a raised ceiling could not be
-reached: the evaluator recursed on one goroutine, whose stack Go caps at 512 MB (1 GB at most), so
-programs died with `fatal error: stack overflow` well below N (plain recursion at 200k–400k calls,
-list-pattern matching at ~84k). Deep evaluation now continues on a fresh goroutine every 131,072
-evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Evaluator depth is therefore bounded
-by N and memory, and exceeding N reports `RT_REC_003`. Measured: 1,999,000 plain calls under
-`--max-recursion-depth 2000000` complete in 9.5 s at 12.8 GB peak RSS, which is the cost of that
-much live recursion. Recursion that re-enters the evaluator through a builtin callback (`map`,
-`foldl`, `sortBy`, ...) now reports `RT_REC_003` as one line, not once per level. Raising the
-depth ceiling does **not** fix the memory amplification
-from `::`; allowing a quadratic recursive builder to run longer can increase its memory use.
-
-### Strict evaluation: `take(n, flatMap(f, xs))` bounds the result, not the peak
-
-**Status**: Design constraint (strict evaluation)
-**Verified at**: v0.33.0 (2026-08-12, `/usr/bin/time -l` transcripts below)
-
-AILANG evaluates function arguments strictly. Therefore `flatMap(f, xs)` is fully materialised
-before `take` runs: the cap bounds the returned list, but not the intermediate's peak memory.
-The #617 reproduction, with a cap of 5, measured:
-
-| Form | Result | Peak RSS | Wall time |
-|---|---:|---:|---:|
-| `take(5, flatMap(f, xs))` (unfused, V1) | 5 elements | 425 MB | 81.9 s |
-| `takeFlatMap(5, f, xs)` (existing fused builtin, V2) | 5 elements | 89 MB | 0.06 s |
-
-Repro transcript (maximum resident set size is reported by macOS `/usr/bin/time -l`):
-
-```text
-$ /usr/bin/time -l ./bin/ailang run --caps IO arm_a.ail
-[1, 1, 1, 1, 1]
-81.93 real
-425361408 maximum resident set size
-
-$ /usr/bin/time -l ./bin/ailang run --caps IO arm_d.ail
-[1, 1, 1, 1, 1]
-0.06 real
-89374720 maximum resident set size
-```
-
-Rewrite the unfused form as `takeFlatMap(n, f, xs)`. Its corrected cost model is:
-
-```text
-peak = source residency + largest single f(x) + n retained outputs
-```
-
-`takeFlatMap` is **not a peak-memory cap**. It removes only the unvisited-outputs term: it
-does not shrink the already-resident source list or the largest single result of `f(x)`.
-If one `f(x)` can be very large or unbounded, apply #617's budgeted-walk workaround inside
-`f` itself—for example, use a capped per-element tokenizer. Raising
-`--max-recursion-depth` is an anti-pattern here: it lets strict evaluation materialise still
-more output and makes the memory failure worse.
-
-The same issue affects `take(n, map(f, xs))` when `f` allocates. Against `takeMap`, the
-allocating case measured about **5.5× peak RSS** and **235× wall time** (V25/V26: 559 MB /
-18.78 s unfused versus 101 MB / 0.08 s fused). Use `takeMap(n, f, xs)` to avoid evaluating
-and retaining outputs for unvisited inputs. A non-allocating scalar `f`, such as `\x. x + 1`,
-did **not** amplify peak memory (V7), so the qualification “when `f` allocates” matters.
-
-### Error Propagation Operator (`?`)
-
-**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
-**Verified at**: v0.33.1 (2026-08-17 — `r?` still produces `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`)
-
-The `?` operator for early return on `Result` errors is designed but not yet
-implemented. For now, use explicit `match` on `Result`:
-
-```ailang
-import std/fs (readFileResult)
-import std/string (toUpper)
-
-func loadUpper(path: string) -> Result[string, string] ! {FS} {
-  match readFileResult(path) {
-    Ok(contents) => Ok(toUpper(contents)),
-    Err(e) => Err(e)
-  }
-}
-```
-
----
-
-### Typed Quasiquotes
-
-**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-quasi-typed-quasiquotes.md)
-**Verified at**: v0.33.1 (2026-08-17 — backtick template syntax lexes as `ILLEGAL`; no quasiquote surface in the parser)
-
-Typed quasiquotes for deterministic AST templates and secure string templating
-are designed but not yet implemented. Use string interpolation (`"${expr}"`,
-v0.12.1+) or `concat([..])` for now.
-
----
-
-### CSP Concurrency
-
-**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-csp-session-types.md)
-**Verified at**: v0.33.1 (2026-08-17 — no channel/session-type surface in the parser; `chan` is just an identifier)
-
-CSP-style concurrency with channels and session types is deferred to the v1.1 track or later.
-AILANG currently focuses on deterministic, single-threaded execution. The
-runtime does support effect-level concurrency primitives in some contexts (see
-the `Concurrency` effect), but full CSP with session types remains future work.
-
----
-
-### Interactive stdin / Keyboard Input
-
-**Status**: Line input and scoped native keys work; in-flight AI cancellation remains separate.
-**Verified at**: native-terminal sprint implementation, 2026-10-10 (supporting release pending).
-
-`std/io.readLineOpt()` returns `Some("")` for a blank line, `Some(text)` for a final
-partial line and sticky `None` at EOF. Legacy `readLine()` retains its string
-semantics. `std/stream.asyncReadStdinLines` supplies concurrent line events.
-
-| Need | Status | Tracking |
+| Area / Construct | Measured Behavior (`v0.64.1`) | Workaround / Guard |
 |---|---|---|
-| **Line input** (`readLine`, `readLineOpt`, `asyncReadStdinLines`) | Supported | IO / Stream capabilities |
-| **Scoped native single keypress and resize** | macOS/Linux evaluator and native VM | `std/terminal`, IO, host lifecycle integration |
-| **Abort an in-flight `std/ai.step()`** | Separate cancellation work | [#231](https://github.com/sunholo-data/ailang/issues/231) |
+| **`int` wrap vs `verify --int-model=int64`** | Runtime `int` wraps at signed 64-bit (`9223372036854775807 + 1 == -9223372036854775808`). `ailang verify` defaults to unbounded Z3 `Int` (emitting an `int_overflow` caveat note); `--int-model=int64` promotes overflow to `VIOLATION`. | Pass `ailang verify --int-model=int64` or bound inputs in `requires`. |
+| **Non-tail recursion (~5 KB/frame) & depth cap** | `ailang run` caps recursion at `10,000` levels/frames by default (`RT_REC_003` on evaluator, `stack overflow` on VM). Non-tail recursion allocates ~5 KB/frame (evaluator hops goroutines every `131,072` levels). | Use tail recursion (constant depth) or `std/list` (`map`, `foldl`, `takeMap`), or pass `--max-recursion-depth N`. |
+| **List prepend (`::`, `++`) & strict `take`** | `ListValue` is a flat Go slice, so `x :: xs` and `xs ++ [x]` copy `O(n)` per step (`O(n²)` in loops). Arguments are strict: `take(n, flatMap(f, xs))` materialises the whole `flatMap` first. | Use `map`, `takeMap`, `takeFlatMap`, or `foldl` with a scalar/record accumulator. |
+| **Bounded Z3 recursion & verification scope** | `ailang verify` unrolls named recursion (`--verify-recursive-depth N`, default `2`) and literal-lambda HOFs (`map`/`filter`/`foldl`/`any`/`flatMap`, depth `3`). Unbounded recursion is `inconclusive` (no induction). Bitwise ops (`&`, `^`, `~`, `<<`, `>>`) and function parameters are `skipped`; floats model as SMT `Real` (non-NaN input assumed; `/0`, `sqrt(<0)`, `log(<=0)` are violations); opaque helpers note `helpers_not_checked`. | Bound depth/lengths in `requires`, guard floats with `std/math.isNaN`, and run runtime contract checks via `ailang run --verify-contracts` (evaluator only; `--bytecode --verify-contracts` errors `CTR004`). |
+| **Explicit-flow IFC (`T<label>`, `Declassify`)** | Information-flow labels track **explicit data flow** only, not implicit control-flow channels (branching on a tainted boolean to return untainted literals). Parameters allow one `not` refinement (`string{not a, not b}` does not parse). | Use explicit `Declassify` at boundary functions; group forbidden labels under a shared parent label (`string{not sensitive}`). |
+| **`--bytecode` VM coverage & parity** | `186 / 205` runnable examples run natively on the VM (`~40×` faster than the evaluator on call-heavy code). Remaining gaps (unwired effect builtins, contract-module ADTs, user ADTs/closures passed to evaluator-only helpers, newtype `w.x` access) warn on stderr (`BC001` under `--strict-bytecode`). `Map.insert`/`Set.insert`/`Array.set` copy `O(n)` per update; module-level `let` initializers recompute per read on VM. | Run `ailang check --strict-bytecode` in CI to catch fallbacks; build collections via `fromList`/`updateMany`/`accumulate`; cache expensive module `let` values in locals. |
+| **`export import` re-export syntax** | `export import std/io (println)` fails with `PAR_EXPORT_REQUIRES_FUNC` (pending open PR `#2475`). | Define an `export func` wrapper in the facade module. |
+| **No ad-hoc user typeclasses** | Built-in classes (`Num`, `Eq`, `Ord`, `Show`, `Fractional`) and `deriving (Eq, Json)` work; user `class`/`instance` definitions, explicit constraints (`Num a => ...`), and higher-kinded type params (`m[int]`, `PAR_TYPE_PARAM_APPLIED`) are unsupported. | Pass explicit record-of-functions dictionaries or use ADTs. |
+| **Type size & WASM checker budgets** | `check` rejects types >`65,536` nodes / `1,000` depth (`TC_TYPE_SIZE_001`) or excessive alias expansion work (`TC_TYPE_WORK_001`). Browser WASM adds a `2 s` wall-clock type-check budget (`ailangSetTypeCheckBudget` adjusts; CLI unaffected). | Extract helper functions or nominal ADTs for huge record/match chains; flatten nested matches. |
+| **Syntax & stdlib constraints** | Multi-statement `if`/`else` branches require `{ ... }`; `let x = expr?` works on `let` bindings along a `Result`/`Option` return spine (`PAR_TRY_LET_ONLY` elsewhere); no Y-combinator/infinite types (`TC004`); no typed quasiquotes or CSP channels; `std/regex` uses RE2 (no backreferences/lookaround); `std/json` integers outside int64 decode as `JNumber(float)`; `std/terminal` native keys are macOS/Linux only. | Wrap multi-statement `else` in `{ ... }`; use `"${expr}"` interpolation; keep >53-bit JSON IDs as strings. |
+| **Policy confinement residuals (`--policy`)** | Confined execution covers mediated effects (`IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`). CPU/RAM limits require containers/cgroups; HTTP proxies (`E_NET_PROXY_REFUSED`) and loopback/metadata are refused in restricted mode; `std/ai` HTTP bypasses `Net` pinning (spend capped by `[budgets] AI`); Windows/WASM lack restricted process teardown. | Run untrusted workers in a container/cgroup (`AILANG_EVAL_MAX_RSS`), use `trusted_host` for local Ollama, and set `fs_deny_write` on supply-chain files. |
 
-Windows/WASM native operations return typed `Unsupported`. Budget-annotated terminal package
-adapters currently run through the evaluator; pure package tests and core terminal
-operations have strict bytecode coverage. Input ownership excludes competing line
-readers and preserves unread buffered data; handles expire with their scope.
+## Minimal Verified Workarounds
 
-For real-time output, use `flush()` after partial-line writes and ANSI string
-escapes (`\x1b`, `\u{…}`), as in `examples/progress_bar.ail`.
-
----
-
-### Regex: No Backreferences or Lookaround (By Design)
-
-**Status**: Design constraint (RE2 linear-time guarantee)
-**Verified at**: v0.33.1 (2026-08-17, `ailang run` transcript below)
-
-`std/regex` wraps Go's RE2 engine, which deliberately excludes backreferences and
-lookahead/lookbehind in exchange for a **linear-time, no-catastrophic-backtracking
-guarantee**. Unsupported patterns return `Err(message)` — never a panic:
+### 1. Int64 Overflow & Z3 Verification (`--int-model=int64`)
 
 ```ailang
+module docs/limits_int64
+
+export pure func incBounded(x: int) -> int
+  requires { x >= 0 && x < 9223372036854775807 }
+  ensures { result > x }
+{
+  x + 1
+}
+```
+
+Without the upper bound in `requires`, `ailang verify --int-model=int64` flags `x = 9223372036854775807` as `VIOLATION (int_overflow)` instead of an advisory caveat.
+
+### 2. Tail Recursion & Builtin-Backed Loops (`RT_REC_003`)
+
+```ailang
+module docs/limits_recursion
+
+import std/list (foldl, takeMap)
+
+export pure func sumAcc(n: int, acc: int) -> int =
+  if n <= 0 then acc else sumAcc(n - 1, acc + n)
+
+export pure func topDoubled(xs: [int], k: int) -> [int] =
+  takeMap(k, \x. x * 2, xs)
+
+export pure func sumList(xs: [int]) -> int =
+  foldl(\acc x. acc + x, 0, xs)
+```
+
+`sumAcc` runs in constant stack depth on both engines; `takeMap` avoids allocating unvisited elements under strict evaluation.
+
+### 3. Re-exporting Symbols (`export import` Pending `#2475`)
+
+```ailang error=PAR_EXPORT_REQUIRES_FUNC
+-- Fails today with PAR_EXPORT_REQUIRES_FUNC:
+module docs/limits_reexport_fail
+export import std/io (println)
+```
+
+Workaround — wrap the imported symbol in an exported function:
+
+```ailang
+module docs/limits_reexport_ok
+
+import std/io (println)
+
+export func logLine(msg: string) -> () ! {IO} = println(msg)
+```
+
+### 4. Named Recursion, Explicit Braces & RE2 Regex
+
+```ailang
+module docs/limits_syntax_regex
+
 import std/regex (compile)
 
-func checkUnsupported() -> (string, string) {
-  let r1 = match compile("(a)\\1") { Ok(_) => "ok", Err(e) => e };
-  -- Err: error parsing regexp: invalid escape sequence: `\1`
-  let r2 = match compile("(?=x)") { Ok(_) => "ok", Err(e) => e };
-  -- Err: error parsing regexp: invalid or unsupported Perl syntax: `(?=`
-  (r1, r2)
-}
+export pure func factorial(n: int) -> int =
+  if n <= 1 then 1 else n * factorial(n - 1)
+
+export pure func buildDoubles(x: int, maxX: int) -> [int] =
+  if x > maxX then [] else {
+    let v = x * 2;
+    let rest = buildDoubles(x + 1, maxX);
+    v :: rest
+  }
+
+export pure func checkRegex() -> bool =
+  match compile("(a)\\1") {
+    Ok(_) => true,
+    Err(_) => false   -- RE2 rejects backreferences cleanly with Err
+  }
 ```
 
-**Workaround**: restructure to RE2-expressible patterns (often a second `match` call or a
-string-function check on the captured group replaces the backreference/lookaround).
+### 5. Callback Effect Contracts & Type Bounds
 
----
+- **Function-field annotations:** Storing an `! {IO, Env}` callback in a record typed `{f: int -> int ! {IO}}` still type-checks (closed upper-bound enforcement remains tracked in `#573`/`#1326`), though invoking annotated fields and `mapE` does charge effects. Use closed pure `T -> U ! {}` for pure callbacks (`std/list.map`).
+- **Rigid signature variables & recursive groups:** Explicit `[a]` / implicit lowercase type variables are rigid (`TC_RIGID_001`). Calls inside a recursive group are monomorphic (no polymorphic recursion).
+- **Named tests:** `test "..." { ... }` and `property "..." { ... }` bodies are checked pure (`TC_TEST_001`) and do not enforce callee contracts at runtime; verify effectful paths via an exported `main` with `ailang run --caps ... --verify-contracts`.
 
-## Recently Resolved
+## Recently Resolved (Now Shipped)
 
-These limitations existed in earlier versions and are now fully resolved.
-Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17, except
-where an entry gives its own date.
-
-- **Go-codegen-only limitations** — Gone with the Go emitter (removed after v0.60.5).
-  `ailang compile --emit-go` duplicated-record struct selection and the missing tail-call
-  elimination in generated Go no longer apply: AILANG runs on the evaluator and the
-  bytecode VM only.
-
-- **Effectful callbacks nested in data arguments** — Fixed for v0.55.0
-  ([#1718](https://github.com/sunholo-data/ailang/issues/1718), design
-  M-EFFECT-LATENT-NESTED-CALLBACKS, verified 2026-10-26). A function value inside a list,
-  tuple, `Option`/ADT payload or record argument is now charged to the caller like a
-  top-level callback: with an effectful `logIt`, a pure caller of `applyHead([logIt], x)`,
-  `applyFst((logIt, x))` or `applyOpt(Some(logIt), x)` is rejected with
-  `Missing effects: IO`; declare `! {IO}` on the caller. The same release closes a
-  concrete annotation's compatibility tail at every read
-  ([#1826](https://github.com/sunholo-data/ailang/issues/1826)), so an `! {IO}` callback
-  passed through `mapE` no longer fails with `Unresolved effect tail`. **Migration:** a
-  concrete `! {IO}` callback mapped with closed-pure `std/list.map`
-  (`map(\d. g(d), xs)`) is now a type error, exactly like `map(\d. println(d), xs)`;
-  use `mapE`.
-
-- **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
-  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
-  `let add = \x. \y. x + y in add(3.14)(2.71)` now returns `5.85`.
-  Re-verified v0.33.1 (`ailang run` → `5.85`).
-- **`match` inside block-body lambdas in HOF arguments** — Fixed (design doc
-  [m-dx-match-in-hof-block-lambda](https://github.com/sunholo-data/ailang/blob/dev/design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md)).
-  Using brace-form `match` inside a `\x. { ... }` lambda passed to a HOF now type-checks and runs:
-  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`
-  (with `import std/list (map)` — `map` is not in the prelude).
-  Re-verified v0.33.1. (The old `match ... with | …` ML/Haskell form is retired — it now emits
-  `PAR019`; use brace-form `match x { pat => expr }`.)
-- **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing now works fully.
-  `{ println("step 1"); println("step 2"); println("step 3") }` runs all three. The old
-  `let _ = … in` workaround is no longer needed. Re-verified v0.33.1.
-- **String interpolation** — Implemented in v0.12.1 (`"Hello, ${name}!"`).
-  Phase 2 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md)
-  in v0.13.0 made `++` list-only (string `++` is now a type error). Re-verified v0.33.1
-  (`"Value: ${x}"` → `Value: 42`).
-- **Pattern guards** — Implemented in v0.6.2
-  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)).
-  `match x { n if n > 100 => ..., n if n > 0 => ... }` now evaluates guards
-  correctly. Re-verified v0.33.1 (→ `big`).
-
----
-
-## Notes on Parser Error Messages
-
-Parser errors include:
-- **Error codes** (e.g., `PAR_UNEXPECTED_TOKEN`)
-- **Precise positions** (file, line, column)
-- **Suggestions** for fixing the error
-
-Example:
-```
-PAR_UNEXPECTED_TOKEN at file.ail:2:14: expected ), got INT
-Suggestion: Add ')' to close grouped expression
-```
-
----
-
-## Diagnostic Heuristic Bounds (By Design)
-
-### Reversed-`split`-argument warning is best-effort
-
-The compile-time warning for reversed `split` arguments (M-DX-SPLIT-ARG) is a
-**best-effort heuristic**: it fires only when the first argument is a short (1–3
-rune) **string literal** and the second is not a literal, e.g. `split("/", name)`.
-It intentionally does **not** flag `split(sep, s)` when the delimiter is a
-variable (`let sep = "/"; split(sep, name)`) — there is no literal delimiter to
-key on, and both arguments are `string` so the type system cannot distinguish
-them. The warning is non-blocking and never produces false positives on the
-correct data-first order `split(s, delimiter)`. Prefer data-first and treat the
-warning as a backstop for the literal-delimiter case.
-
----
+- **Error/option spine propagation (`let x = expr?`):** Unwraps `Ok`/`Some` along a return spine and early-returns `Err`/`None` (see [Option vs Result](/docs/reference/option-vs-result)).
+- **Two engines only (`Go` emitter removed):** `compile --emit-go` was removed after `v0.60.5`; AILANG runs exclusively on the reference evaluator and `--bytecode` VM.
+- **Exhaustive pattern checks & nominal identity:** `TC_MATCH_002` checks pattern exhaustiveness, `TC_NOMINAL_001` enforces nominal ADT identity across modules, and `TC_CONSTRAINT_001` propagates class constraints across module boundaries.
+- **Per-instance numeric compilation (`#2378`):** Generic numeric functions with integer literals (`func inc(x) = x + 1`) compile both `int` and `float` variants (up to 4 literal-carrying type vars; `TC_NUMVAR_001` otherwise).
 
 ## Reporting New Limitations
 
-Found a limitation not listed here? Please file an issue at:
-https://github.com/sunholo-data/ailang/issues
-
-Include:
-- AILANG version (`ailang --version`)
-- Minimal reproduction code
-- Expected vs actual behavior
-- Whether it's a bug or design limitation
+File an issue at [github.com/sunholo-data/ailang/issues](https://github.com/sunholo-data/ailang/issues) with `ailang --version`, a minimal `.ail` reproduction, and expected vs actual behavior.

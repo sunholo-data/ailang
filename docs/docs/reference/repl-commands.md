@@ -1,5 +1,6 @@
 ---
-reviewBy: 2026-11-16
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG REPL Commands Reference
@@ -11,17 +12,17 @@ ailang repl
 ```
 
 The REPL auto-imports `std/prelude` on startup, providing:
-- Numeric defaults: `Num → Int`, `Fractional → Float`  
-- Type class instances for `Num`, `Eq`, `Ord`, `Show`
-- String concatenation with `++` operator
+- Numeric defaults: `Num → Int`, `Fractional → Float`
+- Type class instances for `Num`, `Fractional`, `Eq`, `Ord`, `Show`
+- List/string utilities and `Option`/`Result` constructors
 - Record literals and field access
 
 ## Basic Commands
 
 - `:help, :h` - Show all available commands
-- `:quit, :q` - Exit the REPL (also works: Ctrl+D)
-- `:type <expr>` - Show qualified type with constraints
-- `:import <module>` - Import type class instances
+- `:quit, :q, :exit` - Exit the REPL (also works: Ctrl+D)
+- `:type <expr>, :t` - Show resolved type
+- `:import <module>, :i` - Import module bindings and instances
 - `:instances` - List available instances with superclass provisions
 - `:history` - Show command history
 - `:clear` - Clear the screen
@@ -32,6 +33,7 @@ The REPL auto-imports `std/prelude` on startup, providing:
 - `:dump-core` - Toggle Core AST display for debugging
 - `:dump-typed` - Toggle Typed AST display
 - `:dry-link` - Show required dictionary instances without evaluating
+- `:strict` - Toggle strict type-checking mode
 - `:trace-defaulting on/off` - Enable/disable defaulting trace
 
 ## AI-First Commands
@@ -39,6 +41,7 @@ The REPL auto-imports `std/prelude` on startup, providing:
 - `:effects <expr>` - Inspect type and effects without evaluation
 - `:test [--json]` - Run tests with optional JSON output
 - `:compact on/off` - Toggle JSON compact mode for token efficiency
+- `:propose <spec>` / `:scaffold <file>` - AI proposal and scaffolding helpers
 
 ## Interactive Features
 
@@ -50,41 +53,48 @@ The REPL auto-imports `std/prelude` on startup, providing:
 ## Example Session
 
 ```ailang repl
-λ> 1 + 2
+λ[Debug,IO]> 1 + 2
 3 :: Int
 
-λ> 3.14 * 2.0
+λ[Debug,IO]> 3.14 * 2.0
 6.28 :: Float
 
-λ> "Hello AILANG!"
+λ[Debug,IO]> "Hello AILANG!"
 Hello AILANG! :: String
 
-λ> [1, 2, 3]
+λ[Debug,IO]> [1, 2, 3]
 [1, 2, 3] :: [Int]
 
-λ> {name: "Alice", age: 30}
-{name: Alice, age: 30} :: {name: String, age: Int}
+λ[Debug,IO]> {name: "Alice", age: 30}
+{age: 30, name: "Alice"} :: {age: Int, name: String}
 
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
+λ[Debug,IO]> :type \x. x + x
+\x. x + x :: int -> int
 
-λ> let double = \x. x * 2 in double(21)
+λ[Debug,IO]> let double = \x. x * 2 in double(21)
 42 :: Int
 
-λ> :instances
+λ[Debug,IO]> :instances
 Available instances:
-  Num:
-    • Num[Int], Num[Float]
-  Eq:
-    • Eq[Int], Eq[Float], Eq[String], Eq[Bool]
   Ord:
     • Ord[Int] (provides Eq[Int])
     • Ord[Float] (provides Eq[Float])
-    • Ord[String] (provides Eq[String])
+  Fractional:
+    • Fractional[Float] (provides Num[Float])
+  Eq:
+    • Eq[Float]
+    • Eq[Int]
   Show:
-    • Show[Int], Show[Float], Show[String], Show[Bool]
+    • Show[Int]
+    • Show[String]
+    • Show[Bool]
+    • Show[Float]
+  Num:
+    • Num[Int]
+    • Num[Float]
 
-λ> :quit               # Exit REPL
+λ[Debug,IO]> :quit               # Exit REPL
+Goodbye!
 ```
 
 ## Multi-line Input Support
@@ -92,9 +102,9 @@ Available instances:
 The REPL supports multi-line expressions with automatic continuation:
 
 ```bash
-λ> let user = {name: "Alice", age: 30} in
+λ[Debug,IO]> let user = {name: "Alice", age: 30} in
 ... user
-{name: Alice, age: 30} :: {name: String, age: Int}
+{age: 30, name: "Alice"} :: {age: Int, name: String}
 ```
 
 ## Type Class Pipeline
@@ -102,7 +112,7 @@ The REPL supports multi-line expressions with automatic continuation:
 The REPL executes the full pipeline:
 1. **Parse** - Surface syntax to AST
 2. **Elaborate** - AST to Core (ANF)
-3. **TypeCheck** - Infer types with constraints
+3. **TypeCheck** - Infer types with constraints and defaulting
 4. **Dictionary Elaboration** - Transform operators to dictionary calls
 5. **ANF Verification** - Ensure well-formed Core
 6. **Link** - Resolve dictionary references

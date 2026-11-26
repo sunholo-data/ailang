@@ -1,266 +1,56 @@
 ---
-reviewBy: 2027-03-08
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Known Limitations
 
-> **Canonical page:** the maintained, live-verified limitations list is the published reference —
-> **[docs/docs/reference/limitations.md](docs/docs/reference/limitations.md)** (rendered at
-> <https://ailang.sunholo.com/docs/reference/limitations>). This root file is a pointer + short
-> summary; the website copy is authoritative and carries per-entry repro transcripts + verified-at
-> dates.
+> **Canonical page:** [docs/docs/reference/limitations.md](docs/docs/reference/limitations.md) ([ailang.sunholo.com/docs/reference/limitations](https://ailang.sunholo.com/docs/reference/limitations)) carries full workaround snippets and diagnostic codes.
 
-**Baseline sweep live-verified at AILANG `v0.33.1-72-g4b46bb97e` (2026-08-17); individual entries continuously re-verified and updated through `v0.60.6` (2026-11-23).** Per the
-[M-V1-STABILITY-PROMISE](design_docs/implemented/v0_29_0/m-v1-stability-promise.md) entry policy, every
-open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
-dated "Resolved" list — this file is no longer allowed to freeze at a past version.
+**Live-verified at AILANG `v0.64.1` (`2026-11-26`).**
 
-## Open limitations (summary)
+## Capability & Cliff Matrix
 
-See the [canonical page](docs/docs/reference/limitations.md) for repros, transcripts, and
-workarounds. Dates per row below (latest re-verification: `v0.60.6`, 2026-11-23):
-
-| Limitation | Kind | Verified-at repro |
+| Area | Constraint / Cliff (`v0.64.1`) | Workaround |
 |---|---|---|
-| **Concrete function-effect annotation upper bounds** | Deferred Phase 3 | Verified 2026-10-08 on the v0.53.0 implementation: storing an `! {IO, Env}` function in an `! {IO}` field still checks; see the canonical page and existing #573/#1326. |
-| **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
-| **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
-| **Type size bounds: TC_TYPE_SIZE_001** | Design constraint (`check` must stay bounded on any input) | A type that doubles at every step (`let t1 = (t0, t0)` repeated, or an exported alias DAG) is rejected once its tree passes 65,536 nodes, as is a declaration whose types nest more than 1,000 deep, and a declaration whose unification, or whose alias expansion while scanning an argument for callbacks, takes more work than its size allows is TC_TYPE_WORK_001 (2,097,152 steps plus 32 per node squared). An alias whose two uses build different arguments at every level (`P1[a, b] = (P0[(a, b), b], P0[a, (b, a)])`) is rejected from 13 levels on. A record of 40 fields each holding the same 40-field record of 40-field records (65,641 nodes) is just over the limit. The largest real type seen is 107 nodes and 10 levels deep (#2308, #2329); a long list literal or `::`/`++` chain is a deep expression, not a deep type. Wrap the repeated part in a data type. Checking is still polynomial in expression nesting depth, which no type bound sees: a 2,000-term `++` chain runs over two minutes and a 300-deep nested record literal 17 s ([#2361](https://github.com/sunholo-data/ailang/issues/2361)). Added 2026-11-16. |
-| **WASM type-checker depth limit** | WASM-host only (CLI unaffected) | deeply-recursive or pathologically-slow type structure trips a 2 s wall-clock budget; structured `budget exceeded` error. |
-| **`?` error-propagation operator** | Not yet implemented (planned) | `r?` → `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`. Use explicit `match` on `Result`. |
-| **Typed quasiquotes** | Not yet implemented (planned) | quasiquote syntax not accepted. Use `"${expr}"` interpolation / `concat([..])`. |
-| **CSP concurrency (channels / session types)** | Deferred | no channel/session-type surface in the parser. |
-| **Native terminal platform / mid-call `std/ai.step()` abort** | Platform and cancellation gaps | `std/terminal` supports scoped native input on macOS/Linux with host lifecycle integration; Windows/WASM return `Unsupported`. Interrupting an in-flight AI request remains separate. |
-| **Regex backreferences / lookaround** | Design constraint (RE2 linear-time guarantee) | `std/regex` wraps Go's RE2 engine → **no backreferences, no lookahead/lookbehind**. `regex.compile("(a)\\1")` / `compile("(?=x)")` return `Err(message)` (never panic). This is the deliberate price of the linear-time, no-catastrophic-backtracking guarantee. |
-| **Strict `take` after `flatMap` / allocating `map` bounds results, not peak memory** | Design constraint (strict evaluation) | Use `takeFlatMap(n, f, xs)` or, when `f` allocates, `takeMap(n, f, xs)`; [canonical entry](docs/docs/reference/limitations.md#strict-evaluation-taken-flatmapf-xs-bounds-the-result-not-the-peak) has the v0.33.0 repro and remaining bounds. |
-| **JSON integers outside int64 are floats** | Design constraint (no big integers) | `std/json.decode` gives an exact `JInt(int)` for an integer literal that fits int64; a larger one (`9223372036854775808`) decodes as `JNumber` with the nearest float, so its low digits are rounded, and `getInt` returns `None` for it. `asNumber`/`getNumber` on a `JInt` above 2^53 also round (use `getInt` or match `JInt(n)`). Keep ids outside int64 as JSON strings. Through JSON text the numeric value round-trips, the constructor does not: `encode` prints a whole-number `JNumber` as `3`, so `decode(encode(jnum(3.0)))` is `Ok(JInt(3))`, not `Ok(JNumber(3.0))` (ruled 2026-11-10; compare numbers with `asNumber`/`getInt`). Replaces the old "all JSON numbers are floats, integers above 2^53 lose precision" behaviour (v0.58.x). Added 2026-11-10. |
-| **A `requires` clause is an unchecked assumption by default** | Verifier and runtime scope | `ailang run` checks a `requires` only with `--verify-contracts`. The verifier assumes a function's precondition while proving that function's `ensures`. On dev (2026-11-24) it also checks a callee's `requires` at each call in a verified function's own body: a call that may break it is a VIOLATION (`requires_violation`). Calls inside a helper, a HOF lambda or the function's own recursion are checked too (recursive helpers and lambdas only to the unrolling depth); calls inside a contract are not, and an unverified caller (no contract, or skipped) is never checked. Guard inputs in code where it matters. Added 2026-11-10. |
-| **Contract verification treats `int` as unbounded** | Verifier model gap (runtime wraps) | `int` is encoded as Z3's unbounded `Int`, but the runtime `int` is a wrapping int64: `inc(x) ensures { result > x } { x + 1 }` is VERIFIED and `inc(9223372036854775807)` returns `-9223372036854775808`. On dev (2026-11-24) such a result carries an `int_overflow` note with that input, and `ailang verify --int-model=int64` makes it a violation; arithmetic in helpers, lambdas and recursion is checked the same way (recursive helpers and lambdas only to the unrolling depth). Bound inputs in `requires` where overflow is possible. See the [canonical entry](docs/docs/reference/limitations.md#static-verification-what-a-verified-result-does-not-cover). Added 2026-11-23. |
-| **Same-named imported functions can give a false VERIFIED** | Verifier soundness bug (nondeterministic) | Callee bodies are resolved by bare name: importing `a/good (clamp0 as goodClamp)` and `a/bad (clamp0)` let `verify` inline the wrong `clamp0`, VERIFIED in 5 of 6 runs on a contract the called function violates. Fixed on dev after v0.60.6 (such a call is now SKIPPED, naming both modules); on v0.60.6 and earlier avoid same-named functions across a verified function's imports. Added 2026-11-23. |
-| **Verifier skips bitwise ops; recursion and HOFs are bounded only** | Verifier coverage gap | A literal-lambda `map`/`filter`/`foldl`/`any`/`flatMap` is unrolled to depth 3 (dev after v0.60.6; SKIPPED on v0.60.6, #1375) and, like recursion, is VERIFIED only when `requires` bounds the list; `&` `^` `~` `<<` `>>` are SKIPPED as unencodable; a recursive function is INCONCLUSIVE (exit 1) unless `requires` bounds its depth (no induction); an unannotated generic parameter is a Z3 error (#2400). Verified 2026-11-23 at v0.60.6; see the canonical entry. Added 2026-11-23. |
-| **Runtime contracts: evaluator only, off by default, not in named tests** | Runtime coverage gap | `run --bytecode --verify-contracts` is refused (CTR004, exit 2; it used to run unchecked, #1956). `run` without `--verify-contracts` checks nothing, and a `test "…" { … }` body does not check the contracts of the functions it calls. See the canonical page. Added 2026-11-10. |
-| **Contract verification treats floats as real numbers** | Verifier model gap (runtime unaffected) | `ailang verify` / `ai-check` encode `float` as an SMT real, which has no NaN, so the solver can prove `x == x` for a value that is NaN at runtime. Runtime `==` is IEEE (NaN ≠ NaN, #1274), and so are `<` `<=` `>` `>=` (false with a NaN operand, #1419). Don't rely on a verified float-equality or float-ordering contract when NaN is possible; guard with `std/math.isNaN`. On dev (2026-11-24) the operations that create NaN or ±Inf from ordinary floats (division or remainder by zero, `sqrt` of a negative, `log` of a non-positive) are violations, but NaN inputs are still assumed away. Added 2026-09-25. |
-| **Cross-ADT constructor tag collisions in unresolved bytecode switches** | Bytecode VM soundness gap (deterministic) | If static typing cannot identify the scrutinee and multiple ADTs declare every matched tag, the VM compiler chooses the first ADT in source declaration order. Output is deterministic, but programs should avoid relying on same-named tags across ambiguous ADTs until runtime tag identity is carried explicitly. Added 2026-09-29. |
-| **Quadratic `::` prepend / 10,000-frame evaluator recursion cap** | Runtime limitations (representation fix in progress) | Flat-slice `ListValue` makes every cons copy its tail; deep recursion returns `RT_REC_003`. Prefer builtin-backed `map` / `takeMap`, or `foldl` for non-list aggregation; `--max-recursion-depth N` raises only the depth wall, not the cons memory cost. See the [canonical entry](docs/docs/reference/limitations.md#prepending-with--is-quadratic-evaluator-recursion-is-capped-at-10000-frames). |
-| **`Map.insert` / `Set.insert` / `Array.set` copy the whole structure (O(n) per update)** | Runtime representation (persistent structures planned) | `std/set` and structured keys (tuples, records, ADTs) work since 2026-10-28, but every single-element update copies: 20,000 sequential `Set.insert`s of `(int, int)` take 5.6 s on the evaluator and 6.5 s on `--strict-bytecode` (×4 per doubling). Build with `fromList` / `updateMany` / `accumulate` (one copy) where the elements are known up front; a search loop that inserts once per visited state is O(n²) until the persistent Map/Set phase of [m-persistent-collections](design_docs/planned/v0_55_0/m-persistent-collections.md) lands. Added 2026-10-28. |
-| **`--bytecode` is ~1.8× slower than the evaluator on copy-bound list building** | Runtime performance (representation width) | `foldl(\acc x. x :: acc, [], xs)` at 40,000 elements: 0.75 s evaluator, 1.35 s VM (bench/vm_hof_callbacks). Each `::` copies the whole list, and a VM value is 40 bytes against the evaluator's 16-byte interface, so the VM allocates 2.5× the bytes and runs more GC cycles. The profile is in [m-foldl-cons-cost-model](design_docs/implemented/v0_52_0/m-foldl-cons-cost-model.md#phase-3-profile-2026-10-02). Per-callback cost is not the cause: O(1)-step `foldl`/`map`/`filter` run 20–30× faster on the VM than on the evaluator. Build lists with `map`/`filter`/`mapAccumL`; the copy itself goes away only with the cons representation fix (D-19). Added 2026-10-02. |
-| **`--bytecode` falls back to the evaluator; VM ~2× slower than CPython** | Runtime coverage and performance | 18 of 205 evaluator-passing `examples/runnable` files fall back to the evaluator (61 before #1989, which made prelude `println`, local `letrec` and module-level value `let` native). The rest are unwired effectful builtins, contract-module ADTs, and user ADTs or closures passed to evaluator-only functions. Since 2026-11-09 the fallback is no longer silent: `--bytecode` prints a stderr warning naming the bridged functions, and `ailang check --strict-bytecode` reports each one as [BC001](docs/docs/reference/errors/bc001.md); `--strict-bytecode` on `run`/`test` fails before dispatch. `fib(32)`: VM 0.33 s (0.50 s before M-VM-QUICK-WINS), CPython 0.14 s. See [M-VM-COVERAGE](design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md). Added 2026-10-28. |
-| **`--bytecode` recomputes a module-level value at each reference** | Runtime performance (no VM globals yet) | `let table = buildTable()` is evaluated once on the evaluator but once per reference on the VM, which calls the binding's initialiser wherever it is read. The answer is the same, because module-level bindings cannot carry effects, but an expensive initialiser read inside a hot loop is repeated. Bind it to a local in the function that loops, or pass it as a parameter. Once-only image globals are planned in [m-vm-coverage-letrec-prelude-bridge](design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md) (Phase 2b). Added 2026-10-28. |
-| **VM list views retain backing storage** | Memory retention (shared slices since v0.54.10) | A small live tail/take/drop view can retain its whole source backing allocation. Capacity caps prevent append writes into the source but do not release storage. See the [canonical entry](docs/docs/reference/limitations.md#vm-list-views-retain-backing-storage). |
-
-### If-Else Branches Require Explicit Braces {#if-else-branches-require-explicit-braces}
-
-AILANG is not layout-sensitive, so a multi-statement `if`/`else` branch must be wrapped in braces.
-Without them, only the first `let` is parsed as the branch and you get
-"if-else branches require explicit braces when using let bindings":
-
-```not-ailang
--- ❌ fails (missing braces around multi-statement else branch)
-if x > maxX then [] else
-    let v = x * 2;
-    let rest = buildList(x + 1, maxX);
-    v :: rest
-```
+| **Int64 wrap vs Z3** | Runtime `int` wraps at 64 bits; `verify` defaults to unbounded `Int` (with `int_overflow` caveat note). | Run `ailang verify --int-model=int64` or bound inputs in `requires`. |
+| **Non-tail recursion** | Default `10,000` level/frame cap (`RT_REC_003` / `stack overflow`); non-tail frames use ~5 KB. | Use tail recursion, `map`/`foldl`, or `--max-recursion-depth N`. |
+| **List prepend & strict `take`** | `::` and `++` copy `O(n)` per step; `take(n, flatMap(f, xs))` materialises `flatMap` first. | Use `map`, `takeMap`, `takeFlatMap`, or scalar `foldl`. |
+| **Bounded Z3 verification** | Recursion unrolls to depth `2` (`--verify-recursive-depth`), HOF lambdas to depth `3` (no induction). Bitwise ops & fn args skipped; floats model as non-NaN `Real`; `--bytecode --verify-contracts` refused (`CTR004`). | Bound depth/lists in `requires`, check NaN with `std/math.isNaN`, run `--verify-contracts` on evaluator. |
+| **Explicit-flow IFC** | Taint labels (`T<label>`) track explicit data flow, not implicit branch channels; single `not` refinement per param. | Use `Declassify` at trust boundaries and shared parent labels for multi-exclusion. |
+| **`--bytecode` VM coverage** | `186 / 205` runnable examples run natively; remaining fallbacks warn on stderr (`BC001` under `--strict-bytecode`). `Map.insert`/`Set.insert`/`Array.set` copy `O(n)`. | Gate with `ailang check --strict-bytecode`; bulk-build via `fromList`/`updateMany`/`accumulate`. |
+| **`export import` pending `#2475`** | Re-export syntax fails with `PAR_EXPORT_REQUIRES_FUNC`. | Wrap re-exported symbols in `export func`. |
+| **No ad-hoc user typeclasses** | Built-in `Num`/`Eq`/`Ord`/`Show`/`Fractional` + `deriving (Eq, Json)` only; no user `class`/`instance` or higher-kinded types. | Pass explicit record dictionaries or use ADTs. |
+| **Syntax & WASM budgets** | Multi-statement `else` requires `{ ... }`; `expr?` is `let`-spine only (`PAR_TRY_LET_ONLY`); RE2 regex has no backreferences; WASM has a `2 s` type-check wall-clock budget. | Wrap multi-statement branches in `{ ... }`; flatten nested matches; raise `ailangSetTypeCheckBudget` in WASM hosts. |
 
 ```ailang
--- ✅ works
-func buildList(x: int, maxX: int) -> [int] =
-  if x > maxX then [] else {
-    let v = x * 2;
-    let rest = buildList(x + 1, maxX);
-    v :: rest
-  }
+module docs/root_limitations_check
+
+import std/list (takeMap)
+
+export pure func incBounded(x: int) -> int
+  requires { x >= 0 && x < 9223372036854775807 }
+  ensures { result > x }
+{
+  x + 1
+}
+
+export pure func topDoubled(xs: [int], k: int) -> [int] =
+  takeMap(k, \x. x * 2, xs)
 ```
 
-Single-expression branches don't need braces. See the
-[canonical page](docs/docs/reference/limitations.md) for the full entry.
+## Policy Confinement Residuals (`--policy`)
 
-## Execution policy residuals {#execution-policy-residuals}
+Restricted mode mediates `IO`, `FS`, `Net`, `Clock`, `Rand`, and `Stream`. Everything below sits outside that boundary:
 
-What `ailang run --policy` in **restricted** mode does and does not guarantee, after
-M-EXECUTOR-POLICY-HARDENING (v0.41.0). The confined-execution claim covers the mediated effects
-(`IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`) and the `ailang_only` lane's tools. Everything below
-is outside it and is stated rather than papered over.
-
-| Residual | Kind | What to do about it |
+| Residual | Impact | Mitigation |
 |---|---|---|
-| **Hard links, device nodes, `/proc`, bind mounts seeded into the sandbox** | Root-relative APIs do not sever them (`os.Root` contract) | The launcher provisions a private per-task directory and never seeds it with these; a host that can change mount topology is outside the attacker model. |
-| **CPU and memory** | No portable effect-level bound; Go's soft memory target is not a hard limit | Run the worker in a container/cgroup; `AILANG_EVAL_MAX_RSS` on the eval rig. A configured hard limit the platform cannot enforce fails startup rather than pretending. |
-| **`trusted_host` mode** | An explicit host-integration grant with no confinement claim: full environment, proxy semantics, `Process`/`AI`/`Env`/`Secret` | Provenance only: `security_mode` is banked. Not accepted by the `ailang_only` lane. |
-| **HTTP proxy in restricted mode** | Refused (`E_NET_PROXY_REFUSED`): a destination cannot be pinned behind a proxy | A constrained proxy protocol is future work; use `trusted_host` knowingly or unset the proxy. |
-| **Loopback / private / metadata destinations in restricted mode** | Refused with no override — local Ollama development is outside restricted mode | Address-scoped grants are future work; `trusted_host` honours a loopback entry in `net_allow`. |
-| **CLI ops of `ailang_cli` run as a separate unconfined process** | The path is validated inside the root at request time (and must not be a symlink); an in-root symlink swapped afterwards is a window the check cannot vouch for | Keep CLI grants short (`cli_allow`); the ops are read-only or write only the file they are given. |
-| **The AI effect's HTTP client is not the Net authorizer** | `ai.call` reaches the pinned provider through `http.DefaultClient` (no pinned dial, no redirect re-check, proxy honoured); the host is the operator's, not the program's, and spend is capped by `[budgets] AI` | Pin `ai_provider`; state the budget; routing the client through the shared round tripper is the follow-on (ADC token fetches need the metadata exception). |
-| **Persistence through the artifact** | Anything written inside the sandbox may be committed and later run with CI's or the next session's authority | `fs_deny_write` for the supply-chain paths; PR review; `artifact_patterns`. |
-| **Confined git is a hardened subprocess, not an in-process reader** | `git status/diff/log` run the real `git` with a built argv, a stripped environment and the config knobs forced off; a git bug or a config key not covered by the hardening is outside the claim | `.git/` is read-only to the agent so the config is the launcher's; the schema admits a short flag list; an in-process `std/git` (go-git) would remove the subprocess and is the planned follow-on. |
-| **Windows and `GOOS=js`** | No descendant termination claim / documented `os.Root` TOCTOU | Restricted mode refuses at startup with a named reason; `trusted_host` runs with those weaker guarantees. |
-| **Allowed endpoints are not vetted** | Public-only denial does not make data sent to an allowlisted host safe | `net_allow` is the operator's judgement. |
-
-## Resolved (were documented as broken; re-verified working at v0.33.1)
-
-- **Effectful callbacks nested in list/tuple/ADT arguments** (fixed for v0.55.0, verified
-  2026-10-26, [#1718](https://github.com/sunholo-data/ailang/issues/1718)) — a pure caller of
-  `applyHead([logIt], x)`, `applyFst((logIt, x))` or `applyOpt(Some(logIt), x)` is now
-  rejected with `Missing effects: IO`. Migration for the companion #1826 fix: a concrete
-  `! {IO}` callback mapped with closed-pure `std/list.map` is a type error; use `mapE`.
-
-- **Polymorphic arithmetic lambdas** — `let add = \x. \y. x + y in add(3.14)(2.71)` → `5.85`
-  (fixed v0.7.0, [m-poly-arithmetic-fix](design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
-- **`match` inside block-body lambdas in HOF arguments** —
-  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`
-  ([design doc archived](design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md)). The old
-  ML/Haskell `match … with | …` form is **retired** — it now emits `PAR019`; use brace-form
-  `match x { pat => expr }`.
-- **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing works fully; the old
-  `let _ = … in` workaround is no longer needed.
-- **Forgiving statement separators (v0.29+, M-SYNTAX-AI-FORGIVING)** — a `;`-separated
-  sequence is now accepted directly in a `=`-body (`func f() = s1; s2; e`), and a
-  **newline** is a soft statement separator inside `{ }` blocks (`{ let x = e\n rest }`).
-  Both parse to the same AST as the `;`-in-braces form; a `;` is only *required* to
-  separate two statements on the **same line**. Records still use commas.
-- **String interpolation** — `"Value: ${x}"` → `Value: 42` (v0.12.1); `++` is now list-only
-  (string `++` is a type error, v0.13.0).
-- **Pattern guards** — `match x { n if n > 100 => …, n if n > 0 => …, _ => … }` (v0.6.2).
-- **URL parsing** (v0.30.0, M-STDLIB-URL-PARSE) — `std/net` now parses URLs, not just builds them.
-  `parseUrl(s) -> Result[Url, string]` splits a URL into `{scheme, host, port, path, query, fragment}`
-  (RFC-3986, backed by Go `net/url`; `Err` on malformed input, never a panic), and
-  `parseQuery(s) -> [{name, value}]` decodes a query string into order-preserving, percent-decoded
-  pairs (the inverse of `urlEncodeForm`). Both **pure** — no `Net` capability. Previously an author
-  had to hand-roll a `std/string.split` chain (order-sensitive, RFC-ignorant); that workaround is no
-  longer needed.
-- **Module-less file silent success** (v0.30.0, M-MODLESS-FAIL-LOUD) — a `.ail` file with top-level
-  `export func` declarations but **no `module` line** used to type-check clean, print `✓ Running`, and
-  **exit 0 with no output** (the entry never ran, since a module-less file exports nothing). `ailang
-  run`/`check` now **fail loudly** with `MOD014: no 'module' declaration … Fix: add 'module
-  <canonical/path>' as the first line`. The fix names the exact module line to add. Bare-expression
-  files (`1 + 1` → `2`) are unaffected — they have no top-level funcs and still evaluate.
+| **CPU & memory** | No portable effect-level CPU/RAM bound. | Run inside a container/cgroup (`AILANG_EVAL_MAX_RSS`). |
+| **HTTP proxies & loopback** | Restricted mode refuses proxies (`E_NET_PROXY_REFUSED`) and loopback/metadata. | Use `trusted_host` for local model servers or unset proxies. |
+| **`std/ai` HTTP client** | Uses Go `http.DefaultClient` rather than pinned `Net` dialer; capped by `[budgets] AI`. | Pin `ai_provider` and set `[budgets] AI`. |
+| **Hard links / `/proc` / artifacts** | Root-relative `os.Root` APIs cannot sever pre-seeded links or post-run artifact commits. | Provision clean task roots; enforce `fs_deny_write` and PR review. |
+| **Windows / WASM** | No restricted process-group teardown; restricted mode refuses at startup. | Run confined policy workloads on Linux/macOS. |
 
 ## Reporting New Limitations
 
-File an issue at <https://github.com/sunholo-data/ailang/issues> with: AILANG version
-(`ailang --version`), a minimal repro, expected vs actual behavior, and whether it's a bug or a
-design constraint.
-
-## Same-named types across imports
-
-Since M-V1-NOMINAL-TYPE-IDENTITY (M2) a nominal type is its **defining module plus its
-name**: `q/a`'s `type T` and `q/b`'s `type T` are different types, and mixing them is
-`TC_NOMINAL_001` at `check` (it used to type-check and fail at run time). A local `type T`
-no longer captures an imported `T`, an imported alias body keeps the types it names, and a
-module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
-Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
-A bare name never depends on import order: two explicit imports of one type or constructor
-name are `MOD015`; a type name two imported modules export is `TC_AMBIGUOUS_TYPE_001` unless it
-is declared locally, imported by name, a built-in or a prelude name; a name no imported module
-exports may be resolved through a module reached indirectly (one candidate), and is ambiguous
-when two such modules declare it; a constructor two imported modules offer is resolved in a
-pattern by the scrutinee's type (once inference has decided it, whatever the order of the code),
-and is `TC_AMBIGUOUS_CTOR_001` where nothing decides it and in an expression. While undecided, a
-let-bound function matching it is not generic: using it at two types is `TC_AMBIGUOUS_CTOR_001`
-(import the constructor by name). A built-in name (`Map`, `List`, `Bytes`, …)
-means the built-in unless the module declares or imports its own: a module that writes `Map`
-meaning a dependency's `Map` must import it by name (`import dep (Map)`); the `TC_NOMINAL_001`
-diagnostic says so. The implicit prelude (`Option`, `Result`, `Some`, `None`, `Ok`, `Err`) is
-the lowest-precedence binding: a module's own declaration or import of any of them wins.
-The REPL/WASM module registry follows the same rules, except that it has no import closure:
-every loaded module is reachable, and a constructor offered by exactly one directly imported
-module is used before the other loaded modules are considered.
-
-Still open:
-
-- An undeclared type name is still an opaque type of the module that writes it rather
-  than `TC_UNBOUND_TYPE_001` (#1485); duplicate funcs/types/constructors in one module
-  are not yet `MOD007` (#1278).
-- Two back-end tables key by bare type name: the bytecode VM's ADT tables (two same-named
-  ADTs with *different* constructors used in one program fail under `--strict-bytecode` with
-  `BC001`; the evaluator runs them) and the SMT encoder behind `check --verify`.
-- Records are structural, so a record type's `==` is decided by its declared name: if any
-  imported module declares a record of the same name with `deriving (Eq)`, a same-shaped
-  record of another module gets `==` too. The comparison is structurally correct, and a record
-  with a field that has no `==` (a function) is still rejected.
-- A single-constructor ADT wrapping a record (`type W = W({x: int})`) is a nominal type, not
-  its record (`TC_NEWTYPE_001`, #2239); field access `w.x` works on it. A let-bound or inline
-  field reader (`let getx = \r. r.x`, `map(\t. t.name, items)`) accepts records and `W`s alike,
-  but a **top-level** function whose parameter type is inferred from field reads
-  (`pure func getx(r) = r.x`) is a record reader: its scheme is exported, so the read is
-  settled as a record access there, and `getx(W({x: 1}))` is `TC_NEWTYPE_001` with a hint to
-  annotate the parameter as `W` (it worked by accident before #2239). Only the evaluator runs
-  newtype field access: `--strict-bytecode` fails with `_record_get: arg 0 must be record, got
-  ADT` (`--bytecode` falls back to the evaluator). Pre-existing.
-- A constructor matched by name (neither it nor its type imported; its candidates are the types
-  in the module's own import closure that declare it) is decided only by the value's type, never
-  by the candidate set — even one candidate — so a let-bound or top-level helper matching it is
-  not generic: `let isBox = \o. match o { MkBox(_) => true, _ => false }`, with `Box` declared
-  in a module this one reaches only through another, cannot be used at `Box[int]` and
-  `Box[string]` (`TC_AMBIGUOUS_CTOR_001` / `TC_MATCH_007`). Import the type
-  (`import lib/box (Box, MkBox)`) to make it generic. `Some`/`None`/`Ok`/`Err` are never matched
-  by name outside `std/`: they are the prelude's in every module (#2371).
-- A bare type name resolved only through an indirect dependency can become ambiguous when another
-  indirect dependency adds the name, and an added import that exports the name re-points it (as
-  on dev); import the type by name to pin it. A constructor pattern's argument count is not
-  checked against the constructor (#2243, pre-existing).
-- Type variables are told from types by scope, not case (#2211, #2240): a name an enclosing
-  `[T]` list binds is a variable, a lowercase name the module declares or imports by name is
-  that type, and any other lowercase name is an implicitly quantified variable. A
-  misspelled or miscased type name (`state` for `State`) or a value name in type position
-  (`-> (stack, int)`) is therefore a type variable; since #2273 it is rigid, so a body that
-  needs a specific type there is `TC_RIGID_001` (a type declaration with a free variable is
-  `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
-  an import exports but the module does not import by name, and a value imported by name used
-  as a type.
-- Signature type variables are rigid (#2273, `TC_RIGID_001`) — explicit `[a]`, implicit `a`,
-  named record rows `| r` (an anonymous `...` stays a flexible wildcard), in the body and in
-  `requires`/`ensures` clauses — with these known gaps:
-  - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
-    inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
-    is rejected, naming the call, rather than allowed;
-  - class constraints are inferred, not declared (there is no syntax for them), so a signature
-    cannot promise `Num a` or forbid it. The inferred ones are part of the exported scheme
-    (`ailang iface` lists them) and a caller in another module is held to them
-    (`TC_CONSTRAINT_001`, #2290). A contract clause that needs a class the body does not
-    (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
-    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer
-    literal written at a signature variable is still rejected (`TC_RIGID_001`), though one reached
-    through an unannotated helper is fine: `pure func incH(x) = x + 1` then
-    `func inc[a](x: a) -> a = incH(x)`, and `inc(2.5)` is `3.5` (#2378);
-  - a function generic over a numeric type `a` that carries an integer literal (its own, or a
-    callee's) is compiled once per instance of `a` (#2378): as written for `int`, and as a
-    variant typed at `float` (`inc$numF`) that a float use calls, in the module and from
-    importers (`ailang iface` lists such variables under `literals`). So `func inc(x) = x + 1`
-    gives `inc(2.5) == 3.5` and `inc(2) == 3`. A literal-free generic has one body, right at
-    every instance. A let-bound function follows the same rule, one copy per use: a lambda, a
-    block of values ending in one, a one-binding `letrec`, or a name for a function (`let f = g`,
-    `let f = inc` imported, `let f = { let g = \x. x + 1; g }`). So `let f = \x. x + 1` gives
-    `f(6) == 7`, `f(6) / 2 == 3` and `f(2.5) == 3.5`, as `func f(x) = x + 1` does, and so does a
-    file with no `module` line (`let inc = \x. x + 1 in inc(2.5)` is `3.5`). A variable that
-    carries a literal and occurs in no parameter position of the binding's type is an `int` (a
-    `float` when written `3.0`): a top-level constant (`let K = 3`, `func cfg() = {lo: 1}`) or
-    result-only literal (`func one(x) = 1`), so `K * 0.5` is a check error naming `K`'s literal.
-    Inside a function, such a constant (`let w = 70`) keeps one type decided by its uses.
-    Limits: a function over more than 4 literal-carrying numeric types gets only the variants its
-    own module uses, so another module's use at another combination is `TC_NUMVAR_001` at that
-    use, naming the function at fault; a `letrec` group of two or more let-bound functions is
-    kept at one type.
-    A let-bound value that is **computed** rather than written as a function is a single value
-    with one numeric type: a partial application (`let f = add(0)`), a function returned by a
-    call (`let f = mk()`), an `if` or `match` choosing a lambda, a record or tuple holding one
-    (`let r = {f: \x. x + 1}`), or a function bound by a pattern. An integer literal passed to
-    it takes that one type, so `f(6)` is `7.0` when `f` is also used at `2.5`. A typed int
-    argument together with a float use is a located check error (for a computed `let`: "`f` is
-    a single value, not a function"). The workaround is to bind a lambda instead:
-    `let f = \y. add(0)(y)`.
-    The REPL and the playground load modules through a second pipeline (#2410) that compiles no
-    numeric variants. There a **top-level** generic function with a literal fails at float with
-    the numeric-dictionary error, as it did everywhere before #2378: `func inc(x) = x + 1` then
-    `inc(2.5)` through wasm `ailangLoadModule` + `ailangCall` or the REPL's `:import`. A
-    let-bound function with its own literal keeps one type decided by its uses there.
-    Inline test rows (`tests [...]`) are run by an untyped harness that calls the int body, so
-    a float row of a generic function fails under `ailang test` although `check` accepts it
-    (#2392). A contract clause that needs `Num` where the body does not (`g(x) requires { inc(x)
-    > 0 } = x`) is #2337 above: the function has no float variant, and the clause fails under
-    `--verify-contracts` at float.
-  - a literal-free generic lambda's body is compiled once, at its defaulted type (`Num a` ⇒
-    `int`, #2333). The evaluator and the VM correct for it (the class methods and `%` from the
-    run-time values, `show` left dynamic).
-
-  Effect row variables (`! {e}`) were already enforced by the effect checker.
+File an issue at [github.com/sunholo-data/ailang/issues](https://github.com/sunholo-data/ailang/issues) with `ailang --version`, a minimal repro, and expected vs actual behavior.

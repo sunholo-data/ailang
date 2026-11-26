@@ -1,7 +1,9 @@
 ---
 title: A-Normal Form (ANF)
 sidebar_position: 3
-reviewBy: 2026-11-09
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Administrative Normal Form (ANF) in AILANG

@@ -2,44 +2,24 @@
 sidebar_position: 3
 title: Effect System
 description: Capability-based side effects in AILANG
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Effect System
 
-AILANG uses an **algebraic effect system** with capability-based security. All side effects must be declared in function signatures and granted at runtime.
+AILANG uses an **algebraic effect system** with capability-based security. Every side effect must be declared in function signatures (`! {IO, FS}`) and explicitly granted at runtime (`--caps IO,FS`).
+
+![Effect & Capability Gate](/img/diagrams/effect-capability-gate.svg)
 
 :::info Academic Foundation
-AILANG's effect system builds on foundational research:
-
-- **Plotkin & Pretnar (2009)**: [Handlers of Algebraic Effects](/references/plotkin-pretnar-2009.pdf) — Core theory of algebraic effects
-- **Leijen (2014)**: [Koka: Row Polymorphic Effect Types](/references/leijen-koka-2014-arxiv.pdf) — Row polymorphism for effects
-- **Lucassen & Gifford (1988)**: [Polymorphic Effect Systems](/references/lucassen-gifford-1988.pdf) — Original effect typing
-
-See [Citations & Bibliography](/docs/references) for complete references.
+Based on Plotkin & Pretnar (2009) [Algebraic Effects](/references/plotkin-pretnar-2009.pdf), Leijen (2014) [Koka Row Polymorphism](/references/leijen-koka-2014-arxiv.pdf), and Lucassen & Gifford (1988) [Polymorphic Effect Systems](/references/lucassen-gifford-1988.pdf). See [Citations & Bibliography](/docs/references).
 :::
 
-:::tip See Effects in Action
-Browse the [Live Demos](https://www.sunholo.com/ailang-demos/) to see effects working in the browser: AI effect ([Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/), [Gemini Live](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)), IO effect ([DocParse](https://www.sunholo.com/ailang-demos/docparse.html)), and contract-verified effect boundaries ([Safe Agent](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)).
-:::
-
-## Why Effects?
-
-Traditional languages hide side effects:
-
-```python
-# Python - side effects are invisible
-def process_data():
-    data = read_file("input.txt")  # FS access hidden
-    print("Processing...")          # IO hidden
-    return transform(data)
-```
-
-**AILANG makes effects explicit:**
+## Why Explicit Effects?
 
 ```ailang
--- AILANG - effects declared in signature
+-- Effects declared in signature, checked statically, granted at runtime
 import std/io (println)
 import std/fs (readFile)
 import std/string (toUpper)
@@ -51,20 +31,18 @@ func processData() -> string ! {IO, FS} {
 }
 ```
 
-**Benefits:**
-- **Reasoning**: Know exactly what a function can do from its type
-- **Security**: Grant only needed capabilities at runtime
-- **Testing**: Mock effects for deterministic testing
-- **AI-Friendly**: Models can verify effect safety statically
+- **Reasoning**: Function signatures state every allowed side effect.
+- **Security**: Grant only required capabilities via `--caps` or `--policy`.
+- **Testing & AI Safety**: Keep core logic `pure func`; audit effects at boundaries.
 
 ## Available Effects
 
-### IO Effect
+### IO Effect (`std/io`, `std/terminal`)
 
-Console input/output operations.
+Console input/output and scoped native TTY events:
 
 ```ailang
-import std/io (println, print, readLine)
+import std/io (println, print)
 
 func greet(name: string) -> () ! {IO} {
   print("Hello, ");
@@ -72,39 +50,12 @@ func greet(name: string) -> () ! {IO} {
 }
 ```
 
-**Builtins:**
-
 | Function | Type | Description |
 |----------|------|-------------|
-| `println` | `string -> () ! {IO}` | Print with newline |
-| `print` | `string -> () ! {IO}` | Print without newline |
-| `readLine` | `() -> string ! {IO}` | Read line from stdin |
-| `readLineOpt` | `() -> Option[string] ! {IO}` | Blank/final partial lines are `Some`; EOF is sticky `None` |
-| `exit` | `int -> () ! {IO}` | Terminate this program with an exit code (see below) |
-
-#### Native terminal input
-
-`std/terminal` uses the existing `IO` capability. `info()` reports configured input
-and output TTY status and optional physical dimensions. `withTerminal(options,
-body)` activates noncanonical, no-echo input for its callback, and returns
-`Result[a, TerminalError]`. The callback's effects propagate through `! {IO, e}`.
-
-`readEvent(session, timeout_ms)` returns typed key, resize, EOF, interruption or
-idle events. Timeouts are `-1` (block), `0` (poll), or `1..60000` milliseconds;
-`Idle` is separate from EOF. Session constructors grant no authority: the host
-rejects stale and cross-context handles, nested acquisition, competing line
-readers and pending buffered input. No operation opens another terminal device.
-
-macOS/Linux support this API in the evaluator and native bytecode VM. Windows
-and WASM return `Unsupported`. The CLI restores terminal state before signal termination.
-Embedders must inject their process-lifecycle hook to enable native scopes.
-An error from native activation must be handled explicitly by the application.
-
-#### Exit code
-
-`exit(code)` is how a CLI written in AILANG fails. It lives in `std/io` (not `std/process`,
-which runs *other* programs), needs only `--caps IO`, never returns, and flushes
-telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
+| `println` / `print` | `string -> () ! {IO}` | Print with / without newline (`println` is in prelude for entry modules) |
+| `readLine` / `readLineOpt` | `() -> string ! {IO}` / `() -> Option[string] ! {IO}` | Line input (`readLineOpt` distinguishes blank `Some("")` from sticky EOF `None`) |
+| `exit` | `int -> () ! {IO}` | Terminate with exit code (`0` = ok, `n != 0` = fail after flushing traces) |
+| `std/terminal.withTerminal` | `(options, body) -> Result[a, TerminalError] ! {IO, e}` | Scoped raw-mode TTY input + `readEvent` on macOS/Linux (Windows/WASM return `Unsupported`) |
 
 ```ailang
 module docs/exit_demo
@@ -128,19 +79,14 @@ export func main() -> () ! {IO, Env} {
 }
 ```
 
-| Surface | `exit(0)` | `exit(n≠0)` |
-|---------|-----------|-------------|
-| `ailang run` | process exits 0 | process exits `n` (OS applies `& 0xFF`) |
-| `ailang run --batch` | that item succeeds | that item fails with `program called exit(n)`; remaining items still run (v0.33.1, #607) |
-| `serve-api` route / A2A / MCP handler | success (unit result) | request fails — HTTP 500 / task `failed` / MCP error `program called exit(n)`; the server keeps running (#706) |
+| Surface | `exit(0)` | `exit(n != 0)` |
+|---|---|---|
+| `ailang run` / `--batch` | Process or item succeeds | Process exits `n`; batch item fails (`program called exit(n)`), others continue |
+| `serve-api` / A2A / MCP | Request succeeds | HTTP 500 / task `failed` / MCP error; server keeps running |
 
-Do not use `exit()` to report a *value* — return it. A runtime panic also exits non-zero,
-so an exit-code-only test cannot tell "found a negative answer" from "crashed"; print the
-reason before exiting.
+### FS Effect (`std/fs`, `std/zip`)
 
-### FS Effect
-
-File system operations.
+File system operations, optionally jailed via `AILANG_FS_SANDBOX=/tmp/sandbox` (also applies to `std/zip` and `std/process` working directory):
 
 ```ailang
 import std/fs (readFile, writeFile, fileExists)
@@ -153,57 +99,16 @@ func copyFile(src: string, dst: string) -> () ! {FS} {
 }
 ```
 
-**Builtins:**
-
 | Function | Type | Description |
 |----------|------|-------------|
-| `readFile` | `string -> string ! {FS}` | Read file contents |
-| `writeFile` | `(string, string) -> () ! {FS}` | Write content to file |
-| `fileExists` | `string -> bool ! {FS}` | Check if file exists |
-| `listDir` | `string -> [string] ! {FS}` | List directory entries (sorted) |
-| `mkdir` | `string -> () ! {FS}` | Create a single directory |
-| `mkdirAll` | `string -> () ! {FS}` | Create directory tree (mkdir -p) |
-| `isDir` | `string -> bool ! {FS}` | Check if path is a directory |
-| `isFile` | `string -> bool ! {FS}` | Check if path is a regular file |
-| `removeFile` | `string -> () ! {FS}` | Remove file or empty directory |
-| `_zip_listEntries` | `string -> Result[List[string], string] ! {FS}` | List ZIP archive entries |
-| `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read text entry from ZIP |
-| `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read binary entry from ZIP (base64) |
+| `readFile` / `writeFile` | `string -> string ! {FS}` / `(string, string) -> () ! {FS}` | Read or write text file |
+| `fileExists` / `isDir` / `isFile` | `string -> bool ! {FS}` | Path predicates |
+| `listDir` / `mkdir` / `mkdirAll` / `removeFile` | `... ! {FS}` | Directory listing (sorted), creation, removal |
+| `std/zip` (`listEntries`, `readEntry`, `readEntryBytes`) | `... ! {FS}` | Read ZIP archive entries |
 
-#### FS Sandbox
+### Clock Effect (`std/clock`)
 
-Restrict all FS operations to a directory by setting the `AILANG_FS_SANDBOX` environment variable:
-
-```bash
-AILANG_FS_SANDBOX=/tmp/sandbox ailang run --caps FS --entry main program.ail
-```
-
-When set, all file paths are resolved relative to the sandbox root:
-
-```ailang
-import std/fs (readFile, writeFile, listDir)
-
--- With AILANG_FS_SANDBOX=/tmp/sandbox:
-func sandboxDemo(s: string) -> [string] ! {FS} {
-  let _ = readFile("data.txt");    -- reads /tmp/sandbox/data.txt
-  writeFile("out.txt", s);         -- writes /tmp/sandbox/out.txt
-  listDir("subdir")                -- lists /tmp/sandbox/subdir
-}
-```
-
-This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
-
-If unset (the default), paths resolve normally from the process working directory.
-
-:::tip Use Cases
-- **Eval benchmarks**: isolate generated code to a temp directory
-- **Agent workspaces**: confine AI agents to their workspace
-- **Untrusted code**: prevent access to files outside the sandbox
-:::
-
-### Clock Effect
-
-Time operations with deterministic mode support.
+Monotonic timestamps and sleep, with deterministic virtual time (`--clock-mode fixed --clock-start 1000`):
 
 ```ailang
 import std/clock (now, sleep)
@@ -211,108 +116,40 @@ import std/io (println)
 
 func timedOperation() -> int ! {Clock, IO} {
   let start = now();
-  sleep(1000);  -- Sleep 1 second
+  sleep(1000);
   let end = now();
   println("Elapsed: ${show(end - start)}ms");
   end - start
 }
 ```
 
-**Builtins:**
+### Net Effect (`std/net`)
 
-| Function | Type | Description |
-|----------|------|-------------|
-| `now` | `() -> int ! {Clock}` | Current monotonic time (ms) |
-| `sleep` | `int -> () ! {Clock}` | Sleep for milliseconds |
-
-**Deterministic Mode:**
-
-```bash
-# Fixed time for reproducible tests
-ailang run --clock-mode fixed --clock-start 1000 program.ail
-```
-
-### Net Effect
-
-HTTP operations with security protections.
+HTTP client with DNS-rebinding prevention, private-IP blocking, HTTPS enforcement by default, 30 s default timeout (`--net-timeout`), and 5 MB default body cap (`--net-max-bytes`):
 
 ```ailang
--- Simple: httpGet/httpPost return body string directly
-import std/net (httpGet, httpPost)
-
-func fetchData(url: string) -> string ! {Net} =
-  httpGet(url)
-
-func postData(url: string, body: string) -> string ! {Net} =
-  httpPost(url, body)
-```
-
-```ailang
--- Advanced: httpRequest returns Result[HttpResponse, NetError]
--- HttpResponse = {status: int, headers: List[{name, value}], body: string, ok: bool}
 import std/net (httpRequest)
 import std/json (decode)
 
 func fetchJson(url: string) -> Result[Json, string] ! {Net} =
   match httpRequest("GET", url, [], "") {
-    Ok(resp) => decode(resp.body),   -- resp.body is the body string
+    Ok(resp) => decode(resp.body),   -- HttpResponse has body (UTF-8) and bodyBytes (raw)
     Err(Transport(msg)) => Err("network error: ${msg}"),
     Err(_) => Err("request failed")
   }
 ```
 
-> **Common mistake:** `Ok(resp)` captures the full `HttpResponse` record, not just the body.
-> Use `resp.body` to get the response body string. To parse JSON, do `decode(resp.body)` not `decode(resp)`.
+| Function / Flag | Purpose |
+|---|---|
+| `httpGet` / `httpPost` | `string -> string ! {Net}` / `(string, string) -> string ! {Net}` |
+| `httpRequest` / `httpRequestBytes` | Full HTTP with headers, status codes, `Result[HttpResponse, NetError]` |
+| `--net-allow-domains <list>` | Domain allowlist |
+| `--net-allow-http` / `--net-allow-localhost` / `--net-allow-metadata` | Relax HTTPS-only, loopback (local Ollama), or cloud metadata restrictions |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` | Honoured per request (no pinned-IP guarantee for hostnames behind a proxy; `--policy` refuses proxies with `E_NET_PROXY_REFUSED`) |
 
-**Builtins:**
+### Env Effect (`std/env`)
 
-| Function | Type | Description |
-|----------|------|-------------|
-| `httpGet` | `string -> string ! {Net}` | HTTP GET, returns body string directly |
-| `httpPost` | `(string, string) -> string ! {Net}` | HTTP POST, returns body string directly |
-| `httpRequest` | `(string, string, List[{name, value}], string) -> Result[HttpResponse, NetError] ! {Net}` | Full HTTP with headers, status codes, structured errors |
-| `httpRequestBytes` | `(string, string, List[{name, value}], bytes) -> Result[HttpResponse, NetError] ! {Net}` | Same as `httpRequest` but body is raw bytes (image/PDF/binary upload). Defaults `Content-Type: application/octet-stream`. |
-
-`HttpResponse` includes both `body: string` (UTF-8 view, lossy for binary) and `bodyBytes: bytes` (raw payload, always exact). Use `bodyBytes` for binary downloads.
-
-**Security Features:**
-- DNS rebinding prevention
-- Private IP blocking (10.x.x.x, 192.168.x.x, etc.)
-- HTTPS enforcement (configurable)
-
-**Proxies (`HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`):** Net requests, and the HTTP Stream
-operations (`sseConnect`, `ssePost`, NDJSON POST), follow Go's standard proxy environment, chosen
-per request (redirect hops included). The `Net`/`Stream` capability, the protocol and domain
-allowlist checks, redirect limits, timeouts and the body-size cap apply either way. What changes is
-the IP guarantee:
-
-| Route | Target IP check |
-|-------|-----------------|
-| No proxy, or the host matches `NO_PROXY` | Resolved once, every answer validated, and the socket dials exactly that IP (pinned). |
-| Proxy, literal-IP target (`http://10.0.0.5/`) | Validated with no DNS; a blocked IP is refused before anything is dialed. |
-| Proxy, hostname target | Not resolved locally. The proxy picks the IP, so the pinned-IP guarantee does not hold. |
-
-A configured proxy is an operator trust decision. If a destination needs the pinned-IP guarantee,
-add it to `NO_PROXY` or leave the proxy unset for that process. Restricted policy mode
-(`ailang run --policy`) refuses a proxy outright with `E_NET_PROXY_REFUSED` /
-`E_STREAM_PROXY_REFUSED` instead of sending the request unpinned. WebSocket `connect` never uses a
-proxy. A proxy that buffers responses or cuts idle tunnels can delay or end SSE/NDJSON streams;
-the existing idle timeout and maximum duration still apply.
-
-**CLI Flags:**
-
-| Flag | Meaning |
-|------|---------|
-| `--net-allow-domains <list>` | Domain allowlist (comma-separated). |
-| `--net-allow-http` | Permit `http://` URLs (default: https only). |
-| `--net-allow-localhost` | Permit loopback (`127.0.0.1`, `localhost`) — with `--net-allow-http`, this is how a program talks to a local model server such as ollama. |
-| `--net-allow-metadata` | Permit the cloud metadata address (169.254.169.254). |
-| `--net-timeout <duration>` | Per-request timeout for every Net call (`httpGet`, `httpPost`, `httpRequest*`). Default **30s**. A local 27B model answering in 45s needs e.g. `--net-timeout 5m`; on timeout the call returns `Err(Transport("... context deadline exceeded"))`. Mirrors `--process-timeout`. |
-| `--net-max-bytes <size>` | Cap on each response body (`httpGet`, `httpPost`, `httpRequest*`, std/web). Default **5MB**; `AILANG_NET_MAX_BYTES` sets it when the flag is absent (`run` and `serve-api`). Sizes take K/M/G suffixes (`50MB`); zero or malformed is an error. Over the cap, `httpRequest*` returns `Err(BodyTooLarge(<cap>))` and `httpGet`/`httpPost` fail with `E_NET_BODY_TOO_LARGE`. The body is read whole into memory (once as bytes, once as the `body` string), so budget at least twice the cap per in-flight response. Needs `--caps Net`; refused with `--policy`. |
-
-### Env Effect
-
-Environment variable access.
+Read environment variable snapshots (`getEnv(name) -> Result[string, EnvError] ! {Env}`, `getEnvOr(name, default)`, `getArgs`).
 
 ```ailang
 import std/env (getEnv)
@@ -325,17 +162,9 @@ func getConfig() -> string ! {Env} {
 }
 ```
 
-**Builtins:**
+### Process Effect (`std/process`)
 
-| Function | Type | Description |
-|----------|------|-------------|
-| `getEnv` | `string -> Option[string] ! {Env}` | Get environment variable |
-
-### Process Effect
-
-Execute external commands with capability-based security. (This effect runs *other*
-programs. To set *this* program's own exit code — a CLI that must fail non-zero — use
-`exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
+Execute external commands without shell expansion (`exec`, `spawnProcessResult`, `writeProcessStdin`, `closeProcessStdin`, `cancelProcess`). Use `std/io.exit` to set *this* program's exit code.
 
 ```ailang
 import std/io (println)
@@ -356,68 +185,16 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 }
 ```
 
-**Builtins:**
+| Flag / Field | Semantics |
+|---|---|
+| `--process-allowlist <bins>` | Exact binary allowlist resolved once via `PATH` at startup; supports subcommand narrowing (`git:status,git:log,gh:pr:list`) |
+| `--process-timeout <dur>` / `--process-max-output <bytes>` | Per-exec wall-clock cap (default `30s`) and output cap (default `10MB`) |
+| `Ok(out)` vs `Err(...)` | `Ok` = process exited (check `out.exitCode`); `Err` = launch failure (`NotFound`, `NotAllowed`, `Timeout`, `OutputLimitExceeded`, `SpawnFailed`) |
+| Worker lifetime | CLI/REPL/engine owners reap child process groups on exit or `cancelProcess` (`ProcessHandle` is owner-scoped) |
 
-| Function | Type | Description |
-|----------|------|-------------|
-| `exec` | `(string, [string]) -> Result[ProcessOutput, ProcessError] ! {Process}` | Execute command with arguments |
-| `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
-| `spawnProcessResult` | `(string, [string]) -> Result[ProcessHandle, ProcessError] ! {Process}` | Spawn with recoverable authorization/startup errors |
-| `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
-| `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Signal EOF after accepted writes drain; retain worker ownership |
-| `cancelProcess` | `(ProcessHandle) -> Result[(), WorkerCancelError] ! {Process}` | Stop the owned worker and join its runtime tasks |
+### Stream Effect (`std/stream`)
 
-`spawnProcessResult` returns `Ok(handle)` or `Err(NotFound(detail))`, `Err(NotAllowed(detail))` (including confined Process), or `Err(SpawnFailed(reason))` for OS/admission failures. Missing Process capability remains a run policy error. A failed admission may start a child before stopping and reaping it; no usable handle is returned. Legacy `spawnProcess` still aborts on failure.
-
-**ProcessHandle:** Opaque ADT `ProcessHandle(int)` — returned by `spawnProcess` or `Ok(handle)` from `spawnProcessResult`, used with `writeProcessStdin` and `closeProcessStdin`.
-
-**Completion Semantics (important):**
-- **`Ok`** = process completed (even with non-zero exit code) — check `out.exitCode`
-- **`Err`** = infrastructure failure (command not found, timeout, blocked by allowlist)
-
-**Worker lifetime and cancellation:** CLI runs, batch items, embedded calls, and REPL sessions own their workers. Returning from the owner stops and joins workers; closing stdin keeps a live worker tracked. Cancellation resolves a handle in the current owner's registry and may discard pending writes. `Ok(())` means the direct child has been reaped and owned IO tasks have joined. When a managed or async child invokes `run` on the same runtime executable (including a symlink to it), cancellation also requires acknowledgement that the child has cleaned up its owned workers. This covers separately grouped policy workers; a missing acknowledgement returns `WorkerCancelFailed` or `WorkerCancelTimedOut`. Copies or older/different runtimes retain the ordinary process-group boundary.
-
-`WorkerCancelError` has `WorkerHandleInvalid(string)`, `WorkerCancelUnsupported(string)`, `WorkerCancelTimedOut(int)` (milliseconds), and `WorkerCancelFailed(string)`. Released, fabricated, and foreign handles are invalid. An already-exited worker is automatically reaped, so `cancelProcess` returning `WorkerHandleInvalid` afterward is the normal reaped case. Cancellation of a stdin or connection source is unsupported. Both Process and Stream capabilities and budgets apply to `cancelProcessSource`; mandatory host cleanup runs independently of user budgets.
-
-macOS/Linux cancellation stops the worker's process group, including non-detached descendants. Shutdown has one two-second total deadline, with up to 250 ms for workers already draining closed stdin. Windows explicit cancellation returns unsupported; host shutdown attempts direct-child cleanup. JS/WASM returns typed unsupported cancellation. This operation stops a local OS worker; it does not promise remote AI inference or billing cancellation. SIGINT/SIGTERM restore terminal state before worker cleanup and retain exit codes 130/143. Abrupt host SIGKILL and detached descendants are outside this guarantee.
-
-Go hosts supplying an effect context retain ownership of that base context. `Engine.SetEffContext` creates an engine-owned child, requests have independent child registries, and `Engine.Close` shuts those children down. Hosts that directly own an `EffContext` must call `CloseWorkers()` when their execution ends. REPL handles persist between lines and end on reset or quit. Stream selection borrows sources: returning false leaves them available for another selection or explicit cancellation. Source teardown leaves borrowed connection transports open; arbitrary blocked stdin readers may remain pending, holding their input lease until the read finishes.
-
-**ProcessOutput** fields: `stdout: bytes`, `stderr: bytes`, `exitCode: int`, `truncated: bool`, `resolvedPath: string`
-
-**ProcessError** variants: `NotFound`, `NotAllowed`, `PermissionDenied`, `Timeout`, `OutputLimitExceeded`, `SpawnFailed`, `AbnormalExit`
-
-**Security Features:**
-- No shell expansion — arguments passed literally (no `sh -c`)
-- Command allowlist with path pinning (resolved at startup, prevents TOCTOU)
-- Mandatory timeout (default: 30s)
-- Output size limits (default: 10MB)
-
-**CLI Flags:**
-
-| Flag | Meaning |
-|------|---------|
-| `--caps Process` | Grant the effect. Without it every `exec` fails with a capability error. |
-| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Entries match the command string exactly as written: allowlisting `name` does not authorize `/abs/path/name`, or vice versa. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Enforced identically by `exec`, `spawnProcess` and `asyncExecProcess`. Allowlisting a shell *script* does not grant its interpreter. |
-| `--process-allowlist cmd:sub[:sub…]` | **Subcommand narrowing.** `git:status,git:commit,gh:pr:list` allows `git status …`, `git commit …` and `gh pr list …` and refuses every other invocation of `git`/`gh` with `NotAllowed("git push")` — the refusal names the subcommand that was tried. Rules: a chain must match **positionally from the first argument**, so `git -C /x status` is refused under `git:status` (fail closed; put global options after the subcommand or add a wrapper); arguments *after* the chain are unrestricted (`git:commit` allows `git commit --amend` — narrowing is per subcommand, not per flag); a bare `git` or `git:*` in the same list is the broadest grant and wins; an empty segment (`git:`, `git::status`) is a startup error, never a wider allow. |
-| `--process-timeout <dur>` | Per-exec wall-clock limit (default 30s) → `Timeout`. |
-| `--process-max-output <bytes>` | Combined stdout+stderr cap (default 10MB) → `OutputLimitExceeded`, `truncated: true`. |
-
-```bash
-ailang run --caps Process --entry main module.ail
-ailang run --caps IO,Process --process-timeout 10s --entry main module.ail
-ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main module.ail
-ailang run --caps IO,Process --process-allowlist "git:status,git:log,gh:pr:list" --entry main module.ail
-ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
-```
-
-Runnable example: [`examples/runnable/process_subcmd_allowlist.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/process_subcmd_allowlist.ail).
-
-The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
-
-### Stream Effect
-
-Real-time streaming I/O: WebSocket, SSE, and multi-source event multiplexing.
+Bidirectional WebSocket, SSE (`sseConnect`, `ssePost`), and multi-source multiplexing (`asyncReadStdinLines`, `asyncExecProcess`, `selectEvents`):
 
 ```ailang
 module docs/stream_demo
@@ -434,38 +211,9 @@ export func main() -> () ! {Stream, IO} {
 }
 ```
 
-**Core Builtins:**
+See [Streaming & Real-Time I/O Guide](/docs/guides/streaming) for the full API.
 
-| Function | Type | Description |
-|----------|------|-------------|
-| `connect` | `(string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open WebSocket |
-| `transmit` | `(StreamConn, string) -> Result[unit, StreamErrorKind] ! {Stream}` | Send text message |
-| `transmitBinary` | `(StreamConn, bytes) -> Result[unit, StreamErrorKind] ! {Stream}` | Send binary data |
-| `onEvent` | `(StreamConn, (StreamEvent) -> bool) -> unit ! {Stream}` | Register event handler |
-| `runEventLoop` | `(StreamConn) -> unit ! {Stream}` | Block until handler returns false |
-| `disconnect` | `(StreamConn) -> unit ! {Stream}` | Close connection |
-| `sseConnect` | `(string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open SSE (GET) |
-| `ssePost` | `(string, string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open SSE (POST) |
-| `sourceOfConn` | `(StreamConn, string, int) -> StreamSource ! {Stream}` | Wrap connection as event source |
-| `asyncReadStdinLines` | `(string, int) -> StreamSource ! {Stream}` | Stdin line reader source |
-| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream, Process}` | Subprocess stdout source |
-| `cancelProcessSource` | `(StreamSource) -> Result[(), WorkerCancelError] ! {Stream, Process}` | Stop and join an owned process source |
-| `selectEvents` | `([StreamSource], (StreamEvent) -> bool) -> unit ! {Stream}` | Multi-source event loop |
-
-**Event types:** `Message`, `Binary`, `Opened`, `Closed`, `StreamError`, `Ping`, `SSEData`, `SourceText`, `SourceBytes`
-
-**See [Streaming & Real-Time I/O Guide](/docs/guides/streaming) for complete documentation, examples, and configuration.**
-
-```bash
-ailang run --caps Stream,IO --entry main module.ail
-ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg" --entry main module.ail
-```
-
-## Effect Syntax
-
-### Declaring Effects
-
-Effects are declared after the return type with `!`:
+## Effect Syntax & Capability Grants
 
 ```ailang sketch
 -- Single effect
@@ -481,34 +229,16 @@ func add(x: int, y: int) -> int { x + y }
 pure func factorial(n: int) -> int { ... }
 ```
 
-`pure` means exactly `! {}`. A `pure func` may omit the row or write `! {}`; a
-`pure func` that also declares a non-empty or open row (`! {IO}`, `! {Declassify}`,
-`! {e}`) is a type error — drop `pure` to keep the row, or drop the row. `ailang iface`
-derives each export's `"pure"` flag from its checked effect row in the same way: a
-labelled or declared-open outer row reports `false`. A `! {Declassify}` function is
-written as a plain `func`; `ailang verify` still admits it into the SMT fragment.
+`pure` means exactly `! {}` — combining `pure func` with a non-empty or open row (`! {IO}`, `! {e}`) is a type error. In callback types, omission and `! {}` differ:
 
-### Callback Function Types
-
-In callback types, omission and an explicit empty row have different meanings:
-
-| Type | Contract |
+| Callback Type | Contract |
 |---|---|
 | `T -> U` | Implicit open callback effects, charged at hand-off |
-| `T -> U ! {}` | Closed pure callback; effectful values are rejected even in effectful callers |
-| `T -> U ! {IO}` | Concrete IO contract; the callee pays IO when invoking it |
-| `T -> U ! {e}` | Explicit effect polymorphism shared with the enclosing row |
+| `T -> U ! {}` | Closed pure callback; rejects effectful values even in effectful callers |
+| `T -> U ! {IO}` | Concrete `IO` contract; callee pays `IO` when invoking |
+| `T -> U ! {e}` | Effect polymorphism shared with the enclosing row |
 
-This applies inside aliases, records, tuples, lists and generic containers.
-A helper that only stores a mixed callback record can use explicit empty rows on
-pure fields and concrete rows on effectful fields. Direct literal construction
-still stores callbacks without performing their effects. See the runnable
-`explicit_empty_callback_contracts.ail` example. Explicit-empty callback contracts
-are a breaking soundness correction targeting v0.56.0.
-
-### Combining Effects
-
-Effects from called functions are combined:
+Effects from called helpers combine into the caller's row, while pure functions can be called in any effectful context:
 
 ```ailang
 module docs/combine_effects
@@ -516,244 +246,101 @@ module docs/combine_effects
 import std/io (println)
 import std/fs (readFile)
 
+func pureCalc(x: int) -> int { x * 2 }
+
 func helper() -> () ! {IO} {
   println("Helper called")
 }
 
 export func main() -> () ! {IO, FS} {
-  helper();                      -- IO effect flows up
-  let x = readFile("data.txt");  -- FS effect
-  println(x)                     -- IO effect
+  helper();                      -- IO flows up
+  let x = readFile("data.txt");  -- FS
+  let n = pureCalc(21);          -- Pure in effectful context
+  println("${x} (${show(n)})")
 }
 ```
 
-### Effect Subsumption
-
-Functions can be called in contexts with additional effects:
-
-```ailang
-import std/io (println)
-
-func pureCalc(x: int) -> int { x * 2 }
-
-func effectful() -> int ! {IO} {
-  println("Calculating...");
-  pureCalc(21)  -- Pure function called in effectful context
-}
-```
-
-## Running with Capabilities
-
-Effects require explicit capability grants at runtime:
+### Runtime Grants & Stdlib Mapping
 
 ```bash
-# Grant IO capability
-ailang run --caps IO --entry main program.ail
-
-# Grant multiple capabilities
 ailang run --caps IO,FS,Net --entry main program.ail
-
-# Grant all capabilities (development only!)
-ailang run --caps ALL --entry main program.ail
+ailang run --caps ALL --entry main program.ail   # development only
 ```
-
-**Missing capability error:**
-
-```
-Error: Function 'main' requires capability IO but it was not granted.
-Use --caps IO to grant this capability.
-```
-
-### Capabilities required by stdlib module
-
-Reach for a stdlib module and you inherit its capability requirement — declare it in
-your function's effect row and grant it with `--caps`. Plan your `--caps` set up front,
-especially for capability-constrained (auditable/sandboxed) programs:
 
 | stdlib module | Capability | Notes |
-|---------------|-----------|-------|
-| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `eprint`/`eprintln` |
-| `std/fs` | `FS` | file read/write |
-| `std/clock` | `Clock` | `now`, `sleep` (use a seed for deterministic time) |
-| `std/datetime` | `Clock` | `now()` is effectful; formatting/arithmetic are pure |
-| `std/net` | `Net` | HTTP; also needs `--net-allow-*` flags |
-| `std/rand` | `Rand` | `randInt`, `randFloat`, `randBool`, `randSeed`, `uuid4` |
-| `std/env` | `Env` | environment variables (with an allowlist) |
-| `std/process` | `Process` | spawn external commands |
-| `std/ai` | `AI` | model calls |
-| `std/list`, `std/string`, `std/option`, `std/result`, `std/map`, `std/bytes`, … | _(none)_ | pure — usable from `pure func`, no `--caps` |
-
-If you must stay within a fixed capability set (e.g. `--caps IO,Clock`) and a module needs
-more, reach for a pure alternative: e.g. a hand-rolled PRNG instead of `std/rand` (which
-requires `Rand`).
+|---|---|---|
+| `std/io`, `std/terminal` | `IO` | Console I/O, `exit`, native TTY |
+| `std/fs`, `std/zip` | `FS` | File read/write/walk (sandboxed via `AILANG_FS_SANDBOX`) |
+| `std/clock`, `std/datetime` (`now`), `std/game` | `Clock` | `std/datetime` formatting/arithmetic are pure |
+| `std/net`, `std/web` | `Net` | Requires `--net-allow-*` flags for HTTP/localhost/metadata |
+| `std/stream` | `Stream` | WebSocket / SSE / multiplexed sources |
+| `std/rand` | `Rand` | Seeded PRNG, `uuid4` |
+| `std/env` | `Env` | Environment variables and args |
+| `std/process` | `Process` | External commands (`--process-allowlist`) |
+| `std/ai`, `std/secret`, `std/trace` | `AI`, `Secret`, `Trace` | LLM calls, gated secrets (`<secret>`), custom spans |
+| `std/list`, `std/string`, `std/option`, `std/result`, `std/map`, `std/set`, `std/array`, `std/bytes`, `std/json`, … | _(none)_ | Pure — usable from `pure func` without `--caps` |
 
 ## Capability Budgets
 
-You can limit how many times a function can perform an effect using **capability budgets**:
+Limit or require effect operations per invocation with `@limit=N` and `@min=N`:
 
 ```ailang
 import std/io (println)
 
--- Function limited to 5 IO operations (maximum)
 func rateLimited() -> () ! {IO @limit=5} {
-  println("Call 1");  -- Uses 1/5 budget
-  println("Call 2");  -- Uses 2/5 budget
-  -- ...
-  println("Call 6");  -- FAILS: BudgetExhaustedError
+  println("Call 1");
+  println("Call 2");
   ()
 }
 
--- Function must perform at least 1 IO operation (minimum)
 func auditRequired() -> () ! {IO @min=1} {
-  println("Audit log entry");  -- Satisfies @min=1
+  println("Audit log entry");
   ()
-  -- Returning without any IO would FAIL: BudgetUnderrunError
 }
 
--- Combined: between 1 and 3 IO operations
 func bounded() -> () ! {IO @min=1 @limit=3} {
-  println("Required");  -- Satisfies minimum
-  println("Optional");  -- Within limit
+  println("Required");
+  println("Optional");
   ()
 }
 ```
 
-### Hierarchical scoping semantics
-
-Budgets are **per-invocation and hierarchical**, enforced by a stack of budget
-**frames**:
-
-- **Per-invocation frames.** Each call to an annotated function pushes its own
-  frame recording that invocation's `used` count. `@limit=3` means *this
-  function's own invocation* may perform at most 3 matching effects — the
-  caller's earlier effects are **not** charged against it. (Recursion pushes an
-  independent frame per call.)
-- **Unannotated functions push no frame.** Their effects charge whatever
-  annotated ancestor frames are currently active, so budgets compose through
-  unannotated intermediates — an unannotated helper called from an annotated
-  function still spends the caller's budget.
-- **Bubbling charge.** Every matching effect op charges the current (innermost)
-  frame **and** all active ancestor frames that constrain that effect. A callee's
-  effects therefore count toward an annotated caller's budget (delegation cannot
-  launder effects), while an annotated callee is *also* independently bounded by
-  its own frame.
-- **`@limit=N` — checked pre-op against every active frame.** Before an effect
-  op, every active frame is inspected without being mutated; a frame violates
-  when `used + 1 > limit`. If one or more frames would be exceeded, the op is
-  rejected (nothing is incremented, the op does not run) and the error names the
-  **first violating frame innermost-to-outermost** (its function, its limit, and
-  its own used count) — the tightest *active* limit wins. Otherwise every
-  matching active frame is incremented and the op proceeds.
-- **`@min=N` — checked at frame pop on normal exit only.** When an annotated
-  invocation returns normally, its frame's own bubbled count must be at least N
-  (else `BudgetUnderrunError`). On an **error/exceptional exit** (a callee
-  raised, a `@limit` tripped, any unwind) the frame is still popped but the
-  `@min` check is **suppressed** — the original error propagates unmasked.
-
-**Key features:**
-- **Per-invocation frames**: each call to an annotated function is bounded on its own
-- **Composable / bubbling**: nested effects charge every active ancestor frame
-- **Maximum limits** (`@limit=N`): checked pre-op, tightest active frame wins
-- **Minimum requirements** (`@min=N`): checked at normal-exit pop, suppressed on error
-- **Bypass for debugging**: Use `--no-budgets` flag
-
-```bash
-# Normal mode - budgets enforced
-ailang run --caps IO --entry main program.ail
-
-# Debug mode - budgets bypassed
-ailang run --caps IO --no-budgets --entry main program.ail
+```mermaid
+flowchart TD
+    C["Call annotated func ! {IO @min=M @limit=N}"] --> P["Push invocation budget frame (used = 0)"]
+    P --> OP["Effect op runs"]
+    OP --> CHK{"All active matching frames:\nused + 1 <= limit?"}
+    CHK -->|No| ERR["Fail before op runs: BudgetExhaustedError\n(first violating frame innermost-to-outermost)"]
+    CHK -->|Yes| INC["Increment used on current + all active ancestor frames"]
+    INC --> EXEC["Execute runtime op"]
+    EXEC --> RET{"Normal return?"}
+    RET -->|Unwind / error| UNWIND["Pop frame (suppress @min check; propagate error)"]
+    RET -->|Normal exit| MIN{"used >= min?"}
+    MIN -->|No| UND["Fail: BudgetUnderrunError"]
+    MIN -->|Yes| OK["Pop frame & return"]
 ```
 
-**See [Capability Budgets](/docs/reference/capability-budgets) for the complete reference.**
+- **Per-invocation isolation:** Each call pushes a fresh frame; a caller's prior ops do not shrink a callee's `@limit`.
+- **Bubbling charge:** Every op charges the innermost frame **and** all active ancestor frames for that effect (unannotated helpers still spend their caller's budget).
+- **Bypass for debugging:** `ailang run --caps IO --no-budgets program.ail`. See [Capability Budgets](/docs/reference/capability-budgets).
 
-## Effect Safety
-
-### Static Checking
-
-The type checker verifies effect declarations:
-
-```ailang parse
-import std/fs (readFile)
-
--- Error: readFile requires FS, which is not declared in ! {IO}
-func badFunction() -> string ! {IO} {
-  readFile("data.txt")
-}
-```
-
-### Runtime Enforcement
-
-Even if you declare an effect, you must grant it:
-
-```ailang
-module docs/runtime_enforcement
-
-import std/fs (writeFile)
-
-export func main() -> () ! {FS} {
-  writeFile("output.txt", "data")
-}
-```
-
-```bash
-# Fails - FS not granted
-ailang run --caps IO --entry main program.ail
-# Error: Capability FS required but not granted
-```
-
-## Effect Patterns
-
-### Effect Polymorphism
-
-Functions can work with any effect set:
-
-```ailang
-import std/io (println)
-import std/fs (writeFile)
-
--- Works with any effects
-func twice[e](f: () -> () ! {e}) -> () ! {e} {
-  f();
-  f()
-}
-
-func demoTwice() -> () ! {IO, FS} {
-  twice(\_. println("Hello"));
-  twice(\_. writeFile("log", "entry"))
-}
-```
-
-The callback row and the call row share the same effect variable. A pure
-callback resolves the call to pure; an IO callback requires IO at the caller.
-A helper that invokes an explicitly effect-polymorphic callback must propagate
-that row, including when it invokes the callback twice. An unresolved tail is
-reported directly rather than producing an empty suggested annotation. Runtime
-capability grants are still required for concrete effects.
-
-### Conditional Effects
-
-Use pattern matching to handle effect boundaries:
-
-```ailang
-import std/io (println)
-
-func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
-  if verbose then println(msg) else ()
-}
-```
-
-### Effect-Free Core
-
-Keep business logic pure, effects at boundaries:
+## Effect Patterns & Testing
 
 ```ailang
 import std/io (println)
 import std/fs (readFile)
 import std/string (stringToFloat)
 
--- Pure business logic
-pure func calculateTax(amount: float) -> float {
+-- Effect-polymorphic combinator
+func twice[e](f: () -> () ! {e}) -> () ! {e} {
+  f();
+  f()
+}
+
+-- Pure business logic tested with inline tests
+pure func calculateTax(amount: float) -> float
+  tests [ (100.0, 20.0), (0.0, 0.0) ]
+{
   amount * 0.2
 }
 
@@ -764,41 +351,12 @@ func processInvoice(id: string) -> () ! {IO, FS} {
     Some(v) => v,
     None => 0.0
   };
-  let tax = calculateTax(amount);  -- Pure!
-  println("Tax: ${show(tax)}")
-}
-```
-
-## Testing with Effects
-
-### Mocking Effects (Planned)
-
-Declarative effect mocking inside `test` blocks is planned for a future release. Today, test effectful programs by keeping core logic in `pure func` definitions (tested via inline `tests [...]` or named `test` blocks) and running boundary tests against `AILANG_FS_SANDBOX` or `--clock-mode fixed`.
-
-### Pure Function Testing (Current)
-
-Use inline tests for pure functions:
-
-```ailang
-pure func double(x: int) -> int
-  tests [
-    (0, 0),
-    (5, 10),
-    (-3, -6)
-  ]
-{
-  x * 2
+  println("Tax: ${show(calculateTax(amount))}")
 }
 ```
 
 ## Related Resources
 
-- [AI Effect Guide](/docs/guides/ai-effect) - Using the AI effect for LLM calls
-- [Streaming Guide](/docs/guides/streaming) - WebSocket, SSE, and multi-source multiplexing
-- [Capability Budgets](/docs/reference/capability-budgets) - Fine-grained effect limiting
-- [Module Execution](/docs/guides/module_execution) - Running modules with effects
-- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
-- [Module System](/docs/reference/modules) - Imports and exports
-- [Testing Guide](/docs/guides/testing) - Writing tests
-- [Debugging Guide](/docs/guides/debugging) - Troubleshooting effect-related issues
-- [Limitations](/docs/reference/limitations) - Known limitations
+- [Capability Budgets](/docs/reference/capability-budgets) — Full `@limit` / `@min` reference
+- [Security Model](/docs/reference/security-model) — Capabilities, `--policy` confinement, and IFC labels
+- [AI Effect Guide](/docs/guides/ai-effect) · [Streaming Guide](/docs/guides/streaming) · [Module Execution](/docs/guides/module_execution)

@@ -1,5 +1,6 @@
 ---
-reviewBy: 2027-01-18
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # std/package — bundled asset resolution
@@ -23,14 +24,13 @@ files = ["mcp-call.mjs", "schemas/tool-call.json"]
 
 Place the files under the package's `assets/` subdirectory:
 
-```
-my-pkg/
-├── ailang.toml
-├── register.ail
-└── assets/
-    ├── mcp-call.mjs
-    └── schemas/
-        └── tool-call.json
+```mermaid
+flowchart LR
+    PKG["my-pkg/"] --> TOML["ailang.toml"]
+    PKG --> REG["register.ail"]
+    PKG --> ASSETS["assets/"]
+    ASSETS --> MCP["mcp-call.mjs"]
+    ASSETS --> SCH["schemas/tool-call.json"]
 ```
 
 At `ailang publish` time, `VerifyDeclaredAssets` rejects the publish if any file listed in `[assets].files` is missing from the package's `assets/` directory — a typo fails loud rather than shipping a package whose runtime `assetPath()` lookups all return `Err`.

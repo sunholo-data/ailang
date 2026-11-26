@@ -1,7 +1,9 @@
 ---
 title: Adding Operators
 sidebar_position: 4
-reviewBy: 2026-11-02
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Adding/Extending Operators in AILANG
@@ -96,7 +98,7 @@ default:
 ## 6) Runtime Errors
 
 - Use `internal/eval/builtin_errors.go` helpers:
-  - `ArgTypeMismatch(name, expected, got, hint)`
+  - `ArgTypeMismatch(builtin, expected, got)`
 - Avoid panics; return actionable messages.
 
 ## 7) Tests
