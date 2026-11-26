@@ -2,14 +2,15 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last update:** 2026-11-23 · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14). Note: v1.0.0 roadmap work ([planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md)) tracks the remaining pre-1.0 items separately.
-**Latest release:** v0.60.6. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
+**Last update:** 2026-11-26 · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14). Note: v1.0.0 roadmap work ([planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md)) tracks the remaining pre-1.0 items separately.
+**Latest release:** v0.63.0. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
-## Shipped since v0.57.4 (through v0.60.6 + `dev`, 2026-11-23)
+## Shipped since v0.57.4 (through v0.63.0, 2026-11-26)
 
-- **Waves 1–3, soundness fixes, and second round landed** — `v0.58.0`, `v0.59.0`, and `v0.60.0`–`v0.60.6` shipped. Includes `JInt` (#2223), nominal type identity (#2228), total `show` (#2229), stdlib surface polish (#2230), match exhaustiveness error (`TC_MATCH_002`, #2246), all ten original soundness fixes + follow-ups (#2283–#2384), Go emitter removal (#2389), lexical-scoping / REPL / WASM fixes (#2387, #2403, #2408), generic numeric-literal variants (#2393), and verifier coverage/witness-replay improvements on `dev`.
+- **Waves 1–3, soundness fixes, second round, and v0.61–v0.63 features landed** — `v0.58.0` through `v0.63.0` shipped. Includes `JInt` (#2223), nominal type identity (#2228), total `show` (#2229), stdlib surface polish (#2230), match exhaustiveness error (`TC_MATCH_002`, #2246), all ten original soundness fixes + follow-ups (#2283–#2384), Go emitter removal (#2389), lexical-scoping / REPL / WASM fixes (#2387, #2403, #2408), generic numeric-literal variants (#2393), Z3 int64 overflow/NaN numeric model (`M-VERIFY-NUMERIC-MODEL`), doc-samples burn-down (284 → ~0), `prompt --compact`, CLI 17-command surface, callback effect contracts, and `v0.61`–`v0.63` language & tooling features (`|>`, `_?`/`?name` typed holes, `deriving (Json)`, `let x = expr?`, `check --fix` Phase 1+2, LSP `codeAction`, `ailang inspect`, stdlib combinators & scripting batteries).
 - **Downstream state:** `docparse`, `daneel`, `ailang-packages`, `ailang-parse`, `email-parse`, `ailang-world` (`world/core` 0.1.2 published), and the motoko fork all check cleanly.
-- **Active teaching prompt on `dev`:** **v0.16.17** (v0.16.16 frozen; v0.16.17 aligns Z3 verifier claims with v0.60.6).
+- **Active teaching prompt on `dev`:** **v0.16.20** (covers `deriving (Json)`, `let x = expr?`, `|>`, `_?`/`?name`, `ailang inspect`, and aligned Z3 verifier semantics).
+- **Remaining close-out before `v1.0.0`:** remove `@deprecated` stdlib aliases + run `make downstream-check`, RC pipeline check, 1.0 docs/migration/G5 metrics fragment, paired baseline, ≥7-day soak, `v1.0.0-rc.1` → `v1.0.0`.
 
 ## Roadmap accepted 2026-11-10 (`D-66`) — breaking window open on `v0.60.x`
 An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime

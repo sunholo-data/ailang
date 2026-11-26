@@ -35,9 +35,12 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Inline Tests** | Complete | `tests [(input, expected)]` syntax |
-| **Structured Errors** | Complete | JSON output, error codes |
+| **Structured Errors** | Complete | JSON output, error codes, `check --fix` & LSP `codeAction` |
+| **Semantic Inspection** | Complete | `ailang inspect` 1-line-per-symbol agent/JSON X-ray |
+| **JSON Deriving** | Complete | `deriving (Json)` for monomorphic records & sum ADTs |
+| **Error Propagation** | Complete | `let x = expr?` spine unwrapping for `Result`/`Option` |
 | **Schema Registry** | Complete | Versioned JSON schemas |
-| **Teaching Prompts** | Complete | `ailang prompt` command |
+| **Teaching Prompts** | Complete | `ailang prompt` / `ailang prompt --compact` |
 | **Multi-Model Evals** | Complete | Claude, GPT, Gemini support |
 | **Semantic Caching** | Complete | SimHash + neural embeddings |
 
@@ -47,7 +50,7 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 |---------|--------|-------|
 | **Contracts** | Complete | `requires`/`ensures` clauses |
 | **Policy Mode** | Complete | Redundant verification |
-| **SMT Backend** | Complete | Z3 integration, cross-function inlining |
+| **SMT Backend** | Complete | Z3 integration, cross-function inlining, int64/NaN numeric model |
 | **Bounded Recursion** | Complete | `--verify-recursive-depth N` (Dafny-style unrolling); unbounded recursion is `inconclusive` — no induction yet |
 
 ---
@@ -61,7 +64,7 @@ See [Limitations](/docs/reference/limitations) for the full list.
 - Pattern guards parsed but not evaluated
 
 **Not yet implemented:**
-- `?` error propagation operator
+- Arbitrary sub-expression `?` propagation (use `let x = expr?` along the return spine)
 - Typed quasiquotes
 - CSP concurrency (deferred)
 

@@ -9,20 +9,22 @@ Each row in §2 is a design doc written by an independent Opus agent from that r
 the code and with its blast radius measured. This file is the index: order, dependencies, what the
 design work changed in the review, and the decisions that unblock it.
 
-## 1. Where we are (updated 2026-11-23)
+## 1. Where we are (updated 2026-11-26)
 
-- **Latest release:** `v0.60.6` (the breaking window originally named "v0.58.x" has moved through
-  `v0.58.0`, `v0.59.0`, and `v0.60.0`–`v0.60.6` and remains open until step 16).
-- **Shipped (Waves 1–3, soundness fixes, and second round — see §7):** release gates M1+M2,
-  downstream compat gate, doc-sample gate, canonical module identity + nominal type identity,
-  type-variable hygiene, `JInt`, total `show`, stdlib renames with `@deprecated` aliases,
-  match exhaustiveness (`TC_MATCH_002`), all ten original soundness issues + follow-ups,
-  Go emitter removal (`#2389`), lexical-scoping / REPL / WASM fixes, generic numeric-literal
-  variants (`#2393`), and verifier coverage + witness replay on `dev`.
-- **Remaining before close-out (see §7 "Not started"):** integer overflow trap, callback effect
-  rule, capability-grant changes & Internal command moves, help text, docs rewrites (284 baselined
-  samples + migration/security-model/support-window pages), rest of the rc pipeline, then
-  close-out steps 16–19 (remove `@deprecated` aliases → paired baseline → ≥7-day soak → `v1.0.0-rc.1` → `v1.0.0`).
+- **Latest release:** `v0.63.0` (the breaking window originally named "v0.58.x" has moved through
+  `v0.58.0`–`v0.63.0` and remains open until step 16). Active teaching prompt: `v0.16.20`.
+- **Shipped (Waves 1–3, soundness fixes, second round, and v0.61–v0.63 — see §7):** release gates M1+M2,
+  downstream compat gate, doc-sample gate & burn-down (284 → ~0), canonical module identity + nominal
+  type identity, type-variable hygiene, `JInt`, total `show`, stdlib renames with `@deprecated` aliases,
+  match exhaustiveness (`TC_MATCH_002`), all ten original soundness issues + follow-ups, Go emitter
+  removal (`#2389`), lexical-scoping / REPL / WASM fixes, generic numeric-literal variants (`#2393`),
+  Z3 int64 overflow/NaN numeric model (`M-VERIFY-NUMERIC-MODEL`), `prompt --compact`, CLI 17-command
+  surface, callback effect contracts, and `v0.61`–`v0.63` language & tooling features (`|>`,
+  `_?`/`?name` typed holes, `deriving (Json)`, `let x = expr?`, `check --fix` Phase 1+2, LSP
+  `codeAction`, `ailang inspect`, stdlib combinators & scripting batteries).
+- **Remaining close-out (see §7 "Remaining close-out"):** remove `@deprecated` aliases + run
+  `make downstream-check`, RC pipeline check, 1.0 docs / migration / G5 metrics fragment, paired
+  baseline, ≥7-day soak, then `v1.0.0-rc.1` → `v1.0.0`.
 
 ## 2. The ten docs
 
@@ -284,16 +286,17 @@ the prompt); how much of the Go emitter is promised at 1.0.
 
 **Review process change:** every review of a compiler change must drive the REPL and the wasm build (`ailangEval`, `ailangLoadModule`/`ailangCall`), not only `check` and `run`.
 
-**Downstream state (2026-11-23).** The breaking soundness changes SHIPPED in v0.60.4 (2026-11-13); **v0.60.6** is the latest release. docparse, daneel, ailang-packages, ailang-parse, email-parse and ailang-world all check cleanly; `world/core` 0.1.2 is published (2026-11-16); motoko fork PR 11 merged (35ea06602). Measured blast radius of v0.60.4: #2283 188 files, #2289 30 (24 deliberate fixtures), #2288 3, #2304 3.
+**Downstream state (2026-11-26).** The breaking soundness changes SHIPPED in v0.60.4 (2026-11-13); **v0.63.0** is the latest release. docparse, daneel, ailang-packages, ailang-parse, email-parse and ailang-world all check cleanly; `world/core` 0.1.2 is published (2026-11-16); motoko fork PR 11 merged (35ea06602). Measured blast radius of v0.60.4: #2283 188 files, #2289 30 (24 deliberate fixtures), #2288 3, #2304 3.
+
+**Shipped in v0.61–v0.63 (2026-11-24–26):**
+- Z3 int64 overflow/NaN numeric model (`M-VERIFY-NUMERIC-MODEL`), callback effect contracts, `ailang prompt --compact`, CLI 17-command surface, and the doc-samples burn-down (284 → ~0).
+- Language & AI-ergonomics features: pipe operator (`|>`), typed holes (`_?`/`?name`), unbraced multi-statement match arms & if branches, `deriving (Json)` for monomorphic records & sum ADTs, `let x = expr?` spine error/option propagation, `ailang check --fix` Phase 1+2 + shared LSP `codeAction`, `ailang inspect` semantic module X-ray, and `std/map`/`std/list` combinators + `std/string`/`std/fs` scripting batteries.
 
 **Unowned, in priority order:** #2410 (the playground/REPL module path is a second hand-kept pipeline that skips effect validation, match exhaustiveness and contract type-checking: a program the playground runs can be one `check` rejects), #2404 (a generalised pure lambda cannot be unified with an effectful one in an `if`/list; the obvious fix breaks ~40 tests on the #1958 ownership invariant), #2361 (`check` polynomial in expression depth and `let` count), #2409 (REPL lacks interpolation, `::`, string `<`, stdlib imports), #2323 (lambda in a tuple literal fails on the evaluator), #2399 (`--entry --args-json 2.9` truncates to int), #2400 (`verify` on unannotated generic contracts), #2392 (inline test rows call the int body), `==` on a record alias without `deriving (Eq)` accepted across modules (not filed), #2337, #2322, #2260, #2294, #2354, #2355, #2372, #2376, #2377, #2379, #2391.
 
-**Teaching-prompt edits:** `v0.16.17` landed on `dev` (`bf01b75cd`, `efc03090b`) to align Z3 verifier claims with v0.60.6. Still queued for the next prompt update: contracts are type-checked and enum `==` needs `deriving (Eq)`; `TC_MATCH_007` row; `dedup` removes all duplicates and the six list functions need `==`; library modules no longer need to import Option/Result (#2381 body lists lines); drop `extern` from the module keywords (v0.16.16:2490); numeric literals per the ruling above (the "Polymorphic Comparison Lambdas" paragraph); v0.16.16:455 vs #2322.
+**Teaching-prompt edits:** Active prompt is **`v0.16.20`** (covering `deriving (Json)`, `let x = expr?`, `|>`, `_?`/`?name`, `ailang inspect`, and aligned Z3 verifier semantics).
 
-**Not started:** integer overflow trap; callback
-effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
-baselined samples) and the migration, security-model and support-window pages; rest of the rc
-pipeline; then close-out steps 16–19.
+**Remaining close-out:** remove `@deprecated` stdlib aliases + run `make downstream-check`; RC pipeline check; 1.0 docs / migration / security-model / support-window pages & G5 metrics fragment; paired baseline; ≥7-day soak; then `v1.0.0-rc.1` → `v1.0.0`.
 
 ### What the waves changed in the plan
 
@@ -353,9 +356,10 @@ pipeline; then close-out steps 16–19.
   now publishes from its own folder (infra #17). Where the AILANG Cloud landing page should live is
   open.
 
-## 8. Suggested next step (updated 2026-11-23)
+## 8. Suggested next step (updated 2026-11-26)
 
-Waves 1–3, the soundness fixes, and the second round are landed. Remaining pre-1.0 work is the
-"Not started" list in §7 (integer overflow trap, callback effect rule, public-surface hygiene,
-docs rewrites / 284 baselined samples, rest of the rc pipeline) plus the high-priority unowned
-items (`#2410`, `#2404`, `#2361`), followed by close-out steps 16–19.
+Waves 1–3, the soundness fixes, the second round, Z3 int64/NaN numeric model (`M-VERIFY-NUMERIC-MODEL`),
+callback effect contracts, `prompt --compact`, CLI 17-command surface, doc-samples burn-down (284 → ~0),
+and `v0.61`–`v0.63` features are all landed. Remaining close-out before `v1.0.0`: remove `@deprecated`
+stdlib aliases + run `make downstream-check`, RC pipeline check, 1.0 docs/migration/G5 metrics fragment,
+paired baseline, ≥7-day soak, and `v1.0.0-rc.1` → `v1.0.0`.

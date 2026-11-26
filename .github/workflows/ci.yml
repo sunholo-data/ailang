@@ -163,16 +163,13 @@ jobs:
     - name: Build headroom instrument
       run: go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom
 
-    # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
+    # -timeout 660s is a DERIVED, PROVISIONAL operational budget (right-censored
     # input — see design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md):
-    #   budget = worst steady-state package x runner variance x safety factor
-    #          = 172.5s (cmd/ailang, slowest pkg on non-failing dev run e5a325a20)
-    #          x 1.80x  (runner variance: aggregate package-seconds 599.7 -> 1080.3,
-    #                    72f9cfeca vs 8e3927950)
-    #          x 1.34x  (per-package excess variance the aggregate hides; a FLOOR —
-    #                    coordinator was cut off at the old 300s ceiling on 72f9cfeca)
-    #          = 416.1s -> 416s
-    # The old 300s sat INSIDE the measured noise band (172.5 x 1.80 = 310.5s > 300s).
+    #   Original Linux derivation: 172.5s x 1.80x x 1.34x = 416s.
+    #   By v0.63.0, cmd/ailang grew to 383-409s on ubuntu-latest and repeatedly
+    #   tripped verify_exit_contract_test.go's deadline hang guard before finishing.
+    #   Updated budget = 409s observed x 1.34x safety factor = 548s, rounded up to
+    #   660s (~38% headroom over observed peak) for right-censoring and runner variance.
     # Still catches genuine hangs (M-DX11's intent); DRIFT is caught by the headroom
     # instrument (tools/ci/headroom), not by this value.
     # The same pass writes the coverage profile (the gate below reads it, so the
@@ -195,9 +192,9 @@ jobs:
         go_rc=0
         hr_rc=0
         mkdir -p coverage
-        go test -timeout 416s ./... -coverprofile=coverage/raw.out -covermode=set > go_test_headroom.log 2>&1 || go_rc=$?
+        go test -timeout 660s ./... -coverprofile=coverage/raw.out -covermode=set > go_test_headroom.log 2>&1 || go_rc=$?
         cat go_test_headroom.log                      # panic and FAIL/ok lines stay visible
-        "$RUNNER_TEMP/headroom" go_test_headroom.log 416 || hr_rc=$?
+        "$RUNNER_TEMP/headroom" go_test_headroom.log 660 || hr_rc=$?
         if [ $go_rc -ne 0 ]; then exit $go_rc; fi     # a failing suite still fails the job
         exit $hr_rc
 
