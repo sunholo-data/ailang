@@ -126,14 +126,13 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		return nil, err
 	}
 
-	// M-DX19: Check for deriving (Eq) clause
-	hasDerivingEq := false
-	for _, d := range decl.Deriving {
-		if d == ast.DeriveEq {
-			hasDerivingEq = true
-			break
-		}
+	// M-AI-GO-TO-LANGUAGE: Validate deriving (Json) monomorphic constraints early
+	if err := checkDerivingJsonPoly(nil, decl); err != nil {
+		return nil, err
 	}
+
+	// M-DX19: Check for deriving (Eq) clause
+	hasDerivingEq := hasDeriveKind(decl, ast.DeriveEq)
 
 	// M-DX19: Validate deriving (Eq) constraints
 	if hasDerivingEq {

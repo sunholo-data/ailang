@@ -2,6 +2,7 @@ package elaborate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -14,11 +15,17 @@ import (
 // colliding with an earlier-declared func (or another let) is reported at the
 // let's position, citing the func/let it collides with.
 func checkDuplicateModuleBindings(file *ast.File, lets []*ModuleLet, funcs []*FuncSig) error {
-	// Position of each module func by name (funcs are declared, so unique by the
-	// parser's own rules; we only need them for the collision message).
+	// Position of each module func by name; also catches collisions between
+	// user-written functions and synthesized functions (e.g. deriving (Json)).
 	funcPos := make(map[string]ast.Pos, len(funcs))
 	for _, f := range funcs {
 		if f.FuncDecl != nil {
+			if prevPos, dup := funcPos[f.Name]; dup {
+				return fmt.Errorf("Error %s: func '%s' is declared twice (at %s and %s) "+
+					"— a module-scope name may have only one binding.\n"+
+					"  Fix: rename or remove the duplicate (deriving (Json) synthesizes encode<Type> and decode<Type>)",
+					errors.MOD007, f.Name, posString(prevPos), posString(f.FuncDecl.Position()))
+			}
 			funcPos[f.Name] = f.FuncDecl.Position()
 		}
 	}
@@ -166,14 +173,22 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 		}
 	}()
 	// For REPL/simple cases without module or funcs
-	if file.Module == nil || (len(file.Imports) == 0 && len(file.Funcs) == 0) {
+	if file.Module == nil || (len(file.Imports) == 0 && len(file.Funcs) == 0 && !fileHasDerivingJson(file)) {
 		// First, process type declarations to register constructors
 		for _, stmt := range file.Statements {
 			if typeDecl, ok := stmt.(*ast.TypeDecl); ok {
 				_, err := e.elaborateTypeDecl(typeDecl)
 				if err != nil {
+					if strings.HasPrefix(err.Error(), "TC_") || strings.HasPrefix(err.Error(), "IMP_") {
+						return nil, err
+					}
 					return nil, fmt.Errorf("failed to process type declaration %s: %w", typeDecl.Name, err)
 				}
+			}
+		}
+		if fileHasDerivingJson(file) {
+			if err := e.synthesizeDerivedJsonDecls(file); err != nil {
+				return nil, err
 			}
 		}
 
@@ -202,9 +217,18 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 		if typeDecl, ok := decl.(*ast.TypeDecl); ok {
 			_, err := e.elaborateTypeDecl(typeDecl)
 			if err != nil {
+				if strings.HasPrefix(err.Error(), "TC_") || strings.HasPrefix(err.Error(), "IMP_") {
+					return nil, err
+				}
 				return nil, fmt.Errorf("failed to process type declaration %s: %w", typeDecl.Name, err)
 			}
 		}
+	}
+
+	// M-AI-GO-TO-LANGUAGE: Synthesize encode<Type>/decode<Type> for deriving (Json)
+	// before collecting module function signatures and building the SCC call graph.
+	if err := e.synthesizeDerivedJsonDecls(file); err != nil {
+		return nil, err
 	}
 
 	// Collect module-level let bindings BEFORE function elaboration

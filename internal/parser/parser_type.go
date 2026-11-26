@@ -453,7 +453,7 @@ func (p *Parser) parseDeriving() []ast.DeriveKind {
 // parseDeriveName parses a single derive name and returns the corresponding DeriveKind
 func (p *Parser) parseDeriveName() ast.DeriveKind {
 	if !p.curTokenIs(lexer.IDENT) {
-		p.report("PAR_DERIVING_NAME", "expected type class name in deriving clause", "Add 'Eq', 'Ord', or other derivable class")
+		p.report("PAR_DERIVING_NAME", "expected type class name in deriving clause", "Add 'Eq' or 'Json' in deriving clause")
 		return ast.DeriveNone
 	}
 
@@ -461,8 +461,10 @@ func (p *Parser) parseDeriveName() ast.DeriveKind {
 	switch name {
 	case "Eq":
 		return ast.DeriveEq
+	case "Json":
+		return ast.DeriveJson
 	default:
-		p.report("PAR_DERIVING_UNSUPPORTED", "unsupported deriving: "+name+", only 'Eq' is currently supported", "Use 'Eq'")
+		p.report("PAR_DERIVING_UNSUPPORTED", "unsupported deriving: "+name+", only 'Eq' and 'Json' are currently supported", "Use 'Eq' or 'Json'")
 		return ast.DeriveNone
 	}
 }

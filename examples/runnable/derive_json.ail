@@ -1,0 +1,39 @@
+-- Automatic JSON Codecs via deriving (Json)
+-- Demonstrates derived encode<Type> / decode<Type> for records and sum ADTs (M-AI-GO-TO-LANGUAGE).
+
+module examples/runnable/derive_json
+import std/io (println)
+import std/json (Json, encode, decode)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+export type ServerConfig = { host: string, port: int, tag: Option[string] } deriving (Eq, Json)
+
+export type Command = Ping | Scale(int) | Deploy(service: string, region: Option[string]) deriving (Eq, Json)
+
+export pure func validPort(p: int) -> bool
+ensures { result == (p >= 1 && p <= 65535) } {
+  p >= 1 && p <= 65535
+}
+
+export func main() -> () ! {IO} {
+  let cfg: ServerConfig = { host: "0.0.0.0", port: 8080, tag: None }
+  let cfgJson = encode(encodeServerConfig(cfg))
+  println("encoded config: ${cfgJson}")
+  match decode("{\"host\":\"0.0.0.0\",\"port\":8080,\"tag\":null}") {
+    Ok(j) => match decodeServerConfig(j) {
+      Ok(parsed) => println("decoded valid=${show(validPort(parsed.port))} eq=${show(parsed == cfg)}"),
+      Err(e) => println("decode error: ${e}")
+    },
+    Err(e) => println("json parse error: ${e}")
+  }
+  let cmds = [Ping, Scale(4), Deploy("billing", Some("eu-west-1"))]
+  match cmds {
+    c1 :: c2 :: c3 :: [] => {
+      println("cmd1: ${encode(encodeCommand(c1))}")
+      println("cmd2: ${encode(encodeCommand(c2))}")
+      println("cmd3: ${encode(encodeCommand(c3))}")
+    },
+    _ => println("unexpected")
+  }
+}

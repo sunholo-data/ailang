@@ -218,6 +218,7 @@ type DeriveKind int
 const (
 	DeriveNone DeriveKind = iota
 	DeriveEq              // deriving (Eq) - automatic equality
+	DeriveJson            // deriving (Json) - automatic JSON encode/decode
 	// Future: DeriveOrd, DeriveShow, etc.
 )
 
@@ -228,6 +229,8 @@ func (d DeriveKind) String() string {
 		return ""
 	case DeriveEq:
 		return "Eq"
+	case DeriveJson:
+		return "Json"
 	default:
 		return "unknown"
 	}

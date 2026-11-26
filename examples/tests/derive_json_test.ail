@@ -1,0 +1,119 @@
+module examples/tests/derive_json_test
+import std/json (Json, encode, decode, has, jb)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err, isErr)
+
+export type Address = { city: string, zip: int } deriving (Eq, Json)
+
+export type AppConfig = { host: string, port: int, ratio: float, tls: bool, tags: [string], note: Option[string], retries: Option[int], addr: Address } deriving (Eq, Json)
+
+type OptListRecord = { items: [Option[int]] } deriving (Eq, Json)
+
+type Envelope = { id: int, pair: (string, int), meta: Json } deriving (Eq, Json)
+
+export type Shape = Point | Circle(float) | Segment(int, int) | Rect({ w: float, h: float }) | Labeled(label: string, detail: Option[string]) deriving (Eq, Json)
+
+type Expr = Lit(int) | Add(Expr, Expr) | Batch([Expr]) deriving (Eq, Json)
+
+type EvenTree = EvenLeaf(int) | EvenStep(OddTree) deriving (Eq, Json)
+
+type OddTree = OddLeaf(string) | OddStep(EvenTree) deriving (Eq, Json)
+
+pure func roundTripConfig(c: AppConfig) -> Result[AppConfig, string] {
+  let raw = encode(encodeAppConfig(c))
+  match decode(raw) {
+    Ok(j) => decodeAppConfig(j),
+    Err(e) => Err(e)
+  }
+}
+
+pure func roundTripShape(s: Shape) -> Result[Shape, string] {
+  let raw = encode(encodeShape(s))
+  match decode(raw) {
+    Ok(j) => decodeShape(j),
+    Err(e) => Err(e)
+  }
+}
+
+pure func decodeConfigStr(raw: string) -> Result[AppConfig, string] = match decode(raw) {
+  Ok(j) => decodeAppConfig(j),
+  Err(e) => Err(e)
+}
+
+pure func decodeAddressStr(raw: string) -> Result[Address, string] = match decode(raw) {
+  Ok(j) => decodeAddress(j),
+  Err(e) => Err(e)
+}
+
+pure func decodeShapeStr(raw: string) -> Result[Shape, string] = match decode(raw) {
+  Ok(j) => decodeShape(j),
+  Err(e) => Err(e)
+}
+
+test "record round-trip with Some and None optional fields (TST-DJ-02)" {
+  let cfgSome: AppConfig = { host: "api.example.com", port: 8443, ratio: 0.75, tls: true, tags: ["prod", "edge"], note: Some("primary"), retries: Some(3), addr: { city: "Copenhagen", zip: 2100 } };
+  assert roundTripConfig(cfgSome) == Ok(cfgSome);
+  assert has(encodeAppConfig(cfgSome), "note") == true
+  let cfgNone: AppConfig = { host: "localhost", port: 8080, ratio: 1.5, tls: false, tags: [], note: None, retries: None, addr: { city: "Odense", zip: 5000 } };
+  assert has(encodeAppConfig(cfgNone), "note") == false;
+  assert has(encodeAppConfig(cfgNone), "retries") == false;
+  assert roundTripConfig(cfgNone) == Ok(cfgNone)
+}
+
+test "record Option decode accepts both missing key and explicit null (TST-DJ-02)" {
+  let withNull = "{\"host\":\"localhost\",\"port\":3000.0,\"ratio\":2,\"tls\":true,\"tags\":[\"a\"],\"note\":null,\"addr\":{\"city\":\"Aarhus\",\"zip\":8000}}"
+  let expected: AppConfig = { host: "localhost", port: 3000, ratio: 2.0, tls: true, tags: ["a"], note: None, retries: None, addr: { city: "Aarhus", zip: 8000 } };
+  assert decodeConfigStr(withNull) == Ok(expected)
+}
+
+test "record decode rejects wrong types, fractional ints, and missing required fields (TST-DJ-02)" {
+  assert isErr(decodeAddressStr("{\"city\":\"Aarhus\"}"));
+  assert isErr(decodeAddressStr("{\"city\":\"Aarhus\",\"zip\":12.5}"));
+  assert isErr(decodeConfigStr("{\"host\":\"h\",\"port\":80,\"ratio\":1.0,\"tls\":true,\"tags\":[\"ok\",42],\"addr\":{\"city\":\"C\",\"zip\":1}}"));
+  assert isErr(decodeConfigStr("{\"host\":\"h\",\"port\":80,\"ratio\":1.0,\"tls\":true,\"tags\":[],\"note\":999,\"addr\":{\"city\":\"C\",\"zip\":1}}"))
+}
+
+test "non-field Option[T], tuples, and raw Json fields round-trip (TST-DJ-02)" {
+  let v: OptListRecord = { items: [Some(10), None, Some(30)] }
+  let raw = encode(encodeOptListRecord(v));
+  assert raw == "{\"items\":[10,null,30]}";
+  assert match decode(raw) {
+    Ok(j) => decodeOptListRecord(j) == Ok(v),
+    Err(_) => false
+  }
+  let env: Envelope = { id: 7, pair: ("ok", 200), meta: jb(true) }
+  let envRaw = encode(encodeEnvelope(env));
+  assert match decode(envRaw) {
+    Ok(j) => decodeEnvelope(j) == Ok(env),
+    Err(_) => false
+  }
+}
+
+test "sum ADT variants round-trip across nullary, positional, inline record, and named fields (TST-DJ-03)" {
+  assert roundTripShape(Point) == Ok(Point);
+  assert encode(encodeShape(Point)) == "{\"tag\":\"Point\"}";
+  assert roundTripShape(Circle(3.25)) == Ok(Circle(3.25));
+  assert roundTripShape(Segment(10, 20)) == Ok(Segment(10, 20));
+  assert roundTripShape(Rect({ w: 4.5, h: 9.0 })) == Ok(Rect({ w: 4.5, h: 9.0 }));
+  assert roundTripShape(Labeled("box", Some("blue"))) == Ok(Labeled("box", Some("blue")));
+  assert roundTripShape(Labeled("plain", None)) == Ok(Labeled("plain", None));
+  assert decodeShapeStr("{\"tag\":\"Point\",\"fields\":[]}") == Ok(Point);
+  assert decodeShapeStr("{\"tag\":\"Point\",\"fields\":null}") == Ok(Point);
+  assert isErr(decodeShapeStr("{\"tag\":\"Point\",\"fields\":[1]}"));
+  assert isErr(decodeShapeStr("{\"tag\":\"Unknown\"}"))
+}
+
+test "recursive and mutually-recursive ADTs round-trip (TST-DJ-03)" {
+  let tree = Batch([Lit(1), Add(Lit(2), Lit(3)), Batch([])])
+  let raw = encode(encodeExpr(tree));
+  assert match decode(raw) {
+    Ok(j) => decodeExpr(j) == Ok(tree),
+    Err(_) => false
+  }
+  let mutual = EvenStep(OddStep(EvenLeaf(42)))
+  let mRaw = encode(encodeEvenTree(mutual));
+  assert match decode(mRaw) {
+    Ok(j) => decodeEvenTree(j) == Ok(mutual),
+    Err(_) => false
+  }
+}
