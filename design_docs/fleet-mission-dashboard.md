@@ -1,20 +1,16 @@
-# Fleet mission dashboard — iteration 140
+# Fleet mission dashboard — iteration 141
 
-Updated 2026-11-25; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
+Updated 2026-11-26; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
 
-- **Outcome: BUILT + JUDGED, not merged [HARNESS].** `skill:rotate-log-index-only-targets-registry-workdir` (World 433) is [#2471](https://github.com/sunholo-data/ailang/pull/2471), stacked on #2466.
-  - Independent judge (sonnet): **PASS 92**, 0 blocking, 11/11 mutations killed.
-  - `ailang mission rotate-log --workdir <dir>` targets an explicit record checkout for `--keep`, `--index-only` and `--stream status`.
-  - Gate 4 prescribes `--workdir "$PWD"` and keeps the earlier forms for a CLI that predates the flag (the rig's v0.61.1 rejects it).
-  - Smoke on the ticket's exact case: the World INDEX was written in the record checkout; the World main checkout was byte-unchanged.
-- **Dev: RED on two required `test` failures at `e3595b4f9`, both outside fleet scope.**
-  - `TestRealRegistry_PostMigrationSplitCounts` (v0.16.20 prompt freeze), as in 139.
-  - New: `TestCachePipeline_EmbeddedKeys` ("std/result unexpected dependencies: [std/option]"), from `e3595b4f9` itself (`result.toOption`/`fromOption`).
-  - #2463, #2466 and #2471 all inherit only these; `lint`, `build`, `checks` and `docs-gate` are green.
-- **Open tickets:** 22 (one new). 16 are ruling-gated, 3 are attended-fixed but unresolved (rows 71–73, D-FLEET-46's class), and 3 are built and waiting (rows 70, 74, 75).
-- **Routing:** controller opus. Planner and executor codex `gpt-6.2-sol` (recipe; 60k + 93k tok). Judge sonnet on the Agent tool, own worktree (56k tok). No designer.
+- **Outcome: LANDED + RESOLVED ×3 [HARNESS].** Dev went fully green at `63b605cbc` (Release v0.62.1), so the stacked fixes landed in order:
+  - [#2463](https://github.com/sunholo-data/ailang/pull/2463) → `25cc5bc42`: pre-publication secret scan for mission evidence plus Gate 4's Public publish rule (`publish:evidence-pack:no-secret-value-guard`, stapledon).
+  - [#2466](https://github.com/sunholo-data/ailang/pull/2466) → `fcc3d3481`: `mission-base.sh` refuses a CWD whose origin is not `$MISSION_REPO`; gates call it via `$MISSION_DRIVER_ROOT` (`skill:mission-base-relative-path-records-driver-repo`, world).
+  - [#2471](https://github.com/sunholo-data/ailang/pull/2471) → `92bc214ba`: `ailang mission rotate-log --workdir <dir>` (`skill:rotate-log-index-only-targets-registry-workdir`, world). The flag reaches a mission only once its `ailang` is rebuilt.
+  - Independent judge (sonnet) re-judged the rebased stack: **PASS 91 / 89 / 91**, 0 blocking. Dev's tree after the last merge is byte-identical to the judged head.
+- **Dev: GREEN** at `92bc214ba` (22/22). Two flakes on `fcc3d3481` (z3 download 403; `internal/pipeline` 6m56s timeout) went green on re-run.
+- **Open tickets:** 20 (23 → 20). Next in scope: `idle-fingerprint:record-eval-json-moves-head` (stapledon 118, 1 slot).
+- **Routing:** controller opus. Judge sonnet on the Agent tool, own worktree (68k tok). No designer, planner or executor (landing only).
 - **Cost:** metered $0.
-- **Harness share:** 11/20 (all tagged).
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46, D-FLEET-48, all unchanged. D-FLEET-48 now waits on two dev reds, or option B.
-- **Next:** when dev's `test` is green on its head, land #2463 → #2466 → #2471 in order (rebase, poll, merge, done-gate, resolve). Otherwise pick NONE.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration140/](fleet-mission-evidence/iteration140/).
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46 unchanged. **D-FLEET-48 is now moot** (its default ran); close it when convenient.
+- **Next:** reality-check and fix `idle-fingerprint:record-eval-json-moves-head`; otherwise pick NONE.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration141/](fleet-mission-evidence/iteration141/).

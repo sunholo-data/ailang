@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 141 | 2026-11-26 | #2463, #2466 and #2471 LANDED + RESOLVED: dev went green at `63b605cbc` (Release v0.62.1), the stack was rebased and re-judged (independent sonnet ... |
 | 140 | 2026-11-25 | `skill:rotate-log-index-only-targets-registry-workdir` BUILT + JUDGED (independent sonnet judge PASS 92): #2471, stacked on #2466, adds `ailang mis... |
 | 139 | 2026-11-25 | #2463 and the i138 branch REBASED + RE-JUDGED (independent sonnet judge PASS 90), not merged: dev went fully green at `7a61839c7` once D-FLEET-48's... |
 | 138 | 2026-11-25 | `skill:mission-base-relative-path-records-driver-repo` BUILT + JUDGED (independent sonnet judge PASS 90): `mission-base.sh` refuses a CWD whose ori... |
