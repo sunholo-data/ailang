@@ -1,6 +1,0 @@
-### Added — M-AI-PREFERRED-V2: unbraced multi-statement arms/branches, LSP quick-fixes, stdlib combinators, and deterministic Task ELO routing
-
-- **Parser & Formatter (Slice A, D1=b)**: Unbraced multi-statement `let` bindings are now accepted directly inside `match` arms and `if`/`then`/`else` branches (eliminating `PAR_MATCH_ARM_BLOCK` and `PAR_IF_BRANCH_BLOCK` parse friction), with `ailang fmt` normalizing them to canonical `{ ... }` blocks.
-- **Shared Quick-Fix Engine & LSP `codeAction` (Slice B, D2=a)**: Extracted the mechanical diagnostic edit engine into `internal/quickfix/` so `ailang check --fix` / `--json` and `internal/lsp/` `textDocument/codeAction` share one source of truth, and added deterministic `TC_MATCH_002` missing-arm stub edits (`<pattern> => _?`).
-- **Stdlib Combinators (Slice C, D3=a)**: Added pure, 0-VM-fallback combinators to `std/map` (`update`, `mapValues`, `filter`) and `std/list` (`span`, `chunk`, `groupBy`), with updated `.stdlib-golden/` snapshots and runnable/unit tests.
-- **Deterministic Task ELO Routing**: Added `estimate_task_elo.sh` to the `sprint-planner` skill (`.agents/skills/` and `.claude/skills/`) for reproducible task-complexity ELO estimation and model tier routing.
