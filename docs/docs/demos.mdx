@@ -2,198 +2,98 @@
 sidebar_position: 5
 title: Live Demos
 description: Interactive browser-based demos showcasing AILANG features
-reviewBy: 2026-12-07
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon from '@site/src/components/Icon';
 
 # Live Demos
 
-AILANG provides **9 interactive browser-based demos** at [www.sunholo.com/ailang-demos](https://www.sunholo.com/ailang-demos/). All demos run entirely in the browser using WebAssembly — no installation required.
+Explore **9 interactive browser-based demos** at [www.sunholo.com/ailang-demos](https://www.sunholo.com/ailang-demos/). Every demo runs client-side in WebAssembly — no installation required.
 
 <div className="callout-box">
-  <Icon name="globe" inline /> **Try them now:** <a href="https://www.sunholo.com/ailang-demos/" target="_blank" rel="noopener noreferrer">www.sunholo.com/ailang-demos</a>
+  <Icon name="globe" inline /> **Try them now:** <a href="https://www.sunholo.com/ailang-demos/" target="_blank" rel="noopener noreferrer">www.sunholo.com/ailang-demos</a> · Or run snippets in the [Browser Playground](/docs/playground).
 </div>
 
----
+## Feature-to-Demo Matrix
 
-## Document Intelligence
-
-### Document Extractor
-
-**[Try it](https://www.sunholo.com/ailang-demos/extractor.html)** | WASM, AI Effect, Contracts
-
-AI-powered extraction with schema detection. Upload invoices, receipts, contracts, or bank statements — AILANG contracts validate every AI extraction result before returning.
-
-**AILANG features demonstrated:**
-- <Icon name="bot" inline /> `std/ai` effect for calling LLMs (Gemini)
-- <Icon name="shield" inline /> `requires`/`ensures` contract verification
-- <Icon name="box" inline /> Full AILANG interpreter compiled to WebAssembly
-- 7 demo presets with 3-tier graceful degradation
-
-### DocParse
-
-**[Try it](https://www.sunholo.com/ailang-demos/docparse.html)** | WASM, std/xml, std/zip
-
-Parse DOCX, PPTX, XLSX, PDF, and images entirely in-browser. 10 AILANG modules handle pure deterministic parsing — no server round-trips.
-
-**AILANG features demonstrated:**
-- <Icon name="code" inline /> `std/xml` and `std/zip` stdlib modules
-- <Icon name="shield" inline /> 28 contracts enforce structural invariants
-- <Icon name="box" inline /> WebAssembly execution with zero server dependency
-- Handles merged cells, track changes, and multi-format detection
-
-### Z3 Verify
-
-**[Try it](https://www.sunholo.com/ailang-demos/verify.html)** | Contracts, Z3
-
-Static contract verification with the Z3 theorem prover. Watch Z3 mathematically prove correctness or find counterexamples across 4 real-world scenarios.
-
-**AILANG features demonstrated:**
-- <Icon name="shield" inline /> `requires`/`ensures` with Z3 backend (`ailang verify`)
-- Cloud billing contracts (12 verified, 2 intentional violations)
-- Access control with 48 permission paths
-- Conference room scheduling with capacity bounds
-- Arithmetic contracts (clamping, tax, safe subtraction)
-
-### AI + Contracts
-
-**[Try it](https://www.sunholo.com/ailang-demos/contracts-ai.html)** | AI Effect, Contracts
-
-The core AILANG value proposition in one demo: AI extracts structured data from documents, then AILANG contracts validate every field before returning. Deterministic verification of stochastic AI output.
-
-**AILANG features demonstrated:**
-- <Icon name="bot" inline /> AI effect for extraction
-- <Icon name="shield" inline /> Contract validation of AI output
-- Schema-first extraction with typed results
+| AILANG Feature | Best Demo |
+|---|---|
+| Contracts (`requires`/`ensures`) & Z3 | [Z3 Verify](https://www.sunholo.com/ailang-demos/verify.html), [Safe Agent](https://www.sunholo.com/ailang-demos/streaming/safe_agent/) |
+| AI Effect (`std/ai`) | [Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/), [AI + Contracts](https://www.sunholo.com/ailang-demos/contracts-ai.html) |
+| WebAssembly + stdlib (`xml`, `zip`) | [DocParse](https://www.sunholo.com/ailang-demos/docparse.html), [Document Extractor](https://www.sunholo.com/ailang-demos/extractor.html) |
+| Streaming (SSE / WebSocket / Voice) | [Voice DocParse](https://www.sunholo.com/ailang-demos/streaming/voice_docparse/), [Gemini Live](https://www.sunholo.com/ailang-demos/streaming/gemini_live/) |
+| Capability Budgets | [GA4 Ecommerce](https://www.sunholo.com/ailang-demos/ecommerce/) |
 
 ---
 
-## Streaming & Voice
+## Document Intelligence & Verification
 
-### Voice DocParse
+### Document Extractor — [Try it](https://www.sunholo.com/ailang-demos/extractor.html)
+`WASM` · `std/ai` · `Contracts`
 
-**[Try it](https://www.sunholo.com/ailang-demos/streaming/voice_docparse/)** | WebSocket, WASM, AI
+Upload invoices, receipts, contracts, or bank statements — `std/ai` extracts structured data and AILANG `requires`/`ensures` contracts validate every field across 7 presets.
 
-Gemini Live voice interaction combined with document parsing. Upload documents mid-conversation and get AI-powered descriptions using AILANG's embedded DocParse modules.
+### DocParse — [Try it](https://www.sunholo.com/ailang-demos/docparse.html)
+`WASM` · `std/xml` · `std/zip`
 
-**AILANG features demonstrated:**
-- <Icon name="bot" inline /> `std/ai` effect with streaming
-- <Icon name="box" inline /> WASM DocParse modules embedded in browser
-- Bidirectional WebSocket protocol
-- Real-time audio playback with chat transcript
+Parse DOCX, PPTX, XLSX, PDF, and images purely in-browser across 10 AILANG modules with 28 structural contracts and zero server round-trips.
 
-### Claude Chat
+### Z3 Verify — [Try it](https://www.sunholo.com/ailang-demos/verify.html)
+`Contracts` · `Z3 SMT`
 
-**[Try it](https://www.sunholo.com/ailang-demos/streaming/claude_chat/)** | SSE, AI Effect
+Static contract verification with Z3 across 4 scenarios: cloud billing (12 verified, 2 intentional violations), 48-path access control, room scheduling, and safe arithmetic.
 
-Streaming text responses from Claude's Messages API using Server-Sent Events. The canonical SSE streaming demo — text fragments arrive progressively as the model generates.
+### AI + Contracts — [Try it](https://www.sunholo.com/ailang-demos/contracts-ai.html)
+`std/ai` · `Contracts`
 
-**AILANG features demonstrated:**
-- <Icon name="bot" inline /> AI effect with Anthropic Claude
-- Server-Sent Events (SSE) streaming protocol
-- Progressive text rendering
+Deterministic verification of stochastic AI output: schema-first extraction followed by contract-checked typed results.
 
-### Gemini Live
+---
 
-**[Try it](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)** | WebSocket, Audio
+## Streaming, Voice & Agents
 
-Bidirectional WebSocket audio streaming with 30 voice options. Type text, hear it spoken in real-time with native WAV generation.
+### Voice DocParse — [Try it](https://www.sunholo.com/ailang-demos/streaming/voice_docparse/)
+`WebSocket` · `WASM` · `std/ai`
 
-**AILANG features demonstrated:**
-- <Icon name="zap" inline /> Effect handlers for WebSocket streams
-- Bidirectional audio protocol
-- 30 voice selections
+Gemini Live bidirectional voice interaction paired with in-browser WASM DocParse modules.
 
-### Safe Agent
+### Claude Chat — [Try it](https://www.sunholo.com/ailang-demos/streaming/claude_chat/)
+`SSE` · `std/ai`
 
-**[Try it](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)** | Contracts, AI, Tools
+Progressive Server-Sent Events streaming from Anthropic Claude's Messages API.
 
-Contract-verified AI tool calling. The agent has access to a calculator, file reader, and SQL query runner — but AILANG contracts block invalid arguments *before* execution. Z3-provable safety.
+### Gemini Live — [Try it](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)
+`WebSocket` · `Audio`
 
-**AILANG features demonstrated:**
-- <Icon name="shield" inline /> `requires`/`ensures` contracts on tool inputs
-- <Icon name="bot" inline /> AI effect with Gemini Live for tool calling
-- Path traversal prevention (file reader)
-- SQL injection prevention (query runner)
-- Overflow prevention (calculator)
+Bidirectional WebSocket audio streaming with 30 voices and native WAV generation via effect handlers.
+
+### Safe Agent — [Try it](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)
+`Contracts` · `std/ai` · `Tools`
+
+Contract-verified tool calling where AILANG `requires` blocks path traversal, SQL injection, and calculator overflow before execution.
 
 ---
 
 ## Data & Analytics
 
-### GA4 Ecommerce
+### GA4 Ecommerce — [Try it](https://www.sunholo.com/ailang-demos/ecommerce/)
+`std/ai` · `BigQuery` · `Contracts` · `Budgets`
 
-**[Try it](https://www.sunholo.com/ailang-demos/ecommerce/)** | AI, BigQuery, Contracts
-
-Six sub-demos showcasing AILANG in an ecommerce analytics context:
-
-1. **AI Product Recommendations** — Gemini-powered product suggestions
-2. **Data Pipeline** — Pure functional JSON aggregation (no APIs needed)
-3. **Trusted Analytics** — BigQuery integration with contract-verified SQL
-4. **Capability Budgets** — Resource-bounded effects demo
-5. **Contract Verification Forms** — Design-by-contract UI
-6. **REST API + React UI** — Full ecommerce dashboard
-
-**AILANG features demonstrated:**
-- <Icon name="bot" inline /> AI effect for recommendations
-- <Icon name="shield" inline /> Contract-verified SQL (SELECT-only, no mutations)
-- <Icon name="zap" inline /> Capability budgets for effect boundaries
-- Shared AILANG services reused across demos
+Six sub-demos covering AI recommendations, pure JSON pipelines, SELECT-only contract-verified SQL, capability budgets, contract forms, and a REST API + React UI.
 
 ---
 
-## Substrate smoke tests
+## Substrate Smoke Tests (In-Repo)
 
-These are **technical demos** that live in this repo and deploy alongside the docs site at `ailang.sunholo.com/demos/...`. They exercise individual AILANG substrate primitives end-to-end in the browser — useful for verifying the WASM runtime, BYO-key AI bridge, and Cognitive OS effects (`!: {DOM, Msg, Cog}`) work as expected, but not designed for general use. The polished, user-facing demos live separately at [www.sunholo.com/ailang-demos](https://www.sunholo.com/ailang-demos/) (built from the [sunholo-data/demos](https://github.com/sunholo-data/demos) repo).
+Technical smoke tests deployed alongside this docs site (`ailang.sunholo.com/demos/...`) to verify low-level WASM substrate primitives:
 
-### Cognitive OS — M1 Smoke Test
-
-**[Try it](pathname:///demos/cognitive-os-runtime/index.html)** | `!: {DOM, Msg, Cog}`, event log, byte-identical replay
-
-20-assertion smoke suite for the [M-COG-RUNTIME](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented/v0_21_0) substrate. Add panel / update / timeline / reset buttons drive the canonical DOM patch dispatcher directly; capture+verify checks byte-equality across IndexedDB replay; cross-tab BroadcastChannel test confirms the Msg fabric carries Lamport-stamped envelopes between tabs.
-
-**Substrate features exercised:**
-- <Icon name="code" inline /> `CognitiveOS._applyPatchDirect` (DOM effect via canonical patches with content-hashed nodeIDs)
-- <Icon name="box" inline /> IndexedDB-persisted cognitive event log with canonical (clock, sender) replay order
-- <Icon name="shield" inline /> Byte-identical reconstruction verified via FNV-1a content hashing
-- Cross-tab Msg fabric over `BroadcastChannel` Web API
-
-The richer, user-facing Cognitive Commons demo (4 personas, sentiment-driven manifesto, multi-tab debating society) builds on this substrate and is being ported to AILANG in the [sunholo-data/demos](https://github.com/sunholo-data/demos/tree/main/cognitive_commons) repo for deployment at [www.sunholo.com/ailang-demos/cognitive-commons](https://www.sunholo.com/ailang-demos/).
-
-### BYO-Key AI Step
-
-**[Try it](pathname:///demos/wasm-step-byo-key/index.html)** | `!: AI`, `ai.step` / `stepWithCache` / `stepWithStream`
-
-The three `std/ai` step variants — single-shot, system-prompt caching, streaming — driven directly from the browser. Paste your own Anthropic/OpenRouter/Gemini key (stored in localStorage only); the WASM-resident AILANG module fetches the provider through a JS-injected handler. Demonstrates the BYO-key pattern that other browser demos in this repo build on.
-
-**Substrate features exercised:**
-- <Icon name="bot" inline /> `std/ai.step` with three caching/streaming shapes
-- <Icon name="box" inline /> AILANG modules loaded into the WASM REPL at runtime via `repl.loadModule`
-- BYO-key router: AILANG → JS handler → provider `fetch`
+- **[Cognitive OS — M1 Smoke Test](pathname:///demos/cognitive-os-runtime/index.html)** (`!: {DOM, Msg, Cog}`): 20-assertion suite testing canonical DOM patching, IndexedDB event log replay with FNV-1a verification, and cross-tab `BroadcastChannel` envelopes.
+- **[BYO-Key AI Step](pathname:///demos/wasm-step-byo-key/index.html)** (`!: AI`): Exercises `std/ai.step`, `stepWithCache`, and `stepWithStream` via a browser JS handler using your own localStorage API key.
 
 ---
 
-## Feature-to-Demo Matrix
+## Building Your Own Browser Demos
 
-| AILANG Feature | Best Demo |
-|---------------|-----------|
-| Contracts (`requires`/`ensures`) | [Z3 Verify](https://www.sunholo.com/ailang-demos/verify.html), [Safe Agent](https://www.sunholo.com/ailang-demos/streaming/safe_agent/) |
-| AI Effect (`std/ai`) | [Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/), [AI + Contracts](https://www.sunholo.com/ailang-demos/contracts-ai.html) |
-| WebAssembly | [DocParse](https://www.sunholo.com/ailang-demos/docparse.html), [Document Extractor](https://www.sunholo.com/ailang-demos/extractor.html) |
-| Streaming (SSE/WebSocket) | [Gemini Live](https://www.sunholo.com/ailang-demos/streaming/gemini_live/), [Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/) |
-| Capability Budgets | [GA4 Ecommerce](https://www.sunholo.com/ailang-demos/ecommerce/) |
-| stdlib (xml, zip, json) | [DocParse](https://www.sunholo.com/ailang-demos/docparse.html) |
-
----
-
-## Building Your Own Demos
-
-AILANG's [WebAssembly integration](/docs/guides/wasm-integration) makes it straightforward to build browser-based demos. The WASM binary includes the full interpreter and all stdlib modules.
-
-Key APIs:
-- `loadModule()` — Load AILANG code into the browser
-- `setEffectHandler()` — Wire effects to JavaScript callbacks
-- `evalAsync()` — Execute AILANG with async effects
-
-See the [WASM Integration Guide](/docs/guides/wasm-integration) for complete API documentation and the [demo source code](https://github.com/sunholo-data/ailang-demos) for reference implementations.
+The [WASM Integration Guide](/docs/guides/wasm-integration) documents `loadModule()`, `setEffectHandler()`, and `evalAsync()`. Reference implementations live in [sunholo-data/ailang-demos](https://github.com/sunholo-data/ailang-demos).

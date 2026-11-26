@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG Symbolic Kernel Loop">
+  <defs>
+    <marker id="arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+    <marker id="arr-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2c7a7b"/>
+    </marker>
+    <marker id="arr-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dd6b20"/>
+    </marker>
+    <linearGradient id="accent-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e73c17"/>
+      <stop offset="100%" stop-color="#dd6b20"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">AILANG Symbolic Kernel Loop</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Probabilistic neural synthesis mediated by deterministic verification, bounded authority, and replayable traces</text>
+
+  <!-- Node 1: Neural Synthesis -->
+  <rect x="32" y="92" width="190" height="156" rx="10" fill="#172033" stroke="#6b46c1" stroke-width="2"/>
+  <rect x="32" y="92" width="190" height="32" rx="10" fill="#6b46c1"/>
+  <rect x="32" y="112" width="190" height="12" fill="#6b46c1"/>
+  <text x="127" y="113" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">1. Neural Synthesis</text>
+  <text x="48" y="148" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#e2e8f0">LLM / Coding Agent</text>
+  <text x="48" y="169" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• ailang prompt</text>
+  <text x="48" y="188" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• Typed holes _? / ?id</text>
+  <text x="48" y="207" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• check --fix repair</text>
+  <text x="48" y="232" font-family="Inter, sans-serif" font-size="11" fill="#a78bfa">Emits symbolic .ail code</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="222" y1="170" x2="274" y2="170" stroke="#e73c17" stroke-width="2.2" marker-end="url(#arr-red)"/>
+  <text x="248" y="158" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#fca5a5">.ail</text>
+
+  <!-- Node 2: AILANG Symbolic Kernel -->
+  <rect x="282" y="78" width="316" height="184" rx="12" fill="#1a1826" stroke="url(#accent-grad)" stroke-width="2.5"/>
+  <rect x="282" y="78" width="316" height="34" rx="12" fill="url(#accent-grad)"/>
+  <rect x="282" y="98" width="316" height="14" fill="url(#accent-grad)"/>
+  <text x="440" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">2. AILANG Symbolic Kernel</text>
+
+  <rect x="298" y="126" width="136" height="52" rx="6" fill="#0f172a" stroke="#2c7a7b" stroke-width="1.2"/>
+  <text x="366" y="147" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#5eead4">Effect Relations</text>
+  <text x="366" y="165" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">! {IO, FS @limit=3}</text>
+
+  <rect x="446" y="126" width="136" height="52" rx="6" fill="#0f172a" stroke="#2b6cb0" stroke-width="1.2"/>
+  <text x="514" y="147" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#93c5fd">Z3 Contracts</text>
+  <text x="514" y="165" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">requires / ensures</text>
+
+  <rect x="298" y="192" width="136" height="52" rx="6" fill="#0f172a" stroke="#dd6b20" stroke-width="1.2"/>
+  <text x="366" y="213" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#fdba74">IFC Taint Labels</text>
+  <text x="366" y="231" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">T&lt;label&gt; / Declassify</text>
+
+  <rect x="446" y="192" width="136" height="52" rx="6" fill="#0f172a" stroke="#e73c17" stroke-width="1.2"/>
+  <text x="514" y="213" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#fca5a5">Authority Bounds</text>
+  <text x="514" y="231" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">--caps / --policy</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="598" y1="170" x2="650" y2="170" stroke="#2c7a7b" stroke-width="2.2" marker-end="url(#arr-teal)"/>
+  <text x="624" y="158" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#5eead4">gated</text>
+
+  <!-- Node 3: Constrained Execution -->
+  <rect x="658" y="92" width="190" height="156" rx="10" fill="#172033" stroke="#2c7a7b" stroke-width="2"/>
+  <rect x="658" y="92" width="190" height="32" rx="10" fill="#2c7a7b"/>
+  <rect x="658" y="112" width="190" height="12" fill="#2c7a7b"/>
+  <text x="753" y="113" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">3. Constrained Run</text>
+  <text x="674" y="148" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#e2e8f0">OS / Runtime / Cloud</text>
+  <text x="674" y="169" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• Evaluator (ref)</text>
+  <text x="674" y="188" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• Bytecode VM (40x)</text>
+  <text x="674" y="207" font-family="JetBrains Mono, monospace" font-size="11" fill="#cbd5e1">• Browser WASM</text>
+  <text x="674" y="232" font-family="Inter, sans-serif" font-size="11" fill="#5eead4">Deterministic output</text>
+
+  <!-- Feedback Loop Bar: Structured Trace -->
+  <path d="M 753 248 L 753 310 L 127 310 L 127 256" fill="none" stroke="#dd6b20" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#arr-orange)"/>
+  <rect x="255" y="288" width="370" height="44" rx="8" fill="#1e293b" stroke="#dd6b20" stroke-width="1.5"/>
+  <text x="440" y="307" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#fdba74">4. Structured Trace Feedback Loop</text>
+  <text x="440" y="323" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">--emit-trace jsonl · ailang chains · Z3 counterexamples</text>
+</svg>
