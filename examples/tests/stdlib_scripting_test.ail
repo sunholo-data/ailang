@@ -1,0 +1,71 @@
+module examples/tests/stdlib_scripting_test
+
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err, isErr)
+import std/string (indexOf, stripPrefix, stripSuffix, padLeft, padRight, lines, unlines)
+
+test "std/string indexOf" {
+  assert indexOf("hello:world", ":") == Some(5)
+  assert indexOf("hello", "he") == Some(0)
+  assert indexOf("hello", "xyz") == None
+  assert indexOf("", "a") == None
+  assert indexOf("hello", "") == Some(0)
+  assert indexOf("🎉abc", "b") == Some(2)
+}
+
+test "std/string stripPrefix and stripSuffix" {
+  assert stripPrefix("v0.63.0", "v") == "0.63.0"
+  assert stripPrefix("0.63.0", "v") == "0.63.0"
+  assert stripPrefix("abab", "ab") == "ab"
+  assert stripPrefix("ab", "ab") == ""
+  assert stripPrefix("ab", "") == "ab"
+  assert stripPrefix("", "a") == ""
+  assert stripPrefix("🎉hi", "🎉") == "hi"
+
+  assert stripSuffix("file.ail", ".ail") == "file"
+  assert stripSuffix("file.go", ".ail") == "file.go"
+  assert stripSuffix("abab", "ab") == "ab"
+  assert stripSuffix("ab", "ab") == ""
+  assert stripSuffix("ab", "") == "ab"
+  assert stripSuffix("", "a") == ""
+  assert stripSuffix("hi🎉", "🎉") == "hi"
+}
+
+test "std/string padLeft and padRight" {
+  assert padLeft("42", 5, "0") == "00042"
+  assert padLeft("42", 5, "ab") == "aba42"
+  assert padLeft("hello", 3, "0") == "hello"
+  assert padLeft("hello", 5, "0") == "hello"
+  assert padLeft("hi", 5, "") == "hi"
+  assert padLeft("", 3, "x") == "xxx"
+  assert padLeft("42", -1, "0") == "42"
+  assert padLeft("🎉", 3, "·") == "··🎉"
+
+  assert padRight("hi", 5, ".") == "hi..."
+  assert padRight("hi", 5, "ab") == "hiaba"
+  assert padRight("hello", 3, ".") == "hello"
+  assert padRight("hello", 5, ".") == "hello"
+  assert padRight("hi", 5, "") == "hi"
+  assert padRight("", 3, "x") == "xxx"
+  assert padRight("🎉", 3, "·") == "🎉··"
+}
+
+test "std/string lines and unlines" {
+  assert lines("") == []
+  assert lines("a") == ["a"]
+  assert lines("a\n") == ["a"]
+  assert lines("a\n\n") == ["a", ""]
+  assert lines("\n") == [""]
+  assert lines("\r\n") == [""]
+  assert lines("a\nb") == ["a", "b"]
+  assert lines("a\nb\n") == ["a", "b"]
+  assert lines("a\r\nb\r\n") == ["a", "b"]
+  assert lines("a\r\nb") == ["a", "b"]
+  assert lines("a\rb") == ["a\rb"]
+
+  assert unlines([]) == ""
+  assert unlines(["a"]) == "a\n"
+  assert unlines([""]) == "\n"
+  assert unlines(["a", "b"]) == "a\nb\n"
+  assert unlines(lines("alpha\nbeta\ngamma\n")) == "alpha\nbeta\ngamma\n"
+}

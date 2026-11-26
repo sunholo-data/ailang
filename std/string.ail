@@ -6,6 +6,7 @@
 -- Pure functions (no effects required)
 
 module std/string
+import std/list (map)
 import std/option (Option, Some, None)
 
 export pure func length(s: string) -> int {
@@ -234,3 +235,67 @@ export pure func decodeQuotedPrintable(s: string) -> string = _str_decodeQP(s)
 -- Example: startsWithIgnoreCase("Content-Type", "content-type") = true
 @experimental
 export pure func startsWithIgnoreCase(s: string, prefix: string) -> bool = _str_startsWithIC(s, prefix)
+
+-- ============================================================================
+-- Scripting Batteries (v0.63.0 / M-AI-GO-TO-LANGUAGE)
+-- ============================================================================
+
+-- indexOf: Return first rune index of sub in s, or None if not found.
+-- Total Option-returning wrapper around find(s, sub).
+-- Example: indexOf("hello:world", ":") = Some(5); indexOf("hello", ":") = None
+export pure func indexOf(s: string, sub: string) -> Option[int] =
+  let idx = find(s, sub) in
+  if idx >= 0 then Some(idx) else None
+
+-- stripPrefix: Remove prefix once from the start of s if present, else return s unchanged.
+-- Example: stripPrefix("v0.63.0", "v") = "0.63.0"; stripPrefix("0.63.0", "v") = "0.63.0"
+export pure func stripPrefix(s: string, prefix: string) -> string =
+  if startsWith(s, prefix) then substring(s, length(prefix), length(s)) else s
+
+-- stripSuffix: Remove suffix once from the end of s if present, else return s unchanged.
+-- Example: stripSuffix("file.ail", ".ail") = "file"; stripSuffix("file.go", ".ail") = "file.go"
+export pure func stripSuffix(s: string, suffix: string) -> string =
+  if endsWith(s, suffix) then substring(s, 0, length(s) - length(suffix)) else s
+
+-- padLeft: Pad s on the left to at least width rune code points using pad.
+-- Returns s unchanged if length(s) >= width or length(pad) == 0.
+-- Example: padLeft("42", 5, "0") = "00042"; padLeft("42", 5, "ab") = "aba42"
+export pure func padLeft(s: string, width: int, pad: string) -> string =
+  let sLen = length(s) in
+  let padLen = length(pad) in
+  if sLen >= width || padLen == 0 then s
+  else
+    let needed = width - sLen in
+    let reps = (needed + padLen - 1) / padLen in
+    let prefix = substring(repeat(pad, reps), 0, needed) in
+    "${prefix}${s}"
+
+-- padRight: Pad s on the right to at least width rune code points using pad.
+-- Returns s unchanged if length(s) >= width or length(pad) == 0.
+-- Example: padRight("hi", 5, ".") = "hi..."; padRight("hi", 5, "ab") = "hiaba"
+export pure func padRight(s: string, width: int, pad: string) -> string =
+  let sLen = length(s) in
+  let padLen = length(pad) in
+  if sLen >= width || padLen == 0 then s
+  else
+    let needed = width - sLen in
+    let reps = (needed + padLen - 1) / padLen in
+    let suffix = substring(repeat(pad, reps), 0, needed) in
+    "${s}${suffix}"
+
+-- lines: Split s into lines, stripping trailing \r per line for CRLF and dropping
+-- a single trailing newline if s ends with \n. Returns [] for "".
+-- Example: lines("a\r\nb\n") = ["a", "b"]; lines("") = []
+export pure func lines(s: string) -> [string] =
+  if s == "" then []
+  else
+    let body = if endsWith(s, "\n") then substring(s, 0, length(s) - 1) else s in
+    map(\line. stripSuffix(line, "\r"), split(body, "\n"))
+
+-- unlines: Join lines with "\n" and a trailing newline. Returns "" for [].
+-- Example: unlines(["a", "b"]) = "a\nb\n"; unlines([]) = ""
+export pure func unlines(xs: [string]) -> string =
+  match xs {
+    [] => "",
+    _ => "${join("\n", xs)}\n"
+  }

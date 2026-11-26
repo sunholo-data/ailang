@@ -1,0 +1,42 @@
+module examples/runnable/string_fs_scripting
+
+import std/fs (readLines, writeLines, readLinesResult, writeLinesResult, removeFileResult)
+import std/list (map)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err, isErr)
+import std/string (length, indexOf, stripPrefix, stripSuffix, padLeft, padRight, lines, unlines)
+
+pure func formatRow(rank: int, label: string) -> string
+requires { rank >= 0 }
+ensures { length(result) >= 6 } {
+  let num = padLeft(show(rank), 2, "0")
+  let name = padRight(stripSuffix(stripPrefix(label, "item:"), ".txt"), 8, ".")
+  "${num}:${name}"
+}
+
+export func main() -> () ! {IO, FS} {
+  let path = "/tmp/ailang_string_fs_scripting_demo.txt"
+  let rows = [
+    formatRow(1, "item:alpha.txt"),
+    formatRow(2, "item:beta.txt"),
+    formatRow(10, "gamma")
+  ]
+  match writeLinesResult(path, rows) {
+    Err(e) => println("writeLinesResult error: ${e}"),
+    Ok(_) => match readLinesResult(path) {
+      Err(e) => println("readLinesResult error: ${e}"),
+      Ok(loaded) => {
+        println("roundtrip match: ${show(loaded == rows)}")
+        let _ = writeLines(path, ["one", "two"])
+        let direct = readLines(path)
+        println("direct readLines count: ${show(direct)}")
+        let missing = readLinesResult("/tmp/ailang_definitely_missing_12345.txt")
+        println("missing isErr: ${show(isErr(missing))}")
+        let _ = removeFileResult(path)
+        println("indexOf colon: ${show(indexOf("01:alpha...", ":"))}")
+        println("crlf lines: ${show(lines("x\r\ny\r\n"))}")
+        println("unlines empty: ${show(unlines([]))}")
+      }
+    }
+  }
+}

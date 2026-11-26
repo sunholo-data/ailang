@@ -7,7 +7,8 @@
 
 module std/fs
 import std/list (sortBy, filter, flatMapE)
-import std/string (compare, endsWith)
+import std/result (Result, Ok, Err)
+import std/string (compare, endsWith, lines, unlines)
 
 -- Effect marker
 -- export effect FS  -- Will be added when effect declarations are supported
@@ -231,3 +232,32 @@ func walkEntries(dir: string, names: [string]) -> [string] ! {FS} =
 -- walkEntry: a directory recurses, a regular file is one result, anything else is dropped
 func walkEntry(path: string) -> [string] ! {FS} =
   if isDir(path) then walkDir(path) else if isFile(path) then [path] else []
+
+-- ============================================================================
+-- Line-oriented File Helpers (v0.63.0 / M-AI-GO-TO-LANGUAGE)
+-- ============================================================================
+
+-- readLines: Read file contents and split into lines (handles \n and \r\n).
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readLines(path: string) -> [string] ! {FS} = lines(readFile(path))
+
+-- writeLines: Write lines to a file joined by "\n" with a trailing newline.
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func writeLines(path: string, xs: [string]) -> () ! {FS} = writeFile(path, unlines(xs))
+
+-- readLinesResult: Read file contents as lines, returning Result instead of panicking.
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readLinesResult(path: string) -> Result[[string], string] ! {FS} =
+  match readFileResult(path) {
+    Ok(content) => Ok(lines(content)),
+    Err(e) => Err(e)
+  }
+
+-- writeLinesResult: Write lines to a file, returning Result instead of panicking.
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func writeLinesResult(path: string, xs: [string]) -> Result[(), string] ! {FS} =
+  writeFileResult(path, unlines(xs))
