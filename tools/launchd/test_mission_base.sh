@@ -3,6 +3,7 @@
 # bash 3.2.57-safe, no network: fabricates a scratch clone + temp AILANG_STATE_DIR, exactly
 # like test_mission_heartbeat.sh fabricates its state. No real sibling anywhere.
 set -u
+unset MISSION_REPO MISSION_BASE_REF
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 HELPER="${MISSION_BASE_HELPER:-$ROOT/tools/launchd/mission-base.sh}"
@@ -147,6 +148,135 @@ printf '0\tnow\tbase-gate1\t1\tcafef00dcafef00dcafef00dcafef00dcafef00d\n' > "$t
 out=$(cd "$d" && env -u MISSION_BASE_REF MISSION_NAME=test AILANG_STATE_DIR="$t" "$HELPER" last gate1); rc=$?
 check "last-needs-no-ref exits 0 and prints the row's SHA with no origin/HEAD" \
   "[ '$rc' -eq 0 ] && [ '$out' = 'cafef00dcafef00dcafef00dcafef00dcafef00d' ]"
+rm -rf "$d" "$t"
+
+new_fixture() {
+  d=$(scratch_clone) || exit 1
+  t=$(tmpdir) || exit 1
+  if [ "$#" -gt 0 ]; then
+    git -C "$d" config --local --add remote.origin.url "$1" || exit 1
+  fi
+}
+
+run_helper() {
+  (cd "$d" && MISSION_NAME=test AILANG_STATE_DIR="$t" /bin/bash "$HELPER" "$@")
+}
+
+check_record() {
+  local out want
+  if want=$(git -C "$d" rev-parse refs/remotes/origin/dev) &&
+     out=$(run_helper record gate1) && [[ "$out" == "$want"$'\t'* ]] &&
+     awk -F '\t' -v sha="$want" '$3=="base-gate1" && $5==sha {found=1} END {exit !(NR==1 && found)}' "$t/mission-test-base"; then
+    ok "$1"
+  else
+    bad "$1"
+  fi
+}
+
+observe_base() {
+  local file="$t/mission-test-base" digest
+  if [ ! -e "$file" ]; then printf 'absent\n'; return 0; fi
+  digest=$(shasum -a 256 < "$file") || return 1
+  printf '%s\n' "$digest"
+  wc -l < "$file"
+}
+
+check_refusal() {
+  local name="$1" actual="$2" before after rc
+  shift 2
+  before=$(observe_base) || exit 1
+  run_helper "$@" > "$t/stdout" 2> "$t/stderr"; rc=$?
+  after=$(observe_base) || exit 1
+  if [ "$rc" -eq 3 ] && [ ! -s "$t/stdout" ] && [ "$before" = "$after" ] &&
+     grep -Fxq "mission-base: CWD origin is $actual, expected $MISSION_REPO (MISSION_REPO)" "$t/stderr"; then
+    ok "$name"
+  else
+    bad "$name"
+  fi
+}
+
+new_fixture https://github.com/sunholo-data/ailang.git
+MISSION_REPO=sunholo-data/ailang-world MISSION_BASE_REF=origin/dev \
+  check_refusal 'wrong repo with ref override leaves base absent' sunholo-data/ailang record gate1
+rm -rf "$d" "$t"
+
+new_fixture https://github.com/sunholo-data/ailang.git
+if run_helper record gate1 >/dev/null && [ -f "$t/mission-test-base" ]; then
+  MISSION_REPO=sunholo-data/ailang-world MISSION_BASE_REF=origin/dev \
+    check_refusal 'wrong repo with ref override preserves recorded base' sunholo-data/ailang record gate1
+else
+  bad 'wrong repo with ref override preserves recorded base (setup record failed)'
+fi
+rm -rf "$d" "$t"
+
+for origin in https://github.com/sunholo-data/ailang git@github.com:Sunholo-Data/AILANG ssh://git@github.com/Sunholo-Data/AILANG; do
+  for suffix in '' .git .git/; do
+    new_fixture "$origin$suffix"
+    MISSION_REPO=sunholo-data/ailang check_record "matching origin $origin$suffix records one row"
+    rm -rf "$d" "$t"
+  done
+done
+
+new_fixture https://github.com/sunholo-data/ailang.git
+MISSION_REPO=SUNHOLO-DATA/AILANG check_record 'mixed-case MISSION_REPO matches a lowercase origin slug'
+rm -rf "$d" "$t"
+
+new_fixture
+check_record 'unset MISSION_REPO permits record without an origin URL'
+rm -rf "$d" "$t"
+
+new_fixture
+MISSION_REPO='' check_record 'empty MISSION_REPO permits record without an origin URL'
+rm -rf "$d" "$t"
+
+new_fixture
+MISSION_REPO=sunholo-data/ailang check_refusal 'missing origin URL is refused' 'unavailable (missing origin)' record gate1
+rm -rf "$d" "$t"
+
+d=$(tmpdir); t=$(tmpdir)
+GIT_CEILING_DIRECTORIES="${d%/*}" MISSION_REPO=sunholo-data/ailang \
+  check_refusal 'outside Git is refused' 'unavailable (outside Git)' record gate1
+rm -rf "$d" "$t"
+
+for origin in https://other.example/sunholo-data/ailang https://github.com/sunholo-data/ailang/extra; do
+  new_fixture "$origin"
+  MISSION_REPO=sunholo-data/ailang \
+    check_refusal "unsupported origin $origin is refused" 'unavailable (unsupported or ambiguous origin)' record gate1
+  rm -rf "$d" "$t"
+done
+
+new_fixture https://github.com/sunholo-data/ailang
+git -C "$d" config --local --add remote.origin.url '' || exit 1
+MISSION_REPO=sunholo-data/ailang \
+  check_refusal 'multiple origin URLs including a blank entry are refused' 'unavailable (unsupported or ambiguous origin)' record gate1
+rm -rf "$d" "$t"
+
+for command in snap drift; do
+  set -- "$command"
+  if [ "$command" = drift ]; then set -- "$@" gate1; fi
+  new_fixture https://github.com/sunholo-data/ailang
+  git -C "$d" symbolic-ref --delete refs/remotes/origin/HEAD || exit 1
+  MISSION_REPO=sunholo-data/ailang-world \
+    check_refusal "wrong repo for $command is refused before deriving a ref" sunholo-data/ailang "$@"
+  rm -rf "$d" "$t"
+
+  new_fixture https://github.com/sunholo-data/ailang
+  if MISSION_BASE_REF=origin/dev run_helper record gate1 >/dev/null; then
+    MISSION_REPO=sunholo-data/ailang-world MISSION_BASE_REF=origin/missing \
+      check_refusal "wrong repo for $command is refused with an unresolvable ref" sunholo-data/ailang "$@"
+  else
+    bad "wrong repo for $command is refused with an unresolvable ref (setup record failed)"
+  fi
+  rm -rf "$d" "$t"
+done
+
+new_fixture
+if rec=$(run_helper record gate1) && out=$(MISSION_REPO=sunholo-data/ailang run_helper last gate1) &&
+   [ -n "$out" ] && [ "$out" = "${rec%%$'\t'*}" ]; then
+  ok 'last returns a recorded SHA with MISSION_REPO set and no origin URL'
+else
+  bad 'last returns a recorded SHA with MISSION_REPO set and no origin URL'
+fi
 rm -rf "$d" "$t"
 
 if [ "$fail" -eq 0 ]; then

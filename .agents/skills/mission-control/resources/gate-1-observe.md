@@ -21,8 +21,8 @@ separate from the heartbeat; see the shared-clone rationale and disagreement pro
 [`resources/ref-drift.md`](ref-drift.md).
 
 ```bash
-base=$(bash tools/launchd/mission-base.sh record gate1)   # records SHA + read-time; echoes them
-echo "Gate 1 base: $base"                                # full SHA<TAB>ISO8601-UTC
+base=$(bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" record gate1) || exit $?
+echo "Gate 1 base: $base"  # full SHA<TAB>ISO8601-UTC
 ```
 
 **`git rev-parse --short` accepts exactly ONE revision** (fixed 2026-07-27 iteration 108). This

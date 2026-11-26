@@ -28,10 +28,10 @@ verdict. Write the loop to a file and run `/bin/bash <file>`, or wrap it in `/bi
 
 ```bash
 # PIN THE POLL TARGET TO THE SHA YOU PUSHED — never `--limit 1` (see the war story below).
-target_is=$(bash tools/launchd/mission-base.sh record gate3b) || exit 2
+target_is=$(bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" record gate3b) || exit 2
 target=${target_is%%$'\t'*}                   # FULL sha from the SAME recorded read; no `--short`
 verdict=$(mktemp "/tmp/ci_${MISSION_NAME:-mission}_head${target:0:7}.XXXXXX") || exit 2
-if bash tools/launchd/mission-base.sh drift gate1; then
+if bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-base.sh" drift gate1; then
   : # Gate 1 and the fresh Gate-3b reading agree
 else
   drift_rc=$?
