@@ -1,0 +1,5 @@
+iteration 140 → 141 open-ticket signatures (Gate 1 read, before any resolve)
+140:       22  141:       23
+added:
+idle-fingerprint:record-eval-json-moves-head
+removed:

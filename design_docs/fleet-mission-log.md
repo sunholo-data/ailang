@@ -1484,3 +1484,64 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Operator request for this fire ("use the Agent tool for every role as the routing table specifies"): the table's path for the two codex-pinned roles is the recipe, and the spawn-pin hook refuses an Agent-tool alias for them. They ran on codex as configured, and the evaluator ran on the Agent tool. No role was unspawnable.
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (Anthropic and codex subscriptions only).
+
+## 141 — 2026-11-26 — #2463, #2466 and #2471 LANDED + RESOLVED: dev went green at `63b605cbc` (Release v0.62.1), the stack was rebased and re-judged (independent sonnet judge PASS 91 / 89 / 91) and squash-merged in order as `25cc5bc42`, `fcc3d3481` and `92bc214ba`; dev CI green on all three; tickets `publish:evidence-pack:no-secret-value-guard`, `skill:mission-base-relative-path-records-driver-repo` and `skill:rotate-log-index-only-targets-registry-workdir` resolved [HARNESS]
+
+**Pick**: land the three built, judged PRs in order. Iteration 140's **Next** prescribed exactly this once dev's required `test` went green, and Gate 2's blocked-row rule (d) makes a flipped external predicate the pick regardless of position. D-FLEET-48's default says the same.
+- Gate 1, dev `63b605cbc`: 42 check-runs, all success; `CI`, `Build and Release` and Docs-Deploy success on the same SHA. The two `test` reds 140 recorded (`TestRealRegistry_PostMigrationSplitCounts`, `TestCachePipeline_EmbeddedKeys`) were fixed attended before the release.
+- Newest record was on the PR branch (#2471 carried 136–140; origin/dev ended at 135), per Gate 1's blocked-PR rule.
+- Queue: 23 open (22 → 23). New: `idle-fingerprint:record-eval-json-moves-head` (stapledon 118, 11-25 19:35Z, blocking none, 1 slot). Left for the next fire: one item per iteration ([diff](fleet-mission-evidence/iteration141/ticket-diff.txt), [tickets](fleet-mission-evidence/iteration141/tickets.json)).
+- 0 allowlisted directives on #2445 (10 comments; watermark absent, whole-issue read). Self-notices rc 1 on the same crash (`…#issuecomment-7063993188`) and transcript (fire `fleet-1795100889-10927`) notices as 125–140, already credited. Control 852:10.
+- Died-mid-flight traces: the open `fleet/*` PRs were exactly #2463, #2466, #2471; their worktrees `.fleet-i136-wt`, `fleet-i138-wt`, `fleet-i140-wt` clean at their recorded heads. No iteration-141 trace.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google` (no role used it).
+- Skill drift: SKILL.md and all 13 resources byte-identical to origin/dev in the resolved symlink copy, per file; the CWD (pin) copy also matched. Pin HEAD = origin/dev = `63b605cbc` at Gate 1.
+- The main checkout is dirty with attended work (simplicity snapshot, design docs); left alone.
+
+**Did**:
+- Rebase: `fleet-i140-wt` onto `63b605cbc`. 0 of the stack's 59 files are among the 205 dev changed since base `2da0c4592`. `git range-diff`: 17 of 17 commits `=`. Force-pushed all three heads with `--force-with-lease` pinned to the old SHAs: #2463 `86daac1f2`, #2466 `d4ae955cd`, #2471 `2c9273918`.
+- Judge (sonnet, Agent tool, foreground, own worktree `.fleet-i141-judge` at `2c9273918`, 68,138 tok) ([report](fleet-mission-evidence/iteration141/judge.md)): **PASS** #2463 91, #2466 89, #2471 91, **LAND**, 0 blocking.
+  - Re-measured: range-diff 17/17; no dev commit since `2da0c4592` calls `mission-base.sh`, `rotate-log` or the scan helper, and every `mission-base.sh` call in the combined tree goes through `$MISSION_DRIVER_ROOT`.
+  - Gates rc 0: `go build ./cmd/ailang`, `go test ./cmd/ailang -run Rotate`, `go test ./internal/mission/...`, `make test-launchd-drivers`, `make check-context-docs`, `go vet ./cmd/ailang`; gofmt clean.
+  - Mutations: 6 of 7 killed (origin guard, ZIP members, ZIP fail-open, `--workdir` stat, `--workdir` ignored, one-mirror call-site revert). **Survivor (N1, non-blocking):** reverting a gate's `$MISSION_DRIVER_ROOT/…/mission-base.sh` call to the bare relative path in BOTH mirrors passes `make test-launchd-drivers`. Nothing pins the call-site form; the guard only fires at runtime.
+- PR CI round 1 (SHA-pinned, all three in parallel): required five green on each; full set 24/24 each, `CLEAN`.
+- Merge #2463 (`--squash --match-head-commit`) → `25cc5bc42`. Dev CI 18/18 green, including `launchd drivers (bash 3.2)`.
+- #2466 then read `CONFLICTING`: the squash rewrote record lines that i138's record commits edit further. `diff 86daac1f2 origin/dev` was 0 lines, so `rebase --onto origin/dev 86daac1f2` replayed only i138+i140. Tree diff against the judged heads: 0 and 0, so the judge's verdict carries over unchanged. Force-pushed (#2466 `a055ea325`, #2471 `1601cd4cc`); #2466 full set 24/24 → merged → `fcc3d3481`.
+- Same replay for #2471 (`fab014943`, tree diff vs judged head 0). Required five green; full set 23/24 with `Build macos-latest` red on `internal/riglock` `TestAcquireAs_QueuedWaiterCannotTakeTheGap` (non-required; stack touches no riglock file). Merged → `92bc214ba`. Dev tree at `92bc214ba` is byte-identical to the judged head `2c9273918`.
+- Gate 3b, dev:
+  - `fcc3d3481` attempt 1: `checks` red at step 11 "Install z3" (curl 403 on the z3 release download) and `test` red on an `internal/pipeline` package timeout (6m56s, inside `TestTyvarHygiene_StdExportSchemesAreClosed`; iteration 139's `df96971d4` class). Controls: the stack touches 0 files under `internal/pipeline`, `internal/riglock` or `install_z3` (control pattern 5); the identical z3 step was green on #2471's concurrent run and on `25cc5bc42`/`a055ea325`. Re-ran failed jobs → 18/18.
+  - `92bc214ba`: 22/22 green, both `Build macos-latest` legs included, which is the second reading that settles the PR's riglock red as a flake.
+- Done-gate, on `92bc214ba` (`AILANG_DRIVER_PINNED`, stapledon profile, idle, `env -i` so this fire's `MISSION_*` could not leak): healthy rc 0 (102 s, `DRY RUN ok`); degraded `MISSION_EXECUTOR_MODEL=codex:bogus-model-i141` rc 0 (104 s, probe rc 1, executor fell back to `claude:claude-haiku-5-5`). No pidfile left; nothing reloaded. `make test-launchd-drivers` green in CI on every merge commit ([gates](fleet-mission-evidence/iteration141/gates.md)).
+- Tickets resolved with their landing SHAs: replies sent to stapledon (`publish:…`) and world (both `skill:…`). Open list 23 → 20; all three signatures absent.
+
+**Ruled out**:
+- Merge-commit or rebase-merge to avoid the per-PR replay: the fleet lands by squash, and replay plus a tree-identity proof costs only CI time.
+- Landing all three through #2471 alone: it would leave #2463/#2466 to be closed by hand and give three tickets one SHA.
+- Treating dev's `fcc3d3481` reds as caused by the stack: 0 stack files on either path, positive controls green, and the re-run went green.
+- Picking the new stapledon ticket as well: one item per iteration; it is next.
+- Resolving D-FLEET-48: the loop may not close its own decision row. The default has run and the ask is moot; Mark can close it.
+
+**Retro lane**: two frictions.
+- (a) Instrument slip (controller): a `pkill -f '<poller pattern>'` also matched the backgrounded parent shell, whose command line contained the same string, and ended the harness task holding two other pollers. They kept running as orphans and their verdict files were read instead, so no reading was lost. This is standing rule 7's `pgrep` amendment (a pattern over full argv matches more than you meant). It is instance 1 for `pkill`: kill by PID from `ps -eo pid,ppid,command`, never by pattern. Below the bar for a skill edit.
+- (b) A Gate-4 rule that lands mid-fire cannot be followed from the pin: the Public publish rule names `$MISSION_DRIVER_ROOT/scripts/mission_evidence_secret_scan.sh`, and this fire's pin (`63b605cbc`) predates `25cc5bc42`, so the helper is absent there. The evidence was scanned with the origin/dev copy (`.fleet-i141-judge` at `92bc214ba`), and the deviation is disclosed. It resolves itself on the next fire. Instance 1, the same shape as 140's friction (b) (a skill edit outruns the artifact it prescribes); with 140 that makes two. If a third appears, the fix is a Gate-4 fallback line, not prose.
+
+**Progress**: 20 open tickets (23 → 20). Clause 2 moved: three non-policy tickets resolved; turnaround 11-24 07:31Z → 11-26 (≈42 h), 11-25 01:47Z → 11-26 (≈23 h), 11-25 09:54Z → 11-26 (≈15 h).
+- Clause 1 UNMEASURED; clause 2 moved; clause 3 MET; clause 4 met by its letter; clause 5 preserved (done-gate run before each resolve).
+- Last 3 landings: 126, 135, 141.
+
+**Validation**: darwin/arm64.
+- `mission_decisions.sh --check`: 47 rows valid.
+- STATUS rotation: ITERATION 138 moved to the archive (charter 441 → 441, archive +4; `ITERATION 138` in archive ≥1, control `ITERATION 137` ≥1); queue rows 64, 73 and the `## Queue` header present; three `## STATUS 2026` stamps.
+
+**Next**: `idle-fingerprint:record-eval-json-moves-head` (stapledon 118): `idle-fingerprint.sh`'s head pathspec does not exclude `.ailang/state/evaluations/eval_MISSION-ITER-*_record.json`, so a record-only fire always moves the head and the idle pre-check can never skip. Reality-check the claim at HEAD first. Otherwise pick NONE unless a ruling lands (D-FLEET-44/45/46/48) or a new in-scope ticket arrives. Optional follow-up from judge N1: a grep gate in `test-launchd-drivers` that pins every gate's `mission-base.sh` call to `$MISSION_DRIVER_ROOT` (not a ticket; would need one to be in scope).
+
+**Routing evidence**: base=`92bc214badb719081b9aca61c6510bc950e67bfb`@2026-11-26T01:02:26Z (Gate 4; Gate 1 read `63b605cbcdcdbbd763264997f37eae7dc3e733c1` at 2026-11-25T23:25:07Z, and the base moved only by this iteration's own three merges).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: a landing pick has nothing to design. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; pinned `codex:gpt-6.2-sol`. **Not spawned**: nothing to plan; the plans are iterations 136/138/140's. Ticket-queue mission: `import-github` skipped.
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin`. **Not spawned**: no code was written; the rebase, pushes and merges were controller bookkeeping on already-built branches.
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (68,138 tok). Judge independence: cross-vendor against the builders (codex `gpt-6.2-sol` planned and built all three) and distinct from the controller (opus). Generator ≠ judge holds.
+- Operator request for this fire ("spawn designer, planner, executor and evaluator exactly as the routing table specifies; the evaluator is REQUIRED"): the evaluator ran as specified. The other three roles had no work in a landing-only pick, so none was spawned; this is a scope fact, not a spawn failure. No role was unspawnable, and no fallback was used.
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (Anthropic subscription only).
