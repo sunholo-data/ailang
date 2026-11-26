@@ -240,10 +240,11 @@ ensures { match result { Ok(n) => n >= 0, Err(_) => true } }
 		// Until M-V1-VERIFICATION-HONESTY M1 ai-check reported the encoder's
 		// unsupported Core construct as an error (exit 1) while verify skipped
 		// it. Both now skip it, like every other shape here. (This was a list
-		// pattern until list patterns were encoded; a tuple still is not.)
-		{"tuple_match", `export pure func tupleMatch(xs: [int]) -> int
+		// pattern, then a tuple, until each was encoded; a let-bound lambda
+		// still is not.)
+		{"lambda_let", `export pure func lambdaLet(xs: [int]) -> int
 ensures { result >= 0 }
-{ match (xs, 0) { ([], a) => a, (x :: rest, a) => x } }
+{ let f = \y. y * 0; match xs { [] => f(1), x :: _ => f(x) } }
 `},
 	}
 	for _, c := range cases {
