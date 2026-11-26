@@ -1,7 +1,9 @@
 ---
 title: Debug Tools
 sidebar_position: 5
-reviewBy: 2026-11-02
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -17,9 +19,9 @@ AILANG provides several CLI tools for understanding the compilation pipeline and
 | Command | Purpose |
 |---------|---------|
 | `ailang debug ast <file>` | Show Core AST (ANF) structure |
-| `ailang check -debug-compile <file>` | Show compilation phase timing and lowering telemetry |
-| `ailang check -timeout 30s <file>` | Detect compilation hangs with stack dump |
-| `ailang builtins list` | List all 128 registered builtins |
+| `ailang check --debug-compile <file>` | Show compilation phase timing and lowering telemetry |
+| `ailang check --timeout 30s <file>` | Detect compilation hangs with stack dump |
+| `ailang builtins list` | List all 408 registered builtins |
 | `ailang docs <module>` | Show stdlib module documentation |
 
 ## Debug AST
@@ -43,21 +45,17 @@ ailang debug ast examples/debug/anf_example.ail
 ```
 === Core AST (ANF) ===
 Program:
-  [0] Let(add) [#16]:
-    Value: Lambda([x]) [#5]:
-      Body: Lambda([y]) [#4]:
-        Body: Intrinsic(0) [#3]:
-          Arg[0]: Var(x) [#1]
-          Arg[1]: Var(y) [#2]
-    Body:  Let($tmp1) [#15]:
+  [0] Let(add) [#11]:
+    Value: Lambda([x, y]) [#4]:
+      Body: Intrinsic(0) [#3]:
+        Arg[0]: Var(x) [#1]
+        Arg[1]: Var(y) [#2]
+    Body:  Let(result) [#10]:
       Value: App [#8]:
-        Func: Var(add) [#6]
-        Arg[0]: Lit(1) [#7]
-      Body:  Let(result) [#14]:
-        Value: App [#11]:
-          Func: Var($tmp1) [#10]
-          Arg[0]: Lit(2) [#9]
-        Body:  Var(result) [#13]
+        Func: Var(add) [#5]
+        Arg[0]: Lit(1) [#6]
+        Arg[1]: Lit(2) [#7]
+      Body:  Var(result) [#9]
 ```
 
 ### Reading the Output
@@ -83,7 +81,7 @@ The `-debug-compile` flag shows compilation phase timing and lowering decisions.
 ### Running the Command
 
 ```bash
-ailang check -debug-compile examples/debug/list_concat.ail
+ailang check --debug-compile examples/debug/list_concat.ail
 ```
 
 ### Output
@@ -122,7 +120,7 @@ ailang check -debug-compile examples/debug/list_concat.ail
 For compilation hangs (often caused by cyclic types), use the timeout flag:
 
 ```bash
-ailang check -timeout 30s problematic_file.ail
+ailang check --timeout 30s problematic_file.ail
 ```
 
 If the timeout triggers, you'll get a stack dump showing where the compiler is stuck.
@@ -135,7 +133,7 @@ If the timeout triggers, you'll get a stack dump showing where the compiler is s
 ailang builtins list
 ```
 
-Shows all 128 registered builtins with their effect categories and modules.
+Shows all 408 registered builtins with their effect categories and modules.
 
 ### Filter by Module
 
@@ -216,10 +214,10 @@ flowchart TD
     B -->|Yes| C["ailang debug ast file.ail"]
     B -->|No| D{"Hangs?"}
 
-    D -->|Yes| E["ailang check -timeout 30s file.ail"]
+    D -->|Yes| E["ailang check --timeout 30s file.ail"]
     D -->|No| F{"Wrong Result?"}
 
-    F -->|Yes| G["ailang check -debug-compile file.ail"]
+    F -->|Yes| G["ailang check --debug-compile file.ail"]
     F -->|No| H["Check DEBUG_* env vars"]
 
     C --> I["Inspect NodeIDs and types"]

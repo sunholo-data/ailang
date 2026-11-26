@@ -2,61 +2,23 @@
 sidebar_position: 4
 title: Stability Promise (1.x)
 description: What syntax, stdlib, CLI, package format and hosted MCP tool surface AILANG guarantees across the 1.x release line.
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG 1.x Stability Promise
 
-> **Ratified 2026-11-09.** The tier *semantics* below are defined by the
-> [M-V1-STABILITY-PROMISE design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md).
-> The tier *assignments* reflect the current surface: the dispatch table behind
-> `ailang --help` (17 visible commands plus the `dev`, `ops`, `eval`
-> and `pkg` groups), the frozen stdlib interfaces (`make freeze-stdlib`), the package manifest and
-> lockfile code, and the hosted executor's MCP tool list. Rows marked
-> **⚠ close call** were the assignments most open to argument; each note says why it landed where it did.
-
-This page says what a consumer, whether a human developer or an AI coding agent, may rely on
-across AILANG's `1.x` releases. `1.0.0` means a promise about what will not break. It does not
-claim anything about adoption.
+> **Ratified 2026-11-09.** Tier semantics follow [M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md), verified against `cmd/ailang`, `.stdlib-golden/`, `internal/pkg`, and the hosted MCP tool surface. Rows marked **⚠ close call** explain judgment calls.
 
 ## Tiers
 
-Every public surface is in exactly one of three tiers.
-
 | Tier | Promise | Marked in docs |
 |------|---------|----------------|
-| **Stable** | Covered by the 1.x promise. A breaking change requires a **major** version bump. | (default; listed below) |
-| **Experimental** | Shipped and usable, but **may change in a 1.x minor** with a CHANGELOG entry. | Explicitly listed as Experimental. |
-| **Internal** | **No promise.** May change or be removed at any time. Listed here only so that anything missing from this page is not left ambiguous. | Explicitly listed as Internal. |
+| **Stable** | Covered by the 1.x promise; breaking changes require a **major** bump (`2.0`). Deprecations last at least one minor. | Default (listed below) |
+| **Experimental** | Shipped and usable; **may change in a 1.x minor** with a CHANGELOG migration note. | `Experimental` banner / table |
+| **Internal** | **No promise.** May change or be removed at any time. | `Internal` banner / table |
 
-### What "Stable" means in 1.x
-
-- **No breaking changes to the Stable surface within 1.x minor releases.** The behaviour,
-  signatures and semantics of Stable syntax, stdlib functions, CLI commands, package formats and
-  MCP tools stay the same across `1.0 → 1.1 → …`. Breaking any of them requires `2.0`.
-- **Experimental surface may change in a minor**, but only with an explicit CHANGELOG entry
-  that describes the change and how to migrate.
-- **Deprecations last at least one minor before removal.** A Stable item that is going to be
-  removed is first marked deprecated, in the docs and at compile time where the tooling supports
-  it. It keeps working for at least one full minor release and can only be removed in a later
-  major.
-- **Additive changes are always allowed.** New stdlib modules or functions, new CLI commands or
-  optional flags, new optional manifest keys, new MCP tools, and new syntax sugar can land in any
-  minor, because they do not break existing programs or callers.
-
-### Criteria used to draft the assignments
-
-An item is drafted **Stable** when all of these hold: it is documented in the canonical reference
-or teaching prompt, it is exercised by `examples/`, the eval suite, or a published package, and it
-has no open P0 defect. Items that are newer, niche or still changing are drafted **Experimental**.
-That is the cheaper way to be wrong, because an Experimental item can be promoted later without
-breaking anyone. Development, diagnostic and fleet-operations surface that has no consumer
-contract is **Internal**.
-
-**Tiering decisions:** `ailang messages` is **Experimental**. The
-coordinator, missions, approvals, dashboards, eval tooling and chains/observatory are
-**Internal**. The cloud executor's MCP tool surface is **Stable**.
+Additive changes (new modules, functions, optional flags, manifest keys, or MCP tools) may land in any minor. Items are drafted **Stable** when documented, exercised by `examples/`/evals/packages, and free of P0 defects.
 
 ## At a glance
 
@@ -69,76 +31,20 @@ coordinator, missions, approvals, dashboards, eval tooling and chains/observator
 
 ## Syntax surface
 
-The Stable syntax set is defined **by reference** to the canonical teaching prompt and language
-reference rather than listed again here, so there is one source of truth:
+Canonical syntax is defined by `ailang prompt` (`ailang prompt --version-active`) and [Language Syntax](/docs/reference/language-syntax).
 
-- **Canonical reference:** `ailang prompt` and the [Language Syntax](/docs/reference/language-syntax)
-  page. Read the active prompt revision from `ailang prompt --version-active` (`prompts/versions.json`
-  `.active`), not from this page.
-- The **Stable** constructs are the ones that reference documents as current:
-  - modules and imports, including `pkg/vendor/name/...` package imports
-  - `func`, `pure func` and `export` declarations
-  - `let` bindings and block bodies `{ …; … }`
-  - lambdas (`\x. …`) and `if … then … else …`
-  - brace-form `match` with pattern guards
-  - algebraic data types, records and row-polymorphic record access
-  - effect rows (`! {IO, FS, …}`)
-  - the `::` and `++` list operators
-  - string interpolation (`"${expr}"`)
-  - `requires` / `ensures` contracts
-
-- **`pure func` is Stable** (`pure` means exactly `! {}`; enforced by the type checker since #1443).
-- **Retired syntax is not Stable and the parser rejects it.** For example, the ML/Haskell form
-  `match … with | …` produces `PAR019` ("'match ... with' is not valid AILANG syntax"). Use the
-  brace form `match x { pat => expr, … }`.
-- **Experimental syntax:**
-  - Parameterised effects and capability refinement, such as `Net[scope=public]` and `@limit=N`
-    (see [Parameterised effects](/docs/guides/parameterised-effects)).
-  - IFC labels and `Declassify` (cross-module label checking landed in #1134 / #2185).
-  - The `serve-api` export annotations (`@route`, `@mcp_name`, `@mcp_title`, `@mcp_hints`,
-    `@noexpose`, `@nomcp`, …), which follow the `serve-api` tier below.
-- **Error & option propagation (`let x = expr?`)** unwraps `Ok`/`Some` on the return spine of a
-  `Result`/`Option` function and early-returns `Err`/`None` (non-`let` sub-expressions emit
-  `PAR_TRY_LET_ONLY`).
-- **Not implemented:** typed quasiquotes. See [Known Limitations](/docs/reference/limitations).
-- **Effect names** take the tier of the stdlib module that performs them. `IO`, `FS`, `Env`,
-  `Clock` and `Rand` are Stable. The other capabilities that `--caps` accepts are Experimental.
+- **Stable:** modules and imports (incl. `pkg/vendor/name/...`), `func`/`pure func` (`! {}`)/`export`, `let` and `{ …; … }`, lambdas (`\x. …`), `if … then … else …`, brace-form `match` with guards, ADTs, row-polymorphic records, `! {IO, FS, …}`, `::`/`++`, `"${expr}"` interpolation, `requires`/`ensures` contracts, and Stable effect capabilities (`IO`, `FS`, `Env`, `Clock`, `Rand`).
+- **Error & option propagation (`let x = expr?`):** Unwraps `Ok`/`Some` on the return spine of a `Result`/`Option` function (`PAR_TRY_LET_ONLY` outside `let` on the spine).
+- **Experimental syntax:** parameterised effects (`Net[scope=public]`, `@limit=N` — [Parameterised effects](/docs/guides/parameterised-effects)), IFC labels and `Declassify`, `serve-api` export annotations (`@route`, `@mcp_*`, `@noexpose`, `@nomcp`), and Experimental capabilities.
+- **Retired / not implemented:** `match … with | …` emits `PAR019`; typed quasiquotes are not implemented ([Known Limitations](/docs/reference/limitations)).
 
 ## Stdlib surface
 
-The module list comes from the frozen interface set: `make freeze-stdlib` writes one golden file
-per top-level `std/*.ail` module into `.stdlib-golden/`, and `make verify-stdlib` passes at HEAD
-(`✓ All 49 stdlib interfaces stable`). The gate also stops a dev push that changes a frozen
-interface without a re-freeze. The two subdirectory modules, `std/ai/streaming` and
-`std/stream/bridge`, are outside the freeze gate. They are tiered here as Experimental, so every
-importable module appears exactly once.
+`make freeze-stdlib` writes `.stdlib-golden/` for top-level `std/*.ail` modules (`make verify-stdlib` checks `49` stdlib interfaces); `std/ai/streaming` and `std/stream/bridge` are subdirectory Experimental modules.
 
-For a **Stable** module, the promise covers the interface that the golden file records: export
-names, types, class constraints (`"constraints": ["Eq[a]"]`, listed only when an export has any,
-with the type's variable names), literal-carrying numeric variables (`"literals": ["a"]`, #2378,
-listed only when there are any) and effect rows. Changing a Stable module's golden in a way that is
-not additive is a breaking change; adding a constraint to an export is not additive.
-
-**Where tiers are recorded.** One source per fact: the tier of every module is in
-[`std/STABILITY.toml`](https://github.com/sunholo-data/ailang/blob/dev/std/STABILITY.toml), and a
-function that is Experimental inside a Stable module says so in its source with `@experimental`.
-`ailang iface std/<module>` stamps the result on every export as `"tier"`, and the goldens in
-`.stdlib-golden/` record it. `ailang docs` shows the same marks. The tables on this page are checked
-against both by a test, so they cannot drift. Marking a function changes neither its type nor any
-package's `interface_hash`.
-
-"Uses" below means files under `examples/` that import the module, counted at HEAD.
-
-**The text `show` returns is part of the Stable promise** (the `show` builtin is Stable): it is
-total (nothing elided, at any width or depth), deterministic (the same on the evaluator and the
-bytecode VM, on every OS), and injective per type for values without NaN or functions. A
-top-level string is returned unchanged; a string nested in a list, tuple, record, map or
-constructor is quoted with the escapes `ailang fmt` uses, and that literal reads back as the same
-string through the normal loader (valid UTF-8 only). Function values of every kind, constructors
-used as values included, print `<function>` on every engine. `std/string.showPreview` is Stable
-with `std/string`: it quotes a string even at the top level, keeps a head-only prefix of at most
-`maxChars` code points, and marks a cut with `…(+N chars)` (N exact), so a cut preview never
-equals a complete one. The marker is for people, not for parsing.
+- **Stable contract:** export names, types, class constraints (`"constraints"`), literal-carrying numeric variables (`"literals"`), and effect rows.
+- **Tier metadata:** module tiers live in [`std/STABILITY.toml`](https://github.com/sunholo-data/ailang/blob/dev/std/STABILITY.toml) and per-function `@experimental` annotations surface in `ailang iface` and `ailang docs`.
+- **`show` guarantee:** `show` is total, deterministic across evaluator and VM, and injective per type without NaN or functions (top-level strings unquoted; nested strings escaped; functions print `<function>`). `std/string.showPreview` is Stable with `std/string` (`…(+N chars)`).
 
 ### Stable stdlib (17)
 
@@ -163,8 +69,6 @@ equals a complete one. The marker is for people, not for parsing.
 | `std/set` | Immutable sets with deterministic order | ⚠ close call — newer (3 examples, 1 benchmark), but its surface mirrors `std/map` |
 
 ### Experimental stdlib (31)
-
-These may change in a 1.x minor, with a CHANGELOG entry.
 
 | Module | Purpose | Why Experimental |
 |--------|---------|------------------|
@@ -202,9 +106,6 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 
 ### Experimental functions in Stable modules (25)
 
-These functions are in Stable modules but are Experimental themselves (`@experimental`): they may
-change in a 1.x minor, with a CHANGELOG entry.
-
 | Module | Functions | Why Experimental |
 |--------|-----------|------------------|
 | `std/json` | `repair`, `asBoolLoose`, `getStringArrayStrict`, `getNumberArrayStrict`, `decodeFloatArray` | boundary and niche helpers; no downstream use |
@@ -214,11 +115,7 @@ change in a 1.x minor, with a CHANGELOG entry.
 
 ### Deprecated stdlib names
 
-During the 0.6x transition, sixteen legacy stdlib spellings were marked `@deprecated("replacement")`
-and emitted warning `TC_DEPRECATED_001` naming their replacement. All sixteen aliases were **removed
-in `v0.64.0` before the v1.0.0 soak** and are not part of the 1.x surface. Importing any removed
-alias fails compilation with `IMP010`, naming the exact replacement (and noting the swapped
-argument order for `std/list.member(x, xs)` → `contains(xs, x)`).
+Sixteen legacy 0.6x aliases were **removed in `v0.64.0`**; importing any removed alias fails with `IMP010` naming its replacement (run `sed -E -f tools/migrate-stdlib-renames.sed` for the 12 mechanical renames, and update `glob`, `slice`, `member`, `unsafeGet` by hand).
 
 | Module | Deprecated | Use instead |
 |--------|------------|-------------|
@@ -233,37 +130,15 @@ argument order for `std/list.member(x, xs)` → `contains(xs, x)`).
 | `std/bytes` | `slice(b, start, len)` | `sliceLen` (the third argument is a length; the name stays retired for 1.x) |
 | `std/array` | `unsafeGet` | `get` (identical behaviour) |
 
-For 0.x codebases migrating to `1.0.0`, `sed -E -f tools/migrate-stdlib-renames.sed` rewrites the
-twelve uniquely named functions automatically; update `glob`, `slice`, `member`, and `unsafeGet` by
-hand, then run `ailang check` until zero `IMP010` errors remain.
-
-**User `@deprecated` annotations.** Package authors may continue to use `@deprecated` and
-`@experimental` on their own module exports. Within a module's consumers, using an active
-`@deprecated("replacement")` export emits `TC_DEPRECATED_001` (on stderr, in `check --json`
-`warnings[]`, and in `check --format agent`, across function bodies, contracts, named `test` blocks,
-`property` blocks, inline `tests` rows, and module-level `let`s). Uses inside an installed
-dependency package are reported by that package's own `check`, not by its importers, and a
-deprecated Stable export stays Stable until a major release removes it. The `@deprecated` annotation
-syntax itself is Experimental in 1.0.
+User packages may still apply Experimental `@deprecated("replacement")` (`TC_DEPRECATED_001`) and `@experimental` annotations to their own exports.
 
 ### Conventions of the Stable stdlib
 
-- **Names** are lowerCamelCase. The exceptions are kept on purpose: the mathematical constants
-  `PI()` and `E()`, the terse `Json` builders (`jn`, `jb`, `jnum`, `jint`, `js`, `ja`, `jo`, `kv`),
-  and the `intToStr`/`floatToStr` vs `stringToInt`/`stringToFloat` spellings.
-- **Argument order** is data first: the collection, string, path or `Json` value comes first
-  (`nth(xs, i)`, `map.lookup(m, k)`, `set.member(s, x)`), except that a higher-order function takes
-  the function first and the traversed collection last (`map(f, xs)`, `foldl(f, acc, xs)`).
-  `list.take(n, xs)`, `list.drop(n, xs)` and `string.join(sep, xs)` are documented exceptions.
-- **`Json` numbers.** `decode` gives `JInt(n)` for an integer literal that fits in 64 bits and
-  `JNumber(x)` for every other number; `encode` prints a `JInt` exactly. The numeric value
-  round-trips through text and the constructor does not: a whole-number `JNumber` prints as `3`,
-  so `decode(encode(jnum(3.0)))` is `JInt(3)`. Read numbers with `asNumber`/`getNumber` (both
-  constructors) or `getInt` (`None` for a fractional value, never truncated).
+- **Naming:** lowerCamelCase (exceptions: `PI()`, `E()`, `Json` builders `jn`/`jb`/`jnum`/`jint`/`js`/`ja`/`jo`/`kv`, and `intToStr`/`floatToStr` vs `stringToInt`/`stringToFloat`).
+- **Argument order:** data first (`nth(xs, i)`, `map.lookup(m, k)`), except HOFs take function first (`map(f, xs)`, `foldl(f, acc, xs)`) and `list.take`/`list.drop`/`string.join`.
+- **`Json` numbers:** `decode` produces `JInt(n)` for int64 literals and `JNumber(x)` otherwise; read numbers via `asNumber`/`getNumber`/`getInt`.
 
 ### Internal stdlib (3)
-
-No promise. Test and diagnostic helpers.
 
 | Module | Purpose |
 |--------|---------|
@@ -273,21 +148,7 @@ No promise. Test and diagnostic helpers.
 
 ## CLI surface
 
-The rows come from the dispatch table in `cmd/ailang/commands.go`, which also generates the
-[CLI Reference](/docs/reference/cli) (`make check-cli-docs` byte-compares the two). Every command
-below appears in the `--help` of a binary built from the tree it was drafted on. The "Listed in"
-column says which help screen it is on: `top` is `ailang --help`, and `dev`, `ops`, `eval` and
-`pkg` are `ailang <group> --help`.
-
-Tier rules for spellings:
-
-- **A grouped command's top-level spelling has the same tier as the command.** `ailang ops messages`
-  and `ailang messages` are one route.
-- **A compatibility spelling** (a route the binary accepts but no longer lists, such as
-  `ailang install` for `ailang pkg install`) **has the tier of its canonical command and keeps
-  working through 1.x when that tier is Stable.** ⚠ close call.
-- A Stable command's documented flags are Stable, apart from the Experimental flags listed under
-  the table.
+Command tiers match `cmd/ailang/commands.go` and [CLI Reference](/docs/reference/cli) (`make check-cli-docs`). Grouped top-level aliases and compatibility spellings (`ailang install` → `ailang pkg install`) inherit their canonical command's tier.
 
 ### Stable CLI (19)
 
@@ -313,32 +174,10 @@ Tier rules for spellings:
 | `pkg publish` | pkg | `publish` | Publish the current package. ⚠ close call — the command and its manifest inputs are Stable, but the validator's `PUBnnn` gate set may tighten in a minor |
 | `pkg bin` | pkg | `bin` | List or uninstall `[bin]` command shims. ⚠ close call — added in v0.40.0 |
 
-**Experimental flags of Stable commands:** `run --bytecode` (the VM path), `run --policy`, `run
---ai*` and the `--routing-*` / `--allow-routing` family, `run --budget-report`, the resource-cap
-flags (`--max-memory`, `--net-timeout`, `--net-max-bytes`, `--fs-max-bytes`,
-`--process-allowlist`), and `check --format agent`. The `ai-check` alias is Stable as a route, but
-the JSON report it prints is Experimental ⚠ close call, because its shape is still settling.
-
-**Stable behaviour of those commands, stated so it is not frozen by omission:**
-- The exit codes of `check --verify` (and `ai-check`) follow the table in the
-  [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, no obligations, or partial (at
-  least one obligation proved and the skipped ones listed on stderr and in `results`); 1 for a failed
-  check, nothing proved (`unproved`: every obligation skipped), a counterexample, a solver error or
-  timeout, an inconclusive result, or obligations with no solver. `--allow-inconclusive` makes an
-  inconclusive result exit 0 even when it is the only obligation (nothing proved); the outcome stays
-  `inconclusive`. An obligation is a function with an `ensures` clause; a `requires`-only function, or
-  one whose only `ensures` is the literal `ensures { true }`, is not one. Other tautologies (`1 == 1`,
-  `result == result`, `true && true`) are not detected and count as verified. Contradictory flags
-  (`--strict` with `--allow-inconclusive`, either with `--no-verify`, `--strict` without `--verify`)
-  are usage errors (exit 2). The JSON `outcome` field may gain values in a minor; existing values keep
-  their meaning. `ai-check --no-verify` (type check only, outcome `not_requested`) is Experimental.
-- `ailang run` does not check `requires`/`ensures` unless `--verify-contracts` is given. With
-  `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
-  lifting the refusal is additive.
+- **Experimental flags on Stable commands:** `run --bytecode`, `run --policy`, `--ai*` / `--routing-*` / `--allow-routing`, `--budget-report`, resource caps (`--max-memory`, `--net-*`, `--fs-max-bytes`, `--process-allowlist`), `check --format agent`, and `ai-check` JSON report schema (`--no-verify`).
+- **Stable contract behaviour:** `check --verify` exit codes follow [Contracts Guide](/docs/guides/contracts#exit-codes); `ailang run` checks contracts only with `--verify-contracts` (evaluator only; refused with `CTR004` on `--bytecode`).
 
 ### Experimental CLI (22)
-
-These may change in a 1.x minor, with a CHANGELOG entry.
 
 | Command | Listed in | Also accepted | Why Experimental |
 |---------|-----------|---------------|------------------|
@@ -365,14 +204,9 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `sandbox-check` | dev | — | close to diagnostics |
 | `watch` | dev | — | tooling convenience |
 
-**Removed: `compile`.** `ailang compile --emit-go` / `--emit-go-v2` (the Go emitter) was removed
-after v0.60.5, so that 1.x has two engines that agree: the evaluator and the bytecode VM. The
-`compile` route is still accepted, but only to fail (exit 1) with a message pointing at
-`ailang run`, plus `--bytecode` for the VM.
+*(Removed: `ailang compile --emit-go` was retired after `v0.60.5`; use `ailang run` / `--bytecode`.)*
 
 ### Internal CLI (46)
-
-No promise. Diagnostic, harness, and fleet-operations surface.
 
 | Command | Listed in | Also accepted | Purpose |
 |---------|-----------|---------------|---------|
@@ -410,62 +244,52 @@ No promise. Diagnostic, harness, and fleet-operations surface.
 | `storage` | ops | — | Storage-plane status |
 | `workspaces` | ops | — | Workspace management |
 
-The hidden routes `internal-dump-iface` / `dump-iface` are Internal. The 14 eval subcommands are
-counted individually in the 46.
+*(Hidden `internal-dump-iface` / `dump-iface` routes are Internal; the 14 `eval` subcommands are counted individually in the 46.)*
 
 ## Packages
 
-The package system is part of the 1.x promise. This section covers **the format and resolution semantics**, meaning what
-`ailang.toml`, `ailang.lock` and the registry mean. It does not cover the contents of any
-particular package. Each package declares its own maturity in `[stability].level`. Reference:
-the [Package System guide](/docs/guides/packages) and the
-[publishing guide](/docs/guides/package-publishing).
+The 1.x promise covers manifest and lockfile **format and resolution semantics** ([Packages Guide](/docs/guides/packages), [Publishing Guide](/docs/guides/package-publishing)); individual packages declare their own maturity in `[stability].level`.
 
 ### Stable package surface (12)
 
 | Surface | What is promised |
 |---------|------------------|
-| Manifest `[package]` | `name` (two-level `vendor/name`), `version` (semver), `edition` (`"1"`), and the optional `ailang` (minimum version, enforced on install), `module_prefix` (one segment), `description` and `license` |
-| Manifest `[exports].modules` | Only listed modules can be imported by dependents. Everything else is package-private |
-| Manifest `[dependencies]` | Three sources: `{ path = … }`, `{ git = …, tag/rev, subdir }`, and a registry `"x.y.z"`. Versions are **exact**: there are no `^`/`~`/`>=` ranges. Resolution priority is path > git > registry |
-| Flat resolution | One version per package name. A conflict fails `ailang lock` with a structured error, and the resolver never silently downgrades a direct dependency |
-| **Authority: effect ceiling** `[effects].max` | Compilation fails if the package's own code declares, or references the type of, an effect outside `max`. Imported bodies are not charged. `max = []` means the package is pure |
-| **Authority: ghost effects** | `Debug` is exempt from the ceiling, granted automatically, and erased by `--release` |
-| **Authority: run-time grant** | A package gets no capability unless it is granted at run time (`run --caps`, or `[bin].caps`, which defaults to `auto` = the entry's declared effects). Declaring an effect does not grant it |
-| Manifest `[stability].level` | `experimental` / `stable` / `frozen`: the package's own declared maturity |
-| Lockfile `ailang.lock` | JSON with `schema: "ailang.lock/v1"`. Each package entry has `name`, `version`, `source` (`path`/`git`/`registry`), `content_hash`, `interface_hash`, `effects`, `exports` and the source locator. It is portable: path dependencies are recorded relative with forward slashes, and cache paths are resolved at run time. An unchanged resolution rewrites byte-identically, and `ailang lock --check` detects drift without writing |
-| Dual hash model | `content_hash` changes with any source change. `interface_hash` changes only when exports or effects change, so internal refactors do not cascade |
-| Import form | `import pkg/vendor/name/module (…)` resolves against the lockfile, never the local filesystem |
-| Registry resolution | Default registry `https://storage.googleapis.com/ailang-registry` (`AILANG_REGISTRY` overrides it), read through `index.json`. `install x` / `x@latest` resolves once and writes the **exact** version into `ailang.toml`. A published version is immutable, and duplicate versions are rejected |
+| Manifest `[package]` | `name` (`vendor/name`), `version` (semver), `edition` (`"1"`), optional `ailang` min version, `module_prefix`, `description`, `license` |
+| Manifest `[exports].modules` | Only listed modules are public; all others are package-private |
+| Manifest `[dependencies]` | Exact pins only: `{ path = … }`, `{ git = …, tag/rev, subdir }`, or `"x.y.z"` (priority: path > git > registry) |
+| Flat resolution | One version per package name; conflicts fail `ailang lock` explicitly |
+| **Authority: effect ceiling** `[effects].max` | Compilation fails if package code declares or references an effect outside `max` (`max = []` = pure) |
+| **Authority: ghost effects** | `Debug` is exempt from `[effects].max` and erased by `--release` |
+| **Authority: run-time grant** | Capabilities come only from `run --caps` or `[bin].caps` (`auto` = entry's declared effects) |
+| Manifest `[stability].level` | `experimental` / `stable` / `frozen` package-declared maturity |
+| Lockfile `ailang.lock` | `schema: "ailang.lock/v1"` JSON recording hashes, effects, exports, and portable relative locators; `ailang lock --check` verifies drift |
+| Dual hash model | `content_hash` tracks source bytes; `interface_hash` tracks exports/effects to prevent internal-refactor cascades |
+| Import form | `import pkg/vendor/name/module (…)` resolves strictly via `ailang.lock` |
+| Registry resolution | Default `https://storage.googleapis.com/ailang-registry` (`AILANG_REGISTRY` overrides); published versions are immutable |
 
 ### Experimental package surface (9)
 
 | Surface | Why Experimental |
 |---------|------------------|
-| `[bin]` commands (`module`, `entry`, `caps`, `run_flags`) | ⚠ close call — shipped in v0.40.0, used by `sunholo/email` / `eparse`; promote once the shim layout is settled |
-| `[release].kind` and the `CHANGELOG.md` `## <version>` requirement | ⚠ close call — publish has required them since v0.41.0; part of the quality ladder that is still growing |
+| `[bin]` commands (`module`, `entry`, `caps`, `run_flags`) | ⚠ close call — used by `sunholo/email` / `eparse`; promote once shim layout settles |
+| `[release].kind` and `CHANGELOG.md` `## <version>` | quality ladder still growing |
 | Publish validator gates (`PUBnnn`, `ailang pkg quality`) | gates may tighten in a minor |
-| Interface identity v2 hashing algorithm | ⚠ close call — the *meaning* of `interface_hash` is Stable, but the algorithm behind it may be re-versioned. The v2 hash covers exports' class constraints since #2290, and their literal-carrying numeric variables since #2378, so it differs across that release for a package with a constrained export, and a publisher and validator on either side of it disagree (`PUB005`): the validator is deployed in step with the release. The lockfile `interface_hash` (v1, manifest-only) is unaffected |
-| Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | ⚠ close call — under an agent policy, package verbs refuse network and `~/.ailang` writes with a `confined by AILANG_AGENT_POLICY` error (#1720); landed 2026-10-26 |
-| `[dependencies_dev]` | undocumented in the package guide |
-| `[ai_provider]`, `[extensions]`, `[assets]`, `[smoke]` | extension and provider wiring, still changing |
-| `[cascade]` and the upgrade cascade (`pkg cascade`, `notify-upgrade`, `affected-by`) | runs over the message plane, which is Experimental |
+| Interface identity v2 hashing algorithm | ⚠ close call — hash meaning is Stable, algorithm may re-version |
+| Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | offline/sandbox policy still hardening |
+| `[dependencies_dev]` | undocumented in package guide |
+| `[ai_provider]`, `[extensions]`, `[assets]`, `[smoke]` | extension/provider wiring still changing |
+| `[cascade]` and `pkg cascade` / `notify-upgrade` / `affected-by` | runs over Experimental message plane |
 | `[metadata]` | free-form; no schema promised |
 
 ### Internal package surface (1)
 
 | Surface | Purpose |
 |---------|---------|
-| Registry administration (`pkg key`, the `/rebuild-index` endpoint, `AILANG_REGISTRY_API_KEY`) | Operator-only |
+| Registry administration (`pkg key`, `/rebuild-index`, `AILANG_REGISTRY_API_KEY`) | Operator-only |
 
-### Worked example: `sunholo/mcp_oauth` ⚠ close call
+### Worked example: `sunholo/mcp_oauth`
 
-[`sunholo/mcp_oauth`](https://ailang.sunholo.com/docs/packages/sunholo/mcp_oauth)
-([source](https://github.com/sunholo-data/ailang-packages/tree/main/packages/mcp-oauth)) is an
-OAuth 2.1 authorisation server for MCP services. It is published in the registry (latest
-`v0.2.0`, four versions since 2026-10-03) and is in production use. Its consumer in this
-repository is `executor_oauth/`, the sign-in server in front of the hosted executor MCP described
-below. That consumer shows each Stable package rule above in a real file:
+[`sunholo/mcp_oauth`](https://ailang.sunholo.com/docs/packages/sunholo/mcp_oauth) is consumed by `executor_oauth/` with exact pins, `[effects].max` covering referenced hook types (including `SharedMem`), and `ailang lock --check` verification:
 
 ```toml
 # executor_oauth/ailang.toml (abridged)
@@ -480,7 +304,7 @@ ailang = ">=0.54.0"
 modules = ["executor_oauth/oauth"]
 
 [dependencies]
-"sunholo/mcp_oauth" = "0.1.2"      # exact pin: v0.2.0 being published did not move it
+"sunholo/mcp_oauth" = "0.1.2"
 "sunholo/firestore" = "0.7.2"
 "sunholo/firebase_auth" = "0.1.2"
 
@@ -488,46 +312,11 @@ modules = ["executor_oauth/oauth"]
 max = ["IO", "FS", "Net", "Env", "Rand", "Clock", "Debug", "Declassify", "SharedMem"]
 ```
 
-- **Lockfile.** `executor_oauth/ailang.lock` (`schema: "ailang.lock/v1"`) records
-  `sunholo/mcp_oauth@0.1.2` from `source: "registry"`, with its `content_hash`,
-  `interface_hash`, `effects` and `exports`. It also records the transitive
-  `sunholo/gcp_auth@0.8.1` and `sunholo/config@0.1.2`. With the binary built from this branch,
-  `ailang lock --check` reports `✓ ailang.lock is current`.
-- **Import.** `import pkg/sunholo/mcp_oauth/flow (Hooks, beginAuthorize, …)` in
-  `executor_oauth/oauth.ail`. `ailang check executor_oauth/oauth.ail` reports no errors.
-- **Authority.** The consumer's ceiling has to name every effect that its own code references
-  through the package's hook types. That is why it lists `SharedMem`, which it never performs,
-  and the manifest says so in a comment.
-- **Maturity is declared separately.** `ailang pkg info sunholo/mcp_oauth` shows
-  `Stability: experimental`. That is the package author's promise about the package's API. It is
-  separate from the 1.x promise about the format that carries it.
-
 ## Hosted MCP tool surface
 
-The hosted AILANG executor (`docker/Dockerfile.executor-mcp`) runs `serve-api` over
-`mcp_tools/` (the docs tools), `executor_tools/` (the code tools) and, on the OAuth deployment,
-`executor_oauth/`. It also serves the built-in Go `submit_feedback` tool. It exposes two endpoints:
-`/mcp/` (IAM-only, for Gemini Enterprise) and `/mcp/connect/` (OAuth 2.1, for connector
-directories). The tool names below were read from the `@mcp_name` annotations at HEAD, and they
-match the tool list a connected client sees (29 tools).
+Served by `serve-api` over `mcp_tools/`, `executor_tools/`, `executor_oauth/`, and built-in `submit_feedback` at `/mcp/` (IAM) and `/mcp/connect/` (OAuth 2.1, production host `https://executor.ailang.sunholo.com/mcp/connect/`).
 
-For a **Stable** tool, the promise covers:
-
-- the tool name;
-- the input parameter names and types;
-- the read-only / idempotent hints;
-- the top-level response envelope. Version-scoped docs tools return `{served_for, data}` or
-  `{error, detail}`. Executor tools return `{ok, exit_code, stdout, stderr, truncated}` or
-  `{ok: false, error, message}`. `ailang_check` adds two
-  fields to that envelope: `verification` (the verification result: the report's `verify.outcome`,
-  or `unavailable` when the host has no solver and ran the type check only) and, only when it is
-  `unavailable`, `verification_message`. `ok` is still `exit_code == 0`, and `exit_code` is still the
-  real status of the command the tool ran.
-
-The *content* inside a response, such as prompt text, docs pages or stdlib listings, changes with
-every release by design. The **hosted URL is part of the promise:** the production OAuth endpoint
-is `https://executor.ailang.sunholo.com/mcp/connect/`, and its OAuth issuer and protected-resource
-metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, are not.
+For **Stable** tools, the promise covers tool name, input schema, hints, and response envelope (`{served_for, data}` / `{ok, exit_code, stdout, stderr, truncated}` / `ailang_check`'s `verification` field).
 
 ### Stable MCP tools (24)
 
@@ -571,27 +360,10 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 
 | Release line | Bug fixes | Security fixes | Notes |
 |---|---|---|---|
-| **Latest `1.x` minor** | Yes | Yes | Security fixes ship as patch releases on the latest `1.x` minor (`1.x` minors are non-breaking by promise, so upgrading to the latest minor is the supported path). |
-| **Final `0.x` release (`v0.64.0`)** | No | **90 days after `1.0.0`** | Critical and high security fixes only during the 90-day transition window. |
-| **Older `1.x` minors & earlier `0.x` releases** | No | No | Upgrade to the latest `1.x` release. |
+| **Latest `1.x` minor** | Yes | Yes | Upgrade to latest `1.x` minor (non-breaking by promise). |
+| **Final `0.x` (`v0.64.x`)** | No | **90 days after `1.0.0`** | Critical/high security fixes only during the 90-day transition window. |
+| **Older `1.x` / earlier `0.x`** | No | No | Upgrade to latest `1.x`. |
 
-See [SECURITY.md](https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md) for vulnerability reporting channels and response SLAs.
-
-## Known limitations & version promises
-
-- [Known Limitations](/docs/reference/limitations) is live-verified: every entry carries a repro,
-  a transcript, and the date it was verified.
-- Language about future versions belongs only on the [Roadmap](/docs/roadmap). That is the one
-  place where "planned for vX.Y" statements are allowed.
-
-## Follow-ups (post-ratification)
-
-- ~~Close [#1443](https://github.com/sunholo-data/ailang/issues/1443) (`pure func`) and [#1134](https://github.com/sunholo-data/ailang/issues/1134) (IFC labels)~~: done (PRs `#2184` and `#2185`).
-- A gate that checks this page's tables against the dispatch table, the stdlib goldens and the
-  `@mcp_name` list, the way `check-cli-docs` checks the CLI Reference.
-- ~~Compile-time deprecation warnings~~: done — `@deprecated` and `TC_DEPRECATED_001` (see
-  [Deprecated stdlib names](#deprecated-stdlib-names)).
-
----
+See [SECURITY.md](https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md) for reporting channels and [Known Limitations](/docs/reference/limitations) / [Roadmap](/docs/roadmap) for current bounds and future work.
 
 *Ratification status: **ratified 2026-11-09**.*

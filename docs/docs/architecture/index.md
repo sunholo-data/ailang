@@ -1,12 +1,16 @@
 ---
 title: Architecture
 sidebar_position: 1
-reviewBy: 2027-01-25
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Architecture
 
 This section documents the internal architecture of AILANG for contributors and those who want to understand how the language works.
+
+![Two Engines Architecture](/img/diagrams/two-engines-architecture.svg)
 
 ## Core Concepts
 
@@ -41,8 +45,8 @@ Step-by-step guide for implementing new operators:
 CLI tools for understanding the compilation pipeline:
 
 - `ailang debug ast` - Inspect Core AST (ANF)
-- `ailang check -debug-compile` - Compilation telemetry
-- `ailang builtins list` - Explore 128 registered builtins
+- `ailang check --debug-compile` - Compilation telemetry
+- `ailang builtins list` - Explore 408 registered builtins
 - `ailang docs` - Stdlib documentation
 
 ## Compilation Pipeline
@@ -86,7 +90,7 @@ flowchart LR
 3. **Type Inference**: Core AST → Typed AST + CoreTypeInfo
 4. **Validation**: Verify CoreTypeInfo completeness
 5. **Lowering**: Type-directed operator specialization
-6. **Evaluation**: Execute lowered Core AST
+6. **Execution**: Reference evaluator (`internal/eval/`) or Bytecode VM (`--bytecode`, `internal/vm/`)
 
 ## Implementation Files
 
@@ -98,7 +102,9 @@ flowchart LR
 | Type System | `internal/types/` | Type inference |
 | Core AST | `internal/core/` | ANF representation |
 | Pipeline | `internal/pipeline/` | Compilation orchestration |
-| Evaluator | `internal/eval/` | Interpretation |
+| Evaluator | `internal/eval/` | Reference tree-walking interpreter |
+| Bytecode Compiler | `internal/bytecode/` | Lowered Core → bytecode chunks |
+| Bytecode VM | `internal/vm/` | Register-based VM (`--bytecode`) |
 | Builtins | `internal/builtins/` | Built-in functions |
 | Effects | `internal/effects/` | Effect runtime |
 

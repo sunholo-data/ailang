@@ -1,6 +1,7 @@
 ---
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+tier: experimental
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # std/extension — helpers for AILANG extension packages

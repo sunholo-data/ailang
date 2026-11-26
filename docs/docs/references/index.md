@@ -2,7 +2,8 @@
 sidebar_position: 3
 title: Citations & Bibliography
 description: Complete academic citations with DOIs, arXiv links, and PDF sources
-reviewBy: 2027-01-11
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Citations & Bibliography
@@ -178,7 +179,7 @@ AILANG is a concrete instance of the "code-as-harness" paradigm at the language 
 **AILANG alignment**: Several AILANG design decisions are independently validated by this survey:
 - AILANG's row-polymorphic effect rows are the formal version of "NormCode data isolation" (cited in robotics section) — no surveyed system achieves this at the language level
 - AILANG's OTEL trace tiers (`standard`/`deep`) are the direct implementation of what the paper calls AHE "deep telemetry as optimization substrate"
-- AILANG's [three-camps architecture](/docs/guides/three-camps-self-audit) maps onto the paper's taxonomy: eval-only (code-for-reasoning), Motoko agentic (code-for-acting), Claude agentic (code-for-environment/repository-level harness)
+- AILANG's [three-camps architecture](/docs/guides/three-camps-comparison) maps onto the paper's taxonomy: eval-only (code-for-reasoning), Motoko agentic (code-for-acting), Claude agentic (code-for-environment/repository-level harness)
 - The coordinator's SQLite chain store + explicit message-passing is ahead of most surveyed MAS, which rely on implicit/file-only shared state
 
 **Notable finding**: QualityFlow demonstrates LLM-simulated execution achieves 98%+ precision predicting real test outcomes — informing AILANG's eval tier routing strategy.

@@ -1,16 +1,17 @@
 ---
-reviewBy: 2027-03-15
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Implementation Status
 
 ## Current Version
 
-Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) for the current stable version and [CHANGELOG.md](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md) for detailed release notes.
+Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) for the current stable version (`v0.64.1` baseline) and [CHANGELOG.md](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md) for detailed release notes.
 
 ## Feature Documentation
 
-All implemented features are documented in [Design Documents](/docs/design-docs), which is auto-generated from `design_docs/implemented/` and always lists the latest versions — no hand-maintained list here.
+All implemented features are documented in [Design Documents](/docs/design-docs), which is auto-generated from `design_docs/implemented/` and always lists the latest versions.
 
 ---
 
@@ -20,14 +21,14 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **Lexer** | Complete | Unicode, all token types, ~550 LOC |
-| **Parser** | Complete | Recursive descent + Pratt parsing, ~1,200 LOC |
-| **Type System** | Complete | Hindley-Milner, row polymorphism, type classes |
-| **Evaluator** | Complete | Tree-walking interpreter with modules |
-| **REPL** | Complete | History, completion, type checking |
-| **Effects** | Complete | IO, FS, Net, Clock, Rand, DB, AI, Process |
-| **Modules** | Complete | Imports, exports, cross-module calls |
-| **Bytecode VM** | Partial | `run --bytecode`, ~40× faster than the evaluator; 142 of 205 runnable examples run fully on the VM, the rest fall back to the evaluator (`--strict-bytecode` fails instead) |
+| **Lexer** | Complete | Unicode, all token types |
+| **Parser** | Complete | Recursive descent + Pratt parsing |
+| **Type System** | Complete | Hindley-Milner, row polymorphism, type classes, nominal ADTs |
+| **Evaluator** | Complete | Tree-walking interpreter with modules & `--verify-contracts` |
+| **REPL** | Complete | History, completion, type/effect inspection (`λ[Debug,IO]>`) |
+| **Effects** | Complete | IO, FS, Net, Clock, Rand, Env, Process, Stream, AI, Secret, Trace, SharedMem, SharedIndex, DOM, Msg, Cog |
+| **Modules** | Complete | Imports, exports, cross-module constraints & nominal identity |
+| **Bytecode VM** | Partial | `run --bytecode`, ~40× faster than the evaluator; 186 of 205 runnable examples run natively on the VM, the rest warn and fall back to the evaluator (`--strict-bytecode` fails with `BC001`) |
 | **Go Codegen** | Removed | `compile --emit-go` / `--emit-go-v2` were removed after v0.60.5; run with `ailang run` (`--bytecode` for the VM) |
 
 ### AI-First Features (Complete)
@@ -36,35 +37,33 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 |---------|--------|-------|
 | **Inline Tests** | Complete | `tests [(input, expected)]` syntax |
 | **Structured Errors** | Complete | JSON output, error codes, `check --fix` & LSP `codeAction` |
-| **Semantic Inspection** | Complete | `ailang inspect` 1-line-per-symbol agent/JSON X-ray |
+| **Semantic Inspection** | Complete | `ailang inspect` (`--format=agent`, `--json`) 1-line-per-symbol X-ray |
 | **JSON Deriving** | Complete | `deriving (Json)` for monomorphic records & sum ADTs |
 | **Error Propagation** | Complete | `let x = expr?` spine unwrapping for `Result`/`Option` |
 | **Schema Registry** | Complete | Versioned JSON schemas |
-| **Teaching Prompts** | Complete | `ailang prompt` / `ailang prompt --compact` |
-| **Multi-Model Evals** | Complete | Claude, GPT, Gemini support |
+| **Teaching Prompts** | Complete | `ailang prompt` (active prompt `v0.16.20`) |
+| **Multi-Model Evals** | Complete | Claude, GPT, Gemini, local Ollama support |
 | **Semantic Caching** | Complete | SimHash + neural embeddings |
 
-### Verification (v0.6.1+)
+### Verification (Z3 SMT, `v0.64.0`+)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Contracts** | Complete | `requires`/`ensures` clauses |
-| **Policy Mode** | Complete | Redundant verification |
-| **SMT Backend** | Complete | Z3 integration, cross-function inlining, int64/NaN numeric model |
-| **Bounded Recursion** | Complete | `--verify-recursive-depth N` (Dafny-style unrolling); unbounded recursion is `inconclusive` — no induction yet |
+| **Contracts** | Complete | `requires`/`ensures` clauses and bounded `forall i: lo..hi => p` |
+| **Policy Mode** | Complete | Redundant verification & `--strict` / `--allow-inconclusive` |
+| **SMT Backend** | Complete | Z3 `4.16.0` integration, cross-function inlining, `Tuple0` (`()`) & `Tuple2..Tuple8` sorts, `--int-model=int64` overflow mode, NaN/Inf float checks, AILANG-syntax counterexample rendering (`(0, 1)`, `{ a: 1 }`, `Some(42)`) |
+| **Bounded Recursion** | Complete | `--verify-recursive-depth N` (default `2`) + HOF lambda unrolling (depth `3`); unbounded recursion is `inconclusive` (no induction yet) |
 
 ---
 
 ## Known Limitations
 
-See [Limitations](/docs/reference/limitations) for the full list.
-
-**Active bugs:**
-- Polymorphic arithmetic in lambdas panics (use named functions as workaround)
-- Pattern guards parsed but not evaluated
+See [Known Limitations](/docs/reference/limitations) for the full capability & cliff matrix.
 
 **Not yet implemented:**
+- `export import` module re-exports (pending PR `#2475`; emits `PAR_EXPORT_REQUIRES_FUNC`)
 - Arbitrary sub-expression `?` propagation (use `let x = expr?` along the return spine)
+- User-defined `class`/`instance` typeclasses and higher-kinded type parameters
 - Typed quasiquotes
 - CSP concurrency (deferred)
 

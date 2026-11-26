@@ -2,8 +2,8 @@
 sidebar_position: 4
 title: Module System
 description: Code organization, imports, and exports in AILANG
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Module System
@@ -514,20 +514,14 @@ ailang run --entry factorial examples/calc.ail
 
 ### Recommended Structure
 
-```text
-project/
-├── src/
-│   ├── main.ail           -- module src/main
-│   ├── utils/
-│   │   ├── math.ail       -- module src/utils/math
-│   │   └── strings.ail    -- module src/utils/strings
-│   └── data/
-│       ├── types.ail      -- module src/data/types
-│       └── json.ail       -- module src/data/json
-├── tests/
-│   └── test_math.ail      -- module tests/test_math
-└── examples/
-    └── demo.ail           -- module examples/demo
+```mermaid
+flowchart LR
+    ROOT["project/"] --> SRC["src/"]
+    ROOT --> TESTS["tests/test_math.ail\n(module tests/test_math)"]
+    ROOT --> EX["examples/demo.ail\n(module examples/demo)"]
+    SRC --> MAIN["main.ail\n(module src/main)"]
+    SRC --> UTILS["utils/{math,strings}.ail\n(module src/utils/...)"]
+    SRC --> DATA["data/{types,json}.ail\n(module src/data/...)"]
 ```
 
 ### Circular Dependencies
