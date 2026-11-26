@@ -2,7 +2,8 @@
 title: I'm evaluating AILANG
 description: Fastest path to an informed decision about adopting AILANG
 sidebar_label: Evaluating
-reviewBy: 2026-11-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon from '@site/src/components/Icon';
@@ -10,21 +11,22 @@ import { STABLE_RELEASE } from '@site/src/constants/version';
 
 # I'm evaluating AILANG
 
-You're weighing AILANG against other options. Here's the fast path to an informed decision.
+The fast path to an informed decision on whether AILANG fits your workload.
 
 ## What does AILANG actually do?
 
-- <Icon name="target" inline /> **[Why AILANG](/docs/why-ailang)** — the elevator pitch and the trade-offs.
-- <Icon name="brain" inline /> **[Vision](/docs/vision)** — the long-form motivation.
-- <Icon name="bot" inline /> **[AILANG vs Agent Frameworks](/docs/guides/ailang-vs-agents)** — how it compares to LangChain, ADK, etc.
+- <Icon name="target" inline /> **[Why AILANG](/docs/why-ailang)** — 2-minute pitch, Python/Go/TS comparison, and IFC/VM overview.
+- <Icon name="shield" inline /> **[Why 1.0](/docs/why-1-0)** — what the `1.0` stability contract guarantees and honest limits.
+- <Icon name="brain" inline /> **[Vision](/docs/vision)** — symbolic reasoning kernel and trace architecture.
+- <Icon name="bot" inline /> **[AILANG vs Agent Frameworks](/docs/guides/ailang-vs-agents)** & **[Three Camps Comparison](/docs/guides/three-camps-comparison)**.
 
-## What works *today*?
+## What works *today* ({STABLE_RELEASE})?
 
-AILANG {STABLE_RELEASE} is the current stable release.
-
-- <Icon name="check" inline /> **[Implementation Status](/docs/reference/implementation-status)** — what's shipped.
-- <Icon name="warning" inline /> **[Known Limitations](/docs/reference/limitations)** — what isn't.
-- <Icon name="info" inline /> **[Roadmap](/docs/roadmap)** — what's next.
+- <Icon name="check" inline /> **[Stability Promise](/docs/reference/stability)** — Stable vs Experimental vs Internal tiers.
+- <Icon name="shield" inline /> **[Security Model](/docs/reference/security-model)** — capability boundaries, `--caps auto` caveats, and `--policy`.
+- <Icon name="check" inline /> **[Implementation Status](/docs/reference/implementation-status)** — shipped feature matrix.
+- <Icon name="warning" inline /> **[Known Limitations](/docs/reference/limitations)** — live-verified design constraints and cliffs.
+- <Icon name="info" inline /> **[Roadmap](/docs/roadmap)** — planned `1.x` work.
 
 ## How well do AI models write AILANG?
 
@@ -34,6 +36,6 @@ AILANG {STABLE_RELEASE} is the current stable release.
 
 ## Is the design sound?
 
-- <Icon name="code" inline /> **[Type System](/docs/architecture/types)** — Hindley-Milner + row polymorphism + effects.
+- <Icon name="code" inline /> **[Type System](/docs/architecture/types)** — Hindley-Milner + row polymorphism + algebraic effects.
 - <Icon name="brain" inline /> **[Academic Foundations](/docs/references)** — axioms, design lineage, philosophical roots.
-- <Icon name="globe" inline /> **[GitHub repo](https://github.com/sunholo-data/ailang)** — read the source, file an issue.
+- <Icon name="globe" inline /> **[GitHub Repository](https://github.com/sunholo-data/ailang)** — inspect the compiler, tests, and issues.

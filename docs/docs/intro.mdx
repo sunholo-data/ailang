@@ -3,11 +3,15 @@ sidebar_position: 1
 title: Introduction
 description: AILANG is an AI-first programming language designed for AI-assisted development
 slug: /
-reviewBy: 2027-02-01
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
-import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+import Icon, { CheckIcon, WarningIcon } from '@site/src/components/Icon';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
+import CodeBlock from '@theme/CodeBlock';
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
 
 <div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
   <img src="/img/ailang-logo.svg" alt="AILANG Logo" width="96" height="96" />
@@ -15,39 +19,38 @@ import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # AILANG: AI-First Programming Language
 
-Welcome to the official documentation for AILANG, a deterministic, effect-typed programming language designed as a safe target for AI-generated programs.
+AILANG is a deterministic, effect-typed functional programming language built as a safe target for AI-generated programs.
 
-AILANG {STABLE_RELEASE} ships a stable core — language, effects, modules — with APIs that may still evolve in pre-1.0 minor releases. The [Stability Promise](/docs/reference/stability) defines which syntax, stdlib, CLI, package (manifest, lockfile, registry) and hosted MCP tool surface is guaranteed across the 1.x line (Stable / Experimental / Internal tiers).
+AILANG {STABLE_RELEASE} ships a stable core — language, effects, modules — with APIs that may still evolve in pre-1.0 minor releases. The [Stability Promise](/docs/reference/stability) defines which syntax, stdlib, CLI, package (manifest, lockfile, registry), and hosted MCP tool surface is guaranteed across the `1.x` line (Stable / Experimental / Internal tiers).
+
+![Progressive Onboarding Map](/img/diagrams/progressive-learning-map.svg)
+
+## Where to Next?
+
+Pick the path that matches who you are:
+
+- <Icon name="user" inline /> **[I'm new and human](/docs/start-here/quick-start)** — browser playground, live demos, CLI install, first module.
+- <Icon name="bot" inline /> **[I'm an AI agent (or configuring one)](/docs/start-here/for-ai-agents)** — Task→CLI→MCP routing table, teaching prompt (`{ACTIVE_PROMPT}`), hooks, `/llms.txt`.
+- <Icon name="target" inline /> **[I'm evaluating AILANG](/docs/start-here/evaluating)** — [Why AILANG](/docs/why-ailang), [Why 1.0](/docs/why-1-0), benchmarks, and known limitations.
+
+## What Makes AILANG Different
+
+![AILANG Symbolic Kernel Loop](/img/diagrams/ailang-kernel-loop.svg)
+
+| Capability | What It Gives You |
+|---|---|
+| **Pure Functional Core** | Deterministic evaluation, immutable values, recursion instead of loops |
+| **Algebraic Effects** | Side effects declared in types (`! {IO, FS, Net, AI}`) with `--caps` and `@limit=N` budgets |
+| **Z3-Verified Contracts** | Static SMT proofs for `requires` / `ensures` via `ailang verify` with AILANG counterexamples |
+| **IFC Taint Labels** | Compile-time `T<label>` sources, `T{not LABEL}` sinks, and auditable `! {Declassify}` sanitizers |
+| **Modern Ergonomics** | `\|>` pipes, `deriving (Json)`, `let x = expr?`, typed holes `_?`/`?name`, `ailang inspect`, `check --fix` |
+| **Two Aligned Engines** | Reference evaluator (spec oracle) + `--bytecode` VM (~40× faster on pure code) + browser WASM |
 
 <div className="callout-box">
-  <Icon name="zap" inline /> **New to AILANG?** Read our [Vision](/docs/vision) to understand why AILANG exists and what makes it different from other programming languages.
+  <Icon name="info" inline /> **Field positioning:** AILANG combines the *Verification* camp (Z3 contracts + effect rows) and the *Orchestration* camp (`std/ai` typed effect, coordinator, MCP). See [Three Camps Comparison](/docs/guides/three-camps-comparison).
 </div>
 
-## What is AILANG?
-
-AILANG is a pure functional programming language designed for AI-assisted development. Explicit effects, structured traces, and deterministic execution make AI-generated code easier to debug and verify.
-
-Key features:
-
-- <Icon name="zap" inline /> **Pure Functional Core**: Deterministic evaluation, referentially transparent
-- <Icon name="target" inline /> **Algebraic Effects**: Side effects declared in types (`! {IO, FS, Net, AI}`)—constrains what code *can* do
-- <Icon name="bot" inline /> **AI as a Typed Effect**: `std/ai (call, callJson)` makes the AI itself a typed citizen of the program — not an external wrapper around it
-- <Icon name="brain" inline /> **Z3-Verified Contracts**: `requires` / `ensures` blocks proven mathematically via SMT, not just tested
-- <Icon name="code" inline /> **Structured Traces**: Effect calls logged with typed inputs/outputs for debugging
-- <Icon name="brain" inline /> **Pattern Matching**: ADTs with exhaustiveness checking catch invalid states at compile time
-- <Icon name="rocket" inline /> **Coordinator + Multi-Agent Tooling**: Eval harness, agent messaging, MCP server, chain telemetry — AILANG ships the loop *around* the code, not just the code itself
-- <Icon name="rocket" inline /> **Inline Tests**: Machine-readable specs that travel with code
-- <Icon name="bot" inline /> **Bytecode VM**: `ailang run --bytecode` runs pure code about 40× faster than the tree-walking interpreter
-
-<div className="callout-box">
-  <Icon name="info" inline /> **Where AILANG fits in the AI-native-language field:** AILANG is a member of both the *Verification* camp (Z3 contracts + effect rows) and the *Orchestration* camp (`std/ai` as a typed effect, coordinator, MCP). See the [Three Camps Comparison](/docs/guides/three-camps-comparison) for how AILANG positions against 16 surveyed AI-native languages.
-</div>
-
-## Quick Example
-
-import CodeBlock from '@theme/CodeBlock';
-import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
-import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
+## Quick Examples
 
 ### Hello World
 
@@ -65,88 +68,21 @@ Run with: `ailang run --caps IO examples/runnable/hello.ail`
 
 Run with: `ailang run --caps IO examples/runnable/recursion_factorial.ail`
 
-## Where to next?
+## Core Language Surface ({STABLE_RELEASE})
 
-Pick the path that matches who you are. Each is a short funnel into the right 3–5 docs.
+- <CheckIcon inline size={14} /> **Type System & Records** — [Hindley-Milner inference](/docs/reference/language-syntax#type-inference), type classes (`Num`, `Eq`, `Ord`, `Show`), and row-polymorphic records (`{name: string | r}`)
+- <CheckIcon inline size={14} /> **ADTs & Exhaustive Pattern Matching** — nominal types, constructors, tuples, lists, records, guards, and unbraced multi-statement arms
+- <CheckIcon inline size={14} /> **Effect System & Budgets** — `IO`, `FS`, `Clock`, `Net` (HTTPS-only, private-IP blocked), `AI`, `SharedMem`, and `Declassify`
+- <CheckIcon inline size={14} /> **Tooling Loop** — `ailang inspect --format=agent`, `ailang check --fix`, `ailang lsp`, `ailang test` (inline + property tests), `ailang verify`, and interactive REPL
 
-- <Icon name="user" inline /> **[I'm new and human](/docs/start-here/quick-start)** — playground, examples, install, first module.
-- <Icon name="bot" inline /> **[I'm an AI agent (or configuring one)](/docs/start-here/for-ai-agents)** — MCP, teaching prompt ({ACTIVE_PROMPT}), hooks, harness integration.
-- <Icon name="target" inline /> **[I'm evaluating AILANG](/docs/start-here/evaluating)** — implementation status, limitations, model leaderboard, design rationale.
-
-## Current Status: {STABLE_RELEASE}
-
-AILANG {STABLE_RELEASE} is the latest stable release. Check the [implementation status](/docs/reference/implementation-status) for complete details.
-
-### <CheckIcon size={18} /> Core Features
-
-- <CheckIcon inline size={14} /> **Recursion** - Self-recursion, mutual recursion, with stack overflow protection
-- <CheckIcon inline size={14} /> **Block Expressions** - Multi-statement blocks with proper scoping
-- <CheckIcon inline size={14} /> **Records** - Record literals, field access, subsumption
-- <CheckIcon inline size={14} /> **Type System** - [Hindley-Milner inference](/docs/reference/language-syntax#type-inference) with type classes (Num, Eq, Ord, Show)
-- <CheckIcon inline size={14} /> **Pattern Matching** - Constructors, tuples, lists, wildcards, guards
-- <CheckIcon inline size={14} /> **Module System** - Cross-module imports, entrypoint execution
-- <CheckIcon inline size={14} /> **Effect System** - IO, FS, Clock, Net, Declassify with capability-based security
-  - **Clock Effect**: Monotonic time, sleep, deterministic mode
-  - **Net Effect**: HTTP GET/POST with DNS rebinding prevention, IP blocking
-  - **Declassify Effect**: Marks functions that lower an [IFC label](/docs/guides/ifc-labels) — every label change is auditable
-- <CheckIcon inline size={14} /> **Inline Tests** - Test pure functions directly in code, `ailang test`
-- <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
-- <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
-
-### <Icon name="wrench" size={18} /> Recent Additions ({STABLE_RELEASE})
-
-- <CheckIcon inline size={14} /> **`deriving (Json)` & `let x = expr?` (v0.63.0)** - Automatic JSON codecs for monomorphic records and sum ADTs, plus `let`-bound `?` error/option propagation along return spines
-- <CheckIcon inline size={14} /> **`ailang inspect` & `check --fix` Phase 2 (v0.63.0)** - Fast semantic module X-ray (`--format=agent`, `--json`), automated `! {Effects}` row stamping, `++` to string-interpolation rewrites, and shared LSP `codeAction` quick-fixes
-- <CheckIcon inline size={14} /> **Pipe Operator `|>`, Typed Holes `_?`/`?name`, & Stdlib Batteries (v0.61–v0.63)** - Ergonomic pipelines, unbraced multi-statement arms/branches, `std/map`/`std/list` combinators, and `std/string`/`std/fs` scripting helpers
-- <CheckIcon inline size={14} /> **Z3 Soundness & Bounded Numeric Model (v0.61–v0.62)** - Int64 overflow/NaN modeling (`M-VERIFY-NUMERIC-MODEL`), callback effect contracts, and nominal type identity with exhaustive match checking (`TC_MATCH_002`)
-- <CheckIcon inline size={14} /> **Fine-Tuning Research Log ([/docs/finetuning](/docs/finetuning))** - Open benchmark-gated log of training local 12B AILANG models on Apple Silicon (Pilots 1–5)
-- <CheckIcon inline size={14} /> **IFC Labels** - Information-flow control at the type system. `T<label>` marks tainted sources; `T{not LABEL}` marks sinks that refuse them — see the [IFC labels guide](/docs/guides/ifc-labels)
-
-### <Icon name="rocket" size={18} /> Roadmap
-
-- <Icon name="idea" inline size={14} /> **Execution Profiles** (v0.6.0) - Formal SimProfile, ServiceProfile, CliProfile with validation
-- <Icon name="idea" inline size={14} /> **Deterministic Tooling** (v0.7.0) - `normalize`, `suggest-imports`, `apply` commands
-- <Icon name="idea" inline size={14} /> **Shared Semantic State** (v0.6.0) - Multi-agent coordination via shared memory
-
-See our [Vision](/docs/vision) for the full roadmap and [Roadmap](/docs/roadmap) for detailed plans.
-
-## Documentation Structure
-
-- <Icon name="book" inline /> **[Examples](/docs/examples)** - Interactive code examples with explanations
-- <Icon name="book" inline /> **[Guides](/docs/guides/getting-started)** - Tutorials and how-to guides
-- <Icon name="code" inline /> **[Reference](/docs/reference/language-syntax)** - Language specification and API docs
-- <Icon name="play" inline /> **[Playground](/docs/playground)** - Try AILANG in your browser
-- <Icon name="globe" inline /> **[Live Demos](https://www.sunholo.com/ailang-demos/)** - 9 interactive browser demos (verification, streaming, AI agents)
-
-## Contributing
-
-AILANG is open source and welcomes contributions! Visit our [GitHub repository](https://github.com/sunholo-data/ailang) to:
-
-- Report issues
-- Submit pull requests
-- Join design discussions
-- Review the roadmap
-
-## Design Philosophy
-
-AILANG is built on several key principles:
-
-1. <Icon name="target" inline /> **Explicit Over Implicit**: All effects and dependencies are visible in types
-2. <Icon name="check" inline /> **Debuggability by Construction**: Structured traces and effect boundaries make errors easy to localize
-3. <Icon name="bot" inline /> **AI-Optimized**: Constrained syntax and explicit effects narrow the search space for valid code
-4. <Icon name="zap" inline /> **Deterministic**: Same input always produces same output, enabling replay and caching
-5. <Icon name="info" inline /> **Traceable**: Effect calls logged with typed inputs/outputs for structured debugging
-
-**Read the full [Vision](/docs/vision)** to understand why AILANG is designed for the AI era.
+See [Implementation Status](/docs/reference/implementation-status), [Why 1.0](/docs/why-1-0), and the [Roadmap](/docs/roadmap) for current status and `1.x` plans.
 
 ## Resources
 
-- [Live Demos](https://www.sunholo.com/ailang-demos/) - Interactive browser-based demos
-- [GitHub Repository](https://github.com/sunholo-data/ailang)
-- [Design Documentation](https://github.com/sunholo-data/ailang/tree/main/design_docs)
-- [Change Log](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
-- [Development Setup](https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md)
-- [llms.txt](https://ailang.sunholo.com/llms.txt) - AI-readable project documentation
+- <Icon name="book" inline /> **[Examples](/docs/examples)** · **[Guides](/docs/guides/getting-started)** · **[Language Reference](/docs/reference/language-syntax)**
+- <Icon name="play" inline /> **[Browser Playground](/docs/playground)** · **[9 Live WASM Demos](/docs/demos)**
+- <Icon name="bot" inline /> **[llms.txt](https://ailang.sunholo.com/llms.txt)** — machine-readable index for AI coding agents
+- <Icon name="github" inline /> **[GitHub](https://github.com/sunholo-data/ailang)** · **[CHANGELOG](https://github.com/sunholo-data/ailang/blob/dev/CHANGELOG.md)** · **[Feedback & Contributing](/docs/feedback)**
 
 ---
 

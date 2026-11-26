@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG Package Lockfile and Cascade Pipeline">
+  <defs>
+    <marker id="arr-p1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2b6cb0"/>
+    </marker>
+    <marker id="arr-p2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2c7a7b"/>
+    </marker>
+    <marker id="arr-p3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dd6b20"/>
+    </marker>
+    <marker id="arr-p4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Package Lockfile &amp; Contract-Aware Upgrade Cascade</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Atomic ailang.lock + v2 interface hashes classify every dependency bump into Class A, B, or C</text>
+
+  <!-- Node 1: Manifest & Lockfile -->
+  <rect x="28" y="92" width="212" height="174" rx="10" fill="#172033" stroke="#2b6cb0" stroke-width="2"/>
+  <rect x="28" y="92" width="212" height="28" rx="10" fill="#2b6cb0"/>
+  <rect x="28" y="110" width="212" height="10" fill="#2b6cb0"/>
+  <text x="134" y="111" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">1. Manifest &amp; Lock</text>
+  <text x="42" y="144" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#93c5fd">ailang.toml</text>
+  <text x="42" y="162" font-family="Inter, sans-serif" font-size="10.5" fill="#cbd5e1">Exports, deps, [bin] shims</text>
+  <text x="42" y="190" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#fde047">ailang.lock (atomic)</text>
+  <text x="42" y="208" font-family="Inter, sans-serif" font-size="10.5" fill="#cbd5e1">Content + v2 interface hash</text>
+  <text x="42" y="236" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#5eead4">ailang pkg docs &lt;pkg&gt;</text>
+  <text x="42" y="253" font-family="Inter, sans-serif" font-size="10" fill="#94a3b8">Reads cached API &amp; contracts</text>
+
+  <line x1="240" y1="179" x2="282" y2="179" stroke="#2b6cb0" stroke-width="2.2" marker-end="url(#arr-p1)"/>
+
+  <!-- Node 2: Interface Diff Classifier -->
+  <rect x="290" y="106" width="206" height="146" rx="10" fill="#1e1633" stroke="#6b46c1" stroke-width="2"/>
+  <rect x="290" y="106" width="206" height="28" rx="10" fill="#6b46c1"/>
+  <rect x="290" y="124" width="206" height="10" fill="#6b46c1"/>
+  <text x="393" y="125" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">2. v2 Interface Diff</text>
+  <text x="304" y="158" font-family="Inter, sans-serif" font-size="11" fill="#e9d5ff">Compares upstream vs lock:</text>
+  <text x="304" y="180" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Exported type sigs</text>
+  <text x="304" y="199" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Effect rows ! {...}</text>
+  <text x="304" y="218" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• requires / ensures</text>
+  <text x="304" y="239" font-family="Inter, sans-serif" font-size="10.5" fill="#c4b5fd">Deterministic classification</text>
+
+  <!-- Branch Arrows to Class A / B / C -->
+  <path d="M 496 146 C 530 146, 534 106, 566 106" fill="none" stroke="#2c7a7b" stroke-width="2.2" marker-end="url(#arr-p2)"/>
+  <path d="M 496 179 L 566 179" fill="none" stroke="#dd6b20" stroke-width="2.2" marker-end="url(#arr-p3)"/>
+  <path d="M 496 212 C 530 212, 534 252, 566 252" fill="none" stroke="#e73c17" stroke-width="2.2" marker-end="url(#arr-p4)"/>
+
+  <!-- Class A -->
+  <rect x="574" y="74" width="278" height="64" rx="9" fill="#0f292a" stroke="#2c7a7b" stroke-width="2"/>
+  <text x="588" y="97" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#5eead4">Class A — Implementation Only</text>
+  <text x="588" y="116" font-family="Inter, sans-serif" font-size="10.5" fill="#cbd5e1">Interface hash identical → auto-bump &amp; test</text>
+  <text x="588" y="131" font-family="JetBrains Mono, monospace" font-size="10" fill="#99f6e4">Zero caller edits required</text>
+
+  <!-- Class B -->
+  <rect x="574" y="148" width="278" height="64" rx="9" fill="#271c12" stroke="#dd6b20" stroke-width="2"/>
+  <text x="588" y="171" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#fdba74">Class B — Additive / Contract Change</text>
+  <text x="588" y="190" font-family="Inter, sans-serif" font-size="10.5" fill="#fed7aa">New exports or refined contracts → agent checks</text>
+  <text x="588" y="205" font-family="JetBrains Mono, monospace" font-size="10" fill="#fdba74">ailang check + ailang verify</text>
+
+  <!-- Class C -->
+  <rect x="574" y="222" width="278" height="64" rx="9" fill="#2b1416" stroke="#e73c17" stroke-width="2"/>
+  <text x="588" y="245" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#fca5a5">Class C — Breaking Signature / Effect</text>
+  <text x="588" y="264" font-family="Inter, sans-serif" font-size="10.5" fill="#fecaca">Removed symbol or widened effect → gated PR</text>
+  <text x="588" y="279" font-family="JetBrains Mono, monospace" font-size="10" fill="#fca5a5">Human review required before merge</text>
+
+  <text x="440" y="336" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Nested ailang.toml packages resolve cleanly; lockfile updates are written atomically to prevent partial state.</text>
+</svg>

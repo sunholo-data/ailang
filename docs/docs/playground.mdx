@@ -3,14 +3,19 @@ id: playground
 title: AILANG Playground
 sidebar_label: Playground
 description: Try AILANG right in your browser with our interactive WebAssembly REPL
-reviewBy: 2026-11-02
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import AilangRepl from '@site/src/components/AilangRepl';
 
 # AILANG Playground
 
-Try AILANG right in your browser! This REPL runs entirely client-side using WebAssembly - no server required.
+Run AILANG directly in your browser — client-side WebAssembly, no install or server required.
+
+:::tip Want full interactive apps?
+Explore **[9 Live WASM Demos](/docs/demos)** (Z3 contract verification, in-browser DocParse, streaming AI chat, and safe tool-calling agents) at [www.sunholo.com/ailang-demos](https://www.sunholo.com/ailang-demos/).
+:::
 
 <AilangRepl />
 
@@ -60,31 +65,12 @@ let first = \pair. match pair with | (a, b) -> a in first((1, 2))
 | Command | Description |
 |---------|-------------|
 | `:help` | Show all available commands |
-| `:type <expr>` | Display the type of an expression |
+| `:type <expr>` | Display the inferred type of an expression |
 | `:instances` | Show available type class instances |
 | `:reset` | Clear the environment and start fresh |
 
-## Learn More
+## Browser Limits & Next Steps
 
-- **[Getting Started](/docs/guides/getting-started)** - Install AILANG locally for full functionality
-- **[Language Reference](/docs/reference/language-syntax)** - Complete syntax reference
-- **[Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - Browse 60+ working examples
-- **[Benchmarks](/docs/benchmarks/performance)** - See AI code generation metrics
-
-## Technical Details
-
-This playground is powered by:
-- **WebAssembly**: The full AILANG interpreter compiled to WASM (~13 MB, ~3 MB compressed)
-- **Go**: Core language implementation (GOOS=js GOARCH=wasm)
-- **React**: UI component framework
-
-The WASM binary is rebuilt automatically on every release via GitHub Actions.
-
-**Browser limitations**:
-- Module imports work (`:import std/prelude` auto-loaded)
-- File I/O and network effects disabled for security
-- Use [local installation](/docs/guides/getting-started) for full effect system
-
-## Found a Bug?
-
-If you encounter issues with the playground, please [report them on GitHub](https://github.com/sunholo-data/ailang/issues).
+- **Powered by WebAssembly**: Full AILANG interpreter + stdlib (`GOOS=js GOARCH=wasm`, `:import std/prelude` auto-loaded).
+- **Security sandbox**: `FS` and `Net` effects are disabled in the browser REPL; install the CLI for full capabilities.
+- **Next**: [9 Live Demos](/docs/demos) · [Examples Gallery](/docs/examples) · [Getting Started](/docs/guides/getting-started) · [Language Reference](/docs/reference/language-syntax) · [Report an issue](https://github.com/sunholo-data/ailang/issues)

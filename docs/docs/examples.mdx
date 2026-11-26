@@ -2,7 +2,8 @@
 sidebar_position: 3
 title: Examples
 description: Interactive examples showcasing AILANG features with real code you can try
-reviewBy: 2027-01-25
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon, { CheckIcon, WarningIcon } from '@site/src/components/Icon';
@@ -15,7 +16,6 @@ import TypeInferenceExample from '!!raw-loader!@site/../examples/runnable/type_i
 import RecordsExample from '!!raw-loader!@site/../examples/runnable/records.ail';
 import FloatIntLiteralsExample from '!!raw-loader!@site/../examples/runnable/float_int_literals.ail';
 import LambdasHigherOrderExample from '!!raw-loader!@site/../examples/runnable/lambdas_higher_order.ail';
-import PatternsExample from '!!raw-loader!@site/../examples/runnable/patterns.ail';
 import EffectsFsIoExample from '!!raw-loader!@site/../examples/runnable/effects_fs_io.ail';
 import JsonParsingExample from '!!raw-loader!@site/../examples/runnable/json_parsing.ail';
 import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simple.ail';
@@ -33,112 +33,45 @@ import BulkBuildCostModelExample from '!!raw-loader!@site/../examples/runnable/b
 
 # AILANG Examples
 
-Learn AILANG through interactive examples. Each example demonstrates a key feature with **real working code** from the repository.
+Runnable examples from [`examples/runnable/`](https://github.com/sunholo-data/ailang/tree/dev/examples/runnable), verified in CI.
 
-## <Icon name="zap" /> Quick Start Examples
+## <Icon name="zap" /> Quick Start
 
 ### Hello World
-
-The simplest AILANG program with I/O effects:
 
 <CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/hello.ail)</small>
-
-**Run it:**
-```bash
-ailang run --caps IO examples/runnable/hello.ail
-```
-
-**Key concepts:**
-- <CheckIcon inline /> `! {IO}` declares the function performs I/O
-- <CheckIcon inline /> `println` is imported from `std/io`
-- <CheckIcon inline /> `--caps IO` grants I/O capability at runtime
-
----
+Run: `ailang run --caps IO examples/runnable/hello.ail` — `! {IO}` declares I/O effects; `--caps IO` grants them at runtime.
 
 ### Recursion & Pure Functions
-
-AILANG uses recursion instead of loops for deterministic control flow:
 
 <CodeBlock language="ailang" title="examples/runnable/recursion_factorial.ail">
   {FactorialExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/recursion_factorial.ail)</small>
-
-**Run it:**
-```bash
-ailang run --caps IO examples/runnable/recursion_factorial.ail
-```
-
-**Note:** The `main` function is the default entrypoint. This example prints factorial results using IO.
-
-**Key concepts:**
-- <CheckIcon inline /> `factorial` is **pure** (no effects declared)
-- <CheckIcon inline /> Recursion replaces loops for deterministic reasoning
-- <CheckIcon inline /> `show()` converts int to string for printing
+Run: `ailang run --caps IO examples/runnable/recursion_factorial.ail` — `factorial` is pure (`! {}`), using recursion instead of loops.
 
 ---
 
-## <Icon name="code" /> Pattern Matching
+## <Icon name="code" /> Pattern Matching & ADTs
 
 ### Lists & Destructuring
-
-Pattern matching is AILANG's primary control flow mechanism:
 
 <CodeBlock language="ailang" title="examples/runnable/list_sum.ail">
   {ListSumExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/list_sum.ail)</small>
-
-**Run it:**
-```bash
-ailang run examples/runnable/list_sum.ail
-```
-
-**Output:**
-```
-(15, 5)
-```
-
-**Key concepts:**
-- <CheckIcon inline /> `INil` matches empty list
-- <CheckIcon inline /> `ICons(head, tail)` destructures list
-- <CheckIcon inline /> `letrec` enables recursive function definitions
-- <CheckIcon inline /> Exhaustive matching required (compiler enforces)
-
----
+Run: `ailang run examples/runnable/list_sum.ail` → `(15, 5)` — exhaustive matching over `INil` and `ICons(head, tail)`.
 
 ### Algebraic Data Types (ADTs)
-
-Define custom types with multiple constructors:
 
 <CodeBlock language="ailang" title="examples/runnable/adt_tree.ail">
   {ADTTreeExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/adt_tree.ail)</small>
-
-**Run it:**
-```bash
-ailang run --caps IO examples/runnable/adt_tree.ail
-```
-
-**Output:**
-```
-Tree sum: 15
-Node count: 5
-```
-
-**Key concepts:**
-- <CheckIcon inline /> `type Tree =` defines an ADT with 2 constructors
-- <CheckIcon inline /> `pure func` declares functions without side effects
-- <CheckIcon inline /> Pattern matching handles all cases
-- <CheckIcon inline /> Compiler ensures exhaustiveness
+Run: `ailang run --caps IO examples/runnable/adt_tree.ail` → `Tree sum: 15`, `Node count: 5`.
 
 ---
 
@@ -146,39 +79,11 @@ Node count: 5
 
 ### Multiple Effects
 
-Functions can declare multiple effects they perform:
-
 <CodeBlock language="ailang" title="examples/runnable/effects_fs_io.ail">
   {EffectsFsIoExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/effects_fs_io.ail)</small>
-
-**Run it:**
-```bash
-ailang run --caps IO,FS examples/runnable/effects_fs_io.ail
-```
-
-**Key concepts:**
-- <CheckIcon inline /> `! {IO, FS}` declares both I/O and filesystem effects
-- <CheckIcon inline /> Sequential statements use `;` in block expressions
-- <CheckIcon inline /> Import functions from stdlib modules
-
----
-
-### Effect Polymorphism
-
-Functions can be generic over effects. This allows writing reusable code that works with any combination of capabilities:
-
-```ailang
--- Effect row polymorphism: {IO | e} means "IO plus any other effects"
--- This allows functions to compose while preserving effect safety
-```
-
-**Key concepts:**
-- <CheckIcon inline /> Effect rows can be extended with `{IO | e}` syntax
-- <CheckIcon inline /> Effect polymorphism enables reusable library functions
-- <CheckIcon inline /> Effects compose naturally when calling functions
+Run: `ailang run --caps IO,FS examples/runnable/effects_fs_io.ail` — declares `! {IO, FS}` and sequences statements in a block expression. Effect rows also support polymorphism (`{IO | e}`) for reusable helpers — see [Effects Reference](/docs/reference/effects).
 
 ---
 
@@ -186,29 +91,17 @@ Functions can be generic over effects. This allows writing reusable code that wo
 
 ### Type Inference
 
-AILANG infers types automatically using Hindley-Milner:
-
 <CodeBlock language="ailang" title="examples/runnable/type_inference.ail">
   {TypeInferenceExample}
 </CodeBlock>
 
-<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/type_inference.ail)</small>
-
-**Run it:**
-```bash
-ailang run --caps IO examples/runnable/type_inference.ail
-```
-
-**Key concepts:**
-- <CheckIcon inline /> Type inference works across function boundaries
-- <CheckIcon inline /> Explicit annotations optional but recommended
-- <CheckIcon inline /> `:type` command in REPL shows inferred types
+Run: `ailang run --caps IO examples/runnable/type_inference.ail` — Hindley-Milner inference across function boundaries (`:type` in REPL inspects inferred types).
 
 ---
 
-### Records & Subsumption
+### Records & Row Polymorphism
 
-Records are structural types with width subtyping:
+Records use structural typing with **row polymorphism** (`{name: string | r}`): functions with an open row accept records with additional fields, while closed record types require exact fields:
 
 <CodeBlock language="ailang" title="examples/runnable/records.ail">
   {RecordsExample}
@@ -216,16 +109,13 @@ Records are structural types with width subtyping:
 
 <small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/records.ail)</small>
 
-**Run it:**
 ```bash
 ailang run examples/runnable/records.ail
 ```
 
-**Key concepts:**
-- <CheckIcon inline /> Records support structural typing
-- <CheckIcon inline /> Width subtyping: `{a, b, c}` ⊆ `{a, b}`
-- <CheckIcon inline /> Field access: `record.field`
-- <CheckIcon inline /> Nested records and lambda fields supported
+- <CheckIcon inline /> Open row `{name: string | r}` accepts any record containing `name: string`
+- <CheckIcon inline /> Closed records reject extra fields; use `{a, ...}` rest syntax to destructure subsets
+- <CheckIcon inline /> Field access (`record.field`), nested records, and lambda fields supported
 
 ---
 
@@ -571,50 +461,22 @@ ailang run --caps IO --strict-bytecode examples/runnable/local_letrec_loop.ail  
 
 ---
 
-## <Icon name="play" /> Try It Yourself
+## <Icon name="play" /> Run Locally or in Browser
 
-### In the Playground
-
-Visit the [Playground](/docs/playground) to run code interactively in your browser.
-
-### With CLI
-
-Install AILANG and run examples locally:
+- **Browser**: Try snippets in the [Playground](/docs/playground) or explore [9 Live Demos](/docs/demos).
+- **CLI**: Install AILANG ([Getting Started](/docs/guides/getting-started)), clone the repo, and run any example:
 
 ```bash
-# Install (macOS Apple Silicon)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
-sudo mv ailang /usr/local/bin/
-
-# Or build from source
-git clone https://github.com/sunholo-data/ailang && cd ailang && make install
-
-# Run an example
+git clone https://github.com/sunholo-data/ailang && cd ailang
 ailang run --caps IO examples/runnable/hello.ail
-
-# Interactive REPL
-ailang repl
-```
-
-### From GitHub
-
-Clone the repository for all 98+ examples:
-
-```bash
-git clone https://github.com/sunholo-data/ailang
-cd ailang
-
-# Run specific examples
-ailang run --caps IO examples/runnable/recursion_factorial.ail
+ailang test examples/runnable/property_differential_testing.ail
 ```
 
 ---
 
-## <Icon name="bar-chart" /> Implementation Status
+## <Icon name="bar-chart" /> CI Verification Status
 
-**This section tracks AILANG's implementation progress and is automatically updated by CI/CD.**
-
-The example verification status shows what percentage of AILANG features are fully implemented and working. Each example exercises specific language features, so the pass rate directly reflects implementation completeness.
+Automatically updated by CI across all runnable examples in `examples/runnable/`:
 
 <!-- EXAMPLES_STATUS_START -->
 ## Status

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG IFC Taint Lattice and Declassification">
+  <defs>
+    <marker id="arr-ifc-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2c7a7b"/>
+    </marker>
+    <marker id="arr-ifc-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+    <marker id="arr-ifc-dec" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#6b46c1"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Information-Flow Control (IFC) — Taint Lattice &amp; Explicit Declassification</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Open compile-time labels stop prompt injection with zero runtime cost; lowering a label requires ! {Declassify}</text>
+
+  <!-- Source Node -->
+  <rect x="28" y="114" width="212" height="132" rx="10" fill="#2b1416" stroke="#e73c17" stroke-width="2"/>
+  <rect x="28" y="114" width="212" height="28" rx="10" fill="#e73c17"/>
+  <rect x="28" y="132" width="212" height="10" fill="#e73c17"/>
+  <text x="134" y="133" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Untrusted Source</text>
+  <text x="42" y="164" font-family="JetBrains Mono, monospace" font-size="11.5" font-weight="700" fill="#fca5a5">fetchMail()</text>
+  <text x="42" y="186" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#fde047">-&gt; string&lt;email&gt;</text>
+  <text x="42" y="210" font-family="Inter, sans-serif" font-size="10.5" fill="#cbd5e1">Lattice join propagates taint:</text>
+  <text x="42" y="229" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#fca5a5">&lt;email&gt; ⊔ &lt;pii&gt;</text>
+
+  <!-- Direct (Blocked) Path: Top -->
+  <path d="M 240 144 L 622 144" fill="none" stroke="#e73c17" stroke-width="2.4" stroke-dasharray="7,4" marker-end="url(#arr-ifc-bad)"/>
+  <rect x="336" y="100" width="224" height="34" rx="6" fill="#2b1416" stroke="#e73c17" stroke-width="1.5"/>
+  <text x="448" y="121" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#fca5a5">✗ BLOCKED: &lt;email&gt; ↛ {not email}</text>
+
+  <!-- Sanitized Path: Bottom via Declassify -->
+  <path d="M 240 218 L 318 218" fill="none" stroke="#6b46c1" stroke-width="2.2" marker-end="url(#arr-ifc-dec)"/>
+
+  <rect x="326" y="176" width="236" height="104" rx="10" fill="#1e1633" stroke="#6b46c1" stroke-width="2"/>
+  <rect x="326" y="176" width="236" height="28" rx="10" fill="#6b46c1"/>
+  <rect x="326" y="194" width="236" height="10" fill="#6b46c1"/>
+  <text x="444" y="195" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Auditable Sanitizer</text>
+  <text x="340" y="224" font-family="JetBrains Mono, monospace" font-size="11" fill="#e9d5ff">sanitize(raw: string&lt;email&gt;)</text>
+  <text x="340" y="244" font-family="JetBrains Mono, monospace" font-size="11" fill="#5eead4">-&gt; string&lt;sanitized&gt;</text>
+  <text x="340" y="266" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#fde047">   ! {Declassify}</text>
+
+  <path d="M 562 218 L 622 218" fill="none" stroke="#2c7a7b" stroke-width="2.2" marker-end="url(#arr-ifc-ok)"/>
+
+  <!-- Sink Node -->
+  <rect x="630" y="114" width="222" height="148" rx="10" fill="#0f292a" stroke="#2c7a7b" stroke-width="2"/>
+  <rect x="630" y="114" width="222" height="28" rx="10" fill="#2c7a7b"/>
+  <rect x="630" y="132" width="222" height="10" fill="#2c7a7b"/>
+  <text x="741" y="133" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Protected Sink</text>
+  <text x="644" y="164" font-family="JetBrains Mono, monospace" font-size="11.5" font-weight="700" fill="#5eead4">sendEmail(to, body)</text>
+  <text x="644" y="186" font-family="JetBrains Mono, monospace" font-size="11" fill="#fde047">body: string{not email}</text>
+  <line x1="644" y1="202" x2="838" y2="202" stroke="#1f4e50" stroke-width="1"/>
+  <text x="644" y="224" font-family="Inter, sans-serif" font-size="11" fill="#99f6e4">✓ Accepts string&lt;sanitized&gt;</text>
+  <text x="644" y="244" font-family="Inter, sans-serif" font-size="11" fill="#fca5a5">✗ Refuses raw string&lt;email&gt;</text>
+
+  <!-- Caveat Footer -->
+  <rect x="28" y="302" width="824" height="38" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="440" y="325" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#cbd5e1">
+    <tspan font-weight="700" fill="#fdba74">Experimental:</tspan> Tracks explicit data flow across modules (#1134) and erases at compile time; does not track implicit branch flows or FS/Net round-trips.
+  </text>
+</svg>

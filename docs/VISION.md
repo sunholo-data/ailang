@@ -1,5 +1,6 @@
 ---
-reviewBy: 2026-11-23
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # AILANG Vision — The First AI-Native Language
@@ -9,327 +10,87 @@ reviewBy: 2026-11-23
 
 ## Why AILANG Exists
 
-Human programming languages optimize for:
-- **Comfort** — familiar syntax, IDE support, autocompletion
-- **Ambiguity** — multiple ways to express the same thing
-- **Speed** — fast typing, shortcuts, implicit behaviors
+Human programming languages optimize for familiarity, multiple idioms, and implicit shortcuts. AILANG optimizes for:
 
-AILANG optimizes for:
-- **Determinism** — predictable, reproducible execution
-- **Reflectivity** — programs that can explain themselves
-- **Compositional Reasoning** — machines that prove, transform, and reuse code
-
-Every feature exists to make programs easier for machines to **analyze, verify, and improve**.
+- **Determinism** — predictable, reproducible execution across engines
+- **Reflectivity** — programs and interfaces that machines can inspect (`ailang inspect`, `ailang iface`)
+- **Compositional Reasoning** — explicit effects, contracts, and exhaustive ADTs that machines can verify and repair
 
 ---
 
-## Why Not Just Use Python?
+## Why Not Just Use Python or TypeScript?
 
-Existing languages weren't designed for machine code generation. Here's what breaks:
+### 1. Implicit State Breaks AI Reasoning
 
-### Problem 1: Implicit State Breaks AI Reasoning
+Global mutable state in Python/JS is invisible to the type checker, so identical calls return different values. In AILANG, state is threaded explicitly in pure functions:
 
-**Python/JavaScript:**
-```python
-total = 0  # Global state - invisible to type checker
-
-def add(x):
-    global total
-    total += x
-    return total
-
-add(5)  # Returns 5
-add(5)  # Returns 10 (same input, different output!)
-```
-
-**AI struggles:** Can't trace effects. Can't prove correctness. Non-deterministic behavior.
-
-**AILANG:**
 ```ailang
-fn add(x: int, state: int) -> (int, int) =
-  let newState = state + x;
+pure func add(x: int, state: int) -> (int, int) =
+  let newState = state + x in
   (newState, newState)
-
-add(5, 0)  -- Returns (5, 5)
-add(5, 5)  -- Returns (10, 10) - explicit state threading
 ```
 
-**AI wins:** All dependencies visible in types. Referentially transparent. Provable.
+### 2. Multiple Idioms Create Non-Deterministic Generation
 
----
+Python offers five ways to transform a list (comprehensions, `map`, loops, lambdas, unpacking). AILANG provides one canonical form (`map(f, items)`), narrowing the search space for consistent synthesis.
 
-### Problem 2: Multiple Correct Answers Create Non-Deterministic Generation
+### 3. Runtime Type Errors Become Compile-Time Proofs
 
-**Python - 5 ways to transform a list:**
-```python
-# Which will the AI choose? Inconsistent across runs!
-result = [f(x) for x in items]          # Comprehension
-result = list(map(f, items))            # map
-result = []; [result.append(f(x)) for x in items]  # Loop
-result = list(map(lambda x: f(x), items))  # Lambda
-result = [*map(f, items)]               # Unpack
-```
+Instead of erased `any` types crashing at runtime, AILANG enforces structural record types, nominal ADTs, and exhaustive pattern matching statically:
 
-**AILANG - One canonical form:**
 ```ailang
-result = map(f, items)
--- That's it. One way. Deterministic generation.
+pure func readValue(data: { field: { value: int } }) -> string =
+  show(data.field.value)
 ```
 
----
+### 4. Exhaustive Pattern Matching Without Version Drift
 
-### Problem 3: Runtime Type Errors Are Silent Failures
-
-**TypeScript - Types erased at runtime:**
-```typescript
-function process(data: any) {
-    return data.field.value.toString();  // Crash if structure wrong!
-}
-```
-
-**AILANG - Types enforced statically:**
-```ailang
-fn process(data: Record { field: Record { value: int } }) -> string =
-    intToString(data.field.value)
--- Type checker PROVES this can't crash
-```
+On the `state_machine_elevator` benchmark, Python's `match`/`case` syntax drifted across runtime versions while AILANG's single `match` construct enforces exhaustiveness at compile time (`TC_MATCH_002`).
 
 ---
 
-### Problem 4: "Correct" Syntax Decays Across Versions
+## Current Capabilities (`v0.64.1`, Pre-1.0)
 
-Pattern matching is the classic case. The `state_machine_elevator` benchmark asks for "an elevator state machine with ADTs and **exhaustive pattern matching**." That phrase has one obvious modern Python answer — and in a mixed-version ecosystem, picking it is a coin flip.
-
-**Python — the idiomatic answer silently fails on older runtimes:**
-```python
-def transition(state, event):
-    match (state, event):                       # Python 3.10+
-        case (Idle(floor), Call(target)) if target == floor:
-            return DoorOpen(floor, 3)
-        case (Idle(floor), Call(target)):
-            return Moving(floor, target)
-        # ...
-# SyntaxError on Python 3.9. 0/6 frontier models passed zero-shot.
-# After repair, 5/6 fell back to isinstance() chains — ~2x more code,
-# no compile-time exhaustiveness, reviewer must prove coverage by hand.
-```
-
-**AI struggles:** "Exhaustive pattern matching" maps to `match/case` for any model trained post-2022. The model can't see the grader's Python version; the compiler doesn't tell it what features are on the table. Failure mode is invisible until runtime.
-
-**AILANG — one construct, compiler-enforced exhaustiveness:**
-```ailang
-func transition(state: State, event: Event) -> State =
-  match (state, event) {
-    (Idle(floor), Call(target)) if target == floor => DoorOpen(floor, 3),
-    (Idle(floor), Call(target))                    => Moving(floor, target),
-    (Moving(_, _), Tick)                           => state,
-    (Moving(_, t), Arrive)                         => DoorOpen(t, 3),
-    (DoorOpen(f, timer), Tick) if timer > 1        => DoorOpen(f, timer - 1),
-    (DoorOpen(f, _), Tick)                         => Idle(f),
-    _                                              => state
-  }
-```
-
-**AI wins:** Pattern matching on ADTs is a single, stable construct. The compiler refuses to build code that misses a case, so "exhaustive" is machine-checked rather than prose in a spec. On the same task, 5/6 models passed zero-shot, 6/6 final, at ~570 output tokens — roughly half the Python variant.
-
-*Data: v0.12.0 eval baseline, 6 frontier models. Raw logs: `eval_results/baselines/v0.12.0/standard/state_machine_elevator_*`. The eval harness now pins Python 3.12 and advertises the exact runtime to the model to avoid this class of unfairness going forward.*
+- ✅ **Explicit Effect Tracking** — `! {IO, FS, Net, Clock, AI, SharedMem, Declassify}` with `--caps` and `@limit=N` budgets
+- ✅ **Algebraic Data Types & Row Polymorphism** — exhaustive pattern matching, nominal type identity, Hindley-Milner inference
+- ✅ **Z3 Contract Verification** — `ailang verify` for `requires`/`ensures` with `--int-model=int64`, `Tuple0..8`, and AILANG counterexamples
+- ✅ **IFC Taint Labels (Experimental)** — compile-time `T<label>`, `T{not LABEL}`, and `! {Declassify}`
+- ✅ **Two Aligned Engines + WASM** — reference evaluator, ~40× faster `--bytecode` VM, and browser WebAssembly
+- ✅ **Agent Tooling Loop** — `ailang prompt`, `ailang inspect --format=agent`, `ailang check --fix`, `ailang lsp`, hosted MCP, and JSONL/OTEL traces
 
 ---
 
-## Current Capabilities — v0.12.x: Bytecode VM & Runtime
+## Next Horizons — `1.0` and `1.1+`
 
-AILANG today provides:
+### `1.0.0` — A Promise We Can Keep
 
-- ✅ **Explicit Effect Tracking** — `! {IO, FS, Net, Clock, ...}` declares all side effects in types
-- ✅ **Algebraic Data Types** — composable, type-safe data structures with exhaustive pattern matching
-- ✅ **Hindley-Milner Inference** with row polymorphism for records and effects
-- ✅ **Bytecode VM** — compact runtime suitable for embedding and introspection
-- ✅ **Stdlib Coverage** — `std/json`, `std/http`, `std/fs`, `std/zip`, `std/tar`, `std/gzip`, `std/rand`, `std/crypto`, and more
-- ✅ **Three-Tier OTEL Tracing** — `off | standard | deep` for structured execution traces
-- ✅ **Agentic Eval Harness** — M-EVAL benchmark suite for measuring AI code generation quality
+`1.0.0` answers *"what do we promise not to break?"*, not *"will people choose AILANG?"*. Its gates are: the [Stability Promise](docs/reference/stability.md) ratified against today's surface, zero open `priority:P0` issues, Stable package manifest/lockfile/registry semantics, Stable hosted executor MCP tools, and published benchmark/simplicity metrics. See [Why 1.0](docs/why-1-0.mdx).
 
-These features guarantee **predictable execution** and **analyzable behavior** —
-the foundation for AI-driven code reasoning.
+### `1.1+` — AI-Native Platform
+
+- **[M-AGENT](../design_docs/planned/v1_1_0/m-agent-orchestration.md)** — `std/agent` with `! {Agent}` effect and cost/turn budgets
+- **[M-ENTROPY](../design_docs/planned/v1_1_0/m-entropy-budgets.md)** — first-class entropy budgets
+- **[M-CSP / Session Types](../design_docs/planned/v1_1_0/m-csp-session-types.md)** — static effect-typed task graphs for structured concurrency
+- **[M-EFFECT-REFINEMENT](../design_docs/planned/v1_1_0/m-effect-refinement.md)** — parameterised Clock/Net/FS capability scoping
 
 ---
 
-## Measured Results — M-EVAL Benchmarks (v0.12.0)
+## What AILANG Deliberately Excludes
 
-Results come from this repo's own eval harness, published at [static/benchmarks/latest.json](/benchmarks/latest.json) and regenerated every release.
-
-**Latest run** (`v0.12.0`, 2026-04-17, 612 runs across 46 benchmarks, 6 frontier models):
-
-| Metric | Result | Notes |
-|--------|--------|-------|
-| **Zero-shot compile+run success** | **75.3%** | One generation, no retry |
-| **Final success (with repair)** | **81.2%** | After one automated repair pass |
-| **Agent-mode success** | **68.9%** | Agentic CLI, avg 2.9 turns |
-| **Repair lift** | **+5.9 pp** | Zero-shot → final delta |
-
-**Per-model final-success rate** (46-benchmark suite, one run per benchmark):
-
-| Model | Zero-shot | Final |
-|---|---|---|
-| claude-opus-4-7 | 82.4% | **84.3%** |
-| gpt5-4 | 80.4% | **84.3%** |
-| claude-sonnet-4-6 | 70.6% | 83.3% |
-| gemini-3-1-pro | 71.6% | 80.4% |
-| gpt5-2-codex | 75.5% | 78.4% |
-| gemini-3-flash | 71.6% | 76.5% |
-
-### What This Means
-
-- **Frontier models now clear 80% on AILANG-native problems.** The eval suite covers type-safe record access, exhaustive pattern matching, effect tracking, JSON round-tripping, interpreter construction, and recursion.
-- **Repair is meaningful but modest.** The +5.9 pp lift from a single automated repair pass shows AILANG's diagnostics carry enough structure for models to fix their own mistakes — the main gain is still zero-shot.
-- **No Python-baseline claim is made here.** A like-for-like cross-language baseline would need matched problems, matched prompts, and matched graders; that work lives in [benchmarks/cross-language/](../benchmarks/cross-language/) and hasn't been measured yet.
-
-*Run `ailang eval-suite` to reproduce; see [docs/docs/guides/evaluation/](docs/guides/evaluation) for methodology.*
-
----
-
-## Next Horizons — v1.0 and v1.1
-
-The v0.3–v0.4 roadmap items in earlier drafts of this doc (deterministic tooling, total recursion, polymorphic safety, effect sugar) shipped between v0.4 and v0.10.
-
-### v1.0 — a promise we can keep
-
-`1.0.0` answers *"what do we promise not to break?"*, not *"will people choose AILANG?"*. Its
-gates (bar v3, ratified 2026-11-09) are: the [stability promise](docs/reference/stability.md)
-re-drafted against today's surface and ratified; zero open `priority:P0` issues; package
-manifest/lockfile/registry semantics written down as Stable; the cloud executor MCP tool surface
-listed Stable and served on a stable domain; and the simplification metrics published in the
-release notes. Fleet-tier pass rates and cost-per-verified-success are **published** at release,
-not gated. No date is attached — 1.0 ships when the gates are closed.
-
-### Longer-term — v1.1+ (AI-Native Platform)
-
-**Goal:** Move from "good language for AI to write" to "platform AI agents run on."
-
-- **[M-AGENT](../design_docs/planned/v1_1_0/m-agent-orchestration.md)** — `std/agent` with an explicit `! {Agent}` effect, capability-bounded AI invocation, cost/turn budgets.
-- **[M-ENTROPY](../design_docs/planned/v1_1_0/m-entropy-budgets.md)** — Entropy budgets as a first-class concept: permitted ambiguity × designated resolver × collapse deadline.
-- **[M-CSP / Session Types](../design_docs/planned/v1_1_0/m-csp-session-types.md)** — Static effect-typed task graphs replacing ad-hoc concurrency.
-- **[M-EFFECT-REFINEMENT](../design_docs/planned/v1_1_0/m-effect-refinement.md)** — The remaining parameterised-effect sprints (Clock/Net/FS modes, capability-scoping parameters); `Rand`/`AI` modes and replay contracts already shipped (see [rand-determinism-sitrep](../design_docs/archive/rand-determinism-sitrep.md) for the original motivation).
-- **[Global Collaboration Hub](../design_docs/planned/v1_1_0/global-collaboration-hub.md)** — Cross-machine agent collaboration with IAM-scoped message buses.
-
-**The result:** Programs that don't just explain themselves — they coordinate, budget themselves, and make their uncertainty negotiable.
-
----
-
-## Future Horizons — Multi-Agent Coordination
-
-> **Aspirational.** The capabilities used in the sketch below (`reflectEffect`, `normalize`, `checkBehavioralEquivalence`) are not yet shipped. They depend on [M-AGENT](../design_docs/planned/v1_1_0/m-agent-orchestration.md) and the type/effect work in [M-TYPE-V2](../design_docs/implemented/v0_10_0/m-type-v2-migration.md) / [M-EFFECT-REFINEMENT](../design_docs/planned/v1_1_0/m-effect-refinement.md). Treat this section as design intent, not a feature list.
-
-### Example: Two AIs Refactor a Module
-
-**Agent A (Refactorer) proposes a change:**
-```ailang
--- Original
-func loadConfig() -> Result[Config, Error] ! {IO, FS} =
-    readFile("config.json")
-    |> parseJSON
-    |> validateConfig
-
--- Refactored (adds caching)
-func loadConfig() -> Result[Config, Error] ! {IO, FS} =
-    readFile("config.json")
-    |> parseJSON
-    |> validateConfig
-    |> cacheConfig  -- Added caching; still in {IO, FS}, but new write path
-```
-
-**Agent B (Verifier) checks the refactoring** (sketch — APIs below are aspirational):
-```ailang
-func verifyRefactor(original, refactored) =
-  let originalEffects = reflectEffect(original) in
-  let refactoredEffects = reflectEffect(refactored) in
-  if originalEffects == refactoredEffects
-  then checkBehavioralEquivalence(normalize(original), normalize(refactored))
-  else Err("Effects changed: ${show(refactoredEffects)}")
-```
-
-**Result:** Agent B rejects the refactoring (FS write effect added). Agent A must either:
-1. Update signature to declare new effect
-2. Remove caching to preserve original behavior
-
-**Proof-synchronized:** Both agents agree on equivalence via deterministic hashing and effect tracking.
-
----
-
-### Key Capabilities for Multi-Agent Systems
-
-- **Shared Effect Algebra** — AIs coordinate through explicit effect declarations
-- **Canonical Normalization** — `normalize()` ensures AIs compare semantically equivalent forms
-- **Cryptographic Proofs** — Hash-based verification prevents adversarial code changes
-- **Equivalence Checking** — Automated verification that refactorings preserve behavior
-
-**The vision:** A language where AIs can reason about, improve, and trust each other's code.
-
----
-
-## Measurable Success Criteria
-
-Targets used to gate public milestones. Current status pulled from [latest.json](/benchmarks/latest.json) (v0.12.0).
-
-| Metric | Target | v0.12.0 |
-|---------|--------|---------|
-| **Model Pass Rate** (frontier, zero-shot) | ≥70% | **75.3%** ✅ |
-| **Model Pass Rate** (frontier, with repair) | ≥80% | **81.2%** ✅ |
-| **Best-model Final Success** | ≥80% | **84.3%** (opus-4-7, gpt5-4) ✅ |
-| **Repair Lift** | +10 pp | +5.9 pp ⚠️ |
-| **Benchmark Count** | ≥50 | 46 ⚠️ (expanding in v0.13) |
-| **Cross-language Baseline** | published | not yet (planned in M-EVAL-EXPAND) |
-
-The ⚠️ rows are active work — tracked by [M-EVAL-EXPAND](../design_docs/deferred/m-eval-expand-harnesses-languages.md).
-
----
-
-## Roadmap
-
-Roadmap lives in [design_docs/planned/](../design_docs/planned/), not in this file. The earlier versions of this doc hardcoded a v0.3→v0.4 week-by-week schedule that has long since shipped. For current planned work:
-
-- **All planned work, by target version**: the generated [roadmap page](docs/roadmap/index.md)
-- **v1.0 gates**: the stability promise and its bar — [docs/reference/stability.md](docs/reference/stability.md)
-- **v1.1 track**: [design_docs/planned/v1_1_0/](../design_docs/planned/v1_1_0/)
-- **Recent releases**: see [CHANGELOG.md](../CHANGELOG.md)
-
----
-
-## What AILANG Doesn't Do
-
-AILANG deliberately excludes features designed for human convenience:
-
-- ❌ **LSP/IDE servers** — AIs use CLI/API, not text editors
-- ❌ **Unstructured concurrency** — no threads / goroutines / async-await. Concurrency arrives via static effect-typed task graphs and session types ([M-CSP](../design_docs/planned/v1_1_0/m-csp-session-types.md)).
-- ❌ **Implicit behaviors** — all effects, imports, and types are explicit
+- ❌ **Unstructured concurrency** — no ad-hoc threads, goroutines, or data races (structured task graphs arrive via `M-CSP`)
+- ❌ **Implicit behaviors** — all effects, imports, and authority are explicit
 - ❌ **Multiple syntaxes** — one canonical way to express each concept
+- ❌ **Ambient authority** — every capability requires an explicit grant
 
-These aren't limitations — they're **design choices** that prioritize machine reasoning over human ergonomics.
-
----
-
-## Who AILANG Is For
-
-### Primary Users
-- **AI Code Generators** (Claude, GPT, Gemini) — deterministic output, verifiable correctness
-- **Autonomous Agents** — self-repairing code through reflection and normalization
-- **Multi-Agent Systems** — coordinated reasoning through shared effect algebra
-
-### Secondary Users
-- **Researchers** — studying AI code generation, program synthesis, and verification
-- **Tool Builders** — creating AI-powered development tools with provable guarantees
-- **Curious Humans** — exploring what languages look like when designed for machines first
+*(Note: `ailang lsp --stdio` and `ailang check --fix` ARE supported so both editors and AI agents share one diagnostic and quick-fix engine.)*
 
 ---
 
-## Get Involved
+## Roadmap & Resources
 
-AILANG is open source and evolving rapidly:
-
-- **Try it:** See [Getting Started](/docs/guides/getting-started) for installation
-- **Benchmark it:** Run `ailang eval-suite` to test AI code generation
-- **Contribute:** See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow
-- **Discuss:** Join discussions at [github.com/sunholo-data/ailang](https://github.com/sunholo-data/ailang)
-
----
+- **Live Roadmap**: [docs/roadmap/index.md](docs/roadmap/index.md) and [design_docs/planned/](../design_docs/planned/)
+- **Live Benchmarks**: [Benchmark Dashboard](/docs/benchmarks/performance)
+- **Web Vision Page**: [docs/vision.mdx](docs/vision.mdx)
+- **Get Involved**: [Getting Started](/docs/guides/getting-started) · [CONTRIBUTING.md](CONTRIBUTING.md) · [GitHub](https://github.com/sunholo-data/ailang)
 
 > **AILANG — When the coder is the model.**
