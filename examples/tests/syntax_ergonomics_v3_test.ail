@@ -1,0 +1,115 @@
+module examples/tests/syntax_ergonomics_v3_test
+
+-- M-AI-PREFERRED-V2 (D1=b): unbraced multi-statement match arms & if/else branches
+
+-- 1. Unbraced newline-separated let chain in match arm
+export pure func doubleAndIncHead(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    x :: _ =>
+      let y = x * 2
+      let z = y + 1
+      z
+  }
+
+-- 2. Unbraced semicolon-separated let chain in match arm
+export pure func semiMatchArm(x: int) -> int =
+  match x {
+    0 => let a = 10; let b = a + 5; b,
+    n => let a = n * 3; a - 1
+  }
+
+-- 3. Comma-less match arms with unbraced let chain + nested match
+export pure func nestedUnbracedMatch(xs: [int]) -> int =
+  match xs {
+    x :: rest =>
+      let doubled = x * 2
+      match rest {
+        y :: _ =>
+          let sum = doubled + y
+          sum * 10
+        [] => doubled
+      }
+    [] => 0
+  }
+
+-- 4. Destructuring let inside unbraced match arm
+export pure func unpackOptionPair(opt: Option[(int, int)]) -> int =
+  match opt {
+    Some(p) =>
+      let (a, b) = p
+      let total = a + b
+      total * 2
+    None => 0
+  }
+
+-- 5. Unbraced multi-statement if/then/else (semicolon and newline)
+export pure func unbracedIfBranches(n: int) -> int {
+  if n > 0 then
+    let doubled = n * 2;
+    doubled + 1
+  else
+    let negated = 0 - n
+    let shifted = negated + 10
+    shifted
+}
+
+-- 6. Unbraced if/else inside a block followed by another statement
+export pure func ifInsideBlock(flag: bool, x: int) -> int {
+  let base = if flag then
+    let a = x + 1
+    a * 2
+  else
+    let b = x - 1
+    b * 3
+  base + 100
+}
+
+-- 7. Unbraced else-if chain
+export pure func classify(n: int) -> int =
+  if n < 0 then
+    let mag = 0 - n
+    mag * 10
+  else if n == 0 then
+    let zero = 0
+    zero
+  else
+    let inc = n + 1
+    inc * 2
+
+test "unbraced newline let chain in match arm" {
+  assert doubleAndIncHead([]) == 0
+  assert doubleAndIncHead([5, 9]) == 11
+}
+
+test "unbraced semicolon let chain in match arm" {
+  assert semiMatchArm(0) == 15
+  assert semiMatchArm(4) == 11
+}
+
+test "comma-less nested match with unbraced let arms" {
+  assert nestedUnbracedMatch([]) == 0
+  assert nestedUnbracedMatch([3]) == 6
+  assert nestedUnbracedMatch([3, 4]) == 100
+}
+
+test "destructuring let in unbraced match arm" {
+  assert unpackOptionPair(Some((3, 7))) == 20
+  assert unpackOptionPair(None) == 0
+}
+
+test "unbraced multi-statement if/then/else branches" {
+  assert unbracedIfBranches(5) == 11
+  assert unbracedIfBranches(-4) == 14
+}
+
+test "unbraced if/else inside block preserves following statement" {
+  assert ifInsideBlock(true, 10) == 122
+  assert ifInsideBlock(false, 10) == 127
+}
+
+test "unbraced else-if chain" {
+  assert classify(-3) == 30
+  assert classify(0) == 0
+  assert classify(4) == 10
+}

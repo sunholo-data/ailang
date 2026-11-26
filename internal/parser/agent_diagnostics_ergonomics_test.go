@@ -8,24 +8,68 @@ import (
 )
 
 func TestM1_IfThenBranchBlockDiagnostic(t *testing.T) {
-	src := `module m
+	t.Run("unbraced multi-statement then and else branches parse cleanly", func(t *testing.T) {
+		src := `module m
 export pure func f(c: bool) -> int {
   if c then
     let x = 1;
     x + 1
   else
+    let y = 2
+    y * 3
+}
+`
+		p := New(lexer.New(src, "test.ail"))
+		file := p.ParseFile()
+		if len(p.Errors()) > 0 {
+			t.Fatalf("expected no parse errors for unbraced if/else branches, got: %v", p.Errors())
+		}
+		if file == nil || len(file.Funcs) != 1 {
+			t.Fatalf("expected 1 func, got %#v", file)
+		}
+	})
+
+	t.Run("dangling bare let in then branch emits PAR_IF_BRANCH_BLOCK", func(t *testing.T) {
+		src := `module m
+export pure func f(c: bool) -> int {
+  if c then
+    let x = 1
+  else
     0
 }
 `
-	p := New(lexer.New(src, "test.ail"))
-	_ = p.ParseFile()
-	if len(p.Errors()) == 0 {
-		t.Fatal("expected PAR_IF_BRANCH_BLOCK error, got none")
-	}
-	first := p.Errors()[0].Error()
-	if !strings.Contains(first, "PAR_IF_BRANCH_BLOCK") {
-		t.Fatalf("expected PAR_IF_BRANCH_BLOCK, got: %s", first)
-	}
+		p := New(lexer.New(src, "test.ail"))
+		_ = p.ParseFile()
+		if len(p.Errors()) == 0 {
+			t.Fatal("expected PAR_IF_BRANCH_BLOCK error, got none")
+		}
+		first := p.Errors()[0].Error()
+		if !strings.Contains(first, "PAR_IF_BRANCH_BLOCK") {
+			t.Fatalf("expected PAR_IF_BRANCH_BLOCK, got: %s", first)
+		}
+	})
+
+	t.Run("if else followed by outer block statement does not swallow next statement", func(t *testing.T) {
+		src := `module m
+export pure func f(c: bool) -> int {
+  let a = if c then
+    let x = 1
+    x + 1
+  else
+    let y = 2
+    y + 1
+  a * 10
+}
+`
+		p := New(lexer.New(src, "test.ail"))
+		file := p.ParseFile()
+		if len(p.Errors()) > 0 {
+			t.Fatalf("unexpected parse errors: %v", p.Errors())
+		}
+		if file == nil || len(file.Funcs) != 1 {
+			t.Fatalf("expected 1 func, got %#v", file)
+		}
+	})
 }
 
 func TestM3_LocalFuncDiagnostic(t *testing.T) {

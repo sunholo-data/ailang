@@ -211,9 +211,22 @@ func (a *attacher) walkExpr(e ast.Expr) {
 		// list on width (same `{` wall, same `}` end), losing the tie-break and trapping
 		// a between-binding comment in the strict-interior guard. Skipping it lets the
 		// chain list (registered when we recurse into the sole expr) own the boundaries.
-		open := a.openBraceBefore(nodes)
-		if open >= 0 && a.env.src[open] == '{' && len(v.Exprs) >= 1 && !isSingleLetChainBlock(v) {
-			a.addList(v, nodes, open)
+		if len(v.Exprs) >= 1 && !isSingleLetChainBlock(v) {
+			if blockStart, err := a.env.AnchorOf(v.Pos); err == nil && a.env.src[blockStart] != '{' {
+				// Unbraced multi-statement block (e.g. `pat => let x = ...; ...`,
+				// `if c then let x = ...; ... else ...`, or `func f() = e1; e2`):
+				// anchor its left wall at the first expression rather than scanning
+				// left into an enclosing `match {` or `func {` brace, so comments
+				// before the arm/branch stay with the outer list while comments
+				// between statements attach to this block.
+				if len(v.Exprs) >= 2 {
+					if min, err := a.env.MinAnchor(nodes[0]); err == nil {
+						a.addList(v, nodes, min-1)
+					}
+				}
+			} else if open := a.openBraceBefore(nodes); open >= 0 && a.env.src[open] == '{' {
+				a.addList(v, nodes, open)
+			}
 		}
 		for _, ex := range v.Exprs {
 			a.walkExpr(ex)

@@ -98,30 +98,11 @@ func (p *Parser) parseIfExpression() ast.Expr {
 
 	p.expectPeek(lexer.THEN)
 	p.nextToken()
-	expr.Then = p.parseExpression(LOWEST)
-
-	// M-AGENT-DIAGNOSTICS-ERGONOMICS M1: detect multi-statement `then` branch
-	// without braces (`if cond then let x = e1; e2 else e3`) instead of emitting
-	// `expected else, got ;` + misleading PAR017.
-	if p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // consume ';' to prevent cascading PAR017
-		p.errors = append(p.errors, NewSuggestionError(
-			"PAR_IF_BRANCH_BLOCK",
-			p.curPos(),
-			p.curToken,
-			"multi-statement 'then' branch requires braces '{ ... }' (or 'let ... in ...')",
-			[]string{
-				"Wrap the 'then' branch in braces: if cond then { let x = ...; ... } else ...",
-				"Or chain with 'in': if cond then let x = ... in ... else ...",
-			},
-			"https://ailang.sunholo.com/docs/reference/language-syntax",
-		))
-		return expr
-	}
+	expr.Then = p.parseIfThenBranch()
 
 	p.expectPeek(lexer.ELSE)
 	p.nextToken()
-	expr.Else = p.parseExpression(LOWEST)
+	expr.Else = p.parseIfElseBranch()
 
 	return expr
 }
@@ -363,46 +344,7 @@ func (p *Parser) parseCase() *ast.Case {
 			c.Body = p.parseInfixTail(c.Body, LOWEST)
 		}
 	} else {
-		c.Body = p.parseExpression(LOWEST)
-		// A bare `let x = e` (without `in`) or a `;`-separated sequence in a match arm
-		// without `{ ... }` would otherwise return to parseMatchExpression and fail with
-		// a misleading "expected =>, got let" on the next line. Emit a targeted error.
-		if letExpr, ok := c.Body.(*ast.Let); ok && letExpr.Body == nil {
-			p.errors = append(p.errors, NewSuggestionError(
-				"PAR_MATCH_ARM_BLOCK",
-				letExpr.Pos,
-				p.curToken,
-				"multi-statement match arm requires braces '{ ... }' (or 'let ... in ...')",
-				[]string{
-					"Wrap the match arm body in braces: pattern => { let x = ...; ... }",
-					"Or use an expression body with 'in': pattern => let x = ... in ...",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			))
-		} else if lpExpr, ok := c.Body.(*ast.LetPattern); ok && lpExpr.Body == nil {
-			p.errors = append(p.errors, NewSuggestionError(
-				"PAR_MATCH_ARM_BLOCK",
-				lpExpr.Pos,
-				p.curToken,
-				"multi-statement match arm requires braces '{ ... }' (or 'let ... in ...')",
-				[]string{
-					"Wrap the match arm body in braces: pattern => { let (a, b) = ...; ... }",
-					"Or use an expression body with 'in': pattern => let (a, b) = ... in ...",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			))
-		} else if p.peekTokenIs(lexer.SEMICOLON) {
-			p.errors = append(p.errors, NewSuggestionError(
-				"PAR_MATCH_ARM_BLOCK",
-				ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
-				p.peekToken,
-				"multi-statement match arm requires braces '{ ... }'",
-				[]string{
-					"Wrap the match arm body in braces: pattern => { expr1; expr2 }",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			))
-		}
+		c.Body = p.parseMatchArmBody()
 	}
 
 	return c
