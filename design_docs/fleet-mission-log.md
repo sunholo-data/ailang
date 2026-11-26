@@ -1610,3 +1610,67 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Operator request for this fire: spawn the roles as the routing table specifies, the evaluator required. Planner and executor ran on their codex pins (the table's lane, not the Agent tool); the evaluator ran on the Agent tool. The designer had no doc to write. No role was unspawnable, and no fallback was used.
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (codex and Anthropic subscriptions only).
+
+## 143 — 2026-11-26 — `idle-fingerprint:record-eval-json-moves-head` LANDED + RESOLVED: #2473 → `216d6562b` after its test was hardened against the i142 judge's four surviving widening mutants (independent sonnet judge PASS 91); dev went fully green at `f43d12e3c` mid-fire, so the branch was rebased, merged and done-gated; ticket resolved, open 20 → 19 [HARNESS]
+
+**Pick**: the open ticket `idle-fingerprint:record-eval-json-moves-head` (stapledon 118), iteration 142's **Next**. At Gate 1 its landing predicate was still false, so the fire first took the ticket's own judge objection (non-blocking at 142: the glob's edges were not pinned), then landed once dev turned green. The higher-ranked tickets sit behind OPEN rulings D-FLEET-44/45/46, the rest outside fleet Authority (unchanged from 142). Mechanical, not HD-2a. It moves clause 2.
+- Gate 1: pin = origin/dev = `76549ad39`; base recorded there. Open fleet PR #2473 (`fleet/i142-…`) carried iteration 142's record, read from there.
+- Dev `76549ad39` required `test` red: `TestEqEvaluatorVMParity/*` fail `IMP010: symbol 'member' not exported by 'std/list'` (`c0ff2b0a4` removed `member`, `cmd/ailang/eq_parity_test.go` still imported it). Language core, outside fleet Authority. `docs-gate` also red at `76549ad39` and `09b77efcf` (MDX error in `docs/docs/reference/security-model.md`).
+- 0 allowlisted directives on #2445 (14 comments; watermark absent, whole-issue read). Self-notices rc 1 on the same crash (`…#issuecomment-7063993188`) and transcript (fire `fleet-1795100889-10927`) notices as 125–142, already credited. Control 852:10.
+- Died-mid-flight traces: no iteration-143 worktree or PR. Open tickets 20, the same list as 142.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google` (no role used it).
+- Skill drift: SKILL.md and all 13 resources byte-identical to origin/dev in the resolved symlink copy AND in the pin copy, per file.
+- The main checkout is dirty with attended work; left alone.
+
+**Reality check** (controller, first-party): on #2473's head `04f307466` each of the four widenings the i142 judge named (`eval_MISSION-ITER-*`, `eval_*_record.json`, `eval_MISSION-ITER-*_*.json`, `:(exclude)*_record.json`), applied by `sed` to a scratch helper (each verified to change line 80) and run through `IDLE_TEST_HELPER`, left the plain test at rc 0. All four survive.
+
+**Did** (generator ≠ judge):
+- **Designer: not spawned.** A test-only hardening of an existing fix; the spec is the judge report plus the repro. Rotation pointer unchanged (`claude:claude-opus-5-5`).
+- **Planner** codex `gpt-6.2-sol` (recipe, own detached worktree at `04f307466`, probe rc 0; 59,004 tok). [Plan](fleet-mission-evidence/iteration143/plan.md): two negative controls (`eval_MISSION-ITER-9_round_1.json`, `eval_M-FOO_record.json` must move the hash), four mutants with exact expected first FAILs, and a per-target no-op guard (six driver mutants tagged `driver`, the rest must change the helper). I checked the six-driver classification against the test before routing.
+- **Executor** codex `gpt-6.2-sol` (recipe, `fleet-i142-wt`, 62,716 tok, rc 0). Applied the plan verbatim, no deviations; helper byte-identical. [Report](fleet-mission-evidence/iteration143/executor-report.md).
+- **Controller** re-ran the gates outside the sandbox: plain rc 0; `--mutations` 21/21; shellcheck rc 0; `make check-changelog` rc 0. `make test-launchd-drivers` rc 2 on three unrelated suites (`test_mission_workdir_sync` git-timeout, `test_skill_sync` watchdog, `test_motoko_connection_probe` 4 s sampling deadline). None references the idle fingerprint. Two passed when re-run alone. `workdir_sync` also failed on the pristine base at load 9.3 (control). Committed `4eb80c825`, secret scan clean.
+- **Judge** sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `fleet-i143-judge` at `4eb80c825`; 54,248 tok, 26 min). **PASS 91/100, LAND**, 0 blocking ([report](fleet-mission-evidence/iteration143/judge.md)).
+  - Re-measured: 21/21. Each of b/e/f/g killed by its intended FAIL. Deleting either new arm from a scratch test copy makes its mutants survive, so both are necessary. A deliberately broken helper sed now fails `sed did not apply`. Untagging `age` also fails.
+  - Strongest objection, non-blocking: the edges are still not pinned. `eval_MISSION-ITER-[0-9]*_record.json`, `…-*_record*`, `…-*_record.jso*`, `…-?_record.json`, `*/eval_MISSION-ITER-*_record.json` and `.ailang/state/*` all pass. Only `?` could matter (it would wake on multi-digit iterations); that gap predates this commit.
+- **Landing**: mid-fire, attended `9ed9f6d7d` fixed `test` and Release v0.64.1 (`f43d12e3c`) fixed `docs-gate`. A SHA-pinned poll read `test`, `lint`, `build`, `docs-gate`, `checks` all success at `f43d12e3c`.
+  - Rebased onto it: range-diff 4/4 `=`, 0 files overlap, 0 dev files under `tools/launchd/`. Plain test rc 0. The judge's verdict carries over.
+  - Push: the first `--force-with-lease` came back `[remote rejected] (failed)` with no message; the identical command then succeeded → `dde340400`.
+  - PR CI: 24 checks, required 5/5 green. `test-windows` (non-required) red on `internal/effects` process timeouts, while the PR has 0 Go files and dev `f43d12e3c` is green on it, so it is a runner flake. `UNSTABLE`, not `BLOCKED`.
+  - Merged: `gh pr merge 2473 --squash --match-head-commit dde340400…` → `216d6562b`. Squash patch-id = judged patch-id; `988772ad4` (docs/finetune) landed between rebase and merge. Dev CI on the merge: 18 checks, 0 not-green, incl. `launchd drivers (bash 3.2)`.
+- **Done-gate** on `216d6562b` (stapledon profile, idle and armed, `env -i`, `AILANG_DRIVER_PINNED`): healthy rc 0 (121 s, `DRY RUN ok`, but `lanes=DEGRADED(2)` because codex is over its daily ration, probe rc 75); degraded `MISSION_EXECUTOR_MODEL=codex:bogus-model-i143` rc 0 (116 s, executor → `claude:claude-haiku-5-5`). No pidfile left. The dry-run skips the idle pre-check, so CI's `launchd drivers` is the coverage of the change itself. [Gates](fleet-mission-evidence/iteration143/gates.md).
+- **Resolved** `idle-fingerprint:record-eval-json-moves-head` with `216d6562b`: rc 0, replied to stapledon (expect one more full fire there; its pending snapshot predates the rule). Open 20 → 19.
+
+**Ruled out**:
+- Picking NONE at Gate 1: the open ticket's judge objection was routable work on the ticket itself, not self-sourced.
+- Changing the helper's glob: the judge found no real file the widenings or narrowings would misclassify; the fix pins the test, not the rule.
+- Waiting for `test-windows` to go green before merging: it is non-required, the PR has no Go code, and dev is green on it.
+- Fixing dev's `docs-gate` MDX red (`docs/**` is inside fleet Authority): dev reds are V1's, and Release v0.64.1 fixed it before any fleet action was needed.
+- Reading the healthy dry-run's `DEGRADED(2)` as a regression: both entries are codex `rc=75 over daily ration`, the same on the pre-change pin, and the change does not touch lane resolution.
+
+**Retro lane**: three frictions, no skill edit.
+- (a) A `git push --force-with-lease` returned `[remote rejected] (failed)` with no reason, and the identical retry succeeded. My first read used `| tail -2; echo rc=$?`, which printed the pipe's rc 0 over a rejected push; the rejection line was visible only because tail kept it. Instance 1 here; the pipe-rc trap is already in memory and in the codex recipe.
+- (b) Local `make test-launchd-drivers` is load-sensitive on this rig: 3/62 suites timed out at load ~6–10 while CI's `launchd drivers (bash 3.2)` was green. The base fails the same way, so a local rc 2 needs a base control before it means anything. Instance 1 in the fleet record. The known memory note covers one probe arm, not these three.
+- (c) The done-gate says "dry-run healthy and degraded", but no healthy arm can read `lanes=ok` while a quota ration is spent. One instance; recorded, not edited.
+- (d) My Gate-1 drift loop changed directory and then globbed `resources/*.md` relative to the wrong tree (zsh: no matches). The Gate-1 file carries a correct snippet (rule (d)); with 142(b) this is two hand-rolled loops that broke, but the fix is to use the snippet, not a new rule.
+
+**Progress**: 19 open tickets (20 → 19). Clause 2 moved: one non-policy ticket resolved (filed 11-25 19:35Z, resolved 11-26 ≈18:40Z, ≈23 h).
+- Clause 1 UNMEASURED; clause 2 moved; clause 3 MET; clause 4 met by its letter; clause 5 preserved (done-gate before resolve).
+- Last 3 landings: 135, 141, 143.
+
+**Validation**: darwin/arm64, bash 3.2.57 (`/bin/bash`).
+- `test_mission_idle_fingerprint.sh` rc 0 and `--mutations` 21/21 (controller, executor, judge); plain rc 0 again after the rebase.
+- CI `launchd drivers (bash 3.2)` green on `dde340400` and on the merge `216d6562b`.
+
+**Next**: no routable ticket is expected. Pick NONE unless a ruling lands (D-FLEET-44/45/46; D-FLEET-48 is moot since 141) or a new in-scope ticket arrives. Optional follow-up (not a ticket): a two-digit record control (`eval_MISSION-ITER-19_record.json` must not move the hash) would kill the judge's `?` narrowing.
+
+**Routing evidence**: base=`216d6562bc170153c3838e8ebbcca50dde9f2945`@2026-11-26T18:32:43Z (Gate 4; Gate 1 read `76549ad3983c397c9341885bf5109e298361fbe9`, drift 4 dev commits plus this fire's own merge).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: no doc warranted. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`; `derive-planner-lane.sh` with no doc `opus fail-closed:no-doc`. The role is pinned `codex:gpt-6.2-sol`, so per role-spawn-routing §2(a) it ran on the pin under the codex recipe (probe rc 0), 1 run (59,004 tok). `import-github` skipped (ticket-queue mission).
+- Executor: resolver `recipe codex:gpt-6.2-sol declared:provider-pin` → codex recipe, 1 run (62,716 tok, rc 0).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (54,248 tok). Judge independence: cross-vendor against the builders (codex planned and built), distinct from the controller (opus). Generator ≠ judge holds.
+- Operator request for this fire: spawn the roles as the routing table specifies, the evaluator required. Planner and executor ran on their codex pins (the table's lane, not the Agent tool); the evaluator ran on the Agent tool. The designer had no doc to write. No role was unspawnable, and no fallback was used. After this fire's runs codex reads over its daily ration (done-gate probe rc 75), so the next fleet fire's codex roles will likely degrade.
+- Driver routing note verbatim: (empty; no lane degraded this fire).
+- Cost: metered $0 (codex and Anthropic subscriptions only).
