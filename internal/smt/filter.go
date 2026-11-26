@@ -345,6 +345,9 @@ func collectSortsFromType(t types.Type, sorts map[string]bool) {
 			collectSortsFromType(elem, sorts)
 		}
 	case *types.TRecord:
+		// The record's own sort too: an inline record in an alias's field
+		// (Decision's answers: [{name, answer}]) was walked but never kept.
+		sorts[MapRecordSortName(ty)] = true
 		for _, fieldType := range ty.Fields {
 			collectSortsFromType(fieldType, sorts)
 		}

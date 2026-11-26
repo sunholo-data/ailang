@@ -21,7 +21,8 @@ export pure func listOfRecordsFalse(xs: [{ name: string, k: int }]) -> int
 = 0
 
 -- Two inline records with the same field names and different field types
--- share one sort name; a function needing it is skipped, not a Z3 error.
+-- are named by their field sorts too (record_names.go), so this verifies; it
+-- was a skip, and before that a Z3 error.
 type Opt = Plain([{ key: string, desc: string }]) | Rich([{ key: string, desc: int }])
 
 export pure func richDesc(o: Opt) -> int
@@ -29,4 +30,16 @@ export pure func richDesc(o: Opt) -> int
 = match o {
     Plain(_) => 0,
     Rich(xs) => match xs { [] => 0, [x, ..._] => if x.desc >= 0 then x.desc else 0 }
+  }
+
+-- Names that still coincide once field sorts are added ({a: [int]} and
+-- {a: Seq_Int} are both Record_a__Seq_Int) are a skip naming the clash.
+type Seq_Int = SI(int)
+type Twin = TA([{ a: [int] }]) | TB([{ a: Seq_Int }])
+
+export pure func twinTag(t: Twin) -> int
+  ensures { result >= 0 }
+= match t {
+    TA(_) => 0,
+    TB(_) => 1
   }

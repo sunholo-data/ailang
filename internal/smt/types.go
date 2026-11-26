@@ -201,9 +201,10 @@ func MapRecordSortName(rec *types.TRecord) string {
 	if rec.TypeName != "" {
 		return rec.TypeName
 	}
-	// Anonymous record: build name from sorted field names
+	// Anonymous record: build name from sorted field names, and from the
+	// field sorts when two records share them (record_names.go).
 	names := sortedFieldNames(rec.Fields)
-	return "Record_" + strings.Join(names, "_")
+	return disambiguatedRecordName("Record_"+strings.Join(names, "_"), rec)
 }
 
 // RecordConstructorName returns the SMT-LIB constructor name for a record.

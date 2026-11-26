@@ -187,10 +187,12 @@ func collectRecordDeclFromAST(recType *ast.RecordType, result *ADTExtraction, se
 	}
 	decl := DeclareRecordDatatype(sortName, fields)
 	if seen[sortName] {
-		// An anonymous record is named by its field names alone, so
-		// Choice(string, [{key, desc: string}]) and ChoiceR(Json, [{key,
-		// desc: Json}]) both name Record_desc_key; the first declaration won
-		// and a term over the other was ill-sorted (a Z3 ERROR).
+		// Two records with one name and two bodies: Choice(string, [{key,
+		// desc: string}]) and ChoiceR(Json, [{key, desc: Json}]) are both
+		// Record_desc_key by field names. Recorded as a conflict, which
+		// extractVerifyTypes resolves by naming them by their field sorts
+		// too (record_names.go); one declaration winning made a term over
+		// the other ill-sorted (a Z3 ERROR).
 		for _, d := range result.RecordDecls {
 			if ExtractSortNameFromDecl(d) == sortName && d != decl {
 				result.RecordConflicts = append(result.RecordConflicts, sortName)

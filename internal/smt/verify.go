@@ -201,58 +201,16 @@ func CountObligations(coreProg *core.Program) int {
 func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]VerifyModule, opts VerifyOptions) *VerifyReport {
 	report := &VerifyReport{Evidence: verification.EncodedEvidenceFor(opts.IntModel)}
 
-	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
-	adtResult := ExtractADTTypesWithRecords(surfaceAST)
-	adtTypes := adtResult.ADTTypes
-	adtParams := adtResult.TypeParams
-	ambiguous := make(map[string]bool)
-	typeOwner := make(map[string]string)
+	// ADT types, record type aliases, and inline record types, from the
+	// Surface AST and the imported modules (record_names.go).
+	defer func() { activeRecordNameConflicts = nil }()
+	vt := extractVerifyTypes(surfaceAST, modules)
 	owner := surfaceAST.Path
 	if surfaceAST.Module != nil {
 		owner = surfaceAST.Module.Path
 	}
-	for name := range adtTypes {
-		typeOwner[name] = owner
-	}
-	adtRecordDecls := adtResult.RecordDecls
-	recordConflicts := append([]string(nil), adtResult.RecordConflicts...)
-	recordAliases := adtResult.RecordAliases
-	// Also extract from imported modules so cross-module types
-	// (e.g., Block, XmlNode, TableCell) get declare-datatype in the Z3 output.
-	for _, mod := range modules {
-		if mod.File != nil {
-			modResult := ExtractADTTypesWithRecords(mod.File)
-			modOwner := mod.File.Path
-			if mod.File.Module != nil {
-				modOwner = mod.File.Module.Path
-			}
-			for name, variants := range modResult.ADTTypes {
-				if previous, exists := typeOwner[name]; exists && previous != modOwner {
-					ambiguous[name] = true
-					for _, v := range variants {
-						ambiguous[v.Name] = true
-					}
-					for _, v := range adtTypes[name] {
-						ambiguous[v.Name] = true
-					}
-				}
-				if _, exists := adtTypes[name]; !exists {
-					typeOwner[name] = modOwner
-					adtTypes[name] = variants
-					adtParams[name] = modResult.TypeParams[name]
-				}
-			}
-			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
-			recordConflicts = append(recordConflicts, modResult.RecordConflicts...)
-			for name, rec := range modResult.RecordAliases {
-				if _, exists := recordAliases[name]; !exists {
-					recordAliases[name] = rec
-				}
-			}
-		}
-	}
-
-	conflictingRecords := conflictingRecordSorts(adtRecordDecls, recordConflicts)
+	adtTypes, adtParams, ambiguous := vt.adts, vt.params, vt.ambiguous
+	adtRecordDecls, recordAliases, conflictingRecords := vt.recordDecls, vt.aliases, vt.conflicts
 	tupleShadowed := addTupleDatatypes(adtTypes, adtParams)
 
 	// Build Surface AST function lookup for param extraction

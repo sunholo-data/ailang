@@ -227,6 +227,10 @@ func emptyListSortFromUse(name string, body core.CoreExpr) string {
 				found = s
 				return
 			}
+			if s := constructorArgSeqSort(e, name); s != "" {
+				found = s
+				return
+			}
 			if len(e.Args) == 2 {
 				pair(e.Args[0], e.Args[1])
 			}
@@ -433,4 +437,34 @@ func registerSpecParamSorts(spec SpecializationResult) {
 			return
 		}
 	}
+}
+
+// constructorArgSeqSort is the list sort of the constructor field that the
+// variable name is passed as, in a constructor application app, at app's
+// checked type: `Ok($t)` building a Result[[{name, answer}], DecideError]
+// gives (Seq Record_answer_name). A parametric constructor has no field sort
+// of its own (constructorFieldSeqSort declines it), and the [] defaulted to
+// (Seq Int), a Z3 ERROR. "" when app is not a constructor application (a
+// user call is userCallArgSeqSort's, and its result type has no such
+// constructor).
+func constructorArgSeqSort(app *core.App, name string) string {
+	var ctor string
+	switch f := app.Func.(type) {
+	case *core.VarGlobal:
+		ctor = f.Ref.Name
+	case *core.Var:
+		ctor = f.Name
+	default:
+		return ""
+	}
+	fields, ok := constructorFields(checkedSort(app), stripConstructorPrefix(ctor))
+	if !ok || len(fields) != len(app.Args) {
+		return ""
+	}
+	for i, a := range app.Args {
+		if v, isVar := a.(*core.Var); isVar && v.Name == name {
+			return fields[i].Sort
+		}
+	}
+	return ""
 }

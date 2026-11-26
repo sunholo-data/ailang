@@ -1,0 +1,80 @@
+module same_fields
+import std/list (length)
+
+-- Two inline records with the same field names and different field sorts.
+-- Each is named by its field sorts too (record_names.go); before, both were
+-- Record_desc_key and every function needing one was skipped.
+type Q = Plain([{ key: string, desc: string }]) | Scored([{ key: string, desc: int }])
+
+export func plainCount(q: Q) -> int
+  ensures { result >= 0 }
+{
+  match q {
+    Plain(opts) => length(opts),
+    Scored(_) => 0
+  }
+}
+
+export func firstDesc(q: Q) -> string
+  ensures { match q { Plain([]) => result == "", _ => true } }
+{
+  match q {
+    Plain([o, ..._]) => o.desc,
+    _ => ""
+  }
+}
+
+export func scoredTotal(q: Q) -> int
+  ensures { match q { Scored([o]) => result == o.desc, _ => true } }
+{
+  match q {
+    Scored([o]) => o.desc,
+    _ => 0
+  }
+}
+
+-- A literal of each record picks its sort by its checked type.
+export func mkPlain(k: string) -> Q
+  ensures { match result { Plain([o]) => o.key == k, _ => false } }
+{
+  Plain([{ key: k, desc: "d" }])
+}
+
+export func mkScored(k: string, n: int) -> Q
+  ensures { match result { Scored([o]) => o.desc == n, _ => false } }
+{
+  Scored([{ key: k, desc: n }])
+}
+
+-- False: a Scored option's desc is whatever was given.
+export func mkScoredBad(k: string, n: int) -> Q
+  ensures { match result { Scored([o]) => o.desc == 0, _ => false } }
+{
+  Scored([{ key: k, desc: n }])
+}
+
+-- False: the first Plain desc need not be empty.
+export func firstDescBad(q: Q) -> string
+  ensures { result == "" }
+{
+  match q {
+    Plain([o, ..._]) => o.desc,
+    _ => ""
+  }
+}
+
+-- A literal is the only thing that names its record here: both records
+-- sharing the field set are kept for it (each literal picks its own).
+export func literalOnlyText(k: string) -> string
+  ensures { result == k }
+{
+  let o = { key: k, desc: "d" };
+  o.key
+}
+
+export func literalOnlyScore(k: string) -> string
+  ensures { result == k }
+{
+  let o = { key: k, desc: 1 };
+  o.key
+}

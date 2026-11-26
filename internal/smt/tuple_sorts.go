@@ -109,7 +109,7 @@ func addTupleDatatypes(adts map[string][]ADTVariant, params map[string][]string)
 // type shadows. nil when there is neither.
 func neededSortConflict(needed, conflictingRecords, tupleShadowed map[string]bool) error {
 	if name := firstNeededConflict(needed, conflictingRecords); name != "" {
-		return fmt.Errorf("two record types with the fields of %s have different field types, and the verifier names an anonymous record by its field names alone", name)
+		return fmt.Errorf("two record types with different field types are both named %s, from their field names and field sorts", name)
 	}
 	if name := firstNeededConflict(needed, tupleShadowed); name != "" {
 		return fmt.Errorf("a declared type named %s shadows the verifier's datatype for %d-tuples", name, tupleArity(name))

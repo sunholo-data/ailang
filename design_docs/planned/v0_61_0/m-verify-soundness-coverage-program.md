@@ -167,6 +167,17 @@ Next, in order:
    Totals against M0: verified 590 → **647**, skipped 125 → **62**, inconclusive 3 → 19, errors 1 → 0. (The snapshot also carries one verified row from another session's new `reexport_facade` example, not counted here.)
 
    Next levers by row count: `Function has effects` (12 sole, out of scope), the `Result[a, e]`/type-variable signatures (`isErr`, `foldChars`: needs instantiation at the call site, S7's seam), the `Record_desc_key` collision (4, needs disambiguated record naming), unit `()` as a sort (`stoppedCase`, `validateRun`: `Result[(), _]`), and the `option.map` bare-name gate (3 sole).
+4e. ~~**Disambiguated record naming**~~ **Done 2026-11-26.** It did not need the encoder-wide rename that item 4a feared. Within one `Verify`, a field-name sort that two records share with different field sorts is named by its field sorts too (`Record_desc_key__String__String`, `Record_desc_key__Json__String`); `MapRecordSortName` consults the conflict set, so every producer of the name agrees, and every other record keeps its name. `extractVerifyTypes` (`record_names.go`, moved out of `Verify`) finds the conflicts, then extracts again with them disambiguated. Imported modules are now walked in path order, where map order used to pick the first-wins ADT. A record literal picks its sort by its checked type through the existing shadowed-record path (`recordForLiteral`), now with each candidate once. A name that still has two bodies (`{a: [int]}` and `{a: Seq_Int}` both mangle to `Record_a__Seq_Int`) is a skip naming the clash.
+
+   Two bugs it exposed, both fixed:
+   - an inline record in a named alias's field (`Decision`'s `answers: [{name, answer}]`) was never kept by the sort filter (a skip);
+   - a `[]` passed to a parametric constructor (`Ok([])`) was `(Seq Int)` (a Z3 ERROR). It now takes the field's sort at the constructor's checked type.
+
+   Gap map: +1 verified (`buildRequest`), 2 skipped → inconclusive (`compositeScore`, `parseAnswers`: bounded unrolling), and `questionsToJsonSchema` is now an honest solver skip (`$json_encode`). 0 regressions.
+
+   Totals against M0: verified 590 → **648**, skipped 125 → **59**, inconclusive 3 → 21, errors 1 → 0 (excluding the one `reexport_facade` row noted in 4d).
+
+   Next levers: unit `()` as a sort (`stoppedCase`, `validateRun`); the `option.map` bare-name gate (3 sole); and type-variable instantiation at call sites (`isErr`, `foldChars`, `firstOr`). That last one changes how a call is resolved, so a design doc comes first (item 5).
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

@@ -56,9 +56,14 @@ func beginRecordSorts(opts []EncodeFunctionOpts) ([]pendingDecl, func(), error) 
 			if owner == info.SortName {
 				continue // the same sort declared twice
 			}
-			// A named alias with the same field names is found first; a
-			// literal tells the two apart by its type (recordForLiteral).
-			activeShadowedRecords[key] = append(activeShadowedRecords[key], info)
+			// A named alias, or another inline record with the same field
+			// names (record_names.go), is found first; a literal tells them
+			// apart by its type (recordForLiteral). Each sort is a candidate
+			// once, however often it is declared.
+			if _, seen := activeRecordTypes[info.SortName]; !seen {
+				activeShadowedRecords[key] = append(activeShadowedRecords[key], info)
+				activeRecordTypes[info.SortName] = info
+			}
 			continue
 		}
 		activeRecordTypes[info.SortName] = info
@@ -165,10 +170,14 @@ func resolveRecordLiteralSeeds(seeds map[string]bool, aliases map[string]*types.
 	if len(literals) == 0 {
 		return
 	}
-	bySet := map[string]string{}
+	// Two inline records may share a field set once their names carry their
+	// field sorts (record_names.go): the literal may build either, so both
+	// are seeded.
+	bySet := map[string][]string{}
 	for _, decl := range extraDecls {
 		if info := recordInfoFromDecl(decl); info != nil {
-			bySet[strings.Join(info.FieldNames, ",")] = info.SortName
+			key := strings.Join(info.FieldNames, ",")
+			bySet[key] = append(bySet[key], info.SortName)
 		}
 	}
 	for name, rec := range aliases {
@@ -177,11 +186,11 @@ func resolveRecordLiteralSeeds(seeds map[string]bool, aliases map[string]*types.
 			names = append(names, f)
 		}
 		sort.Strings(names)
-		bySet[strings.Join(names, ",")] = name // an alias wins
+		bySet[strings.Join(names, ",")] = []string{name} // an alias wins
 	}
 	for _, lit := range literals {
 		delete(seeds, lit)
-		if name, ok := bySet[strings.TrimSuffix(strings.TrimPrefix(lit, "{"), "}")]; ok {
+		for _, name := range bySet[strings.TrimSuffix(strings.TrimPrefix(lit, "{"), "}")] {
 			seeds[name] = true
 		}
 	}

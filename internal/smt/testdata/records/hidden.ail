@@ -1,0 +1,30 @@
+module hidden
+
+-- An inline record in a named alias's field is declared for every function
+-- the alias reaches (it was walked but never kept, so the alias's
+-- declaration named an undeclared sort).
+type Pick = { picks: [{ name: string, score: int }], total: int }
+
+export func pickTotal(p: Pick) -> int
+  ensures { result == p.total }
+{
+  p.total
+}
+
+-- A [] passed to a parametric constructor takes the field's sort at the
+-- constructor's type (it was (Seq Int), a Z3 ERROR).
+func collectNames(n: int) -> Result[[{ name: string, score: int }], string] =
+  if n > 0 then Ok([{ name: "a", score: n }]) else Ok([])
+
+export func namesOk(n: int) -> bool
+  ensures { result }
+{
+  match collectNames(n) { Ok(_) => true, Err(_) => false }
+}
+
+-- False: collectNames never fails, but an empty Ok is possible.
+export func namesNonEmpty(n: int) -> bool
+  ensures { result }
+{
+  match collectNames(n) { Ok([]) => false, Ok(_) => true, Err(_) => false }
+}
