@@ -2,7 +2,9 @@
 sidebar_position: 9
 title: Model Capability Threshold
 description: How model capability correlates with AILANG performance — and why frontier models score higher on AILANG than Python
-reviewBy: 2027-01-25
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Model Capability Threshold
@@ -101,7 +103,7 @@ The ATT is therefore best expressed in AILANG-score terms directly, not via exte
 | gemini-2-5-flash | 75% | **54%** | AILANG +8pts |
 | gpt5-mini | 15% | **~38%** | Python +59pts |
 
-> ⚠️ **Important caveat:** SWE-bench Verified scores above ~77% are flagged for potential training-data contamination (OpenAI's internal audit found frontier models reproducing gold patches verbatim; SWE-bench Pro is the more reliable benchmark at the frontier). AILANG scores are measured on our eval harness (standard mode, v0.23.0).
+> ⚠️ **Important caveat:** SWE-bench Verified scores above ~77% are flagged for potential training-data contamination (OpenAI's internal audit found frontier models reproducing gold patches verbatim; SWE-bench Pro is the more reliable benchmark at the frontier). AILANG scores are measured on our eval harness (standard mode).
 
 The headline correlation holds (r=0.70 with SWE-bench Verified) but no external benchmark cleanly separates the AILANG≥Python from Python-wins tier. Key anomalies:
 
@@ -119,7 +121,7 @@ The headline correlation holds (r=0.70 with SWE-bench Verified) but no external 
 
 The crossover point has a name: the **AILANG Teachability Threshold** — the minimum external coding capability score (SWE-bench Verified or equivalent) at which a model achieves AILANG ≥ Python parity on the core eval tier.
 
-**Current ATT: ~55% SWE-bench Verified** *(as of v0.23.0, June 2026)*
+**Baseline ATT: ~55% SWE-bench Verified** *(June 2026 snapshot)*
 
 This is a first-class KPI for AILANG development. A declining ATT is direct evidence the language is becoming more AI-tractable. We track it per release.
 
@@ -163,7 +165,7 @@ These fail in multiple frontier models with `compile_error`, meaning the model g
 
 ### Class 2: Capability ceiling (logic_error) — harder
 
-These fail with correct AILANG syntax but wrong output — the model understood the language but got the algorithm wrong. Notably, `contract_rle_roundtrip` fails as **logic_error in all three top frontier models simultaneously** — this is the single confirmed hard capability ceiling in v0.23.0.
+These fail with correct AILANG syntax but wrong output — the model understood the language but got the algorithm wrong. Notably, `contract_rle_roundtrip` fails as **logic_error in all three top frontier models simultaneously** — a confirmed hard capability ceiling in this snapshot.
 
 Other shared logic failures: `contract_sorted_merge`, `lambda_calc`, `contract_matrix_determinant`, `binary_tree_sum`. These require either model improvements or new AILANG stdlib primitives that make the task expressible more naturally.
 
@@ -201,7 +203,7 @@ The raw AILANG score is misleading for tracking progress — it conflates model 
 
 This strips out model capability and asks only: *does AILANG impose extra friction vs Python?*
 
-**Empirical values (Qwen 3.5 mxfp8, core tier, agent mode, v0.23.0):**
+**Empirical values (Qwen 3.5 mxfp8, core tier, agent mode):**
 - CPR = **64.3%** — 18 of 28 Python-solvable tasks also pass in AILANG
 - 10 blockers where Python works but AILANG fails: **5 compile_errors** (fixable) + 4 logic + 1 timeout
 - Projected CPR after fixing 5 language gaps: **~82%**
@@ -210,7 +212,7 @@ This strips out model capability and asks only: *does AILANG impose extra fricti
 
 | Milestone | CPR target | What achieves it |
 |---|---|---|
-| Today (v0.23.0) | 64% | Baseline |
+| Snapshot baseline | 64% | Baseline |
 | Fix all compile_error gaps | ~82% | Prompt + stdlib improvements |
 | Reach Python parity | 100% | Full prompt coverage + ecosystem growth |
 

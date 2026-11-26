@@ -1,15 +1,14 @@
 ---
 sidebar_position: 13
 title: Claude API Credit Guards
-reviewBy: 2027-01-10
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Claude API credit guards
 
-The initial guard shipped in v0.53.4; production recovery and retained usage
-receipts require v0.54.1 or later. Cloud use requires a deployed credit gateway, an isolated
-Firestore authority, verified executor images, and an explicitly confirmed grant.
-Installing the release does not enable the lane.
+Cloud use requires a deployed credit gateway, an isolated Firestore authority, verified executor images, and an explicitly confirmed grant. Installing the release does not enable the lane.
 
 The coordinator dispatches dedicated Cloud Run jobs. Those jobs receive a signed
 capability for one task attempt and authenticate to the gateway with their Google
@@ -71,8 +70,6 @@ through `--impersonate-service-account`; grant
 AILANG directly mints an ID token; the broader access-token/signing role is unnecessary. Executors and coordinators are not credit operators.
 
 ## Recover an unknown charge conservatively
-
-Recovery commands and retained usage receipts require v0.54.1 or later.
 
 Recovery requires a disabled account, no active tasks or forwarding requests,
 and the exact current `--grant-id`. First inspect `status` and
@@ -200,7 +197,7 @@ the monetary limits without relying on alert delivery.
 
 ## Website workloads
 
-From v0.54.2, the guarded Claude Go image also supplies Python/PyYAML, virtual
+The guarded Claude Go image also supplies Python/PyYAML, virtual
 environments, Chromium and Yarn 1.22.22 for website builds and browser checks.
 Infrastructure can route `website-builder`, `site-blog`, `site-presentations`,
 `site-rda` and `site-sunholo` through this image using

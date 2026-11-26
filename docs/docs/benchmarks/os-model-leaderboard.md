@@ -2,7 +2,8 @@
 title: OS / Local-model leaderboard
 sidebar_position: 5
 description: Open-source / locally-hosted model evals — cross-language (incl. JS & Go), cross-harness, and longitudinal trends, run continuously on a local rig at zero server cost.
-reviewBy: 2027-01-04
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import OSLocalLeaderboard from '@site/src/components/OSLocalLeaderboard';
@@ -54,7 +55,7 @@ ailang eval-publish <version> \
   --prev-tag <prev-version>
 ```
 
-See [the local-Ollama evaluation guide](/docs/guides/evaluation/local-ollama) for how the rotation
+See [the local-Ollama evaluation runbook](https://github.com/sunholo-data/ailang/blob/dev/docs/internal/runbooks/local-ollama.md) for how the rotation
 directories get populated.
 
 ## Current data (latest release)

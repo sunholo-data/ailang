@@ -4,6 +4,7 @@ title: Pilot-4 (a second round, short writes, breaking loops)
 description: The fourth AILANG fine-tune, which ended the on-policy repair line with a negative result. A second round of the model's own mistakes, pooled with the first, plus fixes for the two failures pilot-3 left behind - runaway writes and long loops.
 reviewed: 2026-11-10
 reviewBy: 2027-02-10
+tier: internal
 ---
 
 # Pilot-4: a second round, short writes, breaking loops

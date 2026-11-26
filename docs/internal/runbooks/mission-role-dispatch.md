@@ -1,7 +1,9 @@
 ---
 title: Mission role dispatch
 sidebar_label: Mission role dispatch
-reviewBy: 2027-02-08
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 `ailang mission role-run` executes one explicit designer, planner, executor, or

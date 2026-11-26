@@ -1,6 +1,9 @@
 ---
 title: Retained-source maintenance benchmark
 sidebar_label: Maintenance benchmark
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 The maintenance adapter exercises changes to an existing native application over

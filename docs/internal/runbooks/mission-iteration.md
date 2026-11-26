@@ -1,7 +1,9 @@
 ---
 title: Durable mission iterations
 description: Run one approved work item with durable stage ownership, quota admission, and validated artifacts.
-reviewBy: 2027-02-01
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Durable mission iterations

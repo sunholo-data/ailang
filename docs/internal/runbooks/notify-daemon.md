@@ -1,7 +1,9 @@
 ---
 sidebar_label: Notification Daemon
 title: macOS Notification Daemon
-reviewBy: 2026-12-28
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # macOS Notification Daemon
@@ -145,7 +147,7 @@ tail -f /tmp/ailang-daemon.log   # startup line lists extra_message_sources=[pro
 
 > To TRIAGE (read) prod feedback from the CLI without the daemon, scope the
 > command to prod — see
-> [Agent Messaging → Triaging Public Feedback](./agent-messaging.md#triaging-public-feedback--read-this--it-lives-in-prod).
+> [Agent Messaging → Storage Backends (Cloud Triage)](../../docs/guides/agent-messaging.md#storage-backends-local-sqlite-vs-canonical-cloud).
 
 ## Logs and troubleshooting
 

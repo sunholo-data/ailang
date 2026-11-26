@@ -1,357 +1,107 @@
 ---
-reviewBy: 2027-02-01
+title: Agent Harness Setup
+description: Install, authenticate, and verify agentic coding harnesses (Claude Code, Vertex Managed Agents, Codex CLI, opencode) for ailang eval-suite --agent
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Agent Harness Setup
 
-AILANG's agent eval mode runs benchmarks through agentic CLI tools — the same tools
-developers use interactively. This guide covers how to install and authenticate each
-supported harness for `ailang eval-suite --agent`.
+AILANG's agent eval mode runs benchmarks through agentic CLI tools and remote sandboxes via `ailang eval-suite --agent`.
 
 ## Supported Harnesses
 
-| Harness | CLI tool | Models in `models.yml` | Install |
-|---------|----------|------------------------|---------|
-| **claude** | Claude Code (`claude`) | `claude-sonnet-4-6`, `claude-haiku-4-5` | `npm install -g @anthropic-ai/claude-code` |
-| **managed_agents** | (HTTP API, no CLI) | `gemini-3-5-flash` | `gcloud auth application-default login` |
-| **codex** | OpenAI Codex CLI (`codex`) | `gpt5-4`, `gpt5-1-instant` | `npm install -g @openai/codex` |
-| **opencode** | opencode (`opencode`) | `opencode-haiku`, `opencode-sonnet-4-6`, `opencode-gemini-3-flash` | `npm install -g opencode-ai` |
-
-> **Note (v0.22.0, M-MANAGED-AGENTS):** The legacy `gemini` CLI executor was
-> retired. Google shut off Gemini CLI for free/Pro/Ultra tiers on 2026-06-18.
-> It was replaced by the `managed_agents` executor, which calls the Vertex AI
-> Managed Agents API (the Antigravity `antigravity-preview` agent) directly via
-> ADC. Older Gemini models (2.5, 3, 3.1) lose agent-mode coverage but keep
-> standard-mode via direct Vertex `generateContent`.
-
-## Quick Check
+| Harness | Transport | Sample `models.yml` IDs | Install / Auth |
+|---|---|---|---|
+| **claude** | `claude` CLI | `claude-sonnet-4-6`, `claude-haiku-4-5` | `npm install -g @anthropic-ai/claude-code` + `ANTHROPIC_API_KEY` |
+| **managed_agents** | Vertex HTTP API | `gemini-3-5-flash` | `gcloud auth application-default login` (replaces retired `gemini` CLI) |
+| **codex** | `codex` CLI | `gpt5-4`, `gpt5-1-instant` | `npm install -g @openai/codex` + `OPENAI_API_KEY` |
+| **opencode** | `opencode` CLI | `opencode-haiku`, `opencode-sonnet-4-6`, `opencode-gemini-3-flash` | `npm install -g opencode-ai` + provider creds or Ollama |
 
 ```bash
+# Quick health check
 claude --version
-gcloud auth application-default print-access-token   # for managed_agents
+gcloud auth application-default print-access-token   # managed_agents
 codex --version
 opencode --version
 ```
 
-## Claude Code (`claude`)
+## Harness Setup & Verification
+
+<details>
+<summary>Claude Code (`claude`) and OpenAI Codex CLI (`codex`)</summary>
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-export ANTHROPIC_API_KEY=sk-ant-...
-claude --version
-```
-
-Verify agentic mode works:
-
-```bash
+# Claude Code
+npm install -g @anthropic-ai/claude-code && export ANTHROPIC_API_KEY=sk-ant-...
 echo "Write hello world to solution.py" | claude --print \
   --output-format stream-json --permission-mode bypassPermissions
+
+# Codex CLI (supports both modern thread/item NDJSON and legacy flat format)
+npm install -g @openai/codex && export OPENAI_API_KEY=sk-...
+echo "Write hello world to solution.py" | codex exec --json \
+  --model gpt-5.4 --dangerously-bypass-approvals-and-sandbox
 ```
 
-The `--permission-mode bypassPermissions` flag is what the executor uses to auto-approve
-file edits. If you see JSON events with `"type":"tool_use"` the harness is working.
+</details>
 
-## Managed Agents API (`managed_agents`)
+<details>
+<summary>Vertex Managed Agents (`managed_agents`) & --clone-repo</summary>
 
-The Managed Agents executor calls the Vertex AI Managed Agents endpoint
-(`aiplatform.googleapis.com/v1beta1/.../interactions`) directly via HTTP using
-Application Default Credentials. There is no local CLI — the agent runs in a
-Google-hosted Linux sandbox per interaction, with full tool execution + multi-turn
-state managed server-side.
+Replaces the retired legacy `gemini` CLI executor via `aiplatform.googleapis.com/v1beta1/.../interactions` (region `global`, pinned `Api-Revision: 2026-05-20`, one sandbox per `Execute()`):
 
-### Setup
+- **File bridge (`executor.CapRemoteSandbox`)**: `eval_harness/managed_agents_bridge.go` captures the final fenced code block from `Result.Output` into `<workspace>/benchmark/solution.ail`.
+- **In-sandbox repo verification (`--clone-repo`)**: Opt-in shallow clone (`--depth 1`) gated by `executor.CapNetworkEgress` for **public** repos only. Requires `git rev-parse HEAD` match (or stamps `verification_degraded: true`); errors if combined with `--api-only` or non-Gemini providers.
 
 ```bash
-# 1. Authenticate via ADC (same flow as direct Vertex generateContent calls)
 gcloud auth application-default login
-
-# 2. Set the default project (or set Task.GCPProject per-call via models.yml)
 gcloud config set project ailang-dev
 
-# 3. First call to a fresh project provisions the service (HTTP 400
-#    "Provisioning is in progress" for ~3 min, then ready). The executor's
-#    error message includes this hint.
-```
-
-### Verify
-
-```bash
-ACCESS_TOKEN=$(gcloud auth application-default print-access-token)
-curl -sN -X POST \
-  "https://aiplatform.googleapis.com/v1beta1/projects/ailang-dev/locations/global/interactions" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "Api-Revision: 2026-05-20" \
-  -d '{
-    "stream": true, "background": true, "store": true,
-    "agent": "antigravity-preview-05-2026",
-    "environment": {"type": "remote"},
-    "input": [{"type":"user_input","content":[{"type":"text","text":"reply PONG"}]}]
-  }'
-```
-
-Successful output is an SSE stream ending with
-`event: interaction.completed` followed by `data: [DONE]`.
-
-### Cross-environment file bridge
-
-Because the agent runs in a remote sandbox, file edits the agent makes do NOT
-touch the local workspace. The eval harness handles this by:
-
-1. Appending an instruction to the system prompt that tells the agent to dump
-   its complete solution as a fenced code block at the end of its response
-2. Extracting that fenced block from `Result.Output` and writing it to
-   `<workspace>/benchmark/solution.ail` after the run
-
-This is automatic — handled by `eval_harness/managed_agents_bridge.go` for any
-executor that advertises `executor.CapRemoteSandbox`. Other backend callers
-that don't need file bridging (e.g. plain reasoning queries) get a
-policy-free executor.
-
-### Clone-over-egress: in-sandbox verification (`--clone-repo`)
-
-By default the sandbox has no network egress and no local repo, so a Gemini
-review can only *reason* about a prompt-packed diff. With **opt-in egress** the
-hosted agent can instead `git clone` the **public** AILANG repo at a target
-revision and run review / `ailang check` **in-sandbox**, returning a structured
-verdict — real verification, not reasoning-only.
-
-Egress is strictly opt-in and visible in the request payload. It is gated by the
-`executor.CapNetworkEgress` capability (only `managed_agents` advertises it):
-setting `Task.RequiresEgress` on any other executor is a **loud pre-dispatch
-error**, never a silent fallback.
-
-```bash
-# HEAD review — shallow clone of the repo's default branch
+# Verify HEAD or pinned-SHA review
 ailang exec gemini "Review the repo for correctness" \
   --clone-repo https://github.com/sunholo-data/ailang.git
-
-# Pinned-SHA review — shallow fetch-by-SHA of exactly one commit
 ailang exec gemini "Review this revision" \
   --clone-repo https://github.com/sunholo-data/ailang.git \
   --clone-sha 806b3b4a4c0000000000000000000000000000ab
 ```
 
-- Both modes are **shallow** (`--depth 1`) and bounded by construction — the HEAD
-  path clones HEAD; the pinned path does `git fetch --depth 1 origin <sha>` (no
-  full-history walk).
-- `--clone-repo` on any provider other than `gemini`, or together with
-  `--api-only` (which has no sandbox), or `--clone-sha` without `--clone-repo`,
-  **exits non-zero with a clear error**.
-- The agent must echo `git rev-parse HEAD`. The eval bridge
-  (`EvalOptions.CloneRepoURL` / `CloneSHA` in `gemini_evaluator_bridge.go`)
-  verifies it: a pinned review must match the requested SHA; a HEAD review must
-  produce a valid 40-hex SHA (recorded as the reviewed revision). Missing or
-  mismatched evidence — or a deadline-exceeded run — stamps
-  `verification_degraded: true` with a reason. Absent evidence is **never** a
-  clean pass.
-- **Security:** `network.allowlist` is wildcard (`{"domain":"*"}`) — the only
-  shape Vertex accepts today. It is scoped to a **read-only reviewer cloning a
-  PUBLIC repo**, so no secret/PAT/credential ever enters the sandbox. The
-  private-repo path is out of scope.
+</details>
 
-### Limits
+<details>
+<summary>opencode (`opencode`) provider strings & local Ollama</summary>
 
-- **No multi-turn yet.** Each Execute() provisions a fresh sandbox.
-- **Region locked to `global`.** No regional Vertex endpoints for this API yet.
-- **`Api-Revision: 2026-05-20` header pinned** in the executor — guards
-  against schema drift. Bump when Google publishes a new revision.
-- **Cost: $1.50/$9.00 per 1M** (Vertex gemini-3.5-flash pricing).
+`opencode` requires `provider/model` IDs (use `google-vertex/...`, never `google/...` which triggers `ProviderModelNotFoundError`):
 
-## OpenAI Codex CLI (`codex`)
+- `anthropic/claude-haiku-4-5`, `openai/gpt-5.4`, `google-vertex/gemini-3-flash-preview`, `ollama/gemma4:latest`
+
+Configure local Ollama in `~/.config/opencode/opencode.jsonc` (`baseURL: "http://localhost:11434/v1"`; see `internal/executor/opencode/testdata/opencode_ollama_config.jsonc`):
 
 ```bash
-npm install -g @openai/codex
-export OPENAI_API_KEY=sk-...
-codex --version
-```
-
-The executor uses `codex exec --json --model <model> --dangerously-bypass-approvals-and-sandbox`.
-
-Verify:
-
-```bash
-echo "Write hello world to solution.py" | codex exec --json \
-  --model gpt-5.4 --dangerously-bypass-approvals-and-sandbox
-```
-
-You should see NDJSON events including `thread.started`, `turn.started`,
-`item.completed` with `type: "file_change"`, and `turn.completed` with usage stats.
-
-> **Note:** Codex CLI v0.1+ uses the thread/item event format. Older versions
-> used a flat message/tool_use format. The AILANG executor handles both.
-
-## opencode (`opencode`)
-
-opencode is a multi-provider gateway that supports Anthropic, OpenAI, Google Vertex,
-and local Ollama models through a single CLI.
-
-```bash
-npm install -g opencode-ai
-opencode --version   # e.g. 1.14.20
-```
-
-### Provider Authentication
-
-Each provider opencode talks to needs credentials:
-
-| Provider | Setup |
-|----------|-------|
-| Anthropic | `export ANTHROPIC_API_KEY=sk-ant-...` |
-| OpenAI | `export OPENAI_API_KEY=sk-...` |
-| Google Vertex | `gcloud auth application-default login` |
-| Ollama (local) | `ollama serve` running; no key needed |
-
-### Model String Format
-
-opencode uses `provider/model` strings — **not bare model names**:
-
-```
-anthropic/claude-haiku-4-5                 # Anthropic
-openai/gpt-5.4                             # OpenAI
-google-vertex/gemini-3-flash-preview       # Google Vertex AI
-ollama/gemma4:latest                       # Local Ollama
-```
-
-> **Important:** Google models require the `google-vertex/` prefix.
-> `google/` is not a registered provider and causes `ProviderModelNotFoundError`.
-> Run `opencode models google-vertex` to list available model IDs.
-
-To discover all available providers and models:
-
-```bash
-opencode models              # all providers
-opencode models anthropic    # Anthropic models only
-opencode models google-vertex  # Google Vertex models
-```
-
-### Verify opencode Works
-
-```bash
-cd /tmp && mkdir oc_test && cd oc_test
+opencode models google-vertex
+cd /tmp && mkdir -p oc_test && cd oc_test
 echo "Write hello world to solution.py" | opencode run \
-  --format json --dangerously-skip-permissions \
-  --model anthropic/claude-haiku-4-5
+  --format json --dangerously-skip-permissions --model anthropic/claude-haiku-4-5
 ```
 
-You should see NDJSON events with `"type":"tool_use"` for file writes.
-
-### Local Models via Ollama
-
-opencode can route to local Ollama models with a custom provider config at
-`~/.config/opencode/opencode.jsonc`:
-
-```jsonc
-{
-  "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama Local",
-      "options": { "baseURL": "http://localhost:11434/v1" },
-      "models": {
-        "gemma4:latest":   { "name": "Gemma 4" },
-        "gemma3:4b":       { "name": "Gemma 3 4B" }
-      }
-    }
-  }
-}
-```
-
-Then use `ollama/gemma4:latest` as the model string, or add an entry to `models.yml`
-pointing at `opencode-gemma4` with `agent_cli: "opencode"` and
-`agent_model_name: "ollama/gemma4:latest"`.
-
-See `internal/executor/opencode/testdata/opencode_ollama_config.jsonc` for a
-complete config example.
+</details>
 
 ## Running a Cross-Harness Smoke Eval
 
-Once all harnesses are installed and authenticated, run the cross-harness comparison:
-
 ```bash
-# Dry run to confirm 5 models × 3 benchmarks × 2 languages = 30 runs
 ailang eval-suite --agent --models harness_suite \
-  --benchmarks fizzbuzz,gcd_lcm,balanced_parens \
-  --langs ailang,python --dry-run
+  --benchmarks fizzbuzz,gcd_lcm,balanced_parens --langs ailang,python --dry-run
 
-# Full run (5 parallel agent sessions)
 ailang eval-suite --agent --models harness_suite \
-  --benchmarks fizzbuzz,gcd_lcm,balanced_parens \
-  --langs ailang,python --agent-parallel 5
+  --benchmarks fizzbuzz,gcd_lcm,balanced_parens --langs ailang,python --agent-parallel 5
 ```
 
-`harness_suite` expands to:
-- `claude-sonnet-4-6` → claude harness
-- `opencode-sonnet-4-6` → opencode harness (Anthropic backend)
-- `opencode-gemini-3-flash` → opencode harness (Google Vertex backend)
-- `gpt5-4` → codex harness
+`harness_suite` pairs `claude-sonnet-4-6`, `opencode-sonnet-4-6`, `opencode-gemini-3-flash`, and `gpt5-4`; run `gemini-3-5-flash` opt-in via `managed_agents`. View results at `/docs/benchmarks/by-harness` after `ailang eval-report --format=json`.
 
-> Gemini-family models have no CLI-subprocess harness since v0.22.0. For Google
-> agent data, run `gemini-3-5-flash` opt-in via the `managed_agents` executor
-> (see above); the Vertex backend is also reachable through opencode
-> (`opencode-gemini-3-flash`).
+## Benchmark Semantics & Troubleshooting
 
-This gives Δ delta comparison between same-model, different-harness pairs (Sonnet via
-claude vs opencode; Flash via gemini vs opencode). Results appear in
-`/docs/benchmarks/by-harness` once `ailang eval-report --format=json` is re-run.
-
-## Benchmark mode compatibility: `grade_entrypoint` is agent-mode-only
-
-A benchmark that sets `grade_entrypoint` (with `solution_files`) grades the agent's
-preserved multi-file workspace — something only agent mode constructs. Standard mode
-(0-shot) never honours it: its prompt omits `input_files` content and its execution
-runs a fixed single `solution.ail`. Such benchmarks are therefore **agent-mode-only**:
-
-- Standard-mode scheduling (`eval-suite` auto-discovery) excludes them, so they produce
-  no rows and burn no API budget there.
-- If one is forced through standard mode anyway (explicit `--benchmarks` list),
-  `runSingleBenchmark` short-circuits before any provider call and banks a labelled skip
-  row (`error_category: skipped_mode_incompatible`, validity reason `mode_incompatible`)
-  that every aggregate — ELO fitting, confidence gating, capability stats — excludes.
-
-When authoring a benchmark that needs multi-file grading, plan to run it with
-`eval-suite --agent --benchmarks <id>` (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP).
-
-## Hidden tests and `exec_timeout`
-
-`expected_stdout` is shown to the model: agent mode writes it into the workspace README and
-the task prompt. It is a sample, not an oracle. A benchmark that needs a real oracle declares
-held-out tests:
-
-```yaml
-hidden_tests_dir: hidden_tests/cp_60159   # <name>.in / <name>.ans pairs, relative to the YAML
-exec_timeout: 30                          # seconds, every language, both modes
-```
-
-After the visible test passes, the harness runs the same program on each hidden test, smallest
-input first, and stops at the first failure. Nothing from a hidden test reaches a prompt, the
-workspace, the self-repair prompt, or the banked `stdout`/`stderr`. The row banks
-`hidden_total`, `hidden_passed` (the passing prefix) and `hidden_first_fail`
-(`<test>:wrong_output|timeout|runtime_error`), and `stdout_ok` requires every hidden test. A
-hidden failure banks the same `error_category` a visible one of that kind would.
-
-`exec_timeout` replaces every code-execution limit for the benchmark. Without it, agent mode
-runs AILANG with 10s and Python with 30s, which is a 3× bias on any perf-sensitive task. Do not
-put the directory under `data/` or use `.out` for answers: `.gitignore` drops both, and the
-answers would silently never be committed. See
-[M-EVAL-HIDDEN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/m-eval-hidden-tests.md).
-
-## Troubleshooting
-
-**"non-agentic result: 0 turns, 0 tool calls"**
-
-The executor ran but the agent produced 0 tool calls — it either:
-- Printed an answer directly instead of writing a file (0-shot behavior)
-- Failed to auth (no key / expired token) and exited immediately
-- Used the wrong model string (`google/` instead of `google-vertex/` for opencode)
-
-Run the verify command for that harness above and check the raw event output.
-
-**Codex: "openai: 401 Unauthorized"**
-
-`OPENAI_API_KEY` is not set or expired. Check `echo $OPENAI_API_KEY`.
-
-**opencode-gemini: "ProviderModelNotFoundError"**
-
-You're using `google/...` instead of `google-vertex/...`. Check `agent_model_name`
-in `models.yml`.
+| Topic | Behavior / Fix |
+|---|---|
+| **`grade_entrypoint` (agent-only)** | Auto-skipped by standard-mode `eval-suite`; forced runs short-circuit with `error_category: skipped_mode_incompatible` |
+| **`hidden_tests_dir` & `exec_timeout`** | Runs held-out `<name>.in`/`.ans` smallest-first without leaking to prompts (`hidden_total`, `hidden_passed`, `hidden_first_fail`). Set `exec_timeout: 30` to override default 10s AILANG vs 30s Python limits; avoid `data/` or `.out` (`.gitignore`d). See [M-EVAL-HIDDEN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/m-eval-hidden-tests.md) |
+| **0 turns, 0 tool calls** | Agent printed text instead of editing, failed auth (`OPENAI_API_KEY` / ADC), or used wrong prefix (`google/` instead of `google-vertex/`) |

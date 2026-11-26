@@ -4,6 +4,7 @@ title: Fine-tuning AILANG models
 description: Research log for training small, local AILANG-expert models — what we measured, what we decided, and what we publish.
 reviewed: 2026-11-25
 reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Fine-tuning AILANG models

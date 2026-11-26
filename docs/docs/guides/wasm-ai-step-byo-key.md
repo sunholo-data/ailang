@@ -2,7 +2,8 @@
 title: Browser ai.step (BYO API key)
 description: Call the typed std/ai Step API from browser-AILANG via direct provider HTTP fetch with the user's localStorage API key
 sidebar_label: WASM ai.step (BYO key)
-reviewBy: 2026-12-07
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Browser `ai.step` with BYO API key
@@ -17,7 +18,7 @@ This is the proven [`ai.call` BYO-key pattern](./wasm-integration#aihandler) ext
 
 For server-mediated calls (centralized cost tracking, no CORS limitations, full tool dispatch on backend), see [M-WASM-AI-STEP-VIA-MESSAGES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md) — the complementary message-bus path.
 
-## What ships in v0.19.0
+## Global JS Hooks
 
 Three new global JS hooks register the JS-callback handlers that fetch the provider:
 

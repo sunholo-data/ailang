@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
-reviewBy: 2027-01-11
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # State System & Multi-Session Workflows
@@ -149,9 +151,7 @@ You: "Start the sprint"
   .ailang/state/sprints/sprint_M-TESTING-INLINE.json
 
 ✓ Shows summary:
-  ╔═══════════════════════════════════════════╗
-  ║  Sprint M-TESTING-INLINE                  ║
-  ╚═══════════════════════════════════════════╝
+  === Sprint M-TESTING-INLINE ===
 
   Status: not_started
   Progress: 0/2 milestones
@@ -196,9 +196,7 @@ You: "Continue the sprint"
 ✓ Loads JSON state (no inbox check needed - state is current)
 
 ✓ Shows "Here's where we left off":
-  ╔═══════════════════════════════════════════╗
-  ║  Sprint M-TESTING-INLINE                  ║
-  ╚═══════════════════════════════════════════╝
+  === Sprint M-TESTING-INLINE ===
 
   Status: paused
   Progress: 1/2 milestones complete
@@ -222,26 +220,13 @@ You: "Continue the sprint"
 
 ## Directory Structure
 
-```
-your-project/
-├── .claude/                    # Claude Code skills (IDE-local)
-│   └── skills/
-│       ├── sprint-planner/     # Creates plans & handoffs
-│       └── sprint-executor/    # Executes plans, tracks progress
-│
-├── .ailang/                    # AILANG state (persistent)
-│   └── state/
-│       ├── sprints/            # Sprint progress tracking
-│       │   ├── sprint_M-TESTING-INLINE.json
-│       │   ├── sprint_M-DX11.json
-│       │   └── sprint_M-POLY-B.json
-│       │
-│       └── collaboration.db    # Agent messaging (SQLite)
-│
-└── design_docs/
-    └── planned/v0_4_2/
-        └── M-TESTING-INLINE-COMPLETION-SPRINT.md
-```
+| Path | Owner | Purpose |
+|------|-------|---------|
+| `.claude/skills/sprint-planner/` | Claude Code (local) | Creates sprint plans and handoff messages |
+| `.claude/skills/sprint-executor/` | Claude Code (local) | Executes sprint plans and updates progress |
+| `.ailang/state/sprints/sprint_*.json` | AILANG state | Persistent milestone pass/fail and LOC velocity |
+| `.ailang/state/collaboration.db` | AILANG state | SQLite inbox and inter-agent messages |
+| `design_docs/planned/<version>/*.md` | Git repository | Sprint design specs and implementation plans |
 
 ## Inspecting State from the Command Line
 

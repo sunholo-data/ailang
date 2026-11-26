@@ -1,6 +1,6 @@
 ---
-reviewed: 2026-11-10
-reviewBy: 2027-02-10
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Hosted AILANG executor
@@ -125,7 +125,7 @@ from that tab.
 
 ### Others
 
-**Gemini Enterprise.** Since v0.60.1 this server accepts pre-registered clients, which Gemini
+**Gemini Enterprise.** This server accepts pre-registered clients, which Gemini
 Enterprise needs, in two ways. As a **custom MCP data store**, its tools become actions in an
 Agent Designer agent. As an **A2A agent** ("AILANG Executor", card at
 `https://executor.ailang.sunholo.com/.well-known/agent-card.json`), Gemini Enterprise hands it a

@@ -4,6 +4,7 @@ title: Field notes (what fine-tuning is like day to day)
 description: Lessons from running AILANG fine-tunes, each drawn from something that actually happened - where the time goes, why the score lies, and the habits that kept the work honest.
 reviewed: 2026-11-25
 reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Field notes: what fine-tuning is like day to day

@@ -1,1053 +1,148 @@
 ---
 sidebar_position: 11
 title: Debugging Guide
-description: Complete guide to debugging AILANG with environment variables and tools
-reviewBy: 2027-02-15
+description: Complete guide to debugging AILANG with agent repair tools, environment variables, traces, and sandbox checks
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AILANG Debugging Guide
 
-Complete guide to debugging AILANG with environment variables and tools.
+Diagnose and repair AILANG programs using the agent inspection/repair CLI (`inspect`, `check --fix`, `--emit-trace jsonl`), ghost `Debug` logging, compiler debug flags, and `AILANG_FS_SANDBOX` diagnostics.
+
+## Agent Inspect, Repair & Trace Workflow
+
+```mermaid
+flowchart LR
+    I["ailang inspect --format=agent file.ail\n(types, exports, ! {Effects}, contracts)"] --> C["ailang check --format=agent file.ail\n(compact 1-line errors)"]
+    C -->|"mechanical errors\n(missing ! {Effects}, ++, TC_MATCH_002)"| F["ailang check --fix file.ail\n(applies deterministic edits in place)"]
+    F --> C
+    C -->|"type / runtime check passes"| T["ailang run --emit-trace jsonl --caps IO file.ail\n(structured function, effect & contract events)"]
+    T --> R["ailang replay trace.jsonl\n(verify determinism)"]
+```
+
+| Command | Purpose | When to use |
+|---|---|---|
+| `ailang inspect --format=agent <path>` | Emit compact semantic X-ray (types, exports, `! {Effects}`, `requires`/`ensures`, callees) | Orient in `<100 ms` without reading full files |
+| `ailang check --format=agent <file>` | Compact one-line diagnostics (`--json` includes machine `TextEdit`s) | Fast AI/CI error triage |
+| `ailang check --fix <file>` | Apply deterministic edits in place (up to 4 passes): `! {Effects}` stamping, `++` → `"${...}"`, `TC_MATCH_002` `_?` stubs, `PAR017`/`PAR018`/`IMP010` | Auto-repair mechanical compiler errors |
+| `ailang run --emit-trace jsonl --caps IO <file>` | Stream JSONL execution events (`stdout` = trace, `stderr` = program output) | Inspect runtime calls, effects, and [Execution Traces](./traces.md) |
 
 ## Debug Ghost Effect (In-Program Logging)
 
-The `Debug` effect is a **ghost effect** — use it instead of `IO` (println) for logging. It's fully invisible: no `! {Debug}` in signatures, no `--caps Debug` needed, no `[effects].max` config.
+`Debug` is an invisible **ghost effect** — no `! {Debug}` is required from callers, no `--caps Debug` is needed, and output prints to **stderr** after execution.
 
 ```ailang
 import std/debug (log, check)
 
--- Or use sunholo/logging for structured JSON:
--- import pkg/sunholo/logging/logger (info, warn, infoWith)
-
 func processData(x: int) -> int {
-  log("processing ${show(x)}");     -- ghost: invisible to callers
+  log("processing ${show(x)}");       -- invisible to callers
   check(x > 0, "x must be positive"); -- recorded, doesn't throw
   x * 2
 }
 ```
 
-Debug output is collected by the host and printed to **stderr** after execution. Control it with:
-
 ```bash
-# See all debug output (default)
-ailang run --caps IO --entry main app.ail
-
-# Filter by severity (works with sunholo/logging JSON output)
-ailang run --caps IO --log-level warn --entry main app.ail
-
-# Suppress all debug output
-ailang run --caps IO --log-level none --entry main app.ail
-
-# Erase debug calls entirely (zero cost, production)
-ailang run --release --caps IO --entry main app.ail
+ailang run --caps IO --entry main app.ail                    # all debug output
+ailang run --caps IO --log-level warn --entry main app.ail   # filter sunholo/logging JSON severity
+ailang run --release --caps IO --entry main app.ail          # zero-cost erase in release
 ```
 
-The `sunholo/logging` package provides structured JSON logging (`info`, `warn`, `err`, `trace`, `infoWith`, etc.) that integrates with `--log-level` filtering and Cloud Run log aggregation:
-```bash
-ailang install sunholo/logging@0.4.0
-```
-
-## Debug Flags
-
-AILANG provides environment variables for verbose debugging and strict error checking.
-
-### `DEBUG_STRICT=1` - Catch Silent Failures Early
-
-**What it does**: Makes incomplete switch statements and unhandled cases **fail loudly** with panic instead of silently returning unchanged values.
-
-**When to use**:
-- During development of new compiler passes
-- When debugging AST traversal code
-- To catch missing cases in switch statements
-- In CI to enforce completeness
-
-**Example**:
-```bash
-# Normal mode - unhandled cases return unchanged (silent failure)
-$ ailang run test.ail
-# ✓ May complete successfully even with bugs!
-
-# Strict mode - unhandled cases panic immediately
-$ DEBUG_STRICT=1 ailang run test.ail
-panic: cloneExpr: unhandled node type *core.Record (NodeID 42).
-    Add a case for this type or explicitly mark as unsupported.
-# ✓ Bug caught immediately!
-```
-
-**Affected functions** (as of v0.4.1):
-- `internal/pipeline/specialize.go`:
-  - `cloneExpr()` - Cloning during monomorphization
-  - `specializeExpr()` - Specializing expressions
-
-### `DEBUG_MONO_VERBOSE=1` - Monomorphization Tracing
-
-**What it does**: Logs detailed information about monomorphization (polymorphic function specialization).
-
-**When to use**:
-- Debugging type substitution issues
-- Understanding which functions are specialized
-- Tracking down operator re-linking problems
-
-**Example**:
-```bash
-$ DEBUG_MONO_VERBOSE=1 ailang run --entry main --debug-compile test.ail
-[DEBUG_MONO_VERBOSE] Found lambda, type=α2 -> α2 -> α2, isPoly=true
-[DEBUG_MONO_VERBOSE] lambda type from CoreTI: α2 -> (α2 -> α2)
-[DEBUG_MONO_VERBOSE] extracted paramTVars: [α2]
-[DEBUG_MONO_VERBOSE] typeSubst built: map[α2:float]
-[DEBUG_MONO_VERBOSE] Cloning DictApp: method=gt
-[DEBUG_MONO_VERBOSE]   Original DictRef: class=Ord, type=Int, NodeID=15
-[DEBUG_MONO_VERBOSE]   Cloned DictRef: class=Ord, type=float, NodeID=42
-```
-
-### `DEBUG_OPERATOR_LOWERING=1` - Operator Resolution Tracing
-
-**What it does**: Logs operator lowering decisions (BinOp/DictApp → Intrinsic).
-
-**When to use**:
-- Debugging operator dispatch issues
-- Understanding which builtin is selected
-- Tracking type-guided operator selection
-
-### `DEBUG_PARSER=1` - Parser Token Tracing
-
-**What it does**: Shows ENTER/EXIT for parser functions with current/peek tokens.
-
-**When to use**:
-- Debugging parser token position issues
-- Understanding parser flow
-- Tracking token consumption
-
-**Example**:
-```bash
-$ DEBUG_PARSER=1 ailang run test.ail
-[ENTER parseType] cur=IDENT(int) peek=,
-[EXIT parseType] cur=IDENT(int) peek=,
-[ENTER parseExpression] cur=IDENT(x) peek=+
-[EXIT parseExpression] cur=IDENT(x) peek=+
-```
-
-## Combining Debug Flags
-
-**Recommended combinations**:
-
-```bash
-# Development mode - catch bugs early + verbose output
-$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang run test.ail
-
-# CI mode - strict checking only (no verbose output)
-$ DEBUG_STRICT=1 make test
-
-# Deep debugging - all flags
-$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 DEBUG_OPERATOR_LOWERING=1 ailang run --debug-compile test.ail
-
-# Parser debugging
-$ DEBUG_PARSER=1 ailang run test.ail
-```
-
-## Quick Reference Table
-
-### Environment Variables
-
-| Flag | Purpose | Use When | Output |
-|------|---------|----------|--------|
-| `DEBUG_STRICT=1` | Fail loudly on unhandled cases | Development, CI | Panics with diagnostic |
-| `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues | Specialization details |
-| `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
-| `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
-| `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling | Coordinator approval flow | Poll tracing |
-| `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing | Concurrency issues | Goroutine IDs |
-| `DEBUG_AGENT=1` | Keep agent-eval workspaces after a run (skips cleanup) and trace the agent runner | Inspecting what an agent left behind | Workspace paths retained under the eval dir |
-| `DEBUG_DELIMITERS=1` | Parser delimiter-stack trace | Unbalanced bracket/brace diagnostics | Per-token delimiter events |
-| `DEBUG_DOCSEARCH=1` | Docs-search subdir filter tracing | `ailang docs search` returning the wrong section | Filter decisions per candidate |
-| `DEBUG_EFFECTS=1` | Effect-validation phase tracing | Effect inference disagreeing with the signature | Effect rows per declaration |
-| `DEBUG_EVAL_APP=1` | Function-application tracing in the evaluator | Wrong argument binding, closure capture | Call-by-call values |
-| `DEBUG_LOADER=1` | Module search-path trace | `LDR001` module-not-found | Every path probed, in order |
-| `DEBUG_MATCH=1` | Pattern-match tracing in the evaluator | A `match` arm that should fire but does not | Arm-by-arm decisions |
-| `DEBUG_PARAM_ANNOTS=1` | Parameter-annotation handling in the type checker | Float params inferred as int, annotation ignored | Which annotation was used |
-| `DEBUG_PRELUDE=1` | Prelude loading trace | Prelude symbols missing or shadowed | Prelude phases |
-| `DEBUG_PROCESS=1` | Process effect exec tracing (`exec` was a black hole before cmd.Run returned) | Hanging or silent subprocesses | Spawn/wait/exit events |
-| `DEBUG_PROMPT=1` | Print the assembled eval prompt | Eval prompt content questions | The prompt as sent |
-| `DEBUG_TYPENAME=1` | Type-name assignment during substitution | Auto-named types colliding | Signature/name decisions |
-| `AILANG_LIVE_NET=1` | Test lane only (`internal/testutil`): opt a test into live network access; also fails the test if the poison proxy is still configured | Running live-network tests deliberately | Skip otherwise |
-| `AILANG_STATE_DIR=/path` | Relocate the per-user state tree (coordinator/collaboration/observatory DBs, mission pid files, ledgers); default `~/.ailang/state`, resolved ONLY by `internal/statedir` | Isolating a run from the machine's live state; two commands disagreeing about which `coordinator.db` is real | Every store opens under that dir; unresolvable (no var, no HOME) is an error, never `./.ailang/state` |
-| `AILANG_CLOUD_PROJECT=<id>` | The GCP project a process acts on; precedence `AILANG_CLOUD_PROJECT` > `GOOGLE_CLOUD_PROJECT` > `~/.ailang/config.yaml` `pubsub.project_id` > GCE metadata, resolved ONLY by `internal/config` | Any Firestore/Pub/Sub/Cloud Run command; `ailang storage status` prints the value AND its source | Unresolvable → `config.ErrNoCloudProject` (names what to set); never a default |
-| `AILANG_CLOUD_REGION=<region>` | Cloud Run region (`AILANG_CLOUD_REGION` > `GOOGLE_CLOUD_REGION`, else the deprecated `europe-west1` default with a warning) | Config rolls, dispatcher | One stderr deprecation warning per process when defaulted |
-| `AILANG_STRICT_CONFIG=1` | Refuse every deprecated production default (D3 ruling: warn in v0.39, hard error in v1.0.0) — rehearses the v1.0.0 failure today | Proving a plist or Cloud Run env is complete before v1.0.0 | Error wrapping `config.ErrDeprecatedDefault` naming the unset variable |
-| `AILANG_NO_METADATA=1` | Skip the GCE metadata-server step of project resolution | Tests, offline laptops, anywhere the 500 ms probe is unwanted | Resolution stops at the config file |
-| `COORDINATOR_API_KEY=<token>` | Bearer token for the coordinator daemon's HTTP API (`/status`, `/pending`, `/chains/*`, `/api/messages`); compared in constant time and **fail-closed** — unset means every request is rejected, not admitted (M-V1-SIMPLIFY-S3 M5; before that unset meant open). `/health` and the OIDC-guarded `/instances/*` routes are unaffected. Also the `?token=` for non-same-origin WebSocket clients on the dashboard | Any caller of the daemon HTTP API; `make coord-install` writes one into the plist and `ailang messages send --requires` reads it from there when the shell has none | Missing/wrong → `401 {"error": ...}` naming the variable; the daemon logs `SECURITY: COORDINATOR_API_KEY is unset` at start |
-| `AILANG_DEFAULT_PROVIDER=<name>` | Provider a coordinator task is attributed to when neither the agent's `provider:` nor the coordinator section's `default_provider` says; labels cost/provider in the observatory and keys the per-provider spend cap. Unset → the deprecated `claude` default (M-V1-SIMPLIFY-S4 M1) | Coordinator daemon; agents dispatched without a declaration | One stderr deprecation warning per process; under `AILANG_STRICT_CONFIG=1` the task is marked failed with `config.ErrDeprecatedDefault` |
-| `AILANG_BUDGET_UNLIMITED=1` | Acknowledges that coordinator tasks may run with NO spend cap. Every path where the cap disappears (unreadable `budgets:` config, zero limits at both provider and global level, a failed spend lookup) logs why; without this variable that is the deprecated "unlimited" default | Deliberately uncapped installs (dev boxes); otherwise configure `budgets.providers.<p>.daily_budget` | Warned once per process; under strict the task is refused (marked failed) instead of running unlimited |
-| `AILANG_WORKSPACE=<org/repo>` | The partition a cloud process files its data under: the Pub/Sub broadcaster's event workspace (daemon) and the execute-job's completion workspace (`coordinator execute-job`). Unset → the deprecated `default` | Cloud Run jobs and the shared-plane daemon | Warned once; under strict the broadcaster fails to init / the job refuses BEFORE Pub/Sub exists (`COMPLETION_FAILED\|…`) |
-| `AILANG_APPROVAL_TIMEOUT=<duration>` | How long an approval request waits for a human when neither the request nor `NewApprovalCheckpoint` gives a timeout (`24h`, `90m`). Unset → the deprecated `1h`; a set-but-unparseable value is an error, never `1h` | Coordinator approval checkpoints built with a zero default | Warned once; under strict only the request that NEEDS the default is rejected with `config.ErrDeprecatedDefault` — requests carrying their own `Timeout` proceed |
-| `AILANG_EMBED_OPENAI_MODEL` / `AILANG_EMBED_GEMINI_MODEL` | The OpenAI / Gemini embedding model (env > `embeddings.<provider>.model` in `config.yaml`). The model FIXES the vector dimension (1536 / 768): a brain indexed under one model and queried under another returns silently wrong neighbours — so the old hard-coded `text-embedding-3-small` / `text-embedding-004` are deprecated defaults, not conveniences. Ollama's is `AILANG_OLLAMA_MODEL` | Any `AILANG_EMBED_PROVIDER=openai\|gemini` install | Warned once (plus one line naming the dimension hazard); under strict `NewEmbedderFromConfig` returns `config.ErrDeprecatedDefault` |
-| `GOOGLE_CLOUD_LOCATION=<location>` | Vertex AI location for `internal/ai/gemini` (`WithLocation` > this > the deprecated `global`). Decides the regional endpoint, data residency and per-region pricing | Vertex ADC Gemini calls | Warned once; under strict `NewVertexAIClient` returns an `ai.ProviderError` wrapping `config.ErrDeprecatedDefault` |
-| `AILANG_BIN=/path/to/ailang` | The binary the agent-eval grade probe runs (`gradeInWorkspace`). Unset, the PATH `ailang` is looked up and its RESOLVED path served as a deprecated default — the stale-binary trap, where last week's `~/go/bin/ailang` grades this week's benchmarks | Any agent-mode eval; pin it to the build under test | The warning names the resolved binary; under strict grading refuses (`[harness_setup] grade: …`). No `ailang` on PATH is an error in both modes |
-| `AILANG_APPROVAL_URL=<url>` | Service serving `/api/approvals` (the dashboard) for the networked `secret()` gate; falls back to `AILANG_COORDINATOR_URL`. On the shared plane (`AILANG_STORAGE=gcp\|hybrid`) with NEITHER set, `secret()` is un-gated — the deprecated default (M-V1-SIMPLIFY-S4 M1) | Every shared-plane process that may call `secret()` | Warned once; under strict a denying approver is installed so each `secret()` fails with `config.ErrDeprecatedDefault` while programs that never call it are untouched |
-
-### Ollama Streaming Timeouts (v0.34.0)
-
-Local-model turns on the eval rig are long: a `qwen3.6:35b` thinking turn can run
-well past the buffered path's 300s default cap. A single total-duration clock
-cannot tell **"the model is thinking hard"** from **"the connection is wedged"**,
-so it is either too short (a healthy turn is killed at 4m59.97s) or too long
-(a wedged stream hangs for hours). The streaming `/v1` path replaces one coarse
-clock with three sharp ones.
-
-| Flag | Purpose | Use When | Default |
-|------|---------|----------|---------|
-| `AILANG_OLLAMA_V1_STREAM=1` | Opt into the streaming ollama `/v1` path. Exactly `"1"` opts in — anything else keeps today's buffered path with byte-identical requests | Long local-model turns timing out mid-generation | **off** |
-| `AILANG_OLLAMA_IDLE_TIMEOUT_SEC` | Max silence **between** bytes. Trips a typed `idle-timeout` — this is the "wedged" detector | A hung stream should fail fast instead of burning the whole budget | `120` |
-| `AILANG_OLLAMA_TTFT_TIMEOUT_SEC` | Max silence **before the first byte**. Long on purpose: a cold 35B load under GPU contention legitimately takes minutes | Cold-start false trips | `600` |
-| `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` | Total budget for the whole call — **but its meaning changes with the flag**, see below | Bounding worst-case wall clock | `300` off / `3600` on |
-
-:::warning `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` means two different things
-
-- **Flag off (buffered `/v1`)** — an HTTP client timeout and whole-call cap,
-  default **300s**, where `0` (or negative) means *no timeout at all*.
-- **Flag on (streaming `/v1`)** — the **mandatory hard deadline** on the stream,
-  default **3600s**, where `0`, a negative, or an unparseable value is
-  **rejected at client construction** with a typed configuration error and **no
-  HTTP request is sent**. An unbounded stream is precisely the hang the guard
-  exists to prevent, so there is deliberately no "disabled" setting here.
-
-The practical consequence: a value that was a safe raise on the buffered path
-becomes a **ceiling** on the streaming path. Auditing a config, read the flag
-first. This is why the rig's launchd plists dropped their `1800` stopgap pin in
-the same edit that added the flag — 1800s sits below the worst-case legitimate
-request and would have re-created the timeout it was added to fix.
-:::
-
-:::danger Two delivery sites — clearing one does not clear the other
-
-On the eval rig this variable reaches a job by **two independent paths**, and
-they must be audited separately:
-
-1. **The plist**, via `EnvironmentVariables` in `tools/launchd/*.plist`.
-2. **The launchd user-domain global**, set once by `launchctl setenv` and
-   inherited by every job in the domain. **No plist edit touches it**, it
-   survives reboots of the job, and it is invisible to any `grep` over the repo.
-
-Editing the plists alone is therefore *not* enough to remove a pin — it silently
-keeps applying from site 2. Check the live value before trusting a config:
-
-```bash
-launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC   # empty == not pinned
-launchctl getenv AILANG_NOT_A_REAL_VAR            # control: also empty
-```
-
-Pair the check with a known-unset name as above, so an empty answer is a
-measurement rather than a broken command.
-
-**Clearing site 2 is ordered, and the wrong order is expensive.** Site 2 is
-load-bearing while the streaming flag is off: with the flag unset the buffered
-path runs, `ollamaV1Timeout()` falls back to its **300s** default, and the domain
-global is the only thing raising it for invocations a plist does not cover. So
-turn the flag on **first** — the plists in `tools/launchd/` are *source*, and the
-installed copies under `~/Library/LaunchAgents/` are regular files updated by a
-manual `cp` + `launchctl load`, so editing the repo changes nothing on the rig —
-and only then:
-
-```bash
-launchctl unsetenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC
-```
-
-Doing it the other way round drops those calls back to 300s and re-creates the
-timeout the pin was added to fix.
-
-This is not hypothetical. Both plists were cleaned up and every grep read green
-while the domain global still held `1800`, so streamed requests kept logging
-`hard_deadline_sec = 1800` / `effective_deadline_sec = 1800` instead of the 3600s
-default. The `effective_deadline_sec` read-back is what exposed it — which is
-exactly why that field is read back from the context rather than reported from
-the configured value.
-:::
-
-### Ollama Context Window (`AILANG_OLLAMA_NUM_CTX`)
-
-Pins ollama's `num_ctx`. **Unset (the default) sends no `num_ctx` at all**, so
-ollama sizes the context from the model (measured 2026-08-13: 262144 for
-`qwen3.6:35b-a3b-mxfp8`) — matching the `/v1` lanes pi and opencode already use.
-Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below the
-28k–44k-token prompts the eval harness sends these models.
-
-Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy
-native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns
-route via `/v1`, where `num_ctx` is not expressible. Raise or lower only for
-VRAM: the KV cache scales with it — see **Ollama Memory Budget on the Rig**
-below for the machine-level bound and the panic that established it.
-
-When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
-written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose
-contents are the dump path (it exists because harnesses like motoko's
-`bun`→`ailang` process chain drop our custom env, but `HOME` always propagates)
-— each streaming request appends a `"kind":"stream_metrics"` JSONL record with
-`ttft_ms`, `max_gap_ms`, `total_ms`, `bytes`, the delta counts, and both
-`hard_deadline_sec` (configured) and `effective_deadline_sec` (**read back** from
-the request context). Those numbers are the evidence for whether the three
-defaults above are right. If the two deadline fields disagree, something upstream
-is capping the stream — a run killed at ~300s with the flag on means the deadline
-never reached the wire, which is a harness bug, not a model one.
-
-:::caution The sentinel makes the log a shared global sink
-
-Because the sentinel is keyed on `HOME`, **every** `ailang` process on the machine
-writes to the same file — including `go test ./internal/ai/...`, whose `httptest`
-fake servers emit real `stream_metrics` records. A unit-test run during a field
-capture therefore pollutes the capture. This happened on 2026-08-11: 10
-test-generated records landed in the middle of a live rig measurement.
-
-They were separable only by their **window fields**: tests use non-production
-values (`idle_window_sec: 1`, `ttft_window_sec: 2` or `3`) against a real run's
-`120` / `600`. Filter on those before analysing a capture:
-
-```bash
-jq -c 'select(.kind=="stream_metrics" and .idle_window_sec==120)' "$LOG"
-```
-
-Prefer an explicit `AILANG_OLLAMA_LOG_REQUESTS=<path>` per capture where the
-harness propagates env; reach for the sentinel only when it does not, and remove
-it when the capture ends.
-:::
-
-### Ollama Memory Budget on the Rig (`OLLAMA_GPU_OVERHEAD`, `OLLAMA_CONTEXT_LENGTH`)
-
-The section above tunes `num_ctx` per request for **quality** — don't truncate the
-28k–44k-token prompts the harness sends. These two **server-side** variables bound
-what ollama may consume on the *machine*, and they are what stands between a local
-eval and a kernel panic.
-
-Measured 2026-09-03, after the rig panicked at 02:23 (incident `561F0912`):
-
-- ollama claims **84% of unified memory** as VRAM — `total="107.5 GiB"` of 128 GiB —
-  and by default reserves nothing for anything else: `overhead="0 B"`.
-- Because that budget looks large, it auto-selects the model's full native context:
-  `msg="vram-based default context" total_vram="107.5 GiB" default_num_ctx=262144`.
-  This is not ollama over-reaching — 262144 *is* `qwen3.8:27b`'s trained maximum.
-- At 256k that runner peaked at **90.39 GiB** (max of 2,322 `peak memory` samples),
-  leaving ~38 GB for the desktop, the agent fleet and the eval harness. Memory ran
-  out, the pager stopped making progress (20 pages reclaimed of 3,088 wanted), and
-  the hardware watchdog panicked the machine.
-
-**`OLLAMA_GPU_OVERHEAD` is admission control, not a runtime limit.** It is a
-bookkeeping subtraction inside the scheduler, not an allocation — nothing is held,
-and every other process still sees the full machine:
-
-```
-available="45.3 GiB"   free="77.8 GiB"   overhead="32.0 GiB"
-```
-
-`free` is real free VRAM; `available = free − overhead` is only what ollama will
-*consider* when deciding whether a model fits. A model admitted under that budget
-can still grow past it as the KV cache fills — which is precisely what the 90 GiB
-peaks were.
-
-**`OLLAMA_CONTEXT_LENGTH` is the runtime bound**, because KV size is a direct
-function of context length. Both are required: the reservation stops ollama loading
-something too big, the context length stops what it *did* load from growing into
-the reservation.
-
-Current rig values (`~/Library/LaunchAgents/dev.ollama.serve.plist`):
-
-| Variable | Value | Why |
-|----------|-------|-----|
-| `OLLAMA_GPU_OVERHEAD` | `34359738368` (32 GiB) | headroom for desktop + agent fleet + harness |
-| `OLLAMA_CONTEXT_LENGTH` | `131072` | halves KV against the 256k native max; largest prompt ever observed was 108,738 tokens |
-| `OLLAMA_MAX_LOADED_MODELS` | `2` | keeps the embedder resident — see "Embedder evicts the eval LLM" |
-
-Sizing a new model is one inequality: `weights + KV(context) < available`. Raising
-context is safe only while that holds. A 1M-context model's KV alone would exceed
-this machine no matter how these are set — at that point it is hardware talking,
-not configuration.
-
-:::caution No swap on the rig — there is no warning phase
-
-`/private/var/vm` is empty and ollama logs `free_swap="0 B"` on every sample. A
-machine with swap thrashes audibly before it dies and someone notices; this one
-goes straight from healthy to wedged. The kernel's own `memoryPressure` flag also
-read **false** throughout the panic, so never key a guard to it — use free pages
-and reclaim rate instead.
-:::
-
-:::caution `OLLAMA_CONTEXT_LENGTH` is applied but UNPROVEN (2026-09-03)
-
-After the change ollama still logged `default_num_ctx=262144` against the reduced
-75.5 GiB budget, and small-prompt probes cannot discriminate — a 33-token prompt
-populates almost no KV, so load peak barely moves either way. The discriminating
-test is a real large-context eval: a peak near **59 GiB** means the cap is working,
-near **90 GiB** means it is not. Do not record this as fixed until that
-measurement exists.
-:::
-
-### Fleet Memory Admission (`MISSION_MIN_AVAIL_GB`, `MISSION_BOOT_WINDOW`)
-
-Capping ollama moved the ceiling; it did not remove it. In the two days after the
-caps landed the rig hit `JetsamEvent` three times — 2026-09-04 05:08, 09-05 08:29,
-09-05 09:23 — at ~60 MB free each time.
-
-ollama was **not** the growth term any more. Its physical footprint was
-**25.77 GB at all three events, identical to two decimals**: flat, under load, days
-apart. What filled the machine was 46 GB wired plus a compressor holding **131 GB**
-of logical pages, while only 37 GB was resident across 566 processes. The largest
-identifiable population was ours — **22 concurrent Claude Code processes**, 12.7
-CPU-hours between them.
-
-The structural cause is in the plists. Every mission carries `RunAtLoad=true`,
-deliberately: it is what restores the cadence after a reboot (the 18h outage of
-2026-07-20). The cost is that a boot or GUI login fires **all four missions within
-seconds**. The motoko plist recorded exactly this on 2026-08-17 (world 20:55:45, v1
-20:55:49, motoko 20:55:50) and fixed the steady-state half with non-harmonic
-`StartInterval`s — 5400 / 14400 / 21600 / 46800. The boot half was never fixed, and
-on 09-05 all four fired together again: 33 `claude` processes inside ten minutes.
-
-`tools/launchd/mission-control.sh` now gates both, as two deliberately separate
-mechanisms:
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `MISSION_BOOT_WINDOW` | `900` | Seconds after boot during which the stagger applies. Outside it the offset is not taken at all, so the tuned non-harmonic phase is untouched. |
-| `MISSION_MIN_AVAIL_GB` | `16` | Refuse to start an iteration below this much available memory. |
-| `MISSION_MAX_COMPRESSED_GB` | `48` | Refuse when the compressor already holds this much — the arm for a box that is paging hard while `inactive` still looks healthy. |
-| `MISSION_MEM_WAIT` | `600` | Wait this long for room before yielding the slot. A transient spike should delay a fire, not cancel it: skipping outright costs motoko 13h. |
-| `MISSION_MEM_POLL` | `60` | Re-check interval while waiting. |
-
-Boot offsets are v1 0s · world 420s · docs 840s · motoko 1260s. The 7-minute spacing
-exceeds the worst measured controller preamble (a v1 slot burned 240s on opus
-probes), so each mission's spawn burst finishes before the next begins. v1 is 0
-because it has the shortest interval and the deepest ladder.
-
-:::tip Available memory is not `free`
-
-The gate reads `free + inactive + speculative + purgeable`. A **free-only** threshold
-cannot be set sanely: at the 09-05 09:23 event free was 4,030 pages (66 MB) while
-506,169 pages (7.7 GB) sat reclaimable in `inactive`. With the full expression the
-two states are two orders of magnitude apart — **7.8 GB** at each OOM event, **104 GB**
-on a healthy idle box — so the threshold is not delicate.
-
-Do not use the kernel's `memoryPressure` flag: it read `false` throughout the 09-03
-panic.
-:::
-
-:::caution Thresholds are starting values, not measured ones
-
-Nobody has profiled an iteration's peak footprint. The numbers above are chosen to
-sit far from both observed states, and **every fire logs the live values** —
-`memory gate: ok (avail=…MB …)` — so the driver log is what should correct them.
-`tools/launchd/test_mission_memgate.sh` pins the parsers and both refusal arms.
-:::
-
-:::caution The driver pin delays any fix here
-
-The loops re-exec out of `~/.ailang-driver-pin/<mission>/`, a worktree at *committed
-`origin/dev`*. A driver edit therefore changes nothing until it is committed **and
-pushed** — a local-only commit leaves every mission running the old script. Check
-with `git -C ~/.ailang-driver-pin/v1 log --oneline -1`.
-:::
-
-### CLI Flags
-
-| Flag | Purpose | Use When |
-|------|---------|----------|
-| `--debug-compile` | Show compilation phases/timing (see also [Telemetry](/docs/guides/telemetry)) | Performance issues |
-| `--debug-types` | Type inference debug output | Type mismatch errors |
-| `--debug-types --node N` | Filter to specific node ID | Investigating specific node |
-| `--trace` | Type-defaulting tracing | Type inference debugging |
-| `--trace-tier` | Tracing tier: `off`, `standard`, `deep` (v0.12.0+) | Observability control |
-| `-cpuprofile FILE` | Write Go CPU profile | Performance profiling |
-| `-memprofile FILE` | Write Go memory allocation profile | Allocation profiling |
-
-:::tip Performance
-Function-level tracing (tier `deep`) adds ~2x overhead on average and up to ~6×
-on data-intensive list pipelines. As of v0.12.0 the **default is `standard`**,
-which skips per-call spans. For benchmark measurements, disable tracing entirely
-with `AILANG_NO_TRACE=1` (legacy) or `--trace-tier off`. Opt into per-call spans
-explicitly with `--trace-tier deep` or `AILANG_TRACE=deep` when you need them.
-See [Telemetry: Tracing tiers](/docs/guides/telemetry#tracing-tiers).
-:::
-
-### What each tier records
-
-| Tier | Module / effect / contract spans | Per-call function args and results |
-|------|----------------------------------|------------------------------------|
-| `off` | — | — |
-| `standard` (default) | yes | **no** |
-| `deep` | yes | **yes** — this is its purpose |
-
-**`deep` captures values verbatim.** Every function's arguments and its result are
-rendered to strings and retained. Two consequences worth planning around:
-
-- **Memory is superlinear when a function carries a growing argument.** A recursive
-  accumulator serialises O(n) data on each of n calls. Measured on a 400-iteration
-  `concat(acc, [x])` loop: **2478 MB** at `deep` versus **105 MB** at `standard`.
-  Use `standard` (or `off`) for anything data-intensive.
-- **IFC-labelled values are redacted, within a module** (`M-TRACE-LABEL-AWARE`, v0.36.0).
-  The IFC checker marks every call that receives, captures or returns a labelled value
-  (`string<secret>`, a record with a `<pii>` field, the result of `secret()`), and nothing
-  in that call's dynamic extent records a value: function args/results and effect
-  args/results become `<redacted:secret>`, while names, arity and the span tree are kept.
-  This applies at every tier, including effect spans at `standard`. It over-redacts by
-  design — an unlabelled value computed *inside* a labelled call is withheld too.
-  This holds across user modules: a labelled value a library returns is redacted in the
-  importer's trace too (`m-ifc-cross-module-labels`). **Not covered yet:** the bytecode VM does not
-  carry the marks, so a traced labelled program falls back from `--bytecode` to the
-  evaluator, and `--strict-bytecode` refuses it. For a guarantee that does not depend on
-  the checker, use `AILANG_TRACE_VALUES=off` (below).
-
-Before v0.36.0 the tier was resolved but never reached the collector, so `standard`
-recorded per-call values too. If you are on an older binary, `--trace-tier off` is the
-only setting that avoids it. The per-tier behaviour above is now pinned by
-`TestTierGovernsWhatIsRecorded` (`internal/trace/tier_enforcement_test.go`).
-
-**Effect args and results are recorded at every tier above `off`** — a `readFile` span carries
-what was read. The tier does not gate them; `AILANG_TRACE_VALUES` does (and, for labelled
-values, the IFC redaction above).
-
-### Tracing under confidentiality terms
-
-`AILANG_TRACE_VALUES=off` records the **complete call tree with no payloads**. It is orthogonal
-to the tier, so the useful setting for a workload handling credentials or client data is:
-
-```bash
-AILANG_TRACE=deep AILANG_TRACE_VALUES=off ailang run --caps ... prog.ail --emit-trace jsonl
-```
-
-Every function, every effect, arity, depth, span parentage and timings are retained. Each
-argument and result becomes a size descriptor:
-
-```json
-{"event":"effect","effect":{"effect_name":"Net","op_name":"httpRequest",
- "args":["<redacted:46 bytes>"],"result":"<redacted:2 bytes>"}}
-```
-
-Measured on a program handling a bearer token and a client document: **17 trace lines with
-values on, 17 with them off — 8 verbatim copies of the secrets versus 0.** The byte count is
-kept deliberately: it leaks no content, and an empty response, a body that grew between
-retries, or a token of unexpected size all remain visible.
-
-Why a blunt switch rather than redacting only *labelled* values: its guarantee is "the trace
-contains no values", which is explicable in one sentence to someone reading a contract.
-Label-aware redaction (`M-TRACE-LABEL-AWARE`) is more precise but its guarantee is only ever
-"no values the label checker flagged" — worth exactly as much as the checker. For a
-confidentiality engagement, blunt is the stronger claim.
-
-A misspelling (`AILANG_TRACE_VALUES=of`) is an **error**, not a silent default: a typo must not
-turn into a data leak.
-
-### Latency Budget Workloads
-
-`benchmarks/workloads/` holds six self-contained `.ail` programs that act as
-release-gating latency probes — cold start, warm evaluator, type checking,
-IO effect dispatch, and small/large `std/list` pipelines. They are the
-canary suite for "is this commit slower than the last release on a realistic
-program?" and the only suite whose p95 is treated as an SLO.
-
-```bash
-# 5 runs each, write benchmarks/latency_budgets.json
-make bench-workloads
-
-# 3 runs, dry-run, dump JSON to stdout
-make bench-workloads-quick
-
-# Single workload, verbose
-tools/bench_workloads.sh --workload list_large --runs 10 --verbose
-```
-
-The harness always sets `AILANG_NO_TRACE=1`, runs from the project root with
-relative paths (so canonical module IDs match), and discards the first run
-as a warm-up when N≥3. Targets and the dev-pool balance live in
-[`benchmarks/budget_ledger.md`](https://github.com/sunholo/ailang/tree/dev/benchmarks/budget_ledger.md);
-the on-disk JSON is regenerated by `make bench-workloads` and is **not**
-hand-edited. Runs from one machine class are not comparable to another —
-the JSON records `cpu`, `os`, `arch`, and `go` so a different machine's
-measurements never overwrite a baseline silently.
-
-## Memory
-
-Every control on the runtime's memory, what it bounds, and what it does not (M-V1-MEMORY-FOOTPRINT,
-v1.0.0). `ailang doctor memory` prints what a run on this host would resolve.
+## Compiler & Runtime Debug Flags
+
+| CLI Flag | Purpose |
+|---|---|
+| `--debug-compile` | Compilation phase timings (see [Telemetry](./telemetry.md)) |
+| `--debug-types` (`--node N`) | Substitution map, type-class constraints (`Num`/`Ord`), `CoreTI` entries, and type `Origins` |
+| `--trace` / `--trace-tier off\|standard\|deep` | Type-defaulting trace / execution span detail (`deep` captures per-call args & results) |
+| `-cpuprofile FILE` / `-memprofile FILE` | Go CPU and heap profiles |
+
+### Key Environment Variables
+
+| Variable | Purpose | Failure / Output Mode |
+|---|---|---|
+| `DEBUG_STRICT=1` | Panic on unhandled AST/compiler cases | Fails loudly in dev/CI |
+| `DEBUG_MONO_VERBOSE=1` | Monomorphization specialization trace | Prints `typeSubst` & `DictRef` cloning |
+| `DEBUG_OPERATOR_LOWERING=1` | Operator lowering (`BinOp`/`DictApp` → Intrinsic) | Prints builtin selection |
+| `DEBUG_PARSER=1` / `DEBUG_DELIMITERS=1` | Parser token & delimiter-stack tracing | Token consumption and balance |
+| `DEBUG_LOADER=1` / `DEBUG_EFFECTS=1` | Module search-path (`LDR001`) & effect-row tracing | Probed paths / effect inference |
+| `DEBUG_EVAL_APP=1` / `DEBUG_MATCH=1` | Evaluator call binding & pattern-match arm tracing | Argument values / arm choices |
+| `DEBUG_CONCURRENCY=1` / `DEBUG_PROCESS=1` | `serve-api` goroutine Fork/Call/Done & `Process` exec | Lifecycle & spawn/exit events |
+| `AILANG_TRACE_VALUES=off` | Record full span tree with byte sizes instead of values | `<redacted:N bytes>` (typos error loudly) |
+| `AILANG_STRICT_CONFIG=1` | Refuse deprecated config defaults (`ErrDeprecatedDefault`) | Hard-fail rehearsal before rollout |
+| `AILANG_STATE_DIR=/path` | Relocate `~/.ailang/state` (DBs, ledgers, pids) | Errors if unresolvable |
+| `AILANG_CLOUD_PROJECT=<id>` | Override GCP project (`ailang storage status` inspects) | `ErrNoCloudProject` if missing |
+| `COORDINATOR_API_KEY=<token>` | Fail-closed bearer token for daemon/dashboard HTTP & WS | `401` when missing/invalid |
+| `AILANG_FS_SANDBOX_DEBUG=1` | Print rejected paths escaping `AILANG_FS_SANDBOX` | `[ailang/sandbox] REJECT ...` on stderr |
+
+<details>
+<summary>Tracing tiers, IFC redaction, and confidentiality guarantees</summary>
+
+| Tier | Module / effect / contract spans | Per-call args & results | Notes |
+|---|---|---|---|
+| `off` (`AILANG_NO_TRACE=1`) | — | — | Required for latency benchmarks |
+| `standard` (default) | Yes | No | ~105 MB vs 2,478 MB on 400-iter list loops |
+| `deep` | Yes | Yes (bounded to 1 KB/value) | ~2–6× overhead; use `AILANG_TRACE_VALUES=off` when secrets/PII must never enter traces |
+
+IFC-labelled values (`string<secret>`, `secret()`) redact automatically to `<redacted:secret>` across modules at all tiers (`AILANG_TRACE_VALUES=off` is the stronger blanket guarantee). Note that traced labelled programs fall back from `--bytecode` to the evaluator.
+
+</details>
+
+## Type Inference Troubleshooting (`--debug-types`)
+
+Run `ailang run --debug-types --node <id> file.ail` to inspect `Origins:` (`annotation`, `literal`, `inferred`, `defaulted`, `from_use`, `from_pattern`):
+
+| Symptom | Cause in `--debug-types` | Fix |
+|---|---|---|
+| Float math behaves like `int` | `defaulted: defaulted to int (Num constraint)` | Annotate: `let add: float -> float -> float = \x. \y. x + y` |
+| Type mismatch with `α42` | Node `42` has only `inferred: fresh type variable` | Use expression with concrete type or add annotation |
+| Unexpected `+` / `*` dispatch | `Constraint: Num → add/mul` on `NodeID` | Check operand types and explicit signature |
+
+## Memory Controls & Live-Data Pitfalls
+
+Run `ailang doctor memory` to inspect host limits.
 
 | Control | Bounds | Default | Notes |
-|---------|--------|---------|-------|
-| `--max-memory <size\|cgroup>` / `AILANG_MEMLIMIT` | Go's **soft** memory limit (`debug.SetMemoryLimit`) | none | `cgroup` reads the container's `memory.max` (v1: `memory.limit_in_bytes`) × 0.9 on Linux; opt-in, never inferred. Best-effort GC tuning: the collector works harder as total memory nears it. It is **not** a hard bound, a per-request bound or a request-failure mechanism — reachable data can exceed it and the kernel OOM killer still ends the process. |
-| `GOGC` | GC trigger (heap growth before a cycle) | Go's 100; `run`/`exec` raise it to 500 when unset | 500 buys ~25 % on short CLI runs at ~24 MB extra floor and up to 6× live heap of garbage before a cycle. `serve-api` keeps 100. The trigger is min(GOGC target, limit target), so a limit does not override GOGC below it. |
-| `--fs-max-bytes <size>` / `AILANG_FS_MAX_BYTES` | Every FS read | unbounded (CLI); the upload cap (serve-api) | Oversize is `E_FS_FILE_TOO_LARGE` with the size and the cap; the check is on what was read, so a growing file is rejected, never truncated. |
-| `--net-max-bytes <size>` / `AILANG_NET_MAX_BYTES` | Each HTTP response body (`run` and `serve-api`) | 5 MB | `BodyTooLarge(<cap>)` / `E_NET_BODY_TOO_LARGE`. Fully buffered, not streamed: the bytes and the `body` string are both held, so a response costs at least twice its size until the program drops it. |
-| serve-api upload cap (`--max-upload`) | Request body | 50 MB | Enforced on the body; a string-param file part streams to its temp file (one copy on disk, none in RAM). |
-| Trace value cap / retention | Each rendered trace value; retained events | 1 KB; 32 MB | Values are rendered **bounded** at the site (`eval.ShowBounded`), so the whole value never exists. Exporters read the observer stream and see everything. |
-| `--max-recursion-depth` | AILANG call depth | 10,000 | Each frame costs ≈ 6–7 KB of Go stack and **keeps every binding of that frame alive until the recursion unwinds** — see below. |
-| `AILANG_EVAL_MAX_RSS` | Process-group RSS of generated code | 8G | Eval harness only. |
-
-**What a memory limit cannot fix.** Live data. Two shapes dominate:
-
-- **Build-by-prepend** (`n :: acc` recursion): every frame holds its own copy of the accumulator,
-  so live memory is O(n²). Depth 9,000 measured 772 MB on the rig; `--max-memory 64MB` spent 11 s
-  in GC and changed nothing. The structural fix is M-LIST-CONS-QUADRATIC; until then build with
-  `foldl`/`map`, which run iteratively in Go.
-- **Per-item work inside a *non-tail* recursive loop**: a `let s = readFile(...)` in each frame
-  stays reachable until the whole loop returns when the recursive call is not in tail position.
-  Before tail calls shipped (v0.52.0), 40 reads of a 20 MB file peaked at 870 MB. A *tail*-recursive
-  loop now frees each iteration's bindings. Measured 2026-10-28, the same 40 × 20 MB loop with the
-  recursive call in tail position peaked at 329 MB on the evaluator and 53 MB under
-  `--strict-bytecode`. If the loop cannot be made tail-recursive, put the per-item work in a
-  function the loop *calls* (`foldlE(step, ...)`, `mapE`): the binding dies with the callee's frame.
-
-**Measuring.** Peak RSS is the number: `/usr/bin/time -l ailang run …` (macOS, bytes) or
-`/usr/bin/time -v` (Linux, KB). Compare against the same program with the suspect feature off;
-a ratio is robust to the ~50 MB process floor. `GODEBUG=gctrace=1` shows whether a high peak
-is garbage (many cycles, low live) or live data (few cycles, high live). `cmd/ailang/memprobe_test.go`
-pins three ratios and runs in `make test`.
-
-## CLI Debug Flags
-
-In addition to environment variables, AILANG CLI provides debug flags:
-
-```bash
-# Show compilation phases
-ailang run --debug-compile file.ail
-
-# Enable execution tracing
-ailang run --trace file.ail
-
-# Type-check only (no execution)
-ailang check file.ail
-
-# Show module interface
-ailang iface mymodule
-
-# Type inference debugging (v0.5.11+)
-ailang run --debug-types file.ail
-ailang run --debug-types --node 42 file.ail  # Filter to specific node
-```
-
-### `--debug-types` - Type Inference Debugging (v0.5.11+)
-
-**What it does**: Shows detailed type inference information including:
-- Substitution map (type variable → resolved type)
-- Constraints (type class constraints and their resolution status)
-- CoreTI entries (type information for each Core AST node)
-- Origins/provenance (where each type came from)
-
-**When to use**:
-- Understanding why a type was inferred
-- Debugging type mismatch errors
-- Investigating constraint resolution
-- Verifying type annotations are applied correctly
-- Answering "why does this have type X?"
-
-**Demo file**: See [`examples/runnable/debug_types_demo.ail`](https://github.com/sunholo-data/ailang/blob/main/examples/runnable/debug_types_demo.ail) for a complete example demonstrating all debugging sections.
-
-**Example**:
-```bash
-$ ailang run --debug-types --caps IO --entry main examples/runnable/debug_types_demo.ail
-=== Type Inference Debug ===
-
-[Substitution Map]
-  α1 → α2
-  α5 → α7 → α11 (CHAIN)
-  α6 → α10
-  α8 → α6 -> α7 (direct)
-
-[Constraints]
-  Added:
-    Num α1 at node 9
-    Num α3 at node 14
-    Fractional α41 at node 60
-  Resolved:
-    Num Int →  at node 9
-    Fractional Float →  at node 60
-
-[CoreTI Entries]
-  NodeID 1: string -> () ! {IO}
-  NodeID 9: int
-    Constraint: Num → add
-  NodeID 60: float
-    Constraint: Fractional (resolved)
-  ...
-```
-
-**Filtering by node**:
-```bash
-# Show type info only for node ID 9
-$ ailang run --debug-types --node 9 --caps IO examples/debug_types_demo.ail
-
-[Constraints]
-  Added:
-    Num α1 at node 9
-  Resolved:
-    Num Int →  at node 9
-
-[CoreTI Entries]
-  NodeID 9: int
-    Constraint: Num → add
-```
-
-**Output sections**:
-- **Substitution Map**: Shows type variable substitutions (α → β → int means α resolved to β which resolved to int)
-- **Constraints**: Type class constraints (Num, Eq, Ord) and whether they're resolved
-- **CoreTI Entries**: Every Core AST node's inferred type, constraints, and origins
-- **Origins**: Where the type came from (annotation, literal, inferred, defaulted, etc.)
-
-### Understanding Origins (Provenance)
-
-The `Origins:` section answers "why does this expression have this type?" Each origin shows:
-- **Kind**: How the type was determined (annotation, literal, inferred, defaulted, from_use, from_pattern)
-- **Note**: Human-readable explanation
-- **Location**: Source file:line:column when available
-
-**Origin kinds**:
-| Kind | Meaning | Example |
-|------|---------|---------|
-| `annotation` | Explicit type annotation | `let x: int = 42` |
-| `literal` | Inferred from literal value | `3.14` → float |
-| `inferred` | Created during type inference | Fresh type variable α |
-| `defaulted` | Type variable defaulted | Num α defaulted to int |
-| `from_use` | Inferred from call site | Function applied to int |
-| `from_pattern` | Inferred from pattern match | `Some(x)` binds x to inner type |
-
-**Example with multiple origins**:
-```
-NodeID 42: int
-  Raw: α1
-  Resolved: int
-  Origins:
-    - inferred: fresh type variable
-    - defaulted: defaulted to int (Num constraint)
-```
-This shows that node 42 started as a type variable α1, then was defaulted to `int` because of a Num constraint.
-
-## Troubleshooting Workflows
-
-### Scenario 1: "Why is my float becoming int?"
-
-**Symptom**: You expected `float` but got `int` arithmetic.
-
-```ailang
--- Problem: add(3.14)(2.71) gives unexpected result
-let add = \x. \y. x + y
-let result = add(3.14)(2.71)  -- Expected: 5.85, got: 5?
-```
-
-**Debug workflow**:
-```bash
-$ ailang run --debug-types myfile.ail
-```
-
-**What to look for**:
-```
-[CoreTI Entries]
-  NodeID 5: int -> int -> int    -- The add function got type int!
-    Constraint: Num → add
-    Origins:
-      - inferred: fresh type variable
-      - defaulted: defaulted to int (Num constraint)  -- HERE'S THE PROBLEM
-```
-
-**Root cause**: The Num constraint defaulted to `int` before the float literals were seen.
-
-**Fix**: Add type annotations:
-```ailang
-let add: float -> float -> float = \x. \y. x + y
-```
-
-### Scenario 2: "Type mismatch at line X"
-
-**Symptom**: Error says types don't match but you're not sure why.
-
-```
-Error: type mismatch at line 15: expected int, got α42
-```
-
-**Debug workflow**:
-```bash
-$ ailang run --debug-types --node 42 myfile.ail
-```
-
-**What to look for**:
-```
-NodeID 42: α42
-  Origins:
-    - inferred: fresh type variable
-```
-
-**Root cause**: Node 42 is still a type variable (α42) - it was never unified with a concrete type.
-
-**Fix**: Check that the expression at node 42 is actually used with concrete types, or add an annotation.
-
-### Scenario 3: "Which operator is being called?"
-
-**Symptom**: `x + y` behaves unexpectedly for your types.
-
-**Debug workflow**:
-```bash
-$ ailang run --debug-types myfile.ail | grep -A2 "Constraint: Num"
-```
-
-**What to look for**:
-```
-  NodeID 9: int
-    Constraint: Num → add     -- Shows which method resolved
-  NodeID 14: int
-    Constraint: Num → mul     -- mul was selected for *
-```
-
-The `→ add` shows the constraint resolved to the `add` method. If it says `(resolved)` without a method, the constraint was satisfied but method selection may differ.
-
-### Scenario 4: "Understanding polymorphic function types"
-
-**Symptom**: Function type shows type variables (α, β) instead of concrete types.
-
-```bash
-$ ailang run --debug-types myfile.ail
-```
-
-**What to look for**:
-```
-NodeID 31: α22
-  Origins:
-    - inferred: fresh type variable
-NodeID 35: α22
-  Origins:
-    - inferred: fresh type variable
-```
-
-**Interpretation**: Multiple nodes share the same type variable (α22), meaning they must have the same type. This is polymorphism working correctly - the type will be specialized at each call site.
-
-### Problem: Type Inference Issues
-
-```bash
-# 1. Use --debug-types to see all type information (v0.5.11+)
-ailang run --debug-types problematic.ail
-
-# 2. Filter to specific node if you know the ID
-ailang run --debug-types --node 42 problematic.ail
-
-# 3. Check types at each phase
-ailang check problematic.ail
-
-# 4. Enable monomorphization debugging
-DEBUG_MONO_VERBOSE=1 ailang run --debug-compile problematic.ail
-
-# 5. Check operator resolution
-DEBUG_OPERATOR_LOWERING=1 ailang run problematic.ail
-```
-
-### Problem: Parser Not Recognizing Syntax
-
-```bash
-# 1. Trace token flow
-DEBUG_PARSER=1 ailang run problematic.ail
-
-# 2. Check for lexer issues
-# (Lexer never generates NEWLINE tokens!)
-
-# 3. Use parser-developer skill for conventions
-```
-
-### Problem: Silent Failures in Compiler Pass
-
-```bash
-# 1. Enable strict mode
-DEBUG_STRICT=1 ailang run problematic.ail
-
-# 2. Will panic on unhandled cases with diagnostic
-# 3. Add missing cases to switch statement
-```
-
-### Problem: Unexpected Operator Behavior
-
-```bash
-# 1. Check type defaulting (Num typeclass defaults to int)
-ailang check problematic.ail
-
-# 2. Add type annotations
-# let add: float -> float -> float = \x. \y. x + y
-
-# 3. Enable operator tracing
-DEBUG_OPERATOR_LOWERING=1 ailang run problematic.ail
-```
-
-## Keeping `ailang` Up to Date
-
-**After making code changes to the ailang binary:**
-```bash
-make quick-install  # Fast reinstall (recommended for development)
-# OR
-make install        # Full reinstall with version info
-```
-
-**Important**: The `ailang` command in your PATH points to the system install, NOT the local build. Always run `make install` or `make quick-install` after building to update the system binary.
-
-**For local testing without install:**
-```bash
-./bin/ailang <command>  # Use local build directly
-```
-
-## Development Tools
-
-```bash
-# Code quality
-make lint                 # Run golangci-lint
-make fmt                  # Format all Go code
-make vet                  # Run go vet
-make test-coverage        # Run tests with coverage
-
-# File organization
-make check-file-sizes     # Fails CI if any file >800 lines
-make report-file-sizes    # Show files >500 lines
-
-# Documentation
-make doc PKG=<package>    # Show package documentation
-```
+|---|---|---|---|
+| `--max-memory <size\|cgroup>` / `AILANG_MEMLIMIT` | Go soft limit (`debug.SetMemoryLimit`) | none | `cgroup` reads `memory.max × 0.9`; cannot prevent OOM on live retained data |
+| `GOGC` | Heap growth trigger | `500` CLI / `100` `serve-api` | Min with `--max-memory` governs GC frequency |
+| `--fs-max-bytes` / `--net-max-bytes` | Per-read FS / HTTP body cap | unbounded / 5 MB | Fails with `E_FS_FILE_TOO_LARGE` / `E_NET_BODY_TOO_LARGE` |
+| `--max-recursion-depth` | Call depth | `10,000` | ~6–7 KB/frame; non-tail recursion holds every frame binding live (`foldl`/`map` or tail-call avoids quadratic growth) |
+
+Measure peak RSS with `/usr/bin/time -l ailang run ...` (macOS) or `/usr/bin/time -v` (Linux), and inspect GC vs live heap with `GODEBUG=gctrace=1`.
 
 ## Sandbox Debugging (`AILANG_FS_SANDBOX`)
 
-When `AILANG_FS_SANDBOX` is set, all FS operations go through one `os.Root` handle on that directory (v0.41.0, M-EXECUTOR-POLICY-HARDENING): `..` past the root, absolute paths outside it, and symlinks whose target leaves it — relative or absolute — are refused inside the syscall. `exists`, `isDir`, and `isFile` silently return `false` for such paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning. Relative symlinks that stay inside the root still resolve; an absolute symlink is refused even when it points back inside.
-
-### Symptom
-
-A program reads config, gets empty values (`extensions.order = []`, `cost_rates = {}`), and no error is reported. The real cause is that the config file path escapes the sandbox and `fileExists(path)` returned `false`.
-
-### 3-step diagnosis
-
-**Step 1 — identify which paths are being rejected:**
-```bash
-AILANG_FS_SANDBOX=/tmp/task AILANG_FS_SANDBOX_DEBUG=1 ailang run your_program.ail
-# stderr output:
-# [ailang/sandbox] REJECT exists("/home/mark/.motoko/config/default/config.json") → escapes sandbox "/tmp/task" (returns false)
-```
-
-**Step 2 — confirm the resolution interactively:**
-```bash
-AILANG_FS_SANDBOX=/tmp/task ailang sandbox-check /home/mark/.motoko/config/default/config.json
-# sandbox:  /tmp/task
-# path:     /home/mark/.motoko/config/default/config.json (absolute)
-# result:   REJECT — escapes sandbox "/tmp/task"
-#           exists/isDir/isFile → false
-#           readFile/writeFile/etc → error
-```
-
-**Step 3 — fix** by ensuring the config path is within the sandbox, or by setting an env var that directs the program to a fallback within the sandbox:
-```bash
-# Example: motoko uses MOTOKO_REPO to find config when workdir is a scratch dir
-MOTOKO_REPO=/tmp/task AILANG_FS_SANDBOX=/tmp/task ailang run your_program.ail
-```
-
-### `ailang sandbox-check` reference
+Under `AILANG_FS_SANDBOX`, FS syscalls run through a single `os.Root` handle. Paths escaping the root (`..`, absolute paths, symlinks targeting outside) fail syscalls (`exists`/`isDir`/`isFile` silently return `false`; `readFile`/`writeFile` error).
 
 ```bash
-ailang sandbox-check <path>   # ALLOW/REJECT + resolved path, exits 0/1
+AILANG_FS_SANDBOX=/tmp/task AILANG_FS_SANDBOX_DEBUG=1 ailang run app.ail
+AILANG_FS_SANDBOX=/tmp/task ailang sandbox-check /outside/path   # exits 0=ALLOW, 1=REJECT
+AILANG_TRACE=deep ailang run --emit-trace auto app.ail && ailang trace list --hours 1
 ```
 
-Exit 0 = ALLOW (path is within sandbox or sandbox not configured).  
-Exit 1 = REJECT (path escapes sandbox — by traversal, by an absolute path outside it, or through a symlink).
+## Provider & Rig Diagnostics
 
-The verdict comes from the same root handle the runtime uses, so what `sandbox-check` says is what
-`readFile` will do; it is not a lexical imitation of the resolver.
+<details>
+<summary>OpenRouter Broadcast traces, Ollama streaming/VRAM limits, and fleet memory gates</summary>
 
-No `AILANG_FS_SANDBOX` set → prints "no sandbox configured", exits 0.
+- **OpenRouter Broadcast (`LLM Generation` spans)**: Query `https://dashboard.ailang.sunholo.com/api/observatory/spans` with `Authorization: Bearer $AILANG_DASHBOARD_TOKEN` to inspect `rawRequest`, `output_tokens.reasoning`, `finish_reason`, and `cancelled` directly from the provider. (`scripts/check_pi_wire_budget.sh` verifies wire `max_tokens`.)
+- **Ollama streaming timeouts**: Enable `AILANG_OLLAMA_V1_STREAM=1` so `AILANG_OLLAMA_IDLE_TIMEOUT_SEC` (`120s`), `AILANG_OLLAMA_TTFT_TIMEOUT_SEC` (`600s`), and `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` (`3600s` hard deadline) replace the 300s buffered timeout. Audit `launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC` alongside plists, and filter `AILANG_OLLAMA_LOG_REQUESTS` captures by `idle_window_sec==120`.
+- **Ollama & fleet memory**: Rig `dev.ollama.serve.plist` pairs `OLLAMA_GPU_OVERHEAD` (`32 GiB` admission subtraction) with `OLLAMA_CONTEXT_LENGTH` (`131072`) and `OLLAMA_MAX_LOADED_MODELS=2`; `tools/launchd/mission-control.sh` staggers boot (`MISSION_BOOT_WINDOW=900`) and checks `MISSION_MIN_AVAIL_GB=16` / `MISSION_MAX_COMPRESSED_GB=48`.
 
-### Trace-based diagnosis
+</details>
 
-Under `AILANG_TRACE=deep`, sandbox rejections are recorded as `FS.<op>.sandbox.reject` events in the OTEL trace collector and visible in `ailang trace list`:
+## Development & Latency Tools
 
 ```bash
-AILANG_TRACE=deep ailang run your_program.ail --emit-trace auto
-ailang trace list --hours 1   # look for FS.exists.sandbox.reject events
+make quick-install         # Update system ailang after compiler edits
+make lint && make fmt      # Lint & format Go code
+make bench-workloads-quick # Run latency canary probes (benchmarks/workloads/)
 ```
-
-## Debugging an LLM call from the PROVIDER's side (OpenRouter Broadcast)
-
-For any OpenRouter call the rig makes, there is a second, independent record of what
-happened — pushed by OpenRouter itself into the prod observatory
-(`M-OPENROUTER-BROADCAST-INGEST`, v0.33.1). Reach for it **before** theorising from our
-own logs: it is the only instrument that shows the request we actually sent, as opposed
-to the one we believe we configured.
-
-The prod dashboard's `/api/` reads require its `COORDINATOR_API_KEY` as a bearer token
-(anonymous callers get 401). Keep it in `AILANG_DASHBOARD_TOKEN`, which `ailang eval-paired`
-and `ailang chains dashboard` also send — it is the `ailang-coordinator-api-key` secret in
-project `ailang-multivac`.
-
-```bash
-curl -s -H "Authorization: Bearer $AILANG_DASHBOARD_TOKEN" "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=2026-08-18T00:00:00Z&start_before=2026-08-19T00:00:00Z" > /tmp/spans.json
-
-# One row per generation: model, provider host, finish_reason, token split.
-jq -r '.[] | select(.name=="LLM Generation") | [
-    .start_time, (.duration_ms|tostring)+"ms",
-    (.attributes["gen_ai.request.model"]//"-"),
-    (.attributes["trace.metadata.openrouter.provider_name"]//"-"),
-    (.attributes["gen_ai.response.finish_reason"]//"NONE(cancelled)"),
-    "out="+((.attributes["gen_ai.usage.output_tokens"]//0)|tostring),
-    "reasoning="+((.attributes["gen_ai.usage.output_tokens.reasoning"]//0)|tostring)
-  ] | @tsv' /tmp/spans.json | sort
-```
-
-Attributes live on the **`LLM Generation`** span (~92 of them). The sibling `generation`
-and `provider attempt N: <host>` spans carry only 4 and 10 — querying those and concluding
-"the traces have no model data" is a mistake already made once.
-
-The two highest-value fields:
-
-```bash
-# 1. The REQUEST WE ACTUALLY SENT — budget, reasoning config, tool count.
-#    This is how the pi lane was found still sending max_completion_tokens=32000
-#    while its config declared 65536.
-jq -rc '.[] | select(.name=="LLM Generation") | (.attributes["gen_ai.completion"]|tostring|fromjson? // {}) | .rawRequest | select(.!=null)' /tmp/spans.json | head -1
-
-# 2. The COMPLETION, split into content and reasoning. `{"completion":"","reasoning":"..."}`
-#    with output_tokens == reasoning_tokens is the reasoning-stall signature
-#    (error_category=reasoning_stall) — the model engaged and never answered.
-jq -rc '.[] | select(.name=="LLM Generation") | (.attributes["gen_ai.completion"]|tostring|fromjson? // {}) | select(.reasoning!=null) | {content: .completion, reasoning_head: (.reasoning|tostring|.[0:160])}' /tmp/spans.json | head -5
-```
-
-**Finding the failures fast.** A cancelled generation has no `finish_reason` and
-`cancelled: true`, and OpenRouter does not bill it — so a dead run costs `$0` and leaves
-no trace in our own spend ledger:
-
-```bash
-jq -r '.[] | select(.name=="LLM Generation")
-       | select((.attributes["gen_ai.response.finish_reason"]//null)==null)
-       | [.start_time, (.attributes["gen_ai.request.model"]//"-"),
-          (.attributes["span.metadata.openrouter_generation.app.title"]//"-"),
-          "reasoning="+((.attributes["gen_ai.usage.output_tokens.reasoning"]//0)|tostring)] | @tsv' /tmp/spans.json
-```
-
-### Asserting what pi actually sends
-
-`scripts/check_pi_wire_budget.sh` (or `make check-pi-wire-budget`) makes one real pi call
-and reads the request back from the Broadcast trace, comparing the budget pi's registry
-declares against what the wire carried. It is deliberately NOT a CI gate: it costs a
-fraction of a cent, needs `OPENROUTER_API_KEY`, and depends on ingest.
-
-It exists because **every other guard on that number compares one config file to another,
-and none of them is the wire.** pi-ai's `buildBaseOptions` clamps to
-`Math.min(model.maxTokens, 32000)` whenever the caller passes no explicit `maxTokens` —
-which pi-coding-agent never does for main agent turns — so a 2x understatement sat green
-in CI for weeks while `TestPiModelsConfigMatchesRegistry` happily compared 65536 to 65536.
-Measured: declaring 20000 sends 20000; declaring 65536 sends 32000.
-
-### Gotchas, each one measured
-
-- **An empty window is not a broken pipe.** Ingest showed zero spans for 08-23..08-26 and
-  the key reported `usage_weekly: 0` — there was simply no traffic. Prove liveness with a
-  positive control (make one call, re-query) before reporting an outage.
-- **`/api/v1/activity` returns 403.** The account key is an inference key
-  (`is_management_key: false`). `/api/v1/key`, `/api/v1/credits` and
-  `/api/v1/generation?id=<gen-id>` all work; account-wide lookup by time does not. Use the
-  observatory, which is time-indexed anyway.
-- **`finish_reason` proves nothing about whether work happened.** It read `length` before
-  2026-08-13, a clean `stop` at 625 tokens after, and was absent on the cancelled runs. It
-  fired on 0 of 4 real pi-lane failures. Assert on output, never on how the turn ended.
-- **pi's NDJSON size is not a proxy for tokens.** `message_update` replays the whole
-  accumulated message per delta (pi 0.73.1, `dist/core/agent-session.js:421-427`), so bytes
-  are *quadratic*: 7,130 reasoning tokens produced 330 MB. Use
-  `scripts/mission_pi_run.sh`, which filters the updates out and gives a typed verdict.
-- **pi hangs forever on an open stdin.** Redirect from a file or `/dev/null`; a run that
-  produces zero bytes of stdout *and* stderr is this, not a provider problem.
 
 ## See Also
 
-- [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
-- [Evaluation Framework](/docs/guides/evaluation) - Debugging failed AI benchmarks
-- [Development Guide](/docs/guides/development-workflow) - Full development workflow
-- [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
+- [Execution Traces](./traces.md) — JSONL trace capture, replay, and training export
+- [Telemetry & Tracing](./telemetry.md) — OTEL spans and distributed trace linking
+- [Development Workflow](./development-workflow.md) — Contributor skills & test boundaries
+- [Known Limitations](/docs/reference/limitations) — Language cliffs and workarounds

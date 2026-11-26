@@ -2,7 +2,9 @@
 sidebar_position: 11
 title: Browser Auth Profiles
 description: Persistent authenticated browser identity for AILANG agent runs, without giving a model a password
-reviewBy: 2027-01-18
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Browser Auth Profiles
@@ -48,20 +50,12 @@ compromised session harmless.
 
 ## How the pieces fit
 
-```text
-you + your password manager          ← the password stops here
-        │  (headful, recording off)
-        ▼
-  storage-state.json                 ← captured by you, never by a model
-        │  ailang browser-profile bootstrap
-        ▼
-  profile registry                   ← sealed AES-256-GCM, 0600 under a 0700 tree
-        │  resolve → preflight → lease → materialize
-        ▼
-  disposable 0600 file               ← exactly one run, destroyed afterwards
-        │
-        ▼
-  AI + Playwright MCP                ← sees an authenticated browser and nothing else
+```mermaid
+flowchart LR
+    U["You + password manager<br/>(headful, recording off)"] -->|"captures"| S["storage-state.json<br/>(never exposed to model)"]
+    S -->|"ailang browser-profile bootstrap"| R["Profile Registry<br/>(AES-256-GCM 0600 under 0700)"]
+    R -->|"resolve -> preflight -> lease -> materialize"| D["Disposable 0600 file<br/>(one run, destroyed on exit)"]
+    D -->|"authenticated browser"| AI["AI + Playwright MCP"]
 ```
 
 The model has browser action authority for the declared origins and the task

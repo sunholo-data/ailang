@@ -1,5 +1,7 @@
 ---
-reviewBy: 2027-01-04
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # The Measurement Contract
@@ -55,7 +57,7 @@ silently include it again. Use `LoadResultsIncludingInvalid` to reach quarantine
 data — it is annotated, never deleted, because the row is evidence of the bug
 that produced it.
 
-**A missing `validity` field means valid.** Every row banked before v0.31.0 lacks
+**A missing `validity` field means valid.** Legacy rows lack
 it, and treating absent as invalid would erase the entire history.
 
 ## 3. Paired analysis — can this comparison resolve anything?

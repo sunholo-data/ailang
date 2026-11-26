@@ -1,7 +1,9 @@
 ---
 title: Development Workflow
 sidebar_position: 1
-reviewBy: 2027-01-18
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AILANG Development Workflow
@@ -376,28 +378,14 @@ runners and do not derive from Go's package-level test deadline.
 
 ## File Locations
 
-```
-.claude/skills/
-├── design-doc-creator/     # Design documentation
-│   ├── SKILL.md
-│   └── scripts/
-├── sprint-planner/         # Sprint planning
-│   ├── SKILL.md
-│   ├── scripts/
-│   └── resources/
-└── sprint-executor/        # Sprint execution
-    ├── SKILL.md
-    ├── scripts/
-    └── resources/
-
-design_docs/
-├── planned/                # Future work
-│   └── v0_6_1/
-└── implemented/            # Completed work
-    └── v0_6_0/
-
-.ailang/state/sprints/      # Sprint progress JSON
-```
+| Path | Contents |
+|------|----------|
+| `.claude/skills/design-doc-creator/` | `SKILL.md`, helper `scripts/` for design docs |
+| `.claude/skills/sprint-planner/` | `SKILL.md`, `scripts/`, `resources/` for sprint plans |
+| `.claude/skills/sprint-executor/` | `SKILL.md`, `scripts/`, `resources/` for execution |
+| `design_docs/planned/<version>/` | Proposed and approved upcoming design docs |
+| `design_docs/implemented/<version>/` | Completed design docs moved after release |
+| `.ailang/state/sprints/` | Persistent JSON sprint progress trackers |
 
 ## See Also
 
