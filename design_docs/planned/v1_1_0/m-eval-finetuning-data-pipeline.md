@@ -1,6 +1,6 @@
 # M-EVAL-FINETUNING-DATA-PIPELINE: Capture-to-QLoRA on the Local Rig
 
-**Status**: Planned — **revised 2026-11-05** (see §"2026-11-05 revision" directly below; it supersedes the sections it names)
+**Status**: Active research — **revised 2026-11-25** (see §"2026-11-09 → 2026-11-25 update: Pilots 3–5" and the public log under `docs/docs/finetuning/`)
 **Target**: Phase 0 (size baseline) + extractor can run now; first production fine-tune at AILANG 1.0.0 (standing decision, 2026-08-18). The original v0.24.0 → v0.25.0 targets are stale.
 **Priority**: P2 — the rig is producing training data passively today; this sprint formalizes the path from capture → JSONL → MLX QLoRA → eval-on-rig
 **Estimated**: Phase 0 ≈ 0.5 day (lanes + one baseline window); extractor ≈ 2 days (four sources, not one); recipe sanity + round-trip ≈ 2 days
@@ -588,6 +588,35 @@ diverged; the stages then ran one at a time.
   - complete all arms (lift the 5 h cap, or run A2).
 - **The weekend window closed** after C_lean (Sun 21:17Z). The os-rotation-filler hold was released
   and the nightly-eval hold (09-27) kept.
+
+## 2026-11-09 → 2026-11-25 update: Pilots 3–5 (`D-FT-10` .. `D-FT-19`)
+
+Full chronological logs live on the website (`docs/docs/finetuning/{pilot-3,pilot-4,pilot-5,decisions,field-notes}.md`). Summary of what moved since Pilot-2:
+
+### Pilot-3 (2026-11-09/10): on-policy repairs + reference lookup (`D-FT-10..12`)
+- Ran `pilot-2` on the 57 training benchmarks behind `trace_proxy.py` (passed 30/57; 349 failing file versions extracted via `onpolicy_pairs.py`), repaired 348/349 with Opus (`stale_fix.py --prompt onpolicy`), masked the model's broken steps with `weight: 0` in `train2.py`, and taught Habit 5 (`ailang prompt | grep ...` section lookup after a failed fix). Token-length gate uses `train2.py`'s exact chat-template render so end-truncation never clips the verified final fix; `#2151` Cloud Trace log pollution fixed before evals.
+- Warm-started 1 epoch (`lr=1e-5`) from the Pilot-2 adapter (784 train samples, 3.54M tokens).
+- **Held-out agent result (Arm B, slim prompt):** **10/24** (up from Pilot-2's **4/24**; 6 flips to pass, 0 regressions, exact sign-test $p \approx 0.03$; compile errors `16 → 6`, median turns `57.5 → 12`).
+- **Residual failure:** 4 of 24 runs appeared to "read then stop" — traced to **runaway or malformed `write` tool calls** (e.g. repeating a function 225 times) dropped by Ollama's parser (`1.8%` of responses vs `0.05%` in Pilot-2).
+
+### Pilot-4 and end of the on-policy repair line (2026-11-10..16, `D-FT-13..18`)
+- Collected round-2 mistakes from Pilot-3 on the 57 training tasks (35/57 passed; 372/374 Opus repairs verified), pooled rounds 1 + 2 (DAgger-style) from the **Pilot-2** adapter, capped trained writes at `<6,000` chars with two-step **build-up** episodes, and added **loop-break** episodes (`trace_dropped.py`, `probe_after_read.py`, `pilot4_run.sh`). Held-out `run_length_encode` swapped to `run_length_encode_v2` under total `show` (`D-FT-17`; 23 shared tasks across pilots, guarded by `internal/eval_harness/finetune_heldout_test.go`).
+- **Held-out agent results (23 shared tasks):**
+  - **Arm A (untrained 12B + full prompt):** **16/23** (17/24)
+  - **Arm B (Pilot-4 + slim prompt):** **5/23** (5/24; 13 runs ended on a dropped tool call across ~105-turn runs)
+  - **Arm A2 (untrained 12B + slim prompt — the missing control):** **9/23**, rising to **10/23** once `pi`'s `compat.maxTokensField` (`max_tokens` vs ignored `max_completion_tokens` on Ollama) capped single runaway responses
+  - **Arm D (Pilot-3 + full prompt):** **1/23** (slim-trained adapters degrade sharply when given the 26k prompt)
+- **Verdict (`D-FT-18`):** **On-policy trajectory repair stopped.** Three rounds of habit/repair SFT (`10/23` best) added nothing measurable over the untrained model with the slim prompt (`9–10/23`). The 6–7 task gap to `base + full` (`16/23`) is raw AILANG language knowledge, and Pilots 2–4 never trained on the 2,733 verified `.ail` repository modules.
+
+### Pilot-5 (2026-11-16..25, active): teach the language first (`D-FT-19`)
+- Switched to **single-turn language SFT** (`pilot5_run.sh`, `build_mix5.py`, `neardup.py`, `describe.py`, `indist_test.py`) gated first on a fast **single-shot benchmark test** (24 held-out tasks × 3 trials = 72 runs, standard mode, self-repair off) plus **108 held-back repository modules** from 2,076 5-gram near-duplicate groups:
+  - **Stage 0 untrained 12B baseline:** `0%` pass / `4%` compile (no prompt), `3%` pass / `15%` compile (slim), **`39%` pass (`28/72`, 14 tasks) / `44%` compile (full prompt = language gate)**. Notably `28/32` (`88%`) of compiling base+full outputs pass, after `3,000–6,000` thinking tokens.
+  - **Run a (1,504 short repo modules w/ Opus descriptions, rank 32):** learned in-distribution repo code (`34% / 39%` compile vs `0% / 12.5%` untrained), but did not transfer to stdin/stdout benchmarks (`0% / 6% / 0%` pass).
+  - **Runs b & b2 (rank 128):** diverged twice — at iter 160 (`mlx-lm` applies `scale` without dividing by `rank`; fixed `scale × rank = 320` + `loss > 3` guard) and at iter 880–980 even at `scale = 2.5`, with no val-loss gain over rank 32 before diverging. Rank stays at 32.
+  - **Run c (2026-11-25; 1,504 repo + 491 multi-model training-benchmark solutions = 2,004 examples, rank 32):**
+    - Held-back repo compile: **`49%` (none) / `42%` (slim)**.
+    - Held-out single-shot benchmarks: **`25% / 44% / 31%` compile** and **`11% / 17% / 18%` pass** (`4 / 5 / 6` tasks).
+    - **Key finding:** Run c + slim **matches `base + full` on benchmark compile rate (`44%` vs `44%`)**, proving syntax/type transfer works once benchmark-shaped solutions are included — **but conditional pass-given-compile dropped from `88%` (`28/32`) to `38%` (`12/32`)** because omitting `reasoning` under `enable_thinking=True` trained an empty `<|channel>thought\n<channel|>` span (`~430` output tokens, zero thinking). Next: restore reasoning traces in single-turn examples and expand to the full Stage 1 corpus (split long modules, `examples/`, single-turn compiler repairs, stdlib cards).
 
 ## Pilot-1 results (2026-11-06)
 

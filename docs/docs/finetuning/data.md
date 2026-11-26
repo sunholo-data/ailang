@@ -2,8 +2,8 @@
 sidebar_position: 5
 title: Training data
 description: Where AILANG fine-tuning data comes from, the rules it must pass, the habits it should teach, and the coverage gaps it exposed.
-reviewed: 2026-11-06
-reviewBy: 2027-02-06
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
 ---
 
 # Training data
@@ -21,8 +21,7 @@ The binding constraint is **task diversity, not volume**.
 
 ## Rules
 
-1. **Hold out first.** 24 benchmarks (12 core, 12 stretch) are frozen before extraction. Nothing
-   from them enters training: not other models' solutions, not repo copies, not near-duplicates.
+1. **Hold out first.** 24 benchmarks (12 core, 12 stretch) are frozen before extraction (`tools/finetune/heldout.json`). Under total `show` ([D-FT-17](./decisions.md), 2026-11-11), `run_length_encode` was retired to `retired_excluded` and replaced by `run_length_encode_v2`; `internal/eval_harness/finetune_heldout_test.go` tests every extractor's real entry point against held-out, retired and `_vN` successor leaks, and `tools/finetune/neardup.py` groups the 2,733 repository programs into 2,076 5-gram near-duplicate clusters before splitting. Nothing from a held-out benchmark or held-back repo group enters training.
 2. **Re-grade with today's compiler.** Every program is re-checked with the current
    `ailang check`; only what compiles today is kept. This strips stale syntax from older code.
 3. **Negatives are never targets.** Failed attempts appear only as context (error-to-fix pairs,
@@ -139,3 +138,26 @@ pilot-1's invented-function failures looked like. The tooling bugs are filed as 
 Filling coverage gaps is a docs improvement in its own right. The fine-tune can only learn what
 `examples/` shows, so the training set doubles as a check on how well the examples cover the
 language.
+
+## Later mixes: on-policy repairs (pilots 3–4) and language-first SFT (pilot-5)
+
+- **Pilots 3 and 4 ([pilot-3](./pilot-3.md), [pilot-4](./pilot-4.md)):** ran the previous adapter on
+  the 57 training benchmarks behind a trace proxy, reconstructed every intermediate broken file,
+  verified Opus repairs against expected stdout (348/349 in round 1; 372/374 in round 2), kept the
+  model's own broken turns as `weight: 0` (no-loss) context, and added Habit 5 (`ailang prompt`
+  section lookups after a failed fix), `<6,000`-char two-step **build-up** writes, and **loop-break**
+  episodes. Token-length filtering uses the real `train2.py` chat-template render so end-truncation
+  never clips the verified final fix. Stopped after Pilot-4 ([D-FT-18](./decisions.md)) when the
+  untrained model + slim prompt control matched `10/23`.
+- **Pilot-5 ([pilot-5](./pilot-5.md), [D-FT-19](./decisions.md)):** pivots to single-turn language
+  examples (`user`: `none` or `slim` prompt + task; `assistant`: verified `.ail` module):
+  - **Repository descriptions (`describe.py`):** Opus wrote leakage-checked specifications for 1,753
+    short (`≤150`-line) verified repository modules across 2,076 near-duplicate groups (1,589 train,
+    164 held back in 150 test groups; 42 rejected for quoting code).
+  - **Mix a:** 1,504 repo training / 80 validation examples. Taught repo-module compilation (34%/39%
+    on held-back repo tasks vs 0%/12.5% untrained) without transferring to stdin/stdout benchmarks.
+  - **Mix c (`build_mix5.py --eval`):** added 491 multi-model passing solutions across the 75
+    training benchmarks (`≤8` per task, re-checked with the pinned compiler) for **2,004** training
+    examples total — lifting slim-prompt held-out benchmark compilation to **44%**, while exposing
+    the need for `reasoning` traces and the remaining Stage 1 slices (function-split long modules,
+    `examples/`, single-turn compiler error→fix pairs, and stdlib signature cards).

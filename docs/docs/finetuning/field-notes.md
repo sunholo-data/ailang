@@ -2,8 +2,8 @@
 sidebar_position: 2
 title: Field notes (what fine-tuning is like day to day)
 description: Lessons from running AILANG fine-tunes, each drawn from something that actually happened - where the time goes, why the score lies, and the habits that kept the work honest.
-reviewed: 2026-11-10
-reviewBy: 2027-02-10
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
 ---
 
 # Field notes: what fine-tuning is like day to day
@@ -161,4 +161,32 @@ base model with the full prompt. It failed every time, and the control in note 1
 to expect another round to pass it, so the line was stopped. What it bought is specific: the gap is
 language knowledge the full prompt carries, worth 7 tasks, and most of the untrained model's
 failures are single runaway responses that the harness could cut off.
+
+## 15. Separate "did not learn" from "wrong task shape"
+
+Pilot-5's first run trained on 1,504 verified programs from our repositories and scored 0% and 6% on
+the held-out benchmarks ([pilot-5](./pilot-5.md)). That looked like a capacity ceiling until an
+in-distribution check on 108 held-back repository programs showed compile rates jumping from 0% and
+12.5% untrained to 34% and 39%. Repository libraries and `module benchmark/solution` stdin/stdout
+programs are different genres. Adding 491 training-benchmark solutions in Run c lifted slim-prompt
+benchmark compilation to 44% — matching the untrained model with the full teaching prompt.
+
+## 16. Training without reasoning teaches a thinking model not to think
+
+Run c matched the full-prompt base model's 44% compile rate on held-out benchmarks, yet passed only
+17% against 39% ([pilot-5](./pilot-5.md)). Why? When the untrained model compiles a benchmark, 88%
+of those programs also produce the right output, because it spends 3,000 to 6,000 thinking tokens
+working out the algorithm first. Run c's examples had no `reasoning` field while rendering under
+`enable_thinking=True`, which trained an empty `<|channel>thought\n<channel|>` block as part of the
+target. The fine-tune learned to skip thinking and emit code cold in ~430 tokens — getting the
+syntax right and the algorithm wrong.
+
+## 17. Check library scaling conventions, and supervise unattended guards
+
+Raising LoRA rank from 32 to 128 in Pilot-5 Run b diverged at iteration 160 (`mlx-lm` multiplies by
+`scale` directly without dividing by `rank`, so keeping `scale=10` quadrupled the effective update)
+and sat at loss 7 for six hours. We fixed `scale × rank = 320` and added an automatic loss-above-3
+stop guard — which rightly killed Run b2 at iteration 980, after which **nothing ran for five and a
+half days** because the watcher process had been reaped under memory pressure. A guard that stops a
+run cleanly still needs an alert when no human is looking.
 

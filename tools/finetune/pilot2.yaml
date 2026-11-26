@@ -1,3 +1,7 @@
+# PILOT-2b (2026-11-06 21:47Z): pilot2.yaml DIVERGED. Train loss 0.31 -> 10.18 at step 80 (end of
+# warmup), val 0.592 -> 6.762 at step 200, train flat ~6.0 through step 360. Same mix, same blocks
+# and rank; the update is cooled: lr 1e-4 -> 2e-5, LoRA scale 20 -> 10, warmup 30 -> 100 iterations.
+# Use: cp tools/finetune/pilot2b.yaml tools/finetune/pilot2.yaml (only once the diverged run is stopped).
 # Fine-tune pilot-2 LoRA config (m-eval-finetuning-data-pipeline §Pilot-2; D-FT-8/9).
 # Trainer: tools/finetune/train2.py (whole-episode samples, loss on every assistant turn,
 # rendered thinking ON in the LEAN pi wire format). Paths come from the command line.
@@ -19,15 +23,15 @@ num_layers: -1                      # all blocks
 batch_size: 1
 grad_accumulation_steps: 4
 iters: 2368                         # 2 epochs x 1,184 episodes at batch 1
-learning_rate: 1.0e-4
+learning_rate: 2.0e-5
 lr_schedule:
   name: cosine_decay
-  warmup: 30
+  warmup: 100
   warmup_init: 1.0e-6
-  arguments: [1.0e-4, 592, 1.0e-6]  # decay over the 592 optimizer updates
+  arguments: [2.0e-5, 592, 1.0e-7]  # decay over the 592 optimizer updates
 lora_parameters:
   rank: 32
-  scale: 20.0
+  scale: 10.0
   dropout: 0.05
 max_seq_length: 12288
 grad_checkpoint: true

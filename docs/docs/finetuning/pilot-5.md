@@ -1,14 +1,14 @@
 ---
 sidebar_position: 10
-title: Pilot-5 plan (teach the language first)
-description: A proposed plan for the fifth AILANG fine-tune. It trains on the verified AILANG programs in our own repositories, which earlier pilots left unused, as single-turn examples, and it measures language knowledge with a fast single-shot test before any agent eval.
-reviewed: 2026-11-16
-reviewBy: 2027-02-16
+title: Pilot-5 (teach the language first)
+description: The fifth AILANG fine-tune — single-turn language SFT on verified repository and training-benchmark programs, scored against a fast single-shot language gate before agent evals.
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
 ---
 
-# Pilot-5 plan: teach the language first
+# Pilot-5: teach the language first
 
-**Status: approved by Mark on 2026-11-16 ([D-FT-19](./decisions.md)). Stage 0 is running.**
+**Status: active ([D-FT-19](./decisions.md), approved 2026-11-16). Stage 0 baseline and Stage 2 Runs a, b, b2 and c are complete.** Run c reaches **44% slim-prompt compile** on the held-out benchmarks (matching the untrained model with the full prompt), but **17% pass** against the **39%** single-shot gate because code-only targets trained out test-time reasoning (~430 tokens vs 3,000–6,000). Next: restore thinking traces and scale the Stage 1 mix.
 
 ## Why a new plan
 
@@ -172,6 +172,21 @@ The GPU time for Stage 3 is scaled from pilot-4, which trained on 5.6 million to
 Money cost is zero: descriptions use the Claude subscription and training runs on the rig. The real
 costs are subscription quota for 3,000 to 4,000 description requests and the rig's GPU for about
 three days, during which other local evals wait.
+
+## Stage 2 summary so far (as of 2026-11-25)
+
+| Arm / Run | Training data & rank | Repo in-dist compile (108, none / slim) | Held-out bench compile (72, none / slim / full) | Held-out bench pass (72, none / slim / full) | Tasks solved (/24) | Median output |
+|---|---|---|---|---|---|---|
+| **Untrained 12B** (Stage 0 baseline) | none | 0% / 12.5% *(40 sampled)* | 4% / 15% / **44%** | 0% / 3% / **39% (gate)** | 0 / — / **14** | 3,000–6,000 tok (with thinking) |
+| **Run a** | 1,504 short repo programs, rank 32 | **34% / 39%** | 8% / 11% / 20% | 0% / 6% / 0% | — | 300–400 tok (no thinking) |
+| **Run b** | same as a, rank 128 (`scale=10`) | — | — | — | — | diverged at iter 160 (`mlx-lm` unnormalized `scale`) |
+| **Run b2** | same as a, rank 128 (`scale=2.5`) | — | — | — | — | diverged at iter 880–980; val loss no better than rank 32 |
+| **Run c** | 1,504 repo + 491 training-bench passes (2,004), rank 32 | **49% / 42%** | 25% / **44%** / 31% | **11% / 17% / 18%** | **4 / 5 / 6** | ~430 tok (no thinking) |
+
+**Diagnostic reading of Run c:**
+- **Syntax and type transfer now works.** Adding 491 `module benchmark/solution` stdin/stdout examples lifted slim-prompt benchmark compilation from **15% (untrained)** and **11% (Run a)** to **44%**, matching the untrained model with the full 26k teaching prompt (**44%**).
+- **Empty-thought training broke algorithmic accuracy.** When untrained 12B + full prompt compiles a benchmark, **28 of 32 pass (88%)** because it spends 3,000–6,000 thinking tokens designing the algorithm first. When Run c + slim compiles, only **12 of 32 pass (38%, 5 distinct tasks)**: `build_mix5.py` omitted `reasoning` while `train2.py` rendered with `enable_thinking=True`, actively training an empty `<|channel>thought\n<channel|>` span so the model writes code cold in ~430 tokens.
+- **Data coverage is still Stage 2 scale.** Mix c holds 2,004 examples (already showing mild second-epoch overfit: val loss 0.47 → 0.51). None of the planned function-split long modules (4k–6k), `examples/` (560), single-turn compiler repairs (2k), or stdlib reference cards (1k) are included yet.
 
 ## Log
 
