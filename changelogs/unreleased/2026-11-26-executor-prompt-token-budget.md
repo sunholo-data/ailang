@@ -1,3 +1,0 @@
-### Fixed — the executor's `ailang_prompt` fits Claude Code's result limit
-
-v0.62.1 cut `ailang_prompt` to about 75 KB on the assumption of 4 characters a token. The prompt is code-heavy and JSON-escaped, and runs at about 3, so Claude Code still refused the 77,090-character result on prod. The cut now also leaves out the worked examples, output discipline, and the JSON, maps, arrays, regex, crypto, fast-string and mixed-field ADT sections (`stdlib_module` and `example_for_concept` serve those), which brings the result to about 55 KB, roughly 18k tokens. The sync test's budget is now 58,000 characters, with the measurement behind it.
