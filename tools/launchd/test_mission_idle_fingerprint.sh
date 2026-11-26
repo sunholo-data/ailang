@@ -25,9 +25,10 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
+    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
       expected_fail=''
+      mutation_target=helper
       case "$mutant" in
         excludes) sed '/:(exclude)/d' "$HELPER" >"$TMP/helper" ;;
         exclude-root-verification) sed '/(exclude)verification\//d' "$HELPER" >"$TMP/helper" ;;
@@ -41,21 +42,41 @@ case "${1:-}" in
           sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude).ailang/state/evaluations/*|' "$HELPER" >"$TMP/helper"
           expected_fail='FAIL ordinary evaluation JSON commit did not move hash'
           ;;
-        wrong-record) sed 's|_mi_file="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"|_mi_file="$STATE_DIR/mission-wrong-idle-fingerprint"|' "$DRIVER" >"$TMP/driver" ;;
-        keep-changed) awk '/rm -f "\$_mi_file" # changed/{next} {print}' "$DRIVER" >"$TMP/driver" ;;
-        fail-closed) sed '/# failed read consumed/a\
+        exclude-record-eval-no-suffix)
+          sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude).ailang/state/evaluations/eval_MISSION-ITER-*|' "$HELPER" >"$TMP/helper" || fail "mutant $mutant sed failed"
+          expected_fail='FAIL MISSION-ITER round evaluation JSON commit did not move hash'
+          ;;
+        exclude-record-eval-any-mission)
+          sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude).ailang/state/evaluations/eval_*_record.json|' "$HELPER" >"$TMP/helper" || fail "mutant $mutant sed failed"
+          expected_fail='FAIL non-MISSION-ITER record evaluation JSON commit did not move hash'
+          ;;
+        exclude-record-eval-any-verdict)
+          sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude).ailang/state/evaluations/eval_MISSION-ITER-*_*.json|' "$HELPER" >"$TMP/helper" || fail "mutant $mutant sed failed"
+          expected_fail='FAIL MISSION-ITER round evaluation JSON commit did not move hash'
+          ;;
+        exclude-record-any-dir)
+          sed 's|:(exclude)\.ailang/state/evaluations/eval_MISSION-ITER-\*_record\.json|:(exclude)*_record.json|' "$HELPER" >"$TMP/helper" || fail "mutant $mutant sed failed"
+          expected_fail='FAIL non-MISSION-ITER record evaluation JSON commit did not move hash'
+          ;;
+        wrong-record) mutation_target=driver; sed 's|_mi_file="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"|_mi_file="$STATE_DIR/mission-wrong-idle-fingerprint"|' "$DRIVER" >"$TMP/driver" ;;
+        keep-changed) mutation_target=driver; awk '/rm -f "\$_mi_file" # changed/{next} {print}' "$DRIVER" >"$TMP/driver" ;;
+        fail-closed) mutation_target=driver; sed '/# failed read consumed/a\
       exit 0
 ' "$DRIVER" >"$TMP/driver" ;;
-        age) sed 's/"$_mi_age" -gt 86400/"$_mi_age" -gt 999999999/' "$DRIVER" >"$TMP/driver" ;;
+        age) mutation_target=driver; sed 's/"$_mi_age" -gt 86400/"$_mi_age" -gt 999999999/' "$DRIVER" >"$TMP/driver" ;;
         limit) sed 's/\[ "$n_in" -lt "$LIMIT" \]/true/' "$HELPER" >"$TMP/helper" ;;
         store-pin) sed 's/^env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="[^"]*" \\$/  \\/' "$HELPER" >"$TMP/helper" ;;
-        dry-run) sed 's/ && \[ "${MISSION_DRY_RUN:-0}" != 1 \]; then/; then/' "$DRIVER" >"$TMP/driver" ;;
+        dry-run) mutation_target=driver; sed 's/ && \[ "${MISSION_DRY_RUN:-0}" != 1 \]; then/; then/' "$DRIVER" >"$TMP/driver" ;;
         fire-check) sed 's/\*" fire=$fire at="\*) ;;/*) ;;/' "$HELPER" >"$TMP/helper" ;;
         record-as-snapshot) sed 's/1:--record) mode=record ;;/1:--record) mode=snapshot ;;/' "$HELPER" >"$TMP/helper" ;;
-        snapshot-keeps-stale) awk '/^  rm -f "\$STATE_DIR\/mission-\$\{MISSION_NAME\}-idle-fingerprint.pending"$/ && !done {done=1; next} {print}' "$DRIVER" >"$TMP/driver" ;;
+        snapshot-keeps-stale) mutation_target=driver; awk '/^  rm -f "\$STATE_DIR\/mission-\$\{MISSION_NAME\}-idle-fingerprint.pending"$/ && !done {done=1; next} {print}' "$DRIVER" >"$TMP/driver" ;;
         pending) sed 's/\["failure", "timed_out", "cancelled", "action_required", "startup_failure"\]/["failure", "timed_out", "cancelled", "action_required", "startup_failure", null]/' "$HELPER" >"$TMP/helper" ;;
       esac
-      if cmp -s "$DRIVER" "$TMP/driver" && cmp -s "$HELPER" "$TMP/helper"; then fail "mutant $mutant unchanged"; fi
+      if [ "$mutation_target" = helper ]; then
+        if cmp -s "$HELPER" "$TMP/helper"; then fail "mutant $mutant sed did not apply"; fi
+      elif cmp -s "$DRIVER" "$TMP/driver"; then
+        fail "mutant $mutant unchanged"
+      fi
       IDLE_TEST_DRIVER="$TMP/driver" IDLE_TEST_HELPER="$TMP/helper" /bin/bash "$0" >"$TMP/mutant.log" 2>&1
       rc=$?
       if [ "$rc" -eq 0 ] || ! grep -q '^FAIL ' "$TMP/mutant.log"; then
@@ -293,6 +314,15 @@ grep -q "/commits/$tip/check-runs" "$S/checks_path" || fail "check-runs not read
 echo '{}' >"$MISSION_WORKDIR/.ailang/state/evaluations/eval_M-FOO_round_1.json"; commit
 hn=$(hash) || fail "ordinary evaluation fingerprint read: $(cat "$TMP/herr")"
 [ -n "$hn" ] && [ "$hn" != "$h0" ] || fail 'ordinary evaluation JSON commit did not move hash'
+h0=$hn
+echo '{}' >"$MISSION_WORKDIR/.ailang/state/evaluations/eval_MISSION-ITER-9_round_1.json"; commit
+hn=$(hash) || fail "MISSION-ITER round evaluation fingerprint read: $(cat "$TMP/herr")"
+[ -n "$hn" ] && [ "$hn" != "$h0" ] || fail 'MISSION-ITER round evaluation JSON commit did not move hash'
+h0=$hn
+
+echo '{}' >"$MISSION_WORKDIR/.ailang/state/evaluations/eval_M-FOO_record.json"; commit
+hn=$(hash) || fail "non-MISSION-ITER record evaluation fingerprint read: $(cat "$TMP/herr")"
+[ -n "$hn" ] && [ "$hn" != "$h0" ] || fail 'non-MISSION-ITER record evaluation JSON commit did not move hash'
 h0=$hn
 echo changed >>"$MISSION_WORKDIR/product.txt"; commit
 h1=$(hash); [ -n "$h1" ] && [ "$h1" != "$h0" ] || fail 'non-record head did not move hash'

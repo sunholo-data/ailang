@@ -5,3 +5,4 @@ head and woke otherwise unchanged fires. The shared helper now skips
 `.ailang/state/evaluations/eval_MISSION-ITER-*_record.json` when selecting the
 fingerprint head. Ordinary sprint verdicts still wake the mission.
 The fleet ticket signature is idle-fingerprint:record-eval-json-moves-head.
+The idle fingerprint tests now verify that MISSION-ITER round verdicts and ordinary sprint record verdicts still wake the mission.
