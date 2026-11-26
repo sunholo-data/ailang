@@ -1,9 +1,9 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 title: Serving costs
 description: What it costs to serve a fine-tuned 12B AILANG model on the rig, Cloud Run GPUs, Vertex AI or a per-token multi-LoRA host.
-reviewed: 2026-11-06
-reviewBy: 2027-02-06
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
 ---
 
 # Serving costs

@@ -1,0 +1,7 @@
+### Added — Pilot 5d reasoning-trace pipeline and fine-tuning research log updates (2026-11-26)
+
+Added the Pilot 5d thinking-trace fine-tuning pipeline and updated the public fine-tuning research log covering Pilots 3–5 (`D-FT-10` through `D-FT-19`):
+
+- **Reasoning trace backfill & mix builder**: Added `tools/finetune/reason5.py` (with unit tests in `tools/finetune/test_reason5.py`) to generate validated first-person AILANG planning scratchpads for single-turn programs and lean-pi episodes while enforcing held-out isolation (`heldout.json` + `_vN` variants), and `tools/finetune/build_mix5d.py` (with unit tests in `tools/finetune/test_build_mix5d.py`) to assemble leakage-free joint mixes with prompt-arm mixing (`none`/`slim`/`compact`), non-empty reasoning gates, and exact token-length checks.
+- **Pilot 5 runner & prep script**: Added `tools/finetune/pilot5d_prep_and_launch.sh` and updated `tools/finetune/pilot5_run.sh` with intermediate checkpoint pruning, traced agent evaluation (`stage_agent`, `trace_models`, `with_proxy`), and `max_tokens` enforcement; updated `tools/finetune/pilot2.yaml` with the cooled Pilot-2b hyperparameters.
+- **Research log & design doc**: Updated `docs/docs/finetuning/{index,data,decisions,field-notes,pilot-3,pilot-5,costs}.md`, linked the Fine-Tuning Research Log from `docs/docs/intro.mdx`, and updated `design_docs/planned/v1_1_0/m-eval-finetuning-data-pipeline.md`.

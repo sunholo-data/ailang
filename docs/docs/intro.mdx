@@ -99,6 +99,7 @@ AILANG {STABLE_RELEASE} is the latest stable release. Check the [implementation 
 - <CheckIcon inline size={14} /> **`ailang inspect` & `check --fix` Phase 2 (v0.63.0)** - Fast semantic module X-ray (`--format=agent`, `--json`), automated `! {Effects}` row stamping, `++` to string-interpolation rewrites, and shared LSP `codeAction` quick-fixes
 - <CheckIcon inline size={14} /> **Pipe Operator `|>`, Typed Holes `_?`/`?name`, & Stdlib Batteries (v0.61–v0.63)** - Ergonomic pipelines, unbraced multi-statement arms/branches, `std/map`/`std/list` combinators, and `std/string`/`std/fs` scripting helpers
 - <CheckIcon inline size={14} /> **Z3 Soundness & Bounded Numeric Model (v0.61–v0.62)** - Int64 overflow/NaN modeling (`M-VERIFY-NUMERIC-MODEL`), callback effect contracts, and nominal type identity with exhaustive match checking (`TC_MATCH_002`)
+- <CheckIcon inline size={14} /> **Fine-Tuning Research Log ([/docs/finetuning](/docs/finetuning))** - Open benchmark-gated log of training local 12B AILANG models on Apple Silicon (Pilots 1–5)
 - <CheckIcon inline size={14} /> **IFC Labels** - Information-flow control at the type system. `T<label>` marks tainted sources; `T{not LABEL}` marks sinks that refuse them — see the [IFC labels guide](/docs/guides/ifc-labels)
 
 ### <Icon name="rocket" size={18} /> Roadmap

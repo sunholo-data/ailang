@@ -2,8 +2,8 @@
 sidebar_position: 3
 title: Decision log
 description: Dated decisions for the AILANG fine-tuning programme — who decided, what, and why.
-reviewed: 2026-11-06
-reviewBy: 2027-02-06
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
 ---
 
 # Decision log
@@ -41,6 +41,12 @@ on the [Baseline](./baseline.md) or [Pilot-1](./pilot-1.md) page.
 
 ## Open
 
+- **Pilot-5 next step (after Run c, 2026-11-25).** Run c matched the full-prompt base model on
+  slim-prompt compilation (44% vs 44%) at rank 32, while rank 128 diverged twice (`scale × rank = 320`
+  enforced). Two gaps separate 17% pass from the 39% single-shot gate: (1) restoring `reasoning`
+  traces (or masking the empty `<|channel>thought` block) so the fine-tune retains 3k–6k tokens of
+  algorithmic planning, and (2) completing the Stage 1 10k–13k mix (split long modules, `examples/`,
+  single-turn compiler repairs, stdlib cards).
 - **Weekly cadence and promotion gate.** Proposal: a new fine-tune must match or beat the previous
   one, and base + full prompt, on the held-out agent set before it is published.
 - **Staleness measurement.** Run the previous fine-tune against the new language each release; slow
