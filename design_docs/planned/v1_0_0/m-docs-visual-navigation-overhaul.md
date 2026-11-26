@@ -201,13 +201,13 @@ Every positive and negative-existence claim in this design was verified against 
 
 ### Design Freeze
 
-Before swarm execution begins, Mark ratifies `D1..D5` (or says `"proceed with recommended defaults D1=a..D5=a"`):
+Ratified by Mark on 2026-11-26 (`execute sprint` — recommended defaults `D1=a..D5=a`):
 
-- [ ] **D1** ratified: IA 5-section sidebar + 6-item navbar + `@docusaurus/plugin-client-redirects`
-- [ ] **D2** ratified: Disjoint roles for `why-ailang`/`why-1-0`/`vision` + unlisting 23 historical `prompts/v*.md`
-- [ ] **D3** ratified: Move 10 fleet runbooks to `docs/internal/` + `<TierBanner />` from `tier:` frontmatter
-- [ ] **D4** ratified: `llms.txt` (concise index + routing table) + `llms-full.txt` (full reference + active prompt)
-- [ ] **D5** ratified: Mermaid + 8 clean brand-palette SVGs in `docs/static/img/diagrams/` + audit-gated `reviewBy` refresh
+- [x] **D1** ratified (`D1=a`): IA 5-section sidebar + 6-item navbar + `@docusaurus/plugin-client-redirects`
+- [x] **D2** ratified (`D2=a`): Disjoint roles for `why-ailang`/`why-1-0`/`vision` + unlisting 23 historical `prompts/v*.md`
+- [x] **D3** ratified (`D3=a`): Move 10 fleet runbooks to `docs/internal/` + `<TierBanner />` from `tier:` frontmatter
+- [x] **D4** ratified (`D4=a`): `llms.txt` (concise index + routing table) + `llms-full.txt` (full reference + active prompt)
+- [x] **D5** ratified (`D5=a`): Mermaid + 8 clean brand-palette SVGs in `docs/static/img/diagrams/` + audit-gated `reviewBy` refresh
 
 ---
 
