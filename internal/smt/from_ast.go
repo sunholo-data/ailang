@@ -218,6 +218,8 @@ func ASTTypeToSMTSort(t ast.Type) string {
 			return "Bool"
 		case "string":
 			return "String"
+		case "()", "unit":
+			return unitSortName
 		default:
 			return ty.Name // ADT type name
 		}
@@ -312,7 +314,7 @@ func astTypeEncodable(t ast.Type, declarable map[string]int) bool {
 		return true
 	case *ast.SimpleType:
 		switch ty.Name {
-		case "int", "float", "bool", "string":
+		case "int", "float", "bool", "string", "()", "unit":
 			return true
 		default:
 			n, ok := declarable[ty.Name]

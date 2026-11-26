@@ -713,7 +713,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 `ailang verify` can verify functions that stay within a decidable subset of the language:
 
 **Currently supported:**
-- `int`, `float` (as a mathematical real, not IEEE-754), `bool`, `string`, list, tuple (2 to 8 components, as the datatype `TupleN`), and enum/ADT parameters and return types
+- `int`, `float` (as a mathematical real, not IEEE-754), `bool`, `string`, list, tuple (2 to 8 components, as the datatype `TupleN`), unit `()` (as `Tuple0`, so `Result[(), E]` works), and enum/ADT parameters and return types
 - Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
 - Records nested anywhere in an ADT payload, including a list of records that refers back to the ADT, as in `std/json`'s `Json` (`JObject([{ key: string, value: Json }])`)
 - Arithmetic: `+`, `-`, `*`, `/`
@@ -744,7 +744,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 | `words`/`foldChars`/`replaceMany`, datetime builtins | No SMT encoding yet | Yes — planned |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 | Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
-| Open or unsupported ADT payloads | Unresolved type variables, unit and function-valued fields have no encoding here | Requires additional type encodings |
+| Open or unsupported ADT payloads | Unresolved type variables and function-valued fields have no encoding here | Requires additional type encodings |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
 

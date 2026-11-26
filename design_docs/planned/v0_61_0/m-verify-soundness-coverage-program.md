@@ -178,6 +178,13 @@ Next, in order:
    Totals against M0: verified 590 → **648**, skipped 125 → **59**, inconclusive 3 → 21, errors 1 → 0 (excluding the one `reexport_facade` row noted in 4d).
 
    Next levers: unit `()` as a sort (`stoppedCase`, `validateRun`); the `option.map` bare-name gate (3 sole); and type-variable instantiation at call sites (`isErr`, `foldChars`, `firstOr`). That last one changes how a call is resolved, so a design doc comes first (item 5).
+4f. ~~**Unit as a sort**~~ **Done 2026-11-26.** Unit is the 0-tuple `Tuple0` (one constructor, `mk_Tuple0`), added beside the tuple datatypes, with the same per-function filter and the same clash rule for a declared `Tuple0`. `()` in a signature, as a type argument (`Result[(), E]`) and as a literal now encodes. Unit parameters are still dropped from signatures as before (the zero-arg desugaring). A unit value is shown and replayed as `()`; the replay verdict now prints it with `PrintAILANGSource`, since `ast.Literal.String()` gives `<nil>` for unit.
+
+   It exposed two Z3 errors in the bounded unrolling of a zero-argument recursive function, which the unit-literal skip had hidden. The recursive call kept its unit argument where the level drops it, and a nullary level was applied as `(f_2 )`. Both are fixed: `ReplaceSelfCalls` drops unit arguments, and the top call is the bare name.
+
+   Gap map: +1 verified (`stoppedCase`), 0 regressions. `validateRun` moves to its next blocker, `isErr`'s `Result[a, e]`. Totals against M0: verified 590 → **649**, skipped 125 → **58**.
+
+   With unit, tuples and record names done, the remaining skips are effects (12, out of scope), the `option.map` bare-name gate (3 sole), the solver's undecided rows, and **type variables in helper signatures** (`isErr`, `foldChars`, `firstOr`, `intersect`, `mapE`). Those need instantiation at the call site, which changes how a call is resolved. That is item 5's design doc.
 5. A design doc only for a lever the table ranks high that changes how a call is resolved: qualified `(module, name)` identity together with type-variable instantiation (S7's seam). Today the bare-name gate is never a sole blocker and a type variable is sole in 5, so no design doc is due.
 6. Inconclusives and undecided bounded unrollings: induction, Future Work.
 

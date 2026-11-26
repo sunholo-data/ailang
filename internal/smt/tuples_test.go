@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/smt"
 )
 
 // Tuples are the built-in datatypes TupleN (tuple_sorts.go). Every function
@@ -37,6 +39,30 @@ func TestTupleSorts(t *testing.T) {
 	}
 }
 
+// Unit is the 0-tuple Tuple0: a Result[(), E] helper, a unit-returning helper
+// and a unit parameter encode (each was skipped before).
+func TestUnitSort(t *testing.T) {
+	path := filepath.Join("testdata", "tuples", "unit.ail")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Depth 2, as the CLI: zeroRec is unrolled.
+	report, _ := verifySourceWith(t, path, string(src), smt.VerifyOptions{RecursiveDepth: 2})
+	want := map[string]string{"stoppedCase": "verified", "stoppedBad": "counterexample", "throughNoop": "verified", "unitParamBad": "counterexample", "zeroRec": "verified"}
+	for _, r := range report.Results {
+		if w, ok := want[r.Function]; ok {
+			delete(want, r.Function)
+			if r.Status != w {
+				t.Errorf("%s: status %q (%s), want %q", r.Function, r.Status, r.Reason, w)
+			}
+		}
+	}
+	for fn := range want {
+		t.Errorf("%s: no result", fn)
+	}
+}
+
 // A declared type named like a tuple datatype keeps its name; a function that
 // needs that sort is skipped, never encoded over the wrong datatype.
 func TestTupleSortShadowed(t *testing.T) {
@@ -52,8 +78,11 @@ func TestTupleSortShadowed(t *testing.T) {
 		if r.Function == "fst" && !strings.Contains(r.Reason, "shadows the verifier's datatype for 2-tuples") {
 			t.Errorf("fst: reason %q does not name the shadowed tuple sort", r.Reason)
 		}
+		if r.Function == "unitArg" && !strings.Contains(r.Reason, "shadows the verifier's datatype for unit, ()") {
+			t.Errorf("unitArg: reason %q does not name the shadowed unit sort", r.Reason)
+		}
 	}
-	if got["fst"] != "skipped" || got["plain"] != "verified" {
-		t.Errorf("statuses %v, want fst skipped and plain verified", got)
+	if got["fst"] != "skipped" || got["unitArg"] != "skipped" || got["plain"] != "verified" {
+		t.Errorf("statuses %v, want fst and unitArg skipped, plain verified", got)
 	}
 }

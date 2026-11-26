@@ -132,9 +132,9 @@ ensures { strict(result) }
 	}
 }
 
-// TestVerify_UnitReturningCalleeStillSkips: a callee returning `()` is genuinely
-// unencodable; the fix must not let it through.
-func TestVerify_UnitReturningCalleeStillSkips(t *testing.T) {
+// TestVerify_UnitReturningCalleeIsDefined: a callee returning `()` is defined
+// at the unit sort Tuple0 (it was a skip naming "()" before unit had a sort).
+func TestVerify_UnitReturningCalleeIsDefined(t *testing.T) {
 	if !smt.Z3Available() {
 		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
 	}
@@ -149,9 +149,28 @@ ensures { result >= 0 } {
 }
 `)
 	got := verifyStatuses(t, bin, "--relax-modules", f)
-	r := got["usesUnit"]
-	if r.Status != "skipped" || !strings.Contains(r.Reason, `"()"`) {
-		t.Fatalf("usesUnit = %+v, want skipped naming \"()\"", r)
+	if r := got["usesUnit"]; r.Status != "verified" {
+		t.Fatalf("usesUnit = %+v, want verified", r)
+	}
+}
+
+// TestVerify_UnitWitnessReplays: a bounded model with a unit input is
+// replayed on the real function, and the input is shown as (), not <nil>.
+func TestVerify_UnitWitnessReplays(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
+	}
+	bin := buildAilang(t)
+	f := writeTempAil(t, `module m
+export pure func countDown(u: (), n: int) -> int
+ensures { result > 0 } {
+  if n <= 0 then 0 else countDown(u, n - 1)
+}
+`)
+	got := verifyStatuses(t, bin, "--relax-modules", f)
+	r := got["countDown"]
+	if r.Status != "counterexample" || !strings.Contains(r.Reason, "u = ()") {
+		t.Fatalf("countDown = %+v, want a replayed counterexample showing u = ()", r)
 	}
 }
 

@@ -1,0 +1,49 @@
+module unit
+
+-- Unit is the 0-tuple Tuple0 (tuple_sorts.go).
+type Fail = Expired(string) | Gone
+
+-- A Result whose success carries no value.
+func stopped(r: Result[(), Fail]) -> bool {
+  match r { Ok(_) => true, Err(_) => false }
+}
+
+export func stoppedCase(success: bool) -> bool
+  ensures { result == success }
+{
+  let r = if success then Ok(()) else Err(Expired("x"));
+  stopped(r)
+}
+
+-- False: a failure is not stopped.
+export func stoppedBad(success: bool) -> bool
+  ensures { result }
+{
+  let r = if success then Ok(()) else Err(Gone);
+  stopped(r)
+}
+
+-- A helper returning unit is defined like any other.
+func noop(n: int) -> () = ()
+
+export func throughNoop(x: int) -> int
+  ensures { result == x }
+{
+  let _u = noop(x);
+  x
+}
+
+-- A unit parameter shows and replays as ().
+export func unitParamBad(u: (), n: int) -> int
+  ensures { result > n }
+{
+  n
+}
+
+-- A zero-arg function is `f(_: ())`; its bounded unrolling drops the unit
+-- argument of the recursive call, and its top level is a constant.
+export func zeroRec() -> int
+  ensures { result == 0 }
+{
+  if true then 0 else zeroRec()
+}

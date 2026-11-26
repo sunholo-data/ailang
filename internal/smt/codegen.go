@@ -567,7 +567,10 @@ func EncodeFunction(
 				paramNames = append(paramNames, p.Name)
 			}
 		}
-		bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
+		bodyExpr = unrollTopName // a nullary level is a constant, never `(f )`
+		if len(paramNames) > 0 {
+			bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
+		}
 		addDefinitionObligations(unrollTopName, paramNames)
 	} else {
 		var err error

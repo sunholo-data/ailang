@@ -19,14 +19,22 @@ import (
 // tuple expression is a constructor application, and a tuple pattern is the constructor pattern mk_TupleN (one
 // variant, so it always matches) through the nested-pattern encoder.
 //
+// Unit, `()`, is the 0-tuple Tuple0, whose one value is mk_Tuple0.
+//
 // A module that declares its own type named TupleN keeps it; a function that
-// needs that sort is then skipped (tupleSortShadowed), never encoded over the
+// needs that sort is then skipped (neededSortConflict), never encoded over the
 // wrong datatype.
 
 const (
 	minTupleArity = 2
 	maxTupleArity = 8
+
+	unitSortName    = "Tuple0"
+	unitConstructor = "mk_Tuple0"
 )
+
+// isUnitTypeName reports whether an AILANG type name is unit.
+func isUnitTypeName(name string) bool { return name == "()" || name == "unit" }
 
 // tupleSortName is the datatype of n-tuples: Tuple2, Tuple3, ...
 func tupleSortName(n int) string { return "Tuple" + strconv.Itoa(n) }
@@ -85,6 +93,8 @@ func TupleDatatypes() (map[string][]ADTVariant, map[string][]string) {
 		adts[tupleSortName(n)] = []ADTVariant{{Name: tupleConstructor(n), Fields: fields}}
 		params[tupleSortName(n)] = binders
 	}
+	adts[unitSortName] = []ADTVariant{{Name: unitConstructor}}
+	params[unitSortName] = nil
 	return adts, params
 }
 
@@ -111,7 +121,9 @@ func neededSortConflict(needed, conflictingRecords, tupleShadowed map[string]boo
 	if name := firstNeededConflict(needed, conflictingRecords); name != "" {
 		return fmt.Errorf("two record types with different field types are both named %s, from their field names and field sorts", name)
 	}
-	if name := firstNeededConflict(needed, tupleShadowed); name != "" {
+	if name := firstNeededConflict(needed, tupleShadowed); name == unitSortName {
+		return fmt.Errorf("a declared type named %s shadows the verifier's datatype for unit, ()", name)
+	} else if name != "" {
 		return fmt.Errorf("a declared type named %s shadows the verifier's datatype for %d-tuples", name, tupleArity(name))
 	}
 	return nil

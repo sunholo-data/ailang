@@ -10,8 +10,8 @@ pure func stopped(result: Result[(), WorkerCancelError]) -> bool {
   match result { Ok(_) => true, Err(_) => false }
 }
 
--- Z3 skips this contract because the callee uses parametric Result; inline tests
--- and generated property cases check the same condition through the classifier.
+-- `ailang verify` proves this contract through the classifier (unit is the SMT
+-- datatype Tuple0); inline tests and generated property cases check it too.
 pure func stoppedCase(success: bool) -> bool ! {}
 ensures { result == success }
   tests [(true, true), (false, false)] {

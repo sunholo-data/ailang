@@ -153,6 +153,8 @@ func formatModelTerm(term, sort *SExpr, dtors map[string]ctorInfo) (string, bool
 			return "", false
 		}
 		return "[" + strings.Join(elems, ", ") + "]", true
+	case !sort.IsList && sort.Atom == unitSortName && !term.IsList && term.Atom == unitConstructor:
+		return "()", true
 	case isTupleValue(term, sort):
 		vals := make([]string, len(sort.List)-1)
 		for i := range vals {

@@ -176,7 +176,7 @@ func encodeLit(lit *core.Lit) (string, error) {
 		}
 		return "false", nil
 	case core.UnitLit:
-		return "", fmt.Errorf("%w: unit literals cannot be encoded in SMT-LIB", ErrUnsupportedConstruct)
+		return unitConstructor, nil // the 0-tuple (tuple_sorts.go)
 	case core.StringLit:
 		v, ok := lit.Value.(string)
 		if !ok {

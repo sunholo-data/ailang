@@ -156,6 +156,13 @@ func ReplaceSelfCalls(expr core.CoreExpr, funcName, replacement string) core.Cor
 		if newFunc == e.Func && sliceUnchanged(newArgs, e.Args) {
 			return e
 		}
+		if newFunc != e.Func {
+			// A call of the function itself, now its level: the level's
+			// parameters are the surface ones, which drop the unit of a
+			// zero-arg function (`f()` is `f(_: ())`), so its argument goes
+			// too, as encodeUserFunctionCall drops it.
+			newArgs = dropUnitArgs(newArgs)
+		}
 		return &core.App{Func: newFunc, Args: newArgs}
 	case *core.If:
 		newCond := ReplaceSelfCalls(e.Cond, funcName, replacement)

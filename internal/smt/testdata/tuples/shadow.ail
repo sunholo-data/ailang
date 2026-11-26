@@ -14,3 +14,12 @@ export func plain(x: int) -> int
 {
   x
 }
+
+-- …and one named like the unit datatype.
+type Tuple0 = Tuple0(int)
+
+export func unitArg(u: (), x: int) -> int
+  ensures { result == x }
+{
+  x
+}

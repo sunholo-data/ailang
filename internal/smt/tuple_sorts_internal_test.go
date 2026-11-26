@@ -10,20 +10,21 @@ func TestTupleModelValues(t *testing.T) {
   (define-fun $p_p () (Tuple2 Int String) (mk_Tuple2 (- 3) "a"))
   (define-fun $p_ps () (Seq (Tuple2 Int Int)) (seq.unit (mk_Tuple2 1 2)))
   (define-fun $p_t () (Tuple3 Bool Int Real) (mk_Tuple3 true 0 (/ 1.0 2.0)))
+  (define-fun $p_u () Tuple0 mk_Tuple0)
 )`
 	model := parseModel(raw)
-	want := map[string]string{"p": `(-3, "a")`, "ps": "[(1, 2)]", "t": "(true, 0, 0.5)"}
+	want := map[string]string{"p": `(-3, "a")`, "ps": "[(1, 2)]", "t": "(true, 0, 0.5)", "u": "()"}
 	for _, b := range formatModelBindings(model, "") {
 		if w, ok := want[b.Name]; ok && b.Value != w {
 			t.Errorf("shown %s = %s, want %s", b.Name, b.Value, w)
 		}
 	}
-	args, err := witnessArgs([]FunctionParam{{Name: "p"}, {Name: "ps"}, {Name: "t"}}, model, "")
+	args, err := witnessArgs([]FunctionParam{{Name: "p"}, {Name: "ps"}, {Name: "t"}, {Name: "u"}}, model, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, a := range args {
-		if got := a.Literal.String(); got != want[a.Name] {
+		if got := a.Text; got != want[a.Name] {
 			t.Errorf("replayed %s = %s, want %s", a.Name, got, want[a.Name])
 		}
 	}

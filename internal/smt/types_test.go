@@ -18,7 +18,8 @@ func TestMapType_Primitives(t *testing.T) {
 		{"float", &types.TCon{Name: "float"}, "Real", false},
 		{"bool", &types.TCon{Name: "bool"}, "Bool", false},
 		{"string", &types.TCon{Name: "string"}, "String", false},
-		{"unit", &types.TCon{Name: "unit"}, "", true},
+		{"unit", &types.TCon{Name: "unit"}, "Tuple0", false},
+		{"unit ()", &types.TCon{Name: "()"}, "Tuple0", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -324,7 +324,9 @@ func collectSortsFromType(t types.Type, sorts map[string]bool) {
 	}
 	switch ty := t.(type) {
 	case *types.TCon:
-		if !isPrimitiveTypeName(ty.Name) {
+		if isUnitTypeName(ty.Name) {
+			sorts[unitSortName] = true
+		} else if !isPrimitiveTypeName(ty.Name) {
 			sorts[ty.Name] = true
 		}
 	case *types.TApp:
@@ -429,6 +431,10 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 	case *core.List:
 		for _, elem := range e.Elements {
 			collectSortsFromBody(elem, sorts)
+		}
+	case *core.Lit:
+		if e.Kind == core.UnitLit {
+			sorts[unitSortName] = true
 		}
 	case *core.Tuple:
 		sorts[tupleSortName(len(e.Elements))] = true

@@ -45,10 +45,12 @@ func TestFirstUnencodableCalleeType_NullaryCalleeIsEncodable(t *testing.T) {
 		t.Fatalf("nullary int callee rejected: %q uses %q", callee, bad)
 	}
 
-	// Control: a unit RETURN type is still unencodable — the gate must keep firing.
-	astFuncs["cap"] = nullaryFuncDecl("cap", "()")
+	// Control: a RETURN type with no sort (an undeclared type name) is still
+	// unencodable — the gate must keep firing. (This was unit until unit had a
+	// sort, Tuple0.)
+	astFuncs["cap"] = nullaryFuncDecl("cap", "a")
 	if callee, _ := FirstUnencodableCalleeType("bound", body, prog, nil, astFuncs, nil); callee != "cap" {
-		t.Fatalf("unit-returning callee not gated, got %q", callee)
+		t.Fatalf("callee returning a sortless type not gated, got %q", callee)
 	}
 }
 

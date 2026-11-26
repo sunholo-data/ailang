@@ -225,10 +225,8 @@ func TestSMTParametricADT_UnsupportedShapesRemainUnprovedCLI(t *testing.T) {
 	cases := []struct {
 		name, source string
 	}{
-		{"unit_result", `export pure func unitResult(n: int) -> Result[(), AudioError]
-ensures { match result { Ok(_) => true, Err(_) => true } }
-{ if n < 0 then Err(ResourceLimit("negative")) else Ok(()) }
-`},
+		// (A Result[(), E] was the first shape here until unit had a sort,
+		// Tuple0; internal/smt TestUnitSort covers it.)
 		{"higher_order_parameter", `export pure func higherOrder(f: int -> int) -> Result[int, AudioError]
 ensures { match result { Ok(x) => x >= 0, Err(_) => true } }
 { Ok(f(0)) }

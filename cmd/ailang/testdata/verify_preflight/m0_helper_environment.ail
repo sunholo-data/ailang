@@ -32,9 +32,9 @@ ensures { result == 0 } { if true then 0 else nullary() }
 export pure func nullaryCaller() -> int
 ensures { result == 0 } { nullary() }
 
--- The callee's own bounded unrolling cannot encode its unit argument, which is
--- a skip naming the unit literal (it was an ERROR until unsupported Core
--- constructs were all wrapped as such). Callers still use its declared
--- contract; this sprint does not widen unrolling.
+-- nullary's own bounded unrolling drops the unit argument of its zero-arg
+-- recursive call, as a define-fun's call does (it was a skip naming the unit
+-- literal until unit had a sort, and an ERROR before that). Callers use its
+-- declared contract.
 export pure func nullaryFalse() -> int
 ensures { result == 1 } { nullary() }

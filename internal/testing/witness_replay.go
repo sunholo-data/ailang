@@ -75,7 +75,7 @@ func (w *WitnessReplayer) replay(funcName string, args []ReplayArg) (bool, strin
 			return false, fmt.Sprintf("input %s: %v", a.Name, err)
 		}
 		params[i] = EnsuresParam{Name: a.Name, Value: v}
-		shown[i] = fmt.Sprintf("%s = %s", a.Name, a.Literal.String())
+		shown[i] = fmt.Sprintf("%s = %s", a.Name, PrintAILANGSource(a.Literal)) // () for unit, not <nil>
 	}
 	input := strings.Join(shown, ", ")
 

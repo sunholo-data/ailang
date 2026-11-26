@@ -68,7 +68,11 @@ func witnessArgs(params []FunctionParam, model []ModelBinding, smtlib string) ([
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
 		}
-		args = append(args, WitnessArg{Name: p.Name, Literal: lit, Text: lit.String(), Sort: b.Sort})
+		text := lit.String()
+		if l, ok := lit.(*ast.Literal); ok && l.Kind == ast.UnitLit {
+			text = "()" // Literal.String() prints a unit as <nil>
+		}
+		args = append(args, WitnessArg{Name: p.Name, Literal: lit, Text: text, Sort: b.Sort})
 	}
 	return args, nil
 }
@@ -167,6 +171,8 @@ func modelTermToLiteral(term, sort *SExpr, records map[string][]recordField) (as
 			return nil, err
 		}
 		return &ast.List{Elements: elems}, nil
+	case !sort.IsList && sort.Atom == unitSortName && !term.IsList && term.Atom == unitConstructor:
+		return &ast.Literal{Kind: ast.UnitLit}, nil
 	case isTupleValue(term, sort):
 		out := &ast.Tuple{Elements: make([]ast.Expr, len(sort.List)-1)}
 		for i := range out.Elements {
