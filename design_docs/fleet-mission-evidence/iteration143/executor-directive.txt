@@ -1,0 +1,29 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 143 in this worktree (repo sunholo-data/ailang, branch fleet/i142-idle-fp-record-eval-json at 04f307466, PR #2473).
+
+Implement the plan at `design_docs/fleet-mission-evidence/iteration143/plan.md` VERBATIM. Read it in full first, then read `tools/launchd/test_mission_idle_fingerprint.sh` (the mutation loop near lines 26-72 and the evaluation fixture arms near lines 285-300) and `tools/launchd/lib/idle-fingerprint.sh`.
+
+Files you may change (nothing else):
+1. `tools/launchd/test_mission_idle_fingerprint.sh` — plan sections "Plain fixture" (two new negative-control arms) and "Mutation loop" (four new mutants with expected_fail, plus the per-target `mutation_target` no-op guard replacing the combined `cmp` check).
+2. `changelogs/unreleased/2026-11-26-idle-fingerprint-record-eval-json.md` — append the plan's one sentence.
+
+The production helper `tools/launchd/lib/idle-fingerprint.sh` MUST stay byte-for-byte unchanged.
+
+Rules:
+- NO git write operations at all (no add, commit, stash, checkout, reset, restore). The controller commits.
+- Bash 3.2 + BSD tools. No new environment variables. Nothing may write to `$HOME/.ailang/state` or anywhere outside this worktree and the test's own temp fixture. Put any scratch files under a directory inside this worktree (e.g. `.scratch-iter143/`) and delete it when done.
+- If something in the plan cannot work as written (a sed address that does not match, a FAIL line that comes out different), make the minimal correct adaptation that preserves the plan's intent and REPORT the deviation explicitly.
+
+Gates — run each and report the command, rc and the key output lines (capture each exit status without a pipe: `cmd > file 2>&1; echo rc=$?`):
+1. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0, three PASS lines.
+2. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh --mutations` — expect rc 0 and 21 KILLED lines. Quote the four new KILLED lines verbatim.
+3. Plan gate 5: for each of the four widened helpers, a scratch copy run via `IDLE_TEST_HELPER=<scratch>/helper /bin/bash tools/launchd/test_mission_idle_fingerprint.sh`; expect rc 1 and the first FAIL line equal to that mutant's expected_fail. Report each.
+4. `shellcheck tools/launchd/lib/idle-fingerprint.sh tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+5. `make check-changelog` — expect rc 0.
+6. `git diff --stat` and `git diff --quiet -- tools/launchd/lib/idle-fingerprint.sh; echo helper-unchanged-rc=$?` (expect 0).
+If a gate fails on a sandbox permission or socket denial, label it UNINFORMATIVE UNDER SANDBOX rather than pass/fail. A gate red for a reason unrelated to your change is a finding to report, not something to work around.
+
+The mutation run takes several minutes. If you start any background command, poll its output file inside a bounded `date +%s` loop; a Monitor is not a wait, and nothing will re-invoke you, so never end your turn announcing that you are waiting.
+
+Final message: files changed with +/- counts, every gate's rc, the four new KILLED lines, the four scratch-copy results, and any deviation from the plan.

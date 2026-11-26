@@ -1,0 +1,27 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 142 in this worktree (repo sunholo-data/ailang, branch fleet/i142-idle-fp-record-eval-json, base origin/dev 162f2dcd1).
+
+Implement the plan at `design_docs/fleet-mission-evidence/iteration142/plan.md` VERBATIM. Read it in full first, then read `tools/launchd/lib/idle-fingerprint.sh` and `tools/launchd/test_mission_idle_fingerprint.sh`.
+
+Files you may change (nothing else):
+1. `tools/launchd/lib/idle-fingerprint.sh` — plan section 1 (comment + the fourth `:(exclude)` line; keep the other three unchanged).
+2. `tools/launchd/test_mission_idle_fingerprint.sh` — plan section 2 (the record-only arm, the ordinary-verdict negative control, the two new mutants `exclude-record-eval` and `exclude-evaluations-broad`, and the per-mutant `expected_fail` check so each new mutant is proven killed by exactly its intended assertion).
+3. `changelogs/unreleased/2026-11-26-idle-fingerprint-record-eval-json.md` — plan section 4, BUT omit the "[Fleet ticket evidence](...)" link line; end the fragment with a plain sentence naming the ticket signature `idle-fingerprint:record-eval-json-moves-head` instead.
+
+Rules:
+- NO git write operations at all (no add, commit, stash, checkout, reset, restore). The controller commits.
+- Bash 3.2 + BSD tools. No new environment variables. Nothing may write to `$HOME/.ailang/state` or anywhere outside this worktree and the test's own temp fixture.
+- If something in the plan cannot work as written (e.g. a sed address does not match the real helper line, or the mutation loop's structure differs from what the plan assumes), make the minimal correct adaptation that preserves the plan's intent and REPORT the deviation explicitly.
+
+Gates — run each and report the command, rc and the key output lines:
+1. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0, three PASS lines.
+2. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh --mutations` — expect rc 0 and every mutant KILLED (plan expects 17). Quote the two new KILLED lines verbatim.
+3. Sole-killer check: temporarily revert ONLY your helper change in a scratch COPY (e.g. `sed` the helper to a file under `$TMPDIR` or the test's own mechanism) — do not edit tracked files back and forth — and confirm the plain test then FAILs with `record-only evaluation JSON commit moved hash`. Report how you did it.
+4. `shellcheck tools/launchd/lib/idle-fingerprint.sh tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+5. `make check-changelog` — expect rc 0.
+Capture each exit status without a pipe (`cmd > file 2>&1; echo rc=$?`). If a gate fails on a sandbox permission or socket denial, label it UNINFORMATIVE UNDER SANDBOX rather than pass/fail. A gate that you find red for a reason unrelated to your change is a finding to report, not something to work around.
+
+If you start any background command, poll its output file inside a bounded `date +%s` loop; a Monitor is not a wait, and nothing will re-invoke you, so never end your turn announcing that you are waiting.
+
+Final message: list the files changed (with +/- line counts from `git diff --stat`), every gate's rc, the two new KILLED lines, the sole-killer result, and any deviation from the plan.
