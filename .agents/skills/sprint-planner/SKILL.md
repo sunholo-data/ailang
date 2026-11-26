@@ -514,7 +514,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md) for
 - Summary (goal, duration, risk level)
 - Current status analysis (completed, velocity, remaining)
 - Proposed milestones (with tasks, criteria, risks)
-- Swarm Worker & Model Assignment (optional — for `/swarm` sprints: assign models per worker/slice here rather than in the design doc; use top reasoning models for Coordinator + compiler/parser/typechecker slices and fast/standard models for well-scoped stdlib/tooling/verifier slices)
+- Swarm Worker & Model Assignment (optional — for `/swarm` sprints: compute each slice's `Est. ELO` via `scripts/estimate_task_elo.sh [--json] <paths...>` and assign models from the resulting Frontier/Core/Routine band rather than guessing or putting models in the design doc; full scoring details in `resources/sprint_plan_template.md`)
 - Success metrics, dependencies and open questions
 
 ## Progressive Disclosure
@@ -522,7 +522,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md) for
 This skill loads information progressively:
 
 1. **Always loaded**: This SKILL.md file (YAML frontmatter + workflow)
-2. **Execute as needed**: Scripts in `scripts/` (velocity analysis)
+2. **Execute as needed**: Scripts in `scripts/` (velocity analysis, `estimate_task_elo.sh` for deterministic task ELO)
 3. **Load on demand**: `resources/sprint_plan_template.md` (template)
 
 Scripts execute without loading into context window, saving tokens.

@@ -59,15 +59,16 @@ For every implementable milestone, record the `ailang pkg search` terms, package
 
 ## Swarm Worker & Model Assignment (Optional — for `/swarm` execution)
 
-> Assign models here (not in the design doc) based on currently available models (`swarm(action:"models")`) and slice complexity. Omit if executing single-agent.
+> Assign models here (not in the design doc) using deterministic Task ELO computed via `.agents/skills/sprint-planner/scripts/estimate_task_elo.sh <path1> [path2 ...]` (mirrored at `.claude/skills/sprint-planner/scripts/estimate_task_elo.sh`) and currently available models (`swarm(action:"models")`). Omit if executing single-agent.
 
-| Worker | Milestone(s) | Workspace | Assigned Model | Rationale |
-|--------|--------------|-----------|----------------|-----------|
-| `coordinator` | Integration, shared hotspots (`.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`) | main | `[top reasoning / inherit]` | Owns merge order, conflict resolution, and final verification |
-| `[worker-a]` | M1 | `share` | `[top reasoning / fast / inherit]` | [e.g., complex parser/typechecker work] |
-| `[worker-b]` | M2 | `share` | `[fast / standard / inherit]` | [e.g., well-scoped stdlib/tooling slice] |
-| `verifier` | Post-merge checks & evals | `inherit` | `[fast / standard / inherit]` | Read-only tests, `--strict-bytecode`, eval A/B |
+| Worker | Milestone(s) | Est. ELO | Workspace | Assigned Model | Rationale |
+|--------|--------------|----------|-----------|----------------|-----------|
+| `coordinator` | Integration, shared hotspots (`.stdlib-golden/`, `prompts/`, `llms.txt`, `manifest.json`) | `1700+ (Frontier)` | main | `[gemini-4-hydrogen-high / claude-opus-5-5-high / inherit]` | Owns merge order, conflict resolution, and final verification |
+| `[worker-a]` | M1 | `[e.g., 1825 (Frontier)]` | `share` | `[gemini-4-hydrogen-high / claude-opus-5-5-high]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/parser/` + large file + high fan-in] |
+| `[worker-b]` | M2 | `[e.g., 1500 (Core)]` | `share` | `[gemini-4-neon-medium / claude-sonnet-5-5-medium]` | [Computed via `estimate_task_elo.sh`: e.g., `internal/lsp/`, `cmd/ailang/`] |
+| `verifier` | Post-merge checks & evals | `[e.g., 1300 (Routine)]` | `inherit` | `[gemini-3.8-flash-high / gemini-3.8-flash-medium]` | Read-only tests, `--strict-bytecode`, eval A/B |
 
+- **ELO-to-band mapping**: `>= 1700` → Frontier (`gemini-4-hydrogen-high` / `claude-opus-5-5-high`), `1450–1699` → Core (`gemini-4-neon-medium` / `claude-sonnet-5-5-medium`), `< 1450` → Routine (`gemini-3.8-flash-high` / `gemini-3.8-flash-medium`).
 - **Mid-run quota fallback**: Switch any `waiting` worker in-place via `swarm(action:"model", ...)` without losing conversation history or deleting its workspace.
 
 ## Success Metrics
