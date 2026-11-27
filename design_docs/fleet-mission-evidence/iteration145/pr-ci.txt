@@ -1,0 +1,41 @@
+09:16:38 total=21 pending=10
+09:17:38 total=22 pending=10
+09:18:40 total=22 pending=8
+09:19:41 total=22 pending=7
+09:20:42 total=22 pending=7
+09:21:43 total=22 pending=6
+09:22:44 total=22 pending=6
+09:23:45 total=22 pending=6
+09:24:46 total=22 pending=5
+09:25:47 total=22 pending=4
+09:26:50 total=22 pending=3
+09:27:51 total=22 pending=3
+09:28:52 total=22 pending=2
+09:29:53 total=22 pending=2
+09:30:54 total=23 pending=1
+09:31:55 total=24 pending=0
+Analyze Go (go, autobuild): success
+Build macos-latest: success
+Build macos-latest: success
+Build ubuntu-latest: success
+Build windows-latest: success
+CodeQL: success
+Create Release Bundle: skipped
+SonarCloud Code Analysis: success
+automerge: skipped
+build: success
+changes: success
+checks: failure
+dependency-submission: skipped
+deploy: skipped
+docs-build: skipped
+docs-changes: success
+docs-gate: success
+docs: skipped
+float determinism (arm64): success
+govulncheck (vuln gate): success
+launchd drivers (bash 3.2): success
+lint: success
+test-windows: success
+test: success
+ALL COMPLETE for ccee1cacaf7fc0aacf9e02affe9372c9eef6b75e

@@ -1,0 +1,5 @@
+# PR CI, SHA-pinned on 8c69675fa6fa62ac76f48987c44b79290932eff1
+ALL COMPLETE for 8c69675fa6fa62ac76f48987c44b79290932eff1 total=24 bad=[] required: build=completed/success docs-gate=completed/success lint=completed/success test=completed/success checks=completed/success
+
+# dev CI on merge 7b67c35b4cd5d70c1c69e55d30d7e506d76aa3e7
+ALL COMPLETE for 7b67c35b4cd5d70c1c69e55d30d7e506d76aa3e7 total=18 bad=[test-windows:failure] build=completed/success launchd drivers (bash 3.2)=completed/success checks=completed/success test=completed/success lint=completed/success
