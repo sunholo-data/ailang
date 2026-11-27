@@ -1,0 +1,32 @@
+dev HEAD 9b35c44d0749490d79f1ae1a8dd2e528400a23bb (Gate 1, 2026-11-27T01:10Z)
+check-runs total=22
+NOT-GREEN Build (1074573805007): failure google-cloud-build
+NOT-GREEN checks: failure github-actions
+
+required contexts (branch protection):
+test, lint, build, docs-gate, checks
+
+checks job 140154965814, make check-context-docs:
+##[group]Run make check-context-docs
+make check-context-docs
+shell: /usr/bin/bash -e {0}
+env:
+##[endgroup]
+✗ .claude/rules/coordinator.md: broken link: ../../docs/docs/guides/coordinator-workers.md
+    A pointer nobody can follow is a fact nobody can reach.
+    Write the target, drop the promise, or baseline it in scripts/context_docs_links_baseline.txt.
+✗ .claude/skills/local-ollama-eval/SKILL.md: broken link: ../../../docs/docs/guides/evaluation/local-ollama.md
+    A pointer nobody can follow is a fact nobody can reach.
+    Write the target, drop the promise, or baseline it in scripts/context_docs_links_baseline.txt.
+
+✗ context-doc gate failed
+
+attribution: both link targets exist at 216d6562b and are absent at HEAD; moved/deleted by:
+  docs/docs/guides/coordinator-workers.md <- d03096c91 docs: M5 prose-wall overhaul and internal fleet runbook split
+  docs/docs/guides/evaluation/local-ollama.md <- d03096c91 docs: M5 prose-wall overhaul and internal fleet runbook split
+control: fleet record e06d90554 (before the docs overhaul merges): checks=success
+Build (google-cloud-build) output: Couldn't read commit 9b35c44d0749490d79f1ae1a8dd2e528400a23bb
+
+fleet Authority: .claude/rules/** and .claude/skills/local-ollama-eval/** are not in the allowlist (.agents/skills/local-ollama-eval/** is); scripts/context_docs_links_baseline.txt is not either.
+V1 kill switch: present
+walk: d03096c91 is on the docs/visual-navigation-overhaul branch, not an ancestor of e06d90554; checks=failure at e5b18e2d7 (merge of origin/dev into that branch) and 9b35c44d0 (HEAD). The red arrived with the attended docs-overhaul merge, not with any fleet commit.
