@@ -520,6 +520,9 @@ func (e *Executor) injectADTConstructors(evaluator *eval.CoreEvaluator) {
 	}
 
 	env := evaluator.Env()
+	// Lowest precedence first (INLINE-TESTS-SCOPE): the implicit prelude's
+	// constructors, then imported ones, then the module's own ADTs below.
+	e.bindPreludeAndImportedCtors(env)
 
 	// Type declarations are in Decls ([]Node)
 	for _, decl := range e.sourceFile.Decls {

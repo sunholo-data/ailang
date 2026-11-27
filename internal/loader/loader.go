@@ -370,6 +370,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		Constructors:  constructors,
 		Core:          nil, // Will be populated by runtime
 	}
+	registerDerivedJsonExports(file, loaded) // DERIVE-JSON: encode<T>/decode<T> visible to importers pre-elaboration
 	ml.cache[canonicalID] = loaded
 	ml.recordIdentity(canonicalID, fullPath)
 
