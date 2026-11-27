@@ -18,7 +18,7 @@ import (
 // runGit runs git for test fixtures, isolated from the developer's config.
 func runGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", "-c", "core.autocrlf=false", "-c", "core.eol=lf"}, args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	out, err := cmd.CombinedOutput()
@@ -249,6 +249,25 @@ func TestLoaderGitCaseCreatesNothing(t *testing.T) {
 	assertHomeUntouched(t, home)
 }
 
+// A confined check with no clone must not tell the agent to "run 'ailang
+// lock'" — a confined lock refuses to fetch. It names the operator remedy.
+func TestLoaderGitCaseConfinedMessage(t *testing.T) {
+	home := confine(t)
+	locked := LockedPackage{Name: "test/gitlib", Version: "0.1.0", Source: "git", GitURL: "https://example.invalid/x.git"}
+	loader := NewPackageLoader(&LockFile{Packages: []LockedPackage{locked}}, t.TempDir())
+	_, err := loader.packageDir(&locked)
+	if err == nil || !strings.Contains(err.Error(), "test/gitlib@0.1.0 is not provisioned") ||
+		!strings.Contains(err.Error(), GitRemedy) || strings.Contains(err.Error(), "to re-fetch") {
+		t.Fatalf("confined missing-clone message: %v", err)
+	}
+	assertHomeUntouched(t, home)
+
+	t.Setenv(config.EnvAgentPolicy, "")
+	if _, err := loader.packageDir(&locked); err == nil || !strings.Contains(err.Error(), "run 'ailang lock' to re-fetch") {
+		t.Fatalf("unconfined missing-clone message changed: %v", err)
+	}
+}
+
 // Rows 9–13: a confined git cache operation is refused before any write.
 func TestGitCacheConfinedResolve(t *testing.T) {
 	repo := makeGitPackage(t)
@@ -261,6 +280,38 @@ func TestGitCacheConfinedResolve(t *testing.T) {
 		t.Fatalf("confined clone not refused: %v", err)
 	}
 	assertHomeUntouched(t, home)
+}
+
+// A user's core.autocrlf must not change what a git dependency hashes to:
+// with autocrlf=true, git rewrites LF to CRLF on checkout on every OS, so the
+// same tag would lock to one hash on one machine and fail D4's fatal drift
+// check on another (the #1964 Windows CI failure was this, via the runner's
+// system config).
+func TestGitCheckoutIgnoresUserAutocrlf(t *testing.T) {
+	repo := makeGitPackage(t)
+	testutil.SetHomeDir(t, t.TempDir())
+	cfg := filepath.Join(t.TempDir(), "gitconfig")
+	writeFile(t, cfg, "[core]\n\tautocrlf = true\n\teol = crlf\n")
+	t.Setenv("GIT_CONFIG_GLOBAL", cfg)
+	app, m := appWithGitDep(t, repo, "v0.1.0")
+	lf := lockUnconfined(t, app, m)
+	entry, _ := lf.FindPackage("test/gitlib")
+	dir, err := gitPackageDir(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "src", "test", "gitlib", "lib.ail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "\r") {
+		t.Fatalf("checkout rewrote line endings under the user's autocrlf: %q", data)
+	}
+	want := t.TempDir()
+	writeFile(t, filepath.Join(want, "src", "test", "gitlib", "lib.ail"), "module test/gitlib/lib\nexport func one() -> int = 1\n")
+	if h, _ := ContentHash(want); h != entry.ContentHash {
+		t.Fatalf("locked hash %s depends on local git config; committed bytes hash to %s", entry.ContentHash, h)
+	}
 }
 
 // AC10: git argv hardening at the manifest.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -157,11 +158,14 @@ func TestCachedPackagePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CachedPackagePath: %v", err)
 	}
-	if !strings.Contains(path, "sunholo/auth/0.1.0") {
-		t.Errorf("path should contain vendor/name/version, got %s", path)
+	// filepath.Clean rewrites "/" to "\" on Windows, so a mixed-separator
+	// path (the #1964 Windows regression) is not equal to its clean form.
+	if path != filepath.Clean(path) {
+		t.Errorf("path has mixed or unclean separators: %s", path)
 	}
-	if !strings.Contains(path, ".ailang/cache/registry") {
-		t.Errorf("path should be under cache/registry, got %s", path)
+	slash := filepath.ToSlash(path)
+	if !strings.HasSuffix(slash, ".ailang/cache/registry/sunholo/auth/0.1.0") {
+		t.Errorf("path should be <home>/.ailang/cache/registry/vendor/name/version, got %s", path)
 	}
 }
 

@@ -151,8 +151,8 @@ func TestGitConfinedRefusals(t *testing.T) {
 
 func TestGitHardenedEnv(t *testing.T) {
 	cmd := gitCommand("", "status")
-	if cmd.Args[1] != "-c" || cmd.Args[2] != "protocol.ext.allow=never" {
-		t.Fatalf("missing hardened prefix: %v", cmd.Args)
+	if want := []string{"git", "-c", "protocol.ext.allow=never", "-c", "core.autocrlf=false", "-c", "core.eol=lf", "status"}; strings.Join(cmd.Args, " ") != strings.Join(want, " ") {
+		t.Fatalf("hardened argv = %v, want %v", cmd.Args, want)
 	}
 	found := false
 	for _, kv := range cmd.Env {
