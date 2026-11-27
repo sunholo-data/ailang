@@ -77,6 +77,22 @@ func TestReexportImport_Errors(t *testing.T) {
 	}
 }
 
+// Annotations after a rejected `export import` are consumed, so the form error
+// is the only one reported.
+func TestReexportImport_RejectedFormSkipsTrailingAnnotations(t *testing.T) {
+	src := "module lib/facade\n\nexport import lib/color as C @deprecated(\"a\") @deprecated(\"b\")\n\nexport func f() -> int = 1\n"
+	p := New(lexer.New(src, "facade.ail"))
+	p.ParseFile()
+	errs := p.Errors()
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "PAR_REEXPORT_FORM") {
+		var got []string
+		for _, e := range errs {
+			got = append(got, e.Error())
+		}
+		t.Fatalf("want exactly PAR_REEXPORT_FORM, got:\n%s", strings.Join(got, "\n"))
+	}
+}
+
 // The export-follower message names `import` now that `export import` exists.
 func TestExportRequiresFunc_NamesImport(t *testing.T) {
 	p := New(lexer.New("module m\n\nexport 42\n", "m.ail"))

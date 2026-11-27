@@ -5,7 +5,7 @@
 - **Full single-file reference + active teaching prompt (v0.16.20):** https://ailang.sunholo.com/llms-full.txt
 - **Hosted MCP server (version-pinned docs, stdlib, examples, benchmarks):** https://mcp.ailang.sunholo.com/mcp/
 - **Local CLI canonical syntax:** `ailang prompt` (active: `v0.16.20`)
-- **Last updated:** 2026-11-26T19:03:01Z
+- **Last updated:** 2026-11-27T13:37:58Z
 
 ## Agent Task Routing Table
 
