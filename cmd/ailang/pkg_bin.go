@@ -8,8 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/runner"
 )
 
 // M-PKG-BIN-ENTRYPOINTS (v0.40.0): `ailang install` shims a package's [bin]
@@ -40,6 +43,10 @@ func installingAilangBinary() (string, error) {
 // checkout itself is the program root, so the developer's lock is used when
 // present and generated otherwise.
 func installLocalBins(dir, binDirFlag string) error {
+	return installLocalBinsWithGrant(dir, binDirFlag, false)
+}
+
+func installLocalBinsWithGrant(dir, binDirFlag string, grantNewCaps bool) error {
 	pkgDir, err := filepath.Abs(dir)
 	if err != nil {
 		return err
@@ -51,13 +58,17 @@ func installLocalBins(dir, binDirFlag string) error {
 	if len(manifest.Bin) == 0 {
 		return fmt.Errorf("%s@%s declares no [bin] commands in %s — nothing to install", manifest.Package.Name, manifest.Package.Version, filepath.Join(pkgDir, pkg.ManifestFile))
 	}
-	return installBins(pkgDir, binDirFlag)
+	return installBinsWithGrant(pkgDir, binDirFlag, grantNewCaps)
 }
 
 // installBins writes a shim for every [bin] entry of the package at pkgDir.
 // A package without [bin] is a no-op, so registry installs of libraries are
 // unchanged.
 func installBins(pkgDir, binDirFlag string) error {
+	return installBinsWithGrant(pkgDir, binDirFlag, false)
+}
+
+func installBinsWithGrant(pkgDir, binDirFlag string, grantNewCaps bool) error {
 	manifest, err := pkg.LoadManifest(pkgDir)
 	if err != nil {
 		return err
@@ -73,11 +84,15 @@ func installBins(pkgDir, binDirFlag string) error {
 	if err != nil {
 		return err
 	}
-	return installBinsTo(os.Stdout, pkgDir, binDir, ailangBin, manifest)
+	return installBinsToWithGrant(os.Stdout, pkgDir, binDir, ailangBin, manifest, grantNewCaps)
 }
 
-// installBinsTo is the testable core: lock, verify, shim, PATH hint.
+// installBinsTo is the testable core: lock, verify, pin caps, shim, PATH hint.
 func installBinsTo(out io.Writer, pkgDir, binDir, ailangBin string, manifest *pkg.PackageManifest) error {
+	return installBinsToWithGrant(out, pkgDir, binDir, ailangBin, manifest, false)
+}
+
+func installBinsToWithGrant(out io.Writer, pkgDir, binDir, ailangBin string, manifest *pkg.PackageManifest, grantNewCaps bool) error {
 	locked, wrote, err := pkg.EnsureLock(pkgDir, fmt.Sprintf("ailang install %s", Version), Version)
 	if err != nil {
 		return err
@@ -98,16 +113,35 @@ func installBinsTo(out io.Writer, pkgDir, binDir, ailangBin string, manifest *pk
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	notOnPath := false
+	type resolvedBin struct {
+		name     string
+		spec     pkg.BinSpec
+		caps     string
+		capsNote string
+	}
+	resolved := make([]resolvedBin, 0, len(names))
 	for _, name := range names {
 		spec := manifest.Bin[name]
-		path, err := pkg.WriteShim(binDir, ailangBin, pkgDir, manifest, name, spec)
+		caps, note, err := resolveBinCaps(pkgDir, manifest, name, spec)
 		if err != nil {
 			return err
 		}
+		resolved = append(resolved, resolvedBin{name: name, spec: spec, caps: caps, capsNote: note})
+	}
+
+	notOnPath := false
+	for _, rb := range resolved {
+		path, err := pkg.WriteShimPinned(binDir, ailangBin, pkgDir, manifest, rb.name, rb.spec, rb.caps, rb.capsNote, grantNewCaps)
+		if err != nil {
+			return err
+		}
+		capsDisplay := rb.caps
+		if capsDisplay == "" {
+			capsDisplay = "none"
+		}
 		fmt.Fprintf(out, "%s bin: %s → %s  (%s@%s, module %s, entry %s, caps %s)\n",
-			green("✓"), name, path, manifest.Package.Name, manifest.Package.Version, spec.Module, spec.EffectiveEntry(), spec.EffectiveCaps())
-		if !reportPathStatus(out, name, path) {
+			green("✓"), rb.name, path, manifest.Package.Name, manifest.Package.Version, rb.spec.Module, rb.spec.EffectiveEntry(), capsDisplay)
+		if !reportPathStatus(out, rb.name, path) {
 			notOnPath = true
 		}
 	}
@@ -115,6 +149,40 @@ func installBinsTo(out io.Writer, pkgDir, binDir, ailangBin string, manifest *pk
 		fmt.Fprintf(out, "%s %s is not on your PATH. Add:  export PATH=\"%s:$PATH\"\n", yellow("⚠"), binDir, binDir)
 	}
 	return nil
+}
+
+// resolveBinCaps pins `[bin].caps = "auto"` (or omitted) once at install time
+// by type-checking the bin's entry module and inspecting its declared effect row.
+func resolveBinCaps(pkgDir string, manifest *pkg.PackageManifest, name string, spec pkg.BinSpec) (string, string, error) {
+	if spec.EffectiveCaps() != "auto" {
+		return spec.EffectiveCaps(), "", nil
+	}
+	file, err := pkg.ResolveBinFile(pkgDir, manifest, name, spec)
+	if err != nil {
+		return "", "", err
+	}
+	code, err := os.ReadFile(file)
+	if err != nil {
+		return "", "", fmt.Errorf("bin %q: reading %s: %w", name, file, err)
+	}
+	res, err := pipeline.Run(pipeline.Config{
+		Mode:       pipeline.ModeCheck,
+		DryLink:    true,
+		PackageDir: pkgDir,
+	}, pipeline.Source{
+		Code:     string(code),
+		Filename: file,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("bin %q: type-checking %s to pin capabilities: %w", name, file, err)
+	}
+	entry := spec.EffectiveEntry()
+	if runner.EntryDeclaresEffect(res.Interface, entry, "Process") {
+		return "", "", fmt.Errorf("bin %q (%s@%s): auto will not grant Process; pin caps explicitly in [bin].%s (e.g. caps = \"...,Process\")",
+			name, manifest.Package.Name, manifest.Package.Version, name)
+	}
+	autoCaps := runner.ResolveAutoCaps(res.Interface, entry)
+	return strings.Join(autoCaps, ","), " (resolved from auto at install)", nil
 }
 
 // reportPathStatus reports whether `name` is found on PATH at all, and warns

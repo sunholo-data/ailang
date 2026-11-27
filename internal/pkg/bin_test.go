@@ -233,17 +233,17 @@ func TestShimBody_WindowsAndPosixParseAlike(t *testing.T) {
 	m, _ := LoadManifest(dir)
 	file := filepath.Join(dir, "cli.ail")
 
-	win := shimBody("windows", `C:\tools\ailang.exe`, dir, file, m, "greet", m.Bin["greet"])
-	if !strings.HasPrefix(win, "@echo off\r\n") || !strings.Contains(win, "rem ailang-bin: test/greeter@0.1.0 greet\r\n") || !strings.HasSuffix(win, " %*\r\n") {
+	win := shimBody("windows", `C:\tools\ailang.exe`, dir, file, m, "greet", m.Bin["greet"], "IO", " (resolved from auto at install)")
+	if !strings.HasPrefix(win, "@echo off\r\n") || !strings.Contains(win, "rem ailang-bin: test/greeter@0.1.0 greet\r\n") || !strings.Contains(win, "rem caps: IO (resolved from auto at install)\r\n") || !strings.HasSuffix(win, " %*\r\n") {
 		t.Errorf("windows shim:\n%s", win)
 	}
-	for _, want := range []string{`"--package-dir" "` + dir + `"`, `"--caps" "auto"`, `"--seed" "1" "` + file + `" "--"`} {
+	for _, want := range []string{`"--package-dir" "` + dir + `"`, `"--caps" "IO"`, `"--seed" "1" "` + file + `" "--"`} {
 		if !strings.Contains(win, want) {
 			t.Errorf("windows shim missing %s:\n%s", want, win)
 		}
 	}
-	posix := shimBody("darwin", "/usr/local/bin/ailang", dir, file, m, "greet", m.Bin["greet"])
-	if !strings.HasPrefix(posix, "#!/bin/sh\n") || !strings.HasSuffix(posix, ` "$@"`+"\n") {
+	posix := shimBody("darwin", "/usr/local/bin/ailang", dir, file, m, "greet", m.Bin["greet"], "IO", " (resolved from auto at install)")
+	if !strings.HasPrefix(posix, "#!/bin/sh\n") || !strings.Contains(posix, "# caps: IO (resolved from auto at install)\n") || !strings.HasSuffix(posix, ` "$@"`+"\n") {
 		t.Errorf("posix shim:\n%s", posix)
 	}
 
@@ -256,9 +256,61 @@ func TestShimBody_WindowsAndPosixParseAlike(t *testing.T) {
 		}
 		os.WriteFile(path, []byte(body), 0o755)
 		s, err := ReadShim(path)
-		if err != nil || s == nil || s.Name != "greet" || s.Package != "test/greeter" || s.Version != "0.1.0" || s.PkgDir != dir {
+		if err != nil || s == nil || s.Name != "greet" || s.Package != "test/greeter" || s.Version != "0.1.0" || s.PkgDir != dir || !s.CapsPinned || len(s.Caps) != 1 || s.Caps[0] != "IO" {
 			t.Errorf("%s shim did not parse back: %+v %v", goos, s, err)
 		}
+	}
+}
+
+// TST-RC1-18
+func TestShim_PinnedCapsAndWideningRefusal(t *testing.T) {
+	dir := writeBinFixture(t, "[bin]\ngreet = \"cli\"\n")
+	m, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binDir := filepath.Join(t.TempDir(), "bin")
+	ailang := filepath.Join(t.TempDir(), "ailang")
+
+	// Initial pinned install with IO,FS.
+	path, err := WriteShimPinned(binDir, ailang, dir, m, "greet", m.Bin["greet"], "FS,IO", " (resolved from auto at install)", false)
+	if err != nil {
+		t.Fatalf("initial WriteShimPinned: %v", err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "--caps auto") {
+		t.Fatalf("pinned shim must not emit --caps auto:\n%s", body)
+	}
+	if !strings.Contains(string(body), "caps: FS,IO (resolved from auto at install)") {
+		t.Fatalf("pinned shim missing caps header:\n%s", body)
+	}
+
+	// Reinstall with same or narrower caps succeeds without --grant-new-caps.
+	if _, err := WriteShimPinned(binDir, ailang, dir, m, "greet", m.Bin["greet"], "IO", "", false); err != nil {
+		t.Fatalf("narrower reinstall must succeed: %v", err)
+	}
+
+	// Reinstall widening caps (adding Net) must fail without --grant-new-caps.
+	_, err = WriteShimPinned(binDir, ailang, dir, m, "greet", m.Bin["greet"], "IO,Net", "", false)
+	if err == nil || !strings.Contains(err.Error(), "Net") || !strings.Contains(err.Error(), "--grant-new-caps") {
+		t.Fatalf("expected widening refusal naming Net and --grant-new-caps, got: %v", err)
+	}
+	// Existing shim must stay untouched at IO.
+	s, err := ReadShim(path)
+	if err != nil || s == nil || strings.Join(s.Caps, ",") != "IO" {
+		t.Fatalf("refused widening must preserve old shim caps, got %+v %v", s, err)
+	}
+
+	// Reinstall with grantNewCaps=true accepts widening and updates # caps:.
+	if _, err := WriteShimPinned(binDir, ailang, dir, m, "greet", m.Bin["greet"], "IO,Net", "", true); err != nil {
+		t.Fatalf("widening with grantNewCaps=true failed: %v", err)
+	}
+	s, err = ReadShim(path)
+	if err != nil || s == nil || strings.Join(s.Caps, ",") != "IO,Net" {
+		t.Fatalf("updated shim caps mismatch: %+v %v", s, err)
 	}
 }
 

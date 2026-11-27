@@ -240,7 +240,7 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 
 	// Print phase timing breakdown if debug-compile enabled
 	if cfg.DebugCompile && len(result.PhaseTimings) > 0 {
-		printPhaseTimings(result.PhaseTimings)
+		printPhaseTimings(result.PhaseTimings, jsonFlag)
 	}
 
 	resultSpan.SetAttributes(
@@ -347,7 +347,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 		}
 		// Print phase timing breakdown if debug-compile enabled
 		if cfg.DebugCompile && len(r.result.PhaseTimings) > 0 {
-			printPhaseTimings(r.result.PhaseTimings)
+			printPhaseTimings(r.result.PhaseTimings, jsonFlag)
 		}
 		resultSpan.SetAttributes(
 			attribute.Bool("passed", true),
@@ -400,91 +400,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 	}
 }
 
-// printPhaseTimings outputs a formatted breakdown of compilation phase timings
-func printPhaseTimings(timings map[string]int64) {
-	fmt.Printf("\n%s Compilation Phase Timings:\n", cyan("⏱"))
-
-	// Define phase order and human-readable names
-	phaseOrder := []string{
-		"load", "topo", "parse", "elaborate", "typecheck",
-		"dict_elaboration", "monomorphization", "lower",
-		"dict_elab", "anf_verify", "link", "compile", "evaluate",
-	}
-	phaseNames := map[string]string{
-		"load":             "Loading",
-		"topo":             "Topo Sort",
-		"parse":            "Parsing",
-		"elaborate":        "Elaboration",
-		"typecheck":        "Type Checking",
-		"dict_elaboration": "Dict Elaboration",
-		"monomorphization": "Monomorphization",
-		"lower":            "Lowering",
-		"dict_elab":        "Dict Linking",
-		"anf_verify":       "ANF Verify",
-		"link":             "Linking",
-		"compile":          "Compile",
-		"evaluate":         "Evaluate",
-	}
-
-	// Calculate total and find slowest phase
-	var total int64
-	var slowestPhase string
-	var slowestTime int64
-	for _, ms := range timings {
-		total += ms
-		if ms > slowestTime {
-			slowestTime = ms
-		}
-	}
-
-	// Print phases in order
-	for _, phase := range phaseOrder {
-		if ms, ok := timings[phase]; ok {
-			name := phaseNames[phase]
-			if name == "" {
-				name = phase
-			}
-			marker := ""
-			if ms == slowestTime && ms > 100 {
-				marker = yellow(" ← Slowest")
-				slowestPhase = name
-			} else if ms > 100 {
-				marker = yellow(" ⚠")
-			}
-			fmt.Printf("  %-18s %6dms%s\n", name+":", ms, marker)
-		}
-	}
-
-	// Print any phases not in our order list
-	var extra []string
-	for phase := range timings {
-		found := false
-		for _, p := range phaseOrder {
-			if p == phase {
-				found = true
-				break
-			}
-		}
-		if !found {
-			extra = append(extra, phase)
-		}
-	}
-	sort.Strings(extra)
-	for _, phase := range extra {
-		ms := timings[phase]
-		fmt.Printf("  %-18s %6dms\n", phase+":", ms)
-	}
-
-	fmt.Printf("  %s\n", strings.Repeat("-", 28))
-	fmt.Printf("  %-18s %6dms\n", "Total:", total)
-
-	// Add warning for slow phases
-	if slowestPhase != "" && slowestTime > 100 {
-		fmt.Printf("\n%s %s took %dms (threshold: 100ms)\n",
-			yellow("Warning:"), slowestPhase, slowestTime)
-		fmt.Println("  Consider checking for complex recursive types.")
-	}
-}
+// printPhaseTimings / printPhaseTimingsTo live in check_debug_timings.go.
 
 // outputInterfacePackageDir is the packageDir `ailang iface` passes to
 // pipeline.BuildCanonicalJSON. It MUST stay empty.
