@@ -5,13 +5,25 @@
 module examples/runnable/pipe_operator
 import std/list (filter, foldl, map)
 
-pure func double(x: int) -> int = x * 2
+pure func double(x: int) -> int
+  tests [(5, 10), (0, 0), (-3, -6)]
+{
+  x * 2
+}
 
-pure func addOne(x: int) -> int = x + 1
+pure func addOne(x: int) -> int
+  tests [(10, 11), (-1, 0)]
+{
+  x + 1
+}
 
 pure func makeAdder(n: int) -> (int -> int) = \x. x + n
 
-pure func sumInts(xs: [int]) -> int = foldl(\acc x. acc + x, 0, xs)
+pure func sumInts(xs: [int]) -> int
+  tests [([2, 6, 8], 16), ([], 0)]
+{
+  foldl(\acc x. acc + x, 0, xs)
+}
 
 export func main() -> () ! {IO} {
   -- Simple pipeline with named unary functions

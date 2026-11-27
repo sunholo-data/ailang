@@ -1292,7 +1292,7 @@
     },
     "v0.16.21": {
       "file": "prompts/v0.16.21.md",
-      "hash": "1674ce51888f84508811744ede7fd2137e73b4cca4503a9f4f053a669f9fb05a",
+      "hash": "b9efaa064a7084f25ed91f36cdb3fe540e81e9c2cf0efa3977cc8311aa830a5a",
       "description": "Teaching prompt fixing the 6 audited v0.16.20 contradictions (library-module Option/Result imports, no deprecated stdlib names, braced match / no `= {` with `;`, canonical `\\acc x.` lambdas, std/xml wrappers + `ailang pkg` spellings + sunholo/gcp_auth), and adding ! {IO @limit=N} effect budgets, `import ./sibling`, multi-arg inline tests, the `_` pipe placeholder, std/result mapResult/collect and std/math minInt/maxInt/clampInt",
       "created": "2026-11-27",
       "tags": [

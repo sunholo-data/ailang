@@ -370,6 +370,68 @@
               "constants": [],
               "variables": []
             }
+          },
+          {
+            "name": "lo",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "hi",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "clampInt",
+      "type": "(int,int,int)-\u003eint",
+      "effects": [],
+      "pure": true,
+      "tier": "stable",
+      "contracts": [
+        "requires (lo \u003c= hi)",
+        "ensures (result \u003e= lo)",
+        "ensures (result \u003c= hi)"
+      ]
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -616,6 +678,96 @@
       },
       "name": "log10",
       "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "maxInt",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "minInt",
+      "type": "(int,int)-\u003eint",
       "effects": [],
       "pure": true,
       "tier": "stable"

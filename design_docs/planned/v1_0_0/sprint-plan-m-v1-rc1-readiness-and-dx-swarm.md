@@ -100,12 +100,12 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Switch `argdecode.DecodeJSON` to `json.NewDecoder` + `UseNumber()`, reject fractional/out-of-range floats in `decodeInt`, and bind `std/json.Json` parameters to `JNull`/`JBool`/`JInt`/`JNumber`/`JString`/`JArray`/`JObject` `TaggedValue`s in `internal/apiserver/{param_schema,arg_bind}.go`.
 
 **Acceptance Criteria:**
-- [ ] Cross-module `type Regex = { pattern: string, matcher: string -> bool }` alongside `import std/regex` fails `ailang check` (`No instance for Eq`), while valid `deriving (Eq)` records pass on evaluator and `--strict-bytecode` — `TST-RC1-01`
-- [ ] VM `OpEq`/`OpNeq` on direct or container-nested closures traps with `RT_EQ_001` while `bytecode.Value.Equal` constant-pool dedup remains intact — `TST-RC1-02`
-- [ ] Effectful entrypoint hitting `RT001` / stack overflow / `RT_EQ_001` under `--bytecode` executes side effects **once**, emits zero evaluator fallback warning, and formats error with single `vm:` prefix — `TST-RC1-03`
-- [ ] Lambdas with operators inside `Tuple`, `Array`, `RecordUpdate`, `DictAbs`, `DictApp`, `Forall`, `Match` guards, and `requires`/`ensures` contracts pass on both evaluator and `--strict-bytecode` (`TestContractExpressionsFullyLowered` green) — `TST-RC1-04`
-- [ ] `--args-json '2.9'` fails on `int` parameter, 64-bit integers decode losslessly via `UseNumber()`, and `serve-api` endpoints taking `std/json.Json` return HTTP 200 instead of HTTP 500 — `TST-RC1-05`
-- [ ] `go test ./internal/types/... ./internal/elaborate/... ./internal/pipeline/... ./internal/link/... ./internal/runner/... ./internal/vm/... ./internal/runtime/argdecode/... ./internal/apiserver/... -count=1` and `make check-file-sizes` pass
+- [x] Cross-module `type Regex = { pattern: string, matcher: string -> bool }` alongside `import std/regex` fails `ailang check` (`No instance for Eq`), while valid `deriving (Eq)` records pass on evaluator and `--strict-bytecode` — `TST-RC1-01`
+- [x] VM `OpEq`/`OpNeq` on direct or container-nested closures traps with `RT_EQ_001` while `bytecode.Value.Equal` constant-pool dedup remains intact — `TST-RC1-02`
+- [x] Effectful entrypoint hitting `RT001` / stack overflow / `RT_EQ_001` under `--bytecode` executes side effects **once**, emits zero evaluator fallback warning, and formats error with single `vm:` prefix — `TST-RC1-03`
+- [x] Lambdas with operators inside `Tuple`, `Array`, `RecordUpdate`, `DictAbs`, `DictApp`, `Forall`, `Match` guards, and `requires`/`ensures` contracts pass on both evaluator and `--strict-bytecode` (`TestContractExpressionsFullyLowered` green) — `TST-RC1-04`
+- [x] `--args-json '2.9'` fails on `int` parameter, 64-bit integers decode losslessly via `UseNumber()`, and `serve-api` endpoints taking `std/json.Json` return HTTP 200 instead of HTTP 500 — `TST-RC1-05`
+- [x] `go test ./internal/types/... ./internal/elaborate/... ./internal/pipeline/... ./internal/link/... ./internal/runner/... ./internal/vm/... ./internal/runtime/argdecode/... ./internal/apiserver/... -count=1` and `make check-file-sizes` pass
 
 **Risks:**
 - `CoreTI` compile cache stale hits after adding `TRecord.TypeModule` — Mitigation: serialize `TypeModule` in `cache_coreti_dag.go` AND bump schema version in `cache_key.go`.
@@ -128,10 +128,10 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Wire `registerDerivedEq`, `SetMatchUniverse` + `VerifyMatchExhaustiveness`, `pipeline.ValidateEffectsWithCalls`, and contract expression type-checking into `ModuleRegistry.LoadModule` (`internal/repl/module_registry_load.go`).
 
 **Acceptance Criteria:**
-- [ ] Sibling module `import ./types (Item, encodeItem, decodeItem)` compiles and round-trips on evaluator + `--strict-bytecode` when `types.ail` is a library module with ONLY `import std/json (Json)` — `TST-RC1-06`, `TST-RC1-07`
-- [ ] `ailang test` passes inline `tests [...]` expressions using `Some`/`None`, `Ok`/`Err`, and imported/aliased ADT constructors — `TST-RC1-08`
-- [ ] `ModuleRegistry.LoadModule` rejects `pure func` calling `println` and non-exhaustive `match` (`TC_MATCH_002`), and supports `deriving (Eq)` — `TST-RC1-09`
-- [ ] `internal/loader/loader.go` remains `< 800` lines; `go test ./internal/loader/... ./internal/testing/... ./internal/repl/... -count=1` and `make check-file-sizes` pass
+- [x] Sibling module `import ./types (Item, encodeItem, decodeItem)` compiles and round-trips on evaluator + `--strict-bytecode` when `types.ail` is a library module with ONLY `import std/json (Json)` — `TST-RC1-06`, `TST-RC1-07`
+- [x] `ailang test` passes inline `tests [...]` expressions using `Some`/`None`, `Ok`/`Err`, and imported/aliased ADT constructors — `TST-RC1-08`
+- [x] `ModuleRegistry.LoadModule` rejects `pure func` calling `println` and non-exhaustive `match` (`TC_MATCH_002`), and supports `deriving (Eq)` — `TST-RC1-09`
+- [x] `internal/loader/loader.go` remains `< 800` lines; `go test ./internal/loader/... ./internal/testing/... ./internal/repl/... -count=1` and `make check-file-sizes` pass
 
 **Risks:**
 - `internal/loader/loader.go` is `793L` — Mitigation: place 100% of export synthesis helper code in `internal/loader/derive_json_exports.go` and add a single call line in `loader.go`.
@@ -155,12 +155,12 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Implement cross-module symbol move for `IMP010` in `internal/quickfix/imp010_move.go` and suppress `in` suggestions inside `{ ... }` blocks (`parser_expr.go`/`parser_decl.go`) + attach file:line spans in `warn_split_args.go` and `warn_take_after_flatmap.go`.
 
 **Acceptance Criteria:**
-- [ ] `{ let y = x * 2 \n ?finish }` parses `?finish` as `*ast.HoleExpr`, same-line `f(x)?` stays `*ast.TryExpr`, and `examples/runnable/parser_block_trailing_record.ail` passes — `TST-RC1-10`
-- [ ] `xs |> filter(\x. x > 0, _)` and `"a,b" |> split(_, ",")` pass on evaluator + `--strict-bytecode`, `5 |> makeAdder(1)` returns `6`, and `x |> add(_, _)` fails with `TC_PIPE_001` — `TST-RC1-11`
-- [ ] `match xs { [] => Ok([]), x :: rest => ... }` passes `--strict-fallbacks`, while `Err(_) => Ok([])`, `None => Ok([])`, and `_ => Ok([])` still fail `STRICT_FALLBACK_001` — `TST-RC1-12`
-- [ ] `ailang check --fix` moves `join` from `import std/list (map, join)` to `import std/string (join)` (and deletes single-symbol `import std/list (join)`) — `TST-RC1-13`
-- [ ] Block `let` syntax errors do not suggest `let ... in` and `W_SPLIT_ARGS`/`LIST_TAKE_AFTER_FLATMAP` include source spans — `TST-RC1-14`
-- [ ] `go test ./internal/parser/... ./internal/elaborate/... ./internal/pipeline/... ./internal/quickfix/... -count=1` and `make check-file-sizes` pass
+- [x] `{ let y = x * 2 \n ?finish }` parses `?finish` as `*ast.HoleExpr`, same-line `f(x)?` stays `*ast.TryExpr`, and `examples/runnable/parser_block_trailing_record.ail` passes — `TST-RC1-10`
+- [x] `xs |> filter(\x. x > 0, _)` and `"a,b" |> split(_, ",")` pass on evaluator + `--strict-bytecode`, `5 |> makeAdder(1)` returns `6`, and `x |> add(_, _)` fails with `TC_PIPE_001` — `TST-RC1-11`
+- [x] `match xs { [] => Ok([]), x :: rest => ... }` passes `--strict-fallbacks`, while `Err(_) => Ok([])`, `None => Ok([])`, and `_ => Ok([])` still fail `STRICT_FALLBACK_001` — `TST-RC1-12`
+- [x] `ailang check --fix` moves `join` from `import std/list (map, join)` to `import std/string (join)` (and deletes single-symbol `import std/list (join)`) — `TST-RC1-13`
+- [x] Block `let` syntax errors do not suggest `let ... in` and `W_SPLIT_ARGS`/`LIST_TAKE_AFTER_FLATMAP` include source spans — `TST-RC1-14`
+- [x] `go test ./internal/parser/... ./internal/elaborate/... ./internal/pipeline/... ./internal/quickfix/... -count=1` and `make check-file-sizes` pass
 
 **Risks:**
 - `internal/quickfix/quickfix.go` is `728L` — Mitigation: put all `IMP010` cross-module AST/line rewrite logic in `internal/quickfix/imp010_move.go`.
@@ -185,12 +185,12 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - `git mv third_party/goopus internal/third_party/goopus`, update `internal/builtins/audio_ogg.go`, add `D-67` Go API exclusion + Internal binary split section to `docs/docs/reference/stability.md` (preserving all 16 deprecation table rows), and add `Internal` package comments in `serveapi/doc.go`.
 
 **Acceptance Criteria:**
-- [ ] `std/result.{mapResult,collect}` and `std/math.{minInt,maxInt,clampInt}` pass `ailang check` and unit/inline tests on evaluator + `--strict-bytecode` — `TST-RC1-15`
-- [ ] `ailang docs search --stdlib "regex"` and unconfined out-of-repo fallback work offline while `go test ./cmd/ailang -run TestDocsSearch -count=1` passes 100% — `TST-RC1-16`
-- [ ] `ailang check --debug-compile --json` writes clean JSON to `stdout` and timings to `stderr`, with `cmd/ailang/check.go` reduced below `740` lines — `TST-RC1-17`
-- [ ] `--caps auto` discloses caps on `stderr` unless explicit `--quiet`, excludes `Process`, pins `[bin]` shims (`--grant-new-caps` to widen), and missing caps fail pre-flight with `E_CAPS_MISSING` — `TST-RC1-18`
-- [ ] `third_party/goopus` lives at `internal/third_party/goopus` and `TestStabilityDocListsEveryDeprecation` passes — `TST-RC1-19`
-- [ ] `go test ./cmd/ailang/... ./internal/runner/... ./internal/pkg/... ./internal/builtins/... ./serveapi/... -count=1` and `make check-file-sizes` pass
+- [x] `std/result.{mapResult,collect}` and `std/math.{minInt,maxInt,clampInt}` pass `ailang check` and unit/inline tests on evaluator + `--strict-bytecode` — `TST-RC1-15`
+- [x] `ailang docs search --stdlib "regex"` and unconfined out-of-repo fallback work offline while `go test ./cmd/ailang -run TestDocsSearch -count=1` passes 100% — `TST-RC1-16`
+- [x] `ailang check --debug-compile --json` writes clean JSON to `stdout` and timings to `stderr`, with `cmd/ailang/check.go` reduced below `740` lines — `TST-RC1-17`
+- [x] `--caps auto` discloses caps on `stderr` unless explicit `--quiet`, excludes `Process`, pins `[bin]` shims (`--grant-new-caps` to widen), and missing caps fail pre-flight with `E_CAPS_MISSING` — `TST-RC1-18`
+- [x] `third_party/goopus` lives at `internal/third_party/goopus` and `TestStabilityDocListsEveryDeprecation` passes — `TST-RC1-19`
+- [x] `go test ./cmd/ailang/... ./internal/runner/... ./internal/pkg/... ./internal/builtins/... ./serveapi/... -count=1` and `make check-file-sizes` pass
 
 **Risks:**
 - Breaking `TestDocsSearch_Confinement*` — Mitigation: run `go test ./cmd/ailang -run TestDocsSearch -count=1` immediately after wiring `docs_search_stdlib_fallback.go`.
@@ -215,10 +215,10 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Sync `docs/LIMITATIONS.md` + `docs/docs/reference/limitations.md` (`reviewBy` preserved) and create `examples/runnable/v1_dx_showcase.ail` (using `requires`/`ensures`, `! {IO @limit=5}`, `|>` `_`, `mapResult`, and inline `tests [...]`).
 
 **Acceptance Criteria:**
-- [ ] `go test ./internal/mission/quorum/... -run TestQuorumArtifactShellSuite -count=1` passes — `TST-RC1-20`
-- [ ] `ailang prompt --version-active` outputs `v0.16.21`, `ailang prompt --compact` outputs `v0.16.21-compact` (zero `**`/`abs_Int`), and `make check-prompt-freeze` exits `0` — `TST-RC1-20`
-- [ ] `.claude/fmt_hook_events.jsonl`, `dist/error_codes.json`, `examples/manifest.json.bak`, `examples/manifest.tmp` are untracked and ignored by `.gitignore`, while `cmd/astdump/` and `prompts/devtools/v0.8.{0,1}-compact.md` remain intact — `TST-RC1-20`
-- [ ] `docs/LIMITATIONS.md`, `docs/docs/reference/limitations.md`, and `examples/runnable/v1_dx_showcase.ail` authored cleanly — `TST-RC1-21`
+- [x] `go test ./internal/mission/quorum/... -run TestQuorumArtifactShellSuite -count=1` passes — `TST-RC1-20`
+- [x] `ailang prompt --version-active` outputs `v0.16.21`, `ailang prompt --compact` outputs `v0.16.21-compact` (zero `**`/`abs_Int`), and `make check-prompt-freeze` exits `0` — `TST-RC1-20`
+- [x] `.claude/fmt_hook_events.jsonl`, `dist/error_codes.json`, `examples/manifest.json.bak`, `examples/manifest.tmp` are untracked and ignored by `.gitignore`, while `cmd/astdump/` and `prompts/devtools/v0.8.{0,1}-compact.md` remain intact — `TST-RC1-20`
+- [x] `docs/LIMITATIONS.md`, `docs/docs/reference/limitations.md`, and `examples/runnable/v1_dx_showcase.ail` authored cleanly — `TST-RC1-21`
 
 **Risks:**
 - Editing frozen prompt files by mistake — Mitigation: verify `git diff prompts/v0.16.20.md prompts/v0.7.4-compact.md` is empty and run `make check-prompt-freeze` before committing `M5`.
@@ -238,9 +238,9 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Run `make check-prompt-freeze`, `make check-file-sizes`, `make check-boundaries`, `make verify-stdlib`, `DOC_SAMPLES_AILANG=<built-bin> make check-doc-samples`, `go test ./internal/mission/quorum/... -run TestQuorumArtifactShellSuite -count=1`, `make test-changed`, `go run ./scripts/verify_bytecode_parity.go --strict`, and `cd docs && npm run build`.
 
 **Acceptance Criteria:**
-- [ ] Clean conflict-free merge of `M1..M5` with `.stdlib-golden/*`, `docs/docs/prompts/current.md`, and `llms.txt` regenerated and passing `make verify-stdlib` + `make check-llms-txt` — `TST-RC1-21`
-- [ ] `examples/runnable/v1_dx_showcase.ail` passes `check --strict-fallbacks`, `test`, `run`, and `run --strict-bytecode` — `TST-RC1-21`
-- [ ] `make check-prompt-freeze`, `make check-file-sizes`, `make check-boundaries`, `make check-doc-samples`, `verify_bytecode_parity.go --strict`, and `cd docs && npm run build` exit `0` — `TST-RC1-21`
+- [x] Clean conflict-free merge of `M1..M5` with `.stdlib-golden/*`, `docs/docs/prompts/current.md`, and `llms.txt` regenerated and passing `make verify-stdlib` + `make check-llms-txt` — `TST-RC1-21`
+- [x] `examples/runnable/v1_dx_showcase.ail` passes `check --strict-fallbacks`, `test`, `run`, and `run --strict-bytecode` — `TST-RC1-21`
+- [x] `make check-prompt-freeze`, `make check-file-sizes`, `make check-boundaries`, `make check-doc-samples`, `verify_bytecode_parity.go --strict`, and `cd docs && npm run build` exit `0` — `TST-RC1-21`
 
 **Risks:**
 - New `v0.16.21.md` doc sample syntax typo — Mitigation: `DOC_SAMPLES_AILANG=<built-bin> make check-doc-samples` validates every fenced block in `prompts/v0.16.21.md` and `docs/`.

@@ -19,6 +19,39 @@
       "ifc": {
         "params": [
           {
+            "name": "rs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "collect",
+      "type": "(list[Result[a,b]])-\u003eResult[list[a],b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "f",
             "label": {
               "constants": [],
@@ -302,6 +335,51 @@
       },
       "name": "mapErr",
       "type": "((a)-\u003eb,Result[c,a])-\u003eResult[c,b]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "mapResult",
+      "type": "((a)-\u003eResult[b,c],list[a])-\u003eResult[list[b],c]",
       "effects": [],
       "pure": true,
       "tier": "stable"

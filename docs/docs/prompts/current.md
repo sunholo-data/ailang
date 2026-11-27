@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.20) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.21) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.20.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.21.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.20.md -->
-<!-- Active Version: v0.16.20 -->
+<!-- Source: prompts/v0.16.21.md -->
+<!-- Active Version: v0.16.21 -->
 
-# AILANG v0.16.20 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.21 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -357,18 +357,15 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Using std/list foldl (IMPORTANT - use inline func syntax!):**
+**Using std/list foldl (the callback is a space-separated multi-param lambda `\acc x. ...`):**
 ```ailang
 module benchmark/solution
 import std/io (println)
 import std/list (foldl)
 
 -- std/list foldl signature: foldl(f: (acc, elem) -> acc, initial, list)
--- RECOMMENDED: Use inline func syntax for reliable type inference
-
 export func main() -> () ! {IO} {
-  -- MOST RELIABLE: inline func with explicit types
-  let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1,2,3,4,5]);
+  let sum = foldl(\acc x. acc + x, 0, [1,2,3,4,5])
   println(show(sum))
 }
 ```
@@ -377,27 +374,24 @@ export func main() -> () ! {IO} {
 ```ailang
 import std/list (foldl)
 
-pure func sumOptions(xs: [int]) -> (int, int, int) {
-  -- RECOMMENDED: space-separated multi-param lambda (concise)
+pure func sumTwoWays(xs: [int]) -> (int, int) {
+  -- CANONICAL: space-separated multi-param lambda
   let a = foldl(\acc x. acc + x, 0, xs)
-  -- VERBOSE: inline func with explicit types (also works)
+  -- VERBOSE: inline func with explicit types (use when inference needs help)
   let b = foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
-  -- ALSO WORKS: curried lambda (longer; prefer the multi-param form)
-  let c = foldl(\acc. \x. acc + x, 0, xs);
-  (a, b, c)
+  (a, b)
 }
 ```
 
-**For callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc., write `\a b. body`**
-(one lambda, several params): it is the simplest form. Curried `\a. \b. body` also works.
+**For callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc., write `\a b. body`** (one lambda, several space-separated params; called as `f(a, b)`).
 Irrefutable tuple and record destructuring work directly in lambda parameters (`\(k, v). ...`, `\acc (k, v). acc + v`, `\{ age, ... }. age`).
 
-**Pipe operator (`|>`):** `x |> f` passes `x` to **unary** function `f` (left-associative, lowest precedence). Wrap multi-arg calls or inline lambdas in parens (e.g. `opt |> (\v. getOrElse(v, 0))`):
+**Pipe operator (`|>`):** `x |> f` passes `x` to the unary function `f` (left-associative, lowest precedence). For a multi-arg call put a single explicit `_` where `x` goes: `xs |> filter(\x. x > 0, _)`. At most one `_` per stage (`_?` stays a typed hole). Curried calls still work without `_`: `5 |> makeAdder(1)` is `makeAdder(1)(5)`.
 ```ailang
 import std/list (filter, map)
 
 pure func pipeDemo(xs: [int]) -> [int] =
-  xs |> (\ys. filter(\x. x > 0, ys)) |> (\ys. map(\x. x * 2, ys))
+  xs |> filter(\x. x > 0, _) |> map(\x. x * 2, _)
 ```
 
 **Sorting with sortBy:**
@@ -504,7 +498,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 | Open record type | `{name: string \| r}` or `{name: string, ...}` |
 | List cons | `x :: xs` or `::(x, xs)` |
 | Array literal | `#[1, 2, 3]` |
-| Pipe operator | `x \|> f \|> g` (left-associative, passes `x` to unary `f`) |
+| Pipe operator | `x \|> f \|> g` (left-associative, unary `f`); `xs \|> filter(p, _)` puts `x` at the explicit `_` slot (one `_` per stage) |
 | Typed hole | `_?` or `?name` (fails check with `TC_HOLE`: expected type + in-scope locals) |
 | Effect | `! {IO, FS, Net}` after return type |
 
@@ -641,7 +635,7 @@ export func main() -> () ! {IO} { println("hi") }
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile`, `readLines`, `writeLines`, `readLinesResult`, `writeLinesResult`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
+| `FS` | `readFile`, `writeFile`, `readLines`, `writeLines`, `readLinesResult`, `writeLinesResult`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `listEntries`, `readEntry`, `readEntryBytes` (zip) | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
 | `Clock` | `now`, `sleep` | `std/clock` |
@@ -668,7 +662,7 @@ func roll_d6() -> int ! {Rand} = randInt(1, 6)
 func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 -- Distinct mode — does NOT unify with mode=os under invariant rules.
-func deterministic() -> int ! {Rand[mode=seeded]} = {
+func deterministic() -> int ! {Rand[mode=seeded]} {
   randSeed(42);
   randInt(1, 100)
 }
@@ -753,17 +747,30 @@ func handleRequest(path: string) -> string ! {Net} {
 - **Log level filtering**: `--log-level warn` suppresses INFO/DEBUG output
 - **Output**: Debug logs printed to stderr as structured JSON after execution
 
+## Effect Budgets (`@limit`)
+
+Cap how many operations an effect may perform with `@limit=N` inside the row: `! {IO @limit=5}` allows five IO operations, and the sixth stops the run with `effect 'IO' budget exhausted` instead of looping forever. Mix budgeted and plain effects: `! {IO @limit=5, FS}`. Run with matching caps (`--caps IO,FS`).
+
+```ailang
+module example/budget_demo
+import std/io (println)
+
+export func main() -> () ! {IO @limit=5} {
+  println("one")
+  println("two")
+}
+```
+
+
 ## Standard Library
 
 **Auto-imported (no import needed):**
 - `println` (entry modules only) — `print` (no newline) is NOT auto-imported: `import std/io (print)`
 - `show(x)` - convert to string. Renders the WHOLE value, never elided. A top-level string is unchanged (`show("hi")` is `hi`); strings inside lists, tuples, records, maps and constructors are quoted: `show(["a", "b"])` is `["a", "b"]`, `show(Some("x"))` is `Some("x")`. For a bounded log line use `showPreview(v, 200)` (`import std/string (showPreview)`)
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
-- **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
-  the types AND their constructors resolve without `import std/option` / `import std/result`.
-  You can construct and pattern-match them directly. (Their helper functions — `map`,
-  `getOrElse`, etc. — still need an explicit import, e.g. `import std/option (map)`.
-  Library modules with no exported `main` still require the explicit import.)
+- **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (**entry modules only**: a module with `export func main`, v0.30.0+) —
+  the types AND their constructors resolve without `import std/option` / `import std/result`, so you can construct and pattern-match them directly. Their helper functions (`map`, `getOrElse`, etc.) still need an explicit import, e.g. `import std/option (map)`.
+- **Library modules** (no `export func main`) and any module without `deriving (Json)` must import them explicitly: `import std/option (Option, Some, None)` / `import std/result (Result, Ok, Err)`.
 
 **Common imports:**
 ```ailang
@@ -786,11 +793,11 @@ import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axp
 -- Its dot/axpy/scale clash with std/embedding's: import one module qualified (import std/array as A).
 import std/array (make, fromList, toList, get, getOpt, set, length, dot, axpy, scale, add, sub, mul, sum, argmax, updateMany, scatterAdd, encodeF64LE, decodeF64LE)
 import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, indexOf, stripPrefix, stripSuffix, padLeft, padRight, lines, unlines, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
-import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, absFloat, absInt)
+import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, absFloat, absInt, minInt, maxInt, clampInt)
 import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
-import std/result (Result, Ok, Err)
+import std/result (Result, Ok, Err, mapResult, collect)
 import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, sliceLen, fromInts, toInts, byteAt)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
 import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
@@ -798,7 +805,7 @@ import std/zip (listEntries, readEntry, readEntryBytes)
 import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
 ```
 
-**Renamed stdlib functions.** Use the camelCase names above. The old spellings still compile but warn `TC_DEPRECATED_001` and are being removed: `head_or`/`last_or`/`nth_or` → `headOr`/`lastOr`/`nthOr`, `charAt_or` → `charAtOr`, `abs_Int`/`abs_Float` → `absInt`/`absFloat`, `rand_int`/`rand_float`/`rand_bool`/`rand_seed` → `randInt`/`randFloat`/`randBool`/`randSeed`, `fs.readFileBytes` → `readFileBase64`, `fs.glob` → `walkWithSuffix`, `io.printErr` → `eprint`, `bytes.slice` → `sliceLen`, `list.member(x, xs)` → `contains(xs, x)`, `array.unsafeGet` → `get`.
+**Use the camelCase stdlib names** shown above (`headOr`, `lastOr`, `nthOr`, `absInt`, `absFloat`, `randInt`, `randSeed`, `eprint`, `readFileBase64`, `walkWithSuffix`, `sliceLen`, `contains(xs, x)`, `get`). Legacy snake_case spellings warn `TC_DEPRECATED_001` and are being removed; `ailang check --fix` rewrites them. When unsure, `ailang docs <module>` lists the current exports.
 
 **List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
 - `map(f, xs)` - Apply function to each element
@@ -1155,6 +1162,27 @@ let r2: Result[int] = Err("failed")
 let r3: Result[string] = Ok("hello")
 let r4: Result[string] = Err("also failed")
 ```
+
+## Result Combinators (std/result) and Int Helpers (std/math)
+
+`mapResult(f, xs)` applies a fallible `f` to each element and stops at the first `Err`; `collect(rs)` flips `[Result[a, e]]` into `Result[[a], e]`. `std/math` has `minInt`, `maxInt` and `clampInt(x, lo, hi)`, so never hand-roll them.
+
+```ailang
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err, mapResult, collect)
+import std/string (stringToInt)
+import std/math (clampInt)
+
+pure func parseInt(s: string) -> Result[int, string] =
+  match stringToInt(s) { Some(n) => Ok(n), None => Err("bad int: ${s}") }
+
+pure func parseAll(xs: [string]) -> Result[[int], string] = mapResult(parseInt, xs)
+
+pure func firstErrOrAll(rs: [Result[int, string]]) -> Result[[int], string] = collect(rs)
+
+pure func limit(x: int) -> int = clampInt(x, 0, 100)
+```
+
 
 ## Number Conversions (std/math)
 
@@ -2146,78 +2174,32 @@ Run: `ailang run --entry main --caps IO,FS file.ail`
 
 ## Tar + Gzip (std/tar, std/gzip) — v0.12.0+
 
-Native reading of `.tar`, `.tar.gz`, and raw gzip streams. No shell-out, no temp files. Matches `std/zip` conventions: binary data crosses as base64.
-
-```ailang
-import std/io (println)
-import std/tar (readFromGzip, extractAll)
-import std/gzip (decompress, decompressFile)
-import std/list (length)
-import std/result (Ok, Err)
-
-func tarDemo() -> () ! {FS, IO} {
-  -- Pull one file straight from a .tar.gz (primary use: arXiv bundles)
-  match readFromGzip("paper.tar.gz", "main.tex") {
-    Ok(tex) => println(tex),
-    Err(msg) => println("read failed: ${msg}")
-  };
-
-  -- Safe extraction: rejects ../ entries, symlinks, absolute paths
-  match extractAll("archive.tar", "./dest") {
-    Ok(paths) => println("wrote ${show(length(paths))} files"),
-    Err(msg) => println("blocked: ${msg}")
-  }
-}
-```
-
-- `std/gzip`: `decompress(b64)`, `compress(b64, level)` — **pure**; `decompressFile(path) ! {FS}`
-- `std/tar`: `listEntries`, `readEntry`, `readEntryBytes`, `extractAll`, `readFromGzip`, `readFromGzipBytes` — all `! {FS}`
-- Caps: 10K entries, 100MB decompressed per entry (bomb defence). Respects `AILANG_FS_SANDBOX`.
+Native `.tar` / `.tar.gz` / gzip reading, no shell-out or temp files; binary data crosses as base64 (like `std/zip`). `std/gzip`: `decompress(b64)`, `compress(b64, level)` (**pure**), `decompressFile(path) ! {FS}`. `std/tar` (all `! {FS}`): `listEntries`, `readEntry`, `readEntryBytes`, `extractAll` (rejects `../`, symlinks, absolute paths), `readFromGzip(path, entry)`, `readFromGzipBytes`. Caps: 10K entries, 100MB decompressed per entry; respects `AILANG_FS_SANDBOX`. Details: `ailang docs std/tar`.
 
 ## Raw Deflate / Zlib (std/deflate) — v0.16.0+
 
-For raw zlib/deflate streams *without* the gzip or zip wrapper. Use this for **PDF FlateDecode** (PDF /ObjStm in PDF 1.5+), HTTP `Content-Encoding: deflate`, PNG IDAT chunks, WebSocket permessage-deflate.
-
-```ailang
-import std/deflate (inflateZlib)
-import std/io (println)
-import std/result (Result, Ok, Err)
-
--- Decode a PDF FlateDecode payload (zlib-wrapped, RFC 1950)
-func decodeObjStm(b64_of_objstm: string) -> () ! {IO} =
-  match inflateZlib(b64_of_objstm) {
-    Ok(decompressedB64) => println(decompressedB64),
-    Err(msg)            => println("inflate failed: ${msg}")
-  }
-```
-
-- **All four functions are pure** (no effect row): `inflate(b64)`, `inflateZlib(b64)`, `deflate(b64, level)`, `deflateZlib(b64, level)`
-- `inflate`/`deflate` = raw RFC 1951 (no header, no trailer); `inflateZlib`/`deflateZlib` = RFC 1950 (2-byte zlib header + adler32). **For PDF/HTTP/PNG: use the Zlib variants.**
-- Same base64-string boundary as `std/gzip` and `std/zip.readEntryBytes`. Same 100MB output cap.
+`std/deflate` has four **pure** functions (base64 strings in and out): `inflate`/`deflate` (raw RFC 1951) and `inflateZlib`/`deflateZlib` (RFC 1950, zlib header). For PDF FlateDecode, HTTP `Content-Encoding: deflate` and PNG use the **Zlib** variants. Signatures and examples: `ailang docs std/deflate`.
 
 ## XML Parsing (std/xml)
 
-Parse and query XML documents. **Pure functions** (no effect needed):
+Parse and query XML documents with the exported `std/xml` functions. **Pure** (no effect needed):
 
 ```ailang
 module benchmark/solution
-import std/result (Result, Ok, Err)
-import std/option (Option, Some, None)
+import std/list (length)
+import std/xml (parse, findAll, findFirst, getText, getAttr, getTag)
 
 export func main() -> () ! {IO} {
   let xml = "<root><item id=\"1\">Hello</item><item id=\"2\">World</item></root>";
-  match _xml_parse(xml) {
+  match parse(xml) {
     Ok(doc) => {
-      -- Find all <item> elements
-      let items = _xml_findAll(doc, "item");
-      -- Get text content
-      let text = _xml_getText(doc);
-      -- Find first match
-      match _xml_findFirst(doc, "item") {
+      let items = findAll(doc, "item");
+      println("items: ${show(length(items))}");
+      match findFirst(doc, "item") {
         Some(item) => {
-          println("Tag: ${_xml_getTag(item)}");
-          println("Text: ${_xml_getText(item)}");
-          match _xml_getAttr(item, "id") {
+          println("Tag: ${getTag(item)}");
+          println("Text: ${getText(item)}");
+          match getAttr(item, "id") {
             Some(id) => println("ID: ${id}"),
             None => ()
           }
@@ -2230,36 +2212,18 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**XML builtins (all pure):**
+**`std/xml` exports (all pure):**
 | Function | Type | Description |
 |----------|------|-------------|
-| `_xml_parse` | `string -> Result[XmlNode, string]` | Parse XML string |
-| `_xml_findAll` | `(XmlNode, string) -> [XmlNode]` | Find all elements by tag |
-| `_xml_findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first element by tag |
-| `_xml_getText` | `XmlNode -> string` | Extract text content |
-| `_xml_getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value |
-| `_xml_getChildren` | `XmlNode -> [XmlNode]` | Get child nodes |
-| `_xml_getTag` | `XmlNode -> string` | Get tag name (empty for non-Element) |
+| `parse` | `string -> Result[XmlNode, string]` | Parse XML string |
+| `findAll` | `(XmlNode, string) -> [XmlNode]` | Find all elements by tag |
+| `findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first element by tag |
+| `getText` | `XmlNode -> string` | Extract text content |
+| `getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value |
+| `getChildren` | `XmlNode -> [XmlNode]` | Get child nodes |
+| `getTag` | `XmlNode -> string` | Get tag name (empty for non-Element) |
 
-**Combine ZIP + XML to parse .docx files:**
-```ailang
-import std/io (println)
-import std/list (length)
-import std/result (Ok, Err)
-
--- Read XML from inside a .docx (which is a ZIP archive)
-func countDocxParagraphs() -> () ! {FS, IO} =
-  match _zip_readEntry("report.docx", "word/document.xml") {
-    Ok(xml) => match _xml_parse(xml) {
-      Ok(doc) => {
-        let paragraphs = _xml_findAll(doc, "w:p");
-        println("Found ${show(length(paragraphs))} paragraphs")
-      },
-      Err(e) => println("XML error: ${e}")
-    },
-    Err(e) => println("ZIP error: ${e}")
-  }
-```
+Combine `std/zip` `readEntry(path, entry) ! {FS}` with `std/xml` `parse` to read `.docx`/`.xlsx` internals (`word/document.xml`, `xl/sharedStrings.xml`). Format recipes and the full export list: `ailang docs std/xml`, `ailang docs std/zip`.
 
 ## Streaming XML / Bounded Folds (v0.10.1, v0.11.3)
 
@@ -2683,10 +2647,10 @@ export func main() -> () ! {IO} {
 
 **Inline tests on functions (recommended):**
 ```ailang
--- Tests are pairs of (input, expected_output)
+-- Tests are pairs of (input, expected_output); a multi-arg function takes a tuple of args as the input
 pure func square(x: int) -> int tests [(0, 0), (5, 25)] { x * x }
 
-pure func double(x: int) -> int tests [(0, 0), (3, 6), (5, 10)] { x * 2 }
+pure func add(a: int, b: int) -> int tests [((1, 2), 3), ((0, 0), 0), ((-1, 1), 0)] { a + b }
 ```
 
 Run: `ailang test file.ail`
@@ -2714,6 +2678,8 @@ export func main() -> () ! {IO} = print("Hello")
 ```
 
 Run: `ailang run --entry main --caps IO myapp/main.ail`
+
+**Sibling imports inside a package** (a directory with `ailang.toml`): `import ./sibling (sym)` names a sibling module by relative path, e.g. `import ./data (User)` is shorthand for the canonical `import myapp/data (User)`. It only resolves inside a package (`ailang init package`); outside one, use the full module path.
 
 ## Reserved Keywords
 
@@ -2766,10 +2732,10 @@ a folder name, never an import path.
 ### Registry Workflow (recommended)
 
 ```bash
-ailang search "auth"                        # Discover packages by keyword
-ailang search --tag gcp                     # Filter by tag
-ailang install sunholo/auth@0.1.0           # Download, verify hash, add to ailang.toml
-ailang pkg-docs sunholo/auth                # Read AGENT.md (structured AI usage guide)
+ailang pkg search "auth"                    # Discover packages by keyword
+ailang pkg search --tag gcp                 # Filter by tag
+ailang pkg install sunholo/auth@0.1.0       # Download, verify hash, add to ailang.toml
+ailang pkg docs sunholo/auth                # Read AGENT.md (structured AI usage guide)
 ```
 
 Search results include `ai_summary`, `tags`, and `effects` per package — use effects to know what capabilities (`IO`, `Net`, `FS`, etc.) a dependency requires.
@@ -2777,9 +2743,9 @@ Search results include `ai_summary`, `tags`, and `effects` per package — use e
 ### Alternative: Git or path dependencies
 
 ```bash
-ailang add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag v0.1.0
-ailang add --path ../ailang-packages/packages/auth   # Local development
-ailang lock                                          # Resolve and lock all deps
+ailang pkg add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag v0.1.0
+ailang pkg add --path ../ailang-packages/packages/auth   # Local development
+ailang pkg lock                                          # Resolve and lock all deps
 ```
 
 ### Publishing
@@ -2790,11 +2756,11 @@ ailang publish --dry-run                    # Preview: compile check, effect val
 ailang publish                              # Upload to registry (immutable — versions cannot be overwritten)
 ```
 
-Include an `AGENT.md` in your package root for AI agent consumers — it's served via `ailang pkg-docs` and indexed in registry search results.
+Include an `AGENT.md` in your package root for AI agent consumers — it's served via `ailang pkg docs` and indexed in registry search results.
 
 ### Shipping a command (`[bin]`)
 
-A package can ship a CLI, not just modules. Declare it in `ailang.toml`; `ailang install`
+A package can ship a CLI, not just modules. Declare it in `ailang.toml`; `ailang pkg install`
 then puts a shim on PATH (`~/.ailang/bin`) that runs the module with the package as program
 root — no clone, no wrapper script, no hand-written runtime directory.
 
@@ -2805,9 +2771,9 @@ docparse = { module = "docparse/main", caps = "IO,FS,Env,AI", run_flags = ["--ma
 ```
 
 ```bash
-ailang install sunholo/email            # library + `eparse` on PATH
-ailang install --path packages/email    # developer loop: shim this checkout without publishing
-ailang bin list                         # installed shims, with package@version
+ailang pkg install sunholo/email            # library + `eparse` on PATH
+ailang pkg install --path packages/email    # developer loop: shim this checkout without publishing
+ailang pkg bin list                         # installed shims, with package@version
 ```
 
 The command reads its arguments with `getArgs()` from `std/env` (`--caps Env`); flag-like
@@ -2815,7 +2781,7 @@ arguments reach it untouched. `ailang publish` refuses a `[bin]` whose module is
 whose entry is not exported. Do NOT write a `scripts/` launcher that `cd`s into a checkout and
 `ailang run`s a file — that is what `[bin]` replaces.
 
-**Available packages**: `sunholo/gcp-auth` (OAuth2), `sunholo/auth` (API keys), `sunholo/http-helpers` (request builders), `sunholo/logging` (JSON logs), `sunholo/config` (env loading), `sunholo/testing-utils` (assertions).
+**Example packages**: `sunholo/gcp_auth` (OAuth2), `sunholo/auth` (API keys), `sunholo/logging` (JSON logs), `sunholo/config` (env loading). Find more with `ailang pkg search`.
 
 ## Module Import Rules
 
@@ -2868,7 +2834,7 @@ export func loadOther() -> string ! {FS} = readFile("other.txt")
 | `let x = e` then `println(x)` in `{ }` | Put each statement on its own line (or separate with `;`) — or use `let x = e in println(x)` without braces |
 | `x = x + 1` inside a block | No assignment: bind a new name, `let x2 = x + 1` (or shadow with `let x = x + 1`) |
 | `2 ** 10` | No `**` operator: `pow(2.0, 10.0)` (`std/math`, floats) |
-| `import std/math (max)` / `min` | No int `max`/`min` exists anywhere: define `pure func maxInt(a: int, b: int) -> int = if a > b then a else b` |
+| `import std/math (max)` / `min` | No generic `max`/`min`: for ints use `maxInt(a, b)` / `minInt(a, b)` / `clampInt(x, lo, hi)` from `std/math` |
 | A `match` that leaves out a case | `ailang check` rejects it (`TC_MATCH_002`) and names the missing pattern. Add that arm, or `_ => …`, or `C => unreachable("why")` when the case cannot happen. Arms with `if` guards do not count |
 | `{user: {email: e}}` on a record with more fields | Record patterns must name every field or end with `...`: `{user: {email: e, ...}, ...}` |
 
@@ -2896,7 +2862,7 @@ AILANG_FS_SANDBOX=/tmp/work ailang run --entry main --caps IO,FS file.ail
 When set, all paths are resolved relative to the sandbox root:
 - `readFile("data.txt")` reads `/tmp/work/data.txt`
 - `writeFile("out.txt", s)` writes `/tmp/work/out.txt`
-- `_zip_listEntries("archive.zip")` opens `/tmp/work/archive.zip`
+- `listEntries("archive.zip")` (`std/zip`) opens `/tmp/work/archive.zip`
 
 Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
 

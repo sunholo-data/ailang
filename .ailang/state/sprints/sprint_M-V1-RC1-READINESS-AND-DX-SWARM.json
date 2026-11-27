@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-RC1-READINESS-AND-DX-SWARM",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-27T14:30:00Z",
   "design_doc": "design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md",
   "sprint_plan": "design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md",
@@ -74,10 +74,11 @@
         "--args-json rejects fractional/out-of-range floats for int via UseNumber() and serve-api binds std/json.Json ADT parameters without HTTP 500 (TST-RC1-05)",
         "Targeted Go tests for internal/{types,elaborate,pipeline,link,runner,vm,runtime/argdecode,apiserver} and make check-file-sizes pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:36:17Z",
+      "actual_loc": 2178,
+      "notes": "Merged sprint/m1-soundness-vm @ 2e20aa68a. TST-RC1-01..05 all pass (cache key v15, NominalKey module-qualified Eq, VM RT_EQ_001 closure trap, no VM trap replay, exhaustive 21-variant OpLowerer+Linker+contracts, UseNumber strict int + serve-api Json)."
     },
     {
       "id": "M2_DERIVE_TESTS_REPL",
@@ -90,10 +91,11 @@
         "ModuleRegistry.LoadModule enforces VerifyMatchExhaustiveness, ValidateEffectsWithCalls, contract type-checking, and deriving (Eq) parity with CLI (TST-RC1-09)",
         "Targeted Go tests for internal/{loader,testing,repl} and make check-file-sizes pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:01:23Z",
+      "actual_loc": 802,
+      "notes": "Merged sprint/m2-derive-tests-repl @ 3d7ee825d. TST-RC1-06..09 all pass; loader.go=794L (<800L); ModuleRegistry.instanceEnvFor uses AddDerivedEqForADT(modName, typeName) cleanly with M1's module-qualified InstanceEnv."
     },
     {
       "id": "M3_PARSER_PIPE_QUICKFIX",
@@ -108,10 +110,11 @@
         "Block let errors omit misleading 'in' hints and W_SPLIT_ARGS / LIST_TAKE_AFTER_FLATMAP include file:line spans (TST-RC1-14)",
         "Targeted Go tests for internal/{parser,elaborate,pipeline,quickfix} and make check-file-sizes pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:25:19Z",
+      "actual_loc": 1436,
+      "notes": "Merged sprint/m3-parser-pipe-quickfix @ b20528a52. TST-RC1-10..14 all pass; quickfix.go=731L (<800L); TestCorpusASTDiff 0 diffs."
     },
     {
       "id": "M4_STDLIB_CLI_CAPS",
@@ -125,10 +128,11 @@
         "--caps auto prints to stderr unless explicit --quiet, excludes Process, pins [bin] shims (--grant-new-caps to widen), and pre-flights missing entrypoint caps with E_CAPS_MISSING (TST-RC1-18)",
         "third_party/goopus moved to internal/third_party/goopus, serveapi doc.go added, and stability.md updated with TestStabilityDocListsEveryDeprecation passing (TST-RC1-19)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:05:11Z",
+      "actual_loc": 1538,
+      "notes": "Merged sprint/m4-stdlib-cli-caps @ f149be804. TST-RC1-15..19 all pass; stdlib goldens for math & result frozen in M6; check.go=677L, run.go=751L."
     },
     {
       "id": "M5_PROMPT_CI_DOCS",
@@ -141,10 +145,11 @@
         ".claude/fmt_hook_events.jsonl, dist/error_codes.json, examples/manifest.json.bak, and examples/manifest.tmp removed and gitignored while keeping cmd/astdump/ and prompts/devtools/v0.8.*-compact.md (TST-RC1-20)",
         "docs/LIMITATIONS.md + docs/docs/reference/limitations.md synced and examples/runnable/v1_dx_showcase.ail authored (TST-RC1-21)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T14:53:58Z",
+      "actual_loc": 6494,
+      "notes": "Merged sprint/m5-prompt-ci-docs @ 12cc2c60a. TST-RC1-20/21 pass; v0.16.21 doc sample line 743 patched with module header in M6 so check-doc-samples has 0 new failures."
     },
     {
       "id": "M6_INTEGRATION",
@@ -162,10 +167,11 @@
         "examples/runnable/v1_dx_showcase.ail passes ailang check --strict-fallbacks, ailang test, ailang run --caps IO, and ailang run --strict-bytecode --caps IO (TST-RC1-21)",
         "make check-prompt-freeze, make check-file-sizes, make check-boundaries, make verify-stdlib, make check-doc-samples, verify_bytecode_parity.go --strict, and cd docs && npm run build all pass (TST-RC1-21)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T15:38:10Z",
+      "completed": "2026-11-27T15:52:00Z",
+      "actual_loc": 250,
+      "notes": "Conflict-free merge of M1..M5; regenerated .stdlib-golden/{math,result}, docs/docs/prompts/current.md, llms.txt (+docs copies), and examples/manifest.json (validate_manifest --ci 0 drift). Moved @limit=5 to export func budgeted() in v1_dx_showcase.ail so main() runs with 100% parity on evaluator and --strict-bytecode while budgeted() exercises @limit=5 on evaluator. Fixed prompts/v0.16.21.md:743 MOD014 header so check-doc-samples passes (0 new failures across 439 blocks). verify_bytecode_parity.go --strict exited 0 (182 MATCH, 0 DIVERGE)."
     },
     {
       "id": "M7_VERIFICATION",
