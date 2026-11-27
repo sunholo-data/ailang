@@ -173,6 +173,9 @@ func (e *AgyExecutor) executeStreaming(ctx context.Context, task *executor.Task,
 	if err != nil {
 		return nil, err
 	}
+	if err := EnsureLockedKeychain(home); err != nil {
+		fmt.Fprintf(os.Stderr, "agy: %v (a macOS keychain dialog may appear)\n", err)
+	}
 	tc, err := toolchainFor(home)
 	if err != nil {
 		return nil, err
