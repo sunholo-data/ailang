@@ -212,7 +212,7 @@ func (e *coreTIEncoder) node(t types.Type) (coreTINode, error) {
 		n.Kids, err = e.refs(t.Elements)
 		return n, err
 	case *types.TRecord:
-		n := coreTINode{Tag: ctiTagRecord, Name: t.TypeName}
+		n := coreTINode{Tag: ctiTagRecord, Name: t.TypeName, Module: t.TypeModule}
 		if n.Keys, n.Kids, err = e.fields(&n, t.Fields); err != nil {
 			return n, err
 		}
@@ -447,7 +447,7 @@ func (d *coreTIDecoder) build(n *coreTINode, self int32) (types.Type, error) {
 		t.Elements, err = d.list(n.Kids, self)
 		return t, err
 	case ctiTagRecord:
-		t := &types.TRecord{TypeName: n.Name}
+		t := &types.TRecord{TypeName: n.Name, TypeModule: n.Module}
 		if t.Fields, err = d.fields(n, self); err != nil {
 			return nil, err
 		}

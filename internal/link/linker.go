@@ -2,6 +2,7 @@ package link
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -138,11 +139,29 @@ func (l *Linker) LinkProgram(prog *core.Program, opts LinkOptions) (*core.Progra
 	return prog, nil
 }
 
-// collectDictRefs walks the program and collects all DictRef nodes
+// collectDictRefs walks the program (Decls and Meta Contracts) and collects all DictRef nodes
 func (l *Linker) collectDictRefs(prog *core.Program) []*core.DictRef {
 	var refs []*core.DictRef
 	for _, decl := range prog.Decls {
 		refs = append(refs, l.collectFromExpr(decl)...)
+	}
+	if len(prog.Meta) > 0 {
+		names := make([]string, 0, len(prog.Meta))
+		for name := range prog.Meta {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			meta := prog.Meta[name]
+			if meta == nil {
+				continue
+			}
+			for _, contract := range meta.Contracts {
+				if contract != nil && contract.Expr != nil {
+					refs = append(refs, l.collectFromExpr(contract.Expr)...)
+				}
+			}
+		}
 	}
 	return refs
 }
@@ -156,6 +175,9 @@ func (l *Linker) collectFromExpr(expr core.CoreExpr) []*core.DictRef {
 	}
 
 	switch e := expr.(type) {
+	case *core.Var, *core.VarGlobal, *core.Lit:
+		return refs
+
 	case *core.DictRef:
 		refs = append(refs, e)
 
@@ -186,6 +208,7 @@ func (l *Linker) collectFromExpr(expr core.CoreExpr) []*core.DictRef {
 	case *core.Match:
 		refs = append(refs, l.collectFromExpr(e.Scrutinee)...)
 		for _, arm := range e.Arms {
+			refs = append(refs, l.collectFromExpr(arm.Guard)...)
 			refs = append(refs, l.collectFromExpr(arm.Body)...)
 		}
 
@@ -196,15 +219,46 @@ func (l *Linker) collectFromExpr(expr core.CoreExpr) []*core.DictRef {
 	case *core.UnOp:
 		refs = append(refs, l.collectFromExpr(e.Operand)...)
 
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			refs = append(refs, l.collectFromExpr(arg)...)
+		}
+
 	case *core.Record:
-		for _, field := range e.Fields {
-			refs = append(refs, l.collectFromExpr(field)...)
+		keys := make([]string, 0, len(e.Fields))
+		for k := range e.Fields {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			refs = append(refs, l.collectFromExpr(e.Fields[k])...)
 		}
 
 	case *core.RecordAccess:
 		refs = append(refs, l.collectFromExpr(e.Record)...)
 
+	case *core.RecordUpdate:
+		refs = append(refs, l.collectFromExpr(e.Base)...)
+		keys := make([]string, 0, len(e.Updates))
+		for k := range e.Updates {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			refs = append(refs, l.collectFromExpr(e.Updates[k])...)
+		}
+
 	case *core.List:
+		for _, elem := range e.Elements {
+			refs = append(refs, l.collectFromExpr(elem)...)
+		}
+
+	case *core.Array:
+		for _, elem := range e.Elements {
+			refs = append(refs, l.collectFromExpr(elem)...)
+		}
+
+	case *core.Tuple:
 		for _, elem := range e.Elements {
 			refs = append(refs, l.collectFromExpr(elem)...)
 		}
@@ -217,6 +271,11 @@ func (l *Linker) collectFromExpr(expr core.CoreExpr) []*core.DictRef {
 		for _, arg := range e.Args {
 			refs = append(refs, l.collectFromExpr(arg)...)
 		}
+
+	case *core.Forall:
+		refs = append(refs, l.collectFromExpr(e.Lo)...)
+		refs = append(refs, l.collectFromExpr(e.Hi)...)
+		refs = append(refs, l.collectFromExpr(e.Body)...)
 	}
 
 	return refs

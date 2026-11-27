@@ -193,6 +193,22 @@ func (u *Unifier) expandAlias(t Type) Type {
 				subs[p] = args[i]
 			}
 			t = body.Substitute(subs)
+			if rec, ok := t.(*TRecord); ok && (rec.TypeName == "" || (rec.TypeName == headCon.Name && rec.TypeModule == "" && headCon.Module != "")) {
+				typeName := rec.TypeName
+				if typeName == "" {
+					typeName = headCon.Name
+				}
+				typeModule := rec.TypeModule
+				if typeModule == "" {
+					typeModule = headCon.Module
+				}
+				return &TRecord{
+					Fields:     rec.Fields,
+					Row:        rec.Row,
+					TypeName:   typeName,
+					TypeModule: typeModule,
+				}
+			}
 			continue
 		}
 
@@ -217,14 +233,23 @@ func (u *Unifier) expandAlias(t Type) Type {
 		}
 		seen[conKey] = true
 
-		// M-CROSS-MODULE: If target is a TRecord, set its TypeName so the
-		// nominal type identity is preserved through unification. A record is
+		// M-CROSS-MODULE / SOUND-1: If target is a TRecord, stamp (TypeModule, TypeName)
+		// so nominal type identity is preserved through unification. A record is
 		// terminal — no further alias to chase.
-		if rec, ok := target.(*TRecord); ok && rec.TypeName == "" {
+		if rec, ok := target.(*TRecord); ok && (rec.TypeName == "" || (rec.TypeName == con.Name && rec.TypeModule == "" && con.Module != "")) {
+			typeName := rec.TypeName
+			if typeName == "" {
+				typeName = con.Name
+			}
+			typeModule := rec.TypeModule
+			if typeModule == "" {
+				typeModule = con.Module
+			}
 			return &TRecord{
-				Fields:   rec.Fields,
-				Row:      rec.Row,
-				TypeName: con.Name,
+				Fields:     rec.Fields,
+				Row:        rec.Row,
+				TypeName:   typeName,
+				TypeModule: typeModule,
 			}
 		}
 		t = target // keep expanding if target is itself an alias TCon
@@ -473,11 +498,19 @@ func propagateTypeNameWithVisited(t1, t2 Type, visited map[Type]bool) {
 	// Handle TRecord types - propagate TypeName
 	if t1Rec, ok := t1.(*TRecord); ok {
 		if t2Rec, ok := t2.(*TRecord); ok {
-			// Propagate TypeName between the two records
+			// Propagate (TypeModule, TypeName) between the two records
 			if t1Rec.TypeName == "" && t2Rec.TypeName != "" {
 				t1Rec.TypeName = t2Rec.TypeName
+				t1Rec.TypeModule = t2Rec.TypeModule
 			} else if t2Rec.TypeName == "" && t1Rec.TypeName != "" {
 				t2Rec.TypeName = t1Rec.TypeName
+				t2Rec.TypeModule = t1Rec.TypeModule
+			} else if t1Rec.TypeName == t2Rec.TypeName {
+				if t1Rec.TypeModule == "" && t2Rec.TypeModule != "" {
+					t1Rec.TypeModule = t2Rec.TypeModule
+				} else if t2Rec.TypeModule == "" && t1Rec.TypeModule != "" {
+					t2Rec.TypeModule = t1Rec.TypeModule
+				}
 			}
 
 			// Recursively propagate to nested field types

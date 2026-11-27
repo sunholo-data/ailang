@@ -120,30 +120,32 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 		}
 	}
 
-	// Build a map of field signatures → TypeName from type aliases
+	// Build a map of field signatures → (TypeModule, TypeName) from type aliases
 	// Track ambiguous signatures (multiple types with same fields)
-	fieldSigToTypeNames := make(map[string][]string) // sig → [typeName1, typeName2, ...]
+	fieldSigToAliases := make(map[string][]aliasPropID)
 	for aliasKey, aliasType := range tc.aliasEnv {
-		// aliasEnv is keyed by NominalKey; TRecord.TypeName is the bare name.
-		_, aliasName := SplitNominalKey(aliasKey)
+		aliasMod, aliasName := SplitNominalKey(aliasKey)
 		if rec, ok := aliasType.(*TRecord); ok {
+			if aliasMod == "" && rec.TypeModule != "" {
+				aliasMod = rec.TypeModule
+			}
 			sig := recordFieldSignature(rec)
-			fieldSigToTypeNames[sig] = append(fieldSigToTypeNames[sig], aliasName)
+			fieldSigToAliases[sig] = append(fieldSigToAliases[sig], aliasPropID{module: aliasMod, name: aliasName})
 			if os.Getenv("DEBUG_TYPENAME") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   signature %q → %s\n", sig, aliasName)
+				fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   signature %q → %s::%s\n", sig, aliasMod, aliasName)
 			}
 		}
 	}
 
 	// Build final map: only include UNIQUE signatures (no ambiguity)
-	fieldSigToTypeName := make(map[string]string)
-	for sig, typeNames := range fieldSigToTypeNames {
-		if len(typeNames) == 1 {
+	fieldSigToTypeName := make(map[string]aliasPropID)
+	for sig, aliases := range fieldSigToAliases {
+		if len(aliases) == 1 {
 			// Unique signature - safe to auto-assign
-			fieldSigToTypeName[sig] = typeNames[0]
+			fieldSigToTypeName[sig] = aliases[0]
 		} else if os.Getenv("DEBUG_TYPENAME") != "" {
 			// Ambiguous signature - skip (codegen workaround will handle)
-			fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   AMBIGUOUS signature %q: %v (skipping auto-assign)\n", sig, typeNames)
+			fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   AMBIGUOUS signature %q: %v (skipping auto-assign)\n", sig, aliases)
 		}
 	}
 
@@ -169,9 +171,14 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 // some unique alias's names. Before both, a record nested n deep cost O(n^2)
 // per CoreTI entry and a shared record DAG 2^n (#2308).
 type typeNamePropagation struct {
-	sigs  map[string]string // field signature -> alias name (unique signatures only)
-	names map[string]bool   // field-name sets of those aliases
+	sigs  map[string]aliasPropID // field signature -> alias (module, name) (unique signatures only)
+	names map[string]bool        // field-name sets of those aliases
 	seen  map[Type]bool
+}
+
+type aliasPropID = struct {
+	module string
+	name   string
 }
 
 // walk sets TypeName on any TRecord in t that matches a known signature.
@@ -185,8 +192,13 @@ func (p *typeNamePropagation) walk(t Type) {
 	case *TRecord:
 		// If this record doesn't have a TypeName, try to match by field signature
 		if typ.TypeName == "" && p.names[recordFieldNames(typ)] {
-			if typeName, ok := p.sigs[recordFieldSignature(typ)]; ok {
-				typ.TypeName = typeName
+			if id, ok := p.sigs[recordFieldSignature(typ)]; ok {
+				typ.TypeName = id.name
+				typ.TypeModule = id.module
+			}
+		} else if typ.TypeName != "" && typ.TypeModule == "" && p.names[recordFieldNames(typ)] {
+			if id, ok := p.sigs[recordFieldSignature(typ)]; ok && id.name == typ.TypeName {
+				typ.TypeModule = id.module
 			}
 		}
 		// Recursively process field types

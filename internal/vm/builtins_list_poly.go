@@ -121,7 +121,11 @@ func builtinListContains(args []bytecode.Value) (bytecode.Value, error) {
 		return bytecode.Value{}, err
 	}
 	for _, x := range xs {
-		if runtimeEq(x, args[1]) {
+		eq, err := runtimeEqChecked(x, args[1])
+		if err != nil {
+			return bytecode.Value{}, err
+		}
+		if eq {
 			return bytecode.NewBool(true), nil
 		}
 	}

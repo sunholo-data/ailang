@@ -166,10 +166,11 @@ func (t *TRecord) MarshalJSON() ([]byte, error) {
 		}
 	}
 	raw, _ := json.Marshal(struct {
-		Fields   map[string]json.RawMessage `json:"fields"`
-		Row      json.RawMessage            `json:"row,omitempty"`
-		TypeName string                     `json:"type_name,omitempty"`
-	}{fields, rowBytes, t.TypeName})
+		Fields     map[string]json.RawMessage `json:"fields"`
+		Row        json.RawMessage            `json:"row,omitempty"`
+		TypeName   string                     `json:"type_name,omitempty"`
+		TypeModule string                     `json:"type_module,omitempty"`
+	}{fields, rowBytes, t.TypeName, t.TypeModule})
 	return json.Marshal(typeJSON{Tag: "trecord", Data: raw})
 }
 
@@ -452,9 +453,10 @@ func UnmarshalType(data []byte) (Type, error) {
 
 	case "trecord":
 		var d struct {
-			Fields   map[string]json.RawMessage `json:"fields"`
-			Row      json.RawMessage            `json:"row,omitempty"`
-			TypeName string                     `json:"type_name,omitempty"`
+			Fields     map[string]json.RawMessage `json:"fields"`
+			Row        json.RawMessage            `json:"row,omitempty"`
+			TypeName   string                     `json:"type_name,omitempty"`
+			TypeModule string                     `json:"type_module,omitempty"`
 		}
 		if err := json.Unmarshal(envelope.Data, &d); err != nil {
 			return nil, err
@@ -475,7 +477,7 @@ func UnmarshalType(data []byte) (Type, error) {
 				return nil, err
 			}
 		}
-		return &TRecord{Fields: fields, Row: row, TypeName: d.TypeName}, nil
+		return &TRecord{Fields: fields, Row: row, TypeName: d.TypeName, TypeModule: d.TypeModule}, nil
 
 	case "trecord_open":
 		var d struct {
