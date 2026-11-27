@@ -1,0 +1,41 @@
+MISSION-ROLE: planner
+
+You are the PLANNER for fleet mission iteration 142 (repo sunholo-data/ailang, this worktree is a detached checkout of origin/dev 162f2dcd1). Produce ONE file: `plan_iter142.md` at the worktree root. Do NOT edit any other file. Do NOT run any git write operation (add/commit/stash/checkout/reset). The controller owns all git operations.
+
+## The ticket (filed by the stapledon mission, iteration 118, 2026-11-25; signature `idle-fingerprint:record-eval-json-moves-head`)
+
+`tools/launchd/lib/idle-fingerprint.sh` computes the idle fingerprint's `head=` as the newest commit on the mission's branch that touches anything except the mission's own records:
+
+    git log -1 --format=%H "origin/$branch" -- . \
+      ":(exclude)design_docs/${name}-mission*" \
+      ":(exclude)verification/${name}-iter*" \
+      ":(exclude)design_docs/verification/${name}-iter*"
+
+On stapledon (repo sunholo-data/stapledons-godot) every record-only fire also banks its judge's verdict at `.ailang/state/evaluations/eval_MISSION-ITER-<N>_record.json` (literal string `MISSION-ITER`, not the mission name). The exclusions do not cover that path, so `head=` always resolves to the newest record commit, a recorded idle fingerprint can never match the next fire's snapshot, and the driver's MISSION IDLE PRE-CHECK can never skip an unchanged record-only fire on that mission (11 such full fires so far).
+
+## Controller's first-party measurements (outside any sandbox, today)
+
+- On stapledon `origin/main` = `891c3bc0`, the current pathspec gives `a510c43b` ("iteration 119 record"). `git show --stat` of `a510c43b` and of `6fd5f76c` (iteration 118 record), restricted to the current pathspec, lists exactly ONE file each: `.ailang/state/evaluations/eval_MISSION-ITER-119_record.json` / `...-118_record.json`.
+- Adding `':(exclude).ailang/state/evaluations/eval_MISSION-ITER-*_record.json'` makes `head=` resolve to `beb17c4a` (2026-11-24, "docs(r1): 7aw landed ..."), a real product commit.
+- stapledon's tree holds 7 `eval_MISSION-ITER-*_record.json` files (first added 2026-11-20). ailang-world and this repo hold 0. Ordinary sprint verdicts in this repo and in stapledon are named `eval_<sprint-id>_round_<n>.json` (sprint-evaluator skill convention) — e.g. `eval_M-MISSION-RECOVERY_round_1.json`, `eval_R1-7AJ-MONITOR-BINDINGS_round_1_sonnet.json`. Those are NOT record-only artifacts in general and must keep moving `head=`.
+- Precedent: iteration 126 fixed the sibling ticket (`design_docs/verification/<name>-iter*`) as commit `ad2d4196e` (helper +2 lines, test arm + a non-iter negative control + mutants, a changelog fragment). Its log ruled out broad generalisation ("would hide unknown future layouts, which should stay loud").
+- Baseline at 162f2dcd1: `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` rc 0, and `--mutations` rc 0 (all listed mutants killed).
+
+## What the plan must decide and specify
+
+1. The exact exclusion line(s) to add to the helper and the updated comment above them. Weigh: matching only `eval_MISSION-ITER-*_record.json` (the measured convention) vs anything broader. State which, and why, in two or three sentences. Do not exclude ordinary `eval_*_round_*` verdicts. Keep the existing three exclusions unchanged.
+2. Test changes in `tools/launchd/test_mission_idle_fingerprint.sh` (read it first; follow its existing fixture style around lines 255-275 and its `--mutations` list near line 28):
+   - a record-only arm: a commit adding only `.ailang/state/evaluations/eval_MISSION-ITER-9_record.json` must NOT move the hash;
+   - a negative control: a commit adding only an ordinary verdict such as `.ailang/state/evaluations/eval_M-FOO_round_1.json` MUST move the hash;
+   - new mutant(s) in the `--mutations` list, each a single-line `sed` edit of the helper, each killed by exactly the assertion meant to kill it (name the mutant, the sed, and the expected FAIL message). At minimum: deleting the new exclusion; broadening it to `.ailang/state/evaluations/*` (must be killed by the negative control).
+   - Check whether any existing static/structural assertion in the test (e.g. one that counts `:(exclude)` lines or greps the exclusion block) must be updated, and say exactly how.
+3. Any other consumer: grep the repo for other copies of this exclusion list or of `idle-fingerprint` pathspecs (driver `tools/launchd/mission-control.sh`, `.claude/skills/mission-control/**`, `.agents/skills/mission-control/**`, docs) and list each hit with a keep/update decision. Do not plan edits outside the fleet Authority (`tools/launchd/**`, `.claude/skills/mission-*/**`, `.agents/skills/mission-*/**`, `changelogs/**`, `docs/**`, `design_docs/**`).
+4. A changelog fragment `changelogs/unreleased/2026-11-26-idle-fingerprint-record-eval-json.md` (see `changelogs/unreleased/README.md` for the format; a `### Fixed — ...` section).
+5. The exact gate list the executor must run, with expected results: `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` (rc 0), `--mutations` (rc 0, every mutant KILLED, give the expected total count), `shellcheck` on the two shell files, `make check-changelog`. Note that `make test-launchd-drivers` is run by the controller outside the sandbox.
+6. Bash 3.2 + BSD tools constraint (the helper header says so). No new env vars.
+
+Acceptance criteria must be observations, never seeded writes to anything outside the test's own disposable fixture repo. The test already builds its fixture under a temp dir; nothing may touch `$HOME/.ailang/state`.
+
+## Sandbox notes
+
+You run in a write sandbox. Any gate you run here is UNINFORMATIVE UNDER SANDBOX if it fails on a permission/socket denial — label it that way rather than as pass/fail. You do not need network access. If you run a background command, poll its output file inside a bounded `date +%s` loop; never end your turn announcing that you are waiting for something. Keep the plan concise (under ~150 lines). Your final message should be a 5-line summary of the plan.

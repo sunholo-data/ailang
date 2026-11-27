@@ -1,6 +1,6 @@
 ---
-reviewed: 2026-11-10
-reviewBy: 2027-02-10
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Hosted AILANG executor
@@ -125,7 +125,7 @@ from that tab.
 
 ### Others
 
-**Gemini Enterprise.** Since v0.60.1 this server accepts pre-registered clients, which Gemini
+**Gemini Enterprise.** This server accepts pre-registered clients, which Gemini
 Enterprise needs, in two ways. As a **custom MCP data store**, its tools become actions in an
 Agent Designer agent. As an **A2A agent** ("AILANG Executor", card at
 `https://executor.ailang.sunholo.com/.well-known/agent-card.json`), Gemini Enterprise hands it a
@@ -134,8 +134,8 @@ program and its real output. Either way, a Gemini Enterprise admin needs a clien
 through `submit_feedback` or the AILANG repository. The agent answers a limited number of requests a
 day, and over the limit it says so. It can also file feedback for the user. Steps and traps
 (including Gemini Enterprise's daily agent-creation quota):
-[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us)
-and [Gemini Enterprise A2A agent](./mcp-connectors.md#gemini-enterprise-a2a-agent).
+[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#5-vendor-walkthroughs--submission-checklist)
+and [Gemini Enterprise A2A agent](./mcp-connectors.md#5-vendor-walkthroughs--submission-checklist).
 
 **Microsoft Copilot.** Not on this server yet: it needs dynamic registration or a pre-registered
 client, and has not been tried.

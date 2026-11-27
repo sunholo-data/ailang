@@ -1,6 +1,6 @@
 ---
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Option vs Result: which to use when
@@ -117,6 +117,42 @@ pure func result_to_opt[T, E](res: Result[T, E]) -> Option[T] {
 }
 ```
 
+## Spine propagation with `let x = expr?`
+
+Instead of nesting `match` expressions, bind `let x = expr?` along the return spine of a function returning `Result[T, E]` or `Option[T]`. If `expr` evaluates to `Err(e)` or `None`, the enclosing function returns that failure immediately; otherwise `x` receives the unwrapped `Ok` / `Some` payload:
+
+```ailang
+module docs/option_vs_result_try
+
+import std/json (decode, getInt, getString)
+import std/result (Result, Ok, Err)
+
+pure func optToResult[T, E](opt: Option[T], err: E) -> Result[T, E] =
+  match opt {
+    Some(x) => Ok(x),
+    None => Err(err)
+  }
+
+export pure func parseUserAge(raw: string) -> Result[int, string]
+  tests [
+    ("{\"age\": 42}", Ok(42)),
+    ("{}", Err("missing age"))
+  ]
+{
+  let j = decode(raw)?;
+  let age = optToResult(getInt(j, "age"), "missing age")?;
+  Ok(age)
+}
+
+export pure func parseOptionalCity(raw: string) -> Option[string] {
+  let j = match decode(raw) { Ok(v) => Some(v), Err(_) => None }?;
+  let city = getString(j, "city")?;
+  Some(city)
+}
+```
+
+> **Constraint (`PAR_TRY_LET_ONLY`):** `?` is restricted to `let x = expr?` bindings on the return spine (not arbitrary sub-expressions like `f(g()?)`). See [Known Limitations](/docs/reference/limitations).
+
 ## Why the typechecker enforces this (v0.18.10+)
 
 Before v0.18.10, AILANG's typechecker accepted constructor patterns from any ADT (the patterns were checked in isolation against their own ADT, not cross-checked against the scrutinee's type). Mismatched patterns would silently fall through and the match would panic at runtime with `no pattern matched in match expression`.
@@ -125,5 +161,5 @@ Since v0.18.10 ([M-MATCH-ADT-XCHECK](https://github.com/sunholo-data/ailang/blob
 
 ## See also
 
-- [Standard library reference](./language-syntax) — full type signatures for `std/option`, `std/result`, `std/json`, etc.
+- [Standard library reference](./stdlib) — full type signatures for `std/option`, `std/result`, `std/json`, etc.
 - [M-MATCH-ADT-XCHECK design doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_18_10/m-match-adt-xcheck.md) — implementation rationale and history

@@ -1,5 +1,7 @@
 ---
-reviewBy: 2026-11-09
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Workspace Access Control
@@ -151,28 +153,28 @@ firebase:
 
 ## Firestore Schema
 
-### Workspaces Collection
+```mermaid
+erDiagram
+    WORKSPACES ||--o{ ACCESS : "grants"
+    WORKSPACES {
+        string id PK "owner/repo"
+        string name
+        string github_repo
+        boolean is_public
+        timestamp created_at
+        string created_by
+    }
+    ACCESS {
+        string email PK
+        string workspace_id FK
+        string role "Viewer | Approver"
+        timestamp granted_at
+        string granted_by
+    }
+```
 
-```
-workspaces/{workspace_id}
-├── id: string
-├── name: string
-├── github_repo: string
-├── is_public: boolean
-├── created_at: timestamp
-└── created_by: string
-```
-
-### Access Control Subcollection
-
-```
-workspace_access/{workspace_id}/users/{email}
-├── email: string
-├── workspace_id: string
-├── role: string ("Viewer" | "Approver")
-├── granted_at: timestamp
-└── granted_by: string
-```
+- **Workspaces collection**: `workspaces/{workspace_id}`
+- **Access subcollection**: `workspace_access/{workspace_id}/users/{email}`
 
 ## Dashboard
 

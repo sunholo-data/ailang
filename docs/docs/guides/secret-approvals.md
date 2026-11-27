@@ -1,7 +1,9 @@
 ---
 title: Secret Approvals (push-to-phone)
 description: Set up remote human approval of secret() resolution — an agent requests a 1Password secret, you approve on your phone.
-reviewBy: 2027-02-22
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Secret Approvals — push-to-phone
@@ -20,7 +22,7 @@ requesting agent.
 
 | Piece | State |
 |-------|-------|
-| Static leak prevention (`<secret>` → `{not secret}` is a compile error) | ✅ shipped (v0.26.0) |
+| Static leak prevention (`<secret>` → `{not secret}` is a compile error) | ✅ shipped |
 | Local `secret()` resolution via `op` (no approval gate) | ✅ shipped |
 | Networked approver — executor blocks, polls the coordinator | ✅ shipped (M1) |
 | Coordinator intake/status/resolve + signed-token auth | ✅ shipped (M2) |
@@ -39,20 +41,20 @@ subscribing your phone. Until then a gated `secret()` in the cloud blocks and
 
 ## Architecture
 
-```
-agent-executor (ailang run):  secret(ref) → blocks
-        │  POST /api/approvals {ref,purpose,agent}        (value NEVER sent)
-        ▼
-coordinator (Cloud Run):  pending approval record + publish kind=approval
-        ▼
-${prefix}-approvals topic → approvals-push-sub → coordinator /pubsub/push bridge
-        ▼
-ntfy (Cloud Run):  push to your iPhone — "agent X wants op://… — <purpose>"  [Approve][Deny]
-        │  button POSTs a signed single-use token → /api/approvals/{id}/approve
-        ▼
-coordinator records the decision  ──poll──▶ executor unblocks
-        ▼
-agent-executor:  op read <ref> → value (labelled <secret>), used, scrubbed
+```mermaid
+sequenceDiagram
+    participant Ex as "agent-executor (ailang run)"
+    participant Co as "coordinator (Cloud Run)"
+    participant PS as "${prefix}-approvals Pub/Sub"
+    participant Ph as "ntfy -> iPhone"
+
+    Ex->>Co: "POST /api/approvals {ref, purpose, agent} (value never sent)"
+    Co->>PS: "publish kind=approval"
+    PS->>Co: "approvals-push-sub -> /pubsub/push bridge"
+    Co->>Ph: "Push: agent X wants op://... [Approve] [Deny]"
+    Ph->>Co: "POST signed single-use token -> /api/approvals/{id}/approve"
+    Ex->>Co: "poll decision -> unblock"
+    Ex->>Ex: "op read ref -> value (secret), use, scrub"
 ```
 
 ## Prerequisites

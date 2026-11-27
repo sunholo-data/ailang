@@ -1,391 +1,85 @@
 ---
-reviewed: 2026-11-23
-reviewBy: 2027-05-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Module Execution Guide
 
-Complete guide to executing AILANG modules with entrypoint functions.
-
----
-
 import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
 import CodeBlock from '@theme/CodeBlock';
-
-{/* Import verified example files */}
 import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
-import ModuleWithHelper from '!!raw-loader!@site/../examples/docs/module_with_helper.ail';
 import ModuleMainInt from '!!raw-loader!@site/../examples/docs/module_main_int.ail';
-import ModuleGreet from '!!raw-loader!@site/../examples/docs/module_greet.ail';
 import ModuleProcessRecord from '!!raw-loader!@site/../examples/docs/module_process_record.ail';
 import ModuleAddRecord from '!!raw-loader!@site/../examples/docs/module_add_record.ail';
-import IoPrintDemo from '!!raw-loader!@site/../examples/docs/io_print_demo.ail';
-import IoPrintlnDemo from '!!raw-loader!@site/../examples/docs/io_println_demo.ail';
 import CliGreeter from '!!raw-loader!@site/../examples/docs/cli_greeter.ail';
 
-## <Icon name="info" inline /> Overview
+Run AILANG modules with explicit entrypoints, JSON arguments, non-transitive imports, and capability flags.
 
-AILANG v0.2.0 introduces the **Module Execution Runtime** (M-R1), enabling you to run modules with exported entrypoint functions. This guide covers basic usage, requirements, and common patterns.
-
-### Execution Pipeline
+## Execution Pipeline
 
 ```mermaid
-graph LR
-    A["Source File<br/>(module.ail)"] --> B["Parse"]
-    B --> C["Type Check"]
-    C --> D["Elaborate to Core"]
-    D --> E["Load Module"]
-    E --> F["Find Entrypoint"]
-    F --> G["Execute"]
-    G --> H["Output"]
-
-    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style B fill:#f5f5f5,stroke:#616161,stroke-width:2px
-    style C fill:#f5f5f5,stroke:#616161,stroke-width:2px
-    style D fill:#f5f5f5,stroke:#616161,stroke-width:2px
-    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style G fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    style H fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+flowchart LR
+    A["Source (.ail)"] --> B["Parse & Check"]
+    B --> C["Elaborate Core ANF"]
+    C --> D["Load Imports & iface"]
+    D --> E["Resolve --entry"]
+    E --> F["Execute (Eval or --bytecode VM)"]
 ```
 
-## <Icon name="rocket" inline /> Quick Start
-
-### Basic Usage
+## Quick Start
 
 ```bash
-# Run a module with a main() function
-ailang run --caps IO --entry main examples/hello.ail
+# Inspect module exports, effects, and contracts without reading source
+ailang inspect --format=agent examples/runnable/hello.ail
+ailang inspect --json --exports-only examples/runnable/hello.ail
 
-# Run with a different entrypoint
-ailang run --caps IO --entry greet examples/demo.ail
+# Run default main() entrypoint
+ailang run --caps IO --entry main examples/runnable/hello.ail
 
-# Pass arguments via JSON
-ailang run --caps IO --entry process --args-json '{"input": "data"}' examples/processor.ail
+# Run a named 1-arg entrypoint with JSON input (wrap multi-field inputs in a record)
+ailang run --caps IO --entry process --args-json '{"input": "data", "count": 5}' examples/docs/module_process_record.ail
 ```
-
-### Minimal Example
 
 <CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
-Run with:
-```bash
-ailang run --caps IO --entry main examples/runnable/hello.ail
-# Output: Hello, AILANG!
-```
+## Module Rules & Entrypoints
 
----
+- **Canonical `module` header:** First line must match the repo-relative path (`examples/demo.ail` -> `module examples/demo`). Use `--relax-modules` during local prototyping.
+- **Exported functions only:** Entrypoints must be declared `export func` (or `export pure func`), taking **0 or 1 parameters**. Wrap multi-field inputs in a record:
 
-## <Icon name="code" inline /> Module Structure
-
-### Anatomy of an Executable Module
-
-<CodeBlock language="ailang" title="examples/docs/module_with_helper.ail">
-  {ModuleWithHelper}
-</CodeBlock>
-
-### Module Declaration
-
-- **Required**: Every executable module must have a `module` declaration
-- **Path matching**: Module path must match file path
-  - File: `examples/demo.ail` → Module: `module examples/demo`
-  - File: `src/utils/math.ail` → Module: `module src/utils/math`
-
----
-
-## <Icon name="target" inline /> Entrypoint Functions
-
-### Requirements
-
-An entrypoint function must:
-1. <CheckIcon inline size={14} /> Be **exported** from the module (`export func`)
-2. <CheckIcon inline size={14} /> Be a **function** (not a value)
-3. <CheckIcon inline size={14} /> Have **0 or 1 parameters** (v0.2.0 limitation)
-4. <CheckIcon inline size={14} /> Be specified via `--entry <name>` flag
-
-### Supported Arities
-
-#### 0-Argument Functions
-
-<CodeBlock language="ailang" title="examples/docs/module_main_int.ail">
-  {ModuleMainInt}
-</CodeBlock>
-
-Run with:
-```bash
-ailang run --entry main examples/docs/module_main_int.ail
-# Output: 42
-```
-
-#### 1-Argument Functions
-
-<CodeBlock language="ailang" title="examples/docs/module_greet.ail">
-  {ModuleGreet}
-</CodeBlock>
-
-Run with:
-```bash
-ailang run --caps IO --entry greet --args-json '"World"' examples/docs/module_greet.ail
-# Output: World
-```
-
-#### Record Parameters (Recommended Pattern)
-
-<CodeBlock language="ailang" title="examples/docs/module_process_record.ail">
-  {ModuleProcessRecord}
-</CodeBlock>
-
-Run with:
-```bash
-ailang run --caps IO --entry process --args-json '{"input": "data", "count": 5}' examples/docs/module_process_record.ail
-# Output: data
-```
-
-### Multi-Argument Workaround
-
-Functions with 2+ parameters are not directly supported. Wrap parameters in a record:
-
-<CrossIcon inline size={14} /> **Not supported:**
-```ailang
-export func add(x: int, y: int) -> int {
-    x + y
-}
-```
-
-<CheckIcon inline size={14} /> **Supported pattern:**
 <CodeBlock language="ailang" title="examples/docs/module_add_record.ail">
   {ModuleAddRecord}
 </CodeBlock>
 
-Run with:
 ```bash
 ailang run --entry add --args-json '{"x": 10, "y": 32}' examples/docs/module_add_record.ail
-# Output: 42
 ```
 
----
-
-## stdlib Functions
-
-### IO Builtins
-
-AILANG v0.2.0 provides three builtin IO functions:
-
-#### `_io_print(s: string) -> ()`
-
-Print a string without a newline.
-
-<CodeBlock language="ailang" title="examples/docs/io_print_demo.ail">
-  {IoPrintDemo}
-</CodeBlock>
-
-Output: `Hello World`
-
-#### `_io_println(s: string) -> ()`
-
-Print a string with a newline.
-
-<CodeBlock language="ailang" title="examples/docs/io_println_demo.ail">
-  {IoPrintlnDemo}
-</CodeBlock>
-
-Output:
-```
-Line 1
-Line 2
-```
-
-#### `readLine() -> string ! {IO}`
-
-Read a line from stdin (blocking).
-
-```ailang
-module examples/read_name
-
-import std/io (println, readLine)
-
-export func main() -> () ! {IO} {
-  println("Enter your name:");
-  let name = readLine();
-  println(name)
-}
-```
-
----
-
-## Return Values and Output
-
-### Printing Results
-
-- **Non-Unit values**: Printed to stdout automatically
-- **Unit values**: Silent (no output)
-
-```ailang
-import std/io (println)
-
--- Returns int, prints to stdout
-export func compute() -> int {
-  42
-}
-
--- Returns unit, prints explicitly via IO
-export func greet() -> () ! {IO} {
-  println("Hello")
-}
-```
-
-### Exit Codes
-
-- **Success**: Exit code 0
-- **Runtime error**: Exit code 1
-- **Type error**: Exit code 1
-- **Parse error**: Exit code 1
-
----
-
-## Effects and Type Checking
-
-### Effect Annotations & Runtime Capabilities
-
-Effects are both **statically type-checked** and **enforced at runtime** via `--caps`:
-
-```ailang
-module examples/io_effect
-
-import std/io (println)
-
--- Effect annotation required for IO operations
-export func main() -> () ! {IO} {
-  println("Hello")
-}
-```
-
-Capabilities are granted per-run with `ailang run --caps IO,FS ...` (a program may only perform effects whose capabilities it was granted). See the [effects reference](/docs/reference/effects) and [capability budgets](/docs/reference/capability-budgets).
-
-### Pure Functions
-
-Pure functions have no effect annotation (or explicit `! {}`):
-
-```ailang
-export pure func add(x: int, y: int) -> int {
-  x + y
-}
-```
-
----
-
-## Common Patterns
-
-### Simple Script
-
-```ailang
-module scripts/hello
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Hello from AILANG!")
-}
-```
-
-### CLI Tool with Arguments
-
-<CodeBlock language="ailang" title="examples/docs/cli_greeter.ail">
-  {CliGreeter}
-</CodeBlock>
-
-Usage:
-```bash
-ailang run --caps IO --entry greet --args-json '{"name":"Alice","greeting":"Hello"}' examples/docs/cli_greeter.ail
-# Output: Hello Alice
-```
-
-### Interactive Program
-
-```ailang
-module apps/echo
-
-import std/io (println, readLine)
-
-export func main() -> () ! {IO} {
-  println("Enter text:");
-  let input = readLine();
-  println(input)
-}
-```
-
----
-
-## Error Handling
-
-### Common Errors
-
-#### Entrypoint Not Found
-
-```
-Error: entrypoint 'main' not found in module examples/demo
-  Available exports: greet, process
-```
-
-**Solution**: Use `--entry <name>` with an exported function name.
-
-#### Wrong Arity
-
-```
-Error: entrypoint 'process' takes 2 parameters. v0.2.0 supports 0 or 1.
-  Suggestion: wrap as 'wrapper(p:{...}) -> ...' and pass --args-json
-```
-
-**Solution**: Wrap parameters in a record type.
-
-#### Not a Function
-
-```
-Error: entrypoint 'config' is not a function (got RecordValue)
-```
-
-**Solution**: Only functions can be entrypoints. Values cannot be executed.
-
-#### Module Path Mismatch
-
-```
-Error: module declaration 'hello' doesn't match canonical path 'examples/hello'
-Suggestions:
-  1. Rename module to: module examples/hello
-  2. Move file to: hello.ail
-```
-
-**Solution**: Ensure module path matches file path.
-
----
-
-## Capabilities & Current Scope
-
-### Supported <CheckIcon inline size={14} />
-- 0-argument and 1-argument entrypoints (use a record parameter for multi-field JSON inputs)
-- Standard library IO (`std/io`: `print`, `println`, `readLine`, `exit`)
-- JSON argument parsing (`--args-json`)
-- Module imports, sibling `./` imports, and `pkg/` package dependencies
-- Static effect checking and runtime capability enforcement (`--caps`)
-- Multi-statement `{ ... }` block bodies, pattern guards, and exhaustiveness checking
-- Pure functions (`pure func`) and contract verification (`ailang verify`)
-
----
-
-## Advanced Topics
-
-### Module Dependencies
-
-Modules can import other modules:
+- **Return values:** Non-unit values print automatically to stdout; `()` (Unit) prints nothing unless you call `println` (`! {IO}`).
+- **Encapsulation:** Private bindings (`func helper()`) stay module-local.
+
+## Explicit, Non-Transitive Imports
+
+Imports in AILANG are **never transitive** — if module A imports B and B uses `std/fs`, A's execution context only grants what A declares and imports explicitly.
+
+| Form | Syntax | Resolution |
+|---|---|---|
+| Standard library | `import std/list (map, filter)` | Bundled stdlib (`ailang docs std/list`) |
+| Module alias | `import std/string as Str` | Qualified `Str.length(s)` |
+| Symbol alias | `import std/list (length as listLen)` | Resolves name collisions (`Str.length` vs `listLen`) |
+| Intra-package sibling | `import ./types (Config)` | Same package without needing `ailang.lock` first |
+| External package | `import pkg/vendor/name/mod (fn)` | Resolved via `ailang.lock` |
+
+:::note `export import` re-exports are not yet supported
+`export import mod (sym)` is rejected by the parser with `PAR_EXPORT_REQUIRES_FUNC` (`export must be followed by 'func' or 'type', got 'import'`). Until package re-export facades land (tracked in `#2475`), export explicit wrapper functions or import directly from the defining module.
+:::
 
 ```ailang file=math/utils.ail
 module math/utils
 
-export func double(x: int) -> int {
-  x * 2
-}
+export pure func double(x: int) -> int = x * 2
 ```
 
 ```ailang file=app/main.ail
@@ -395,94 +89,51 @@ import std/io (println)
 import math/utils (double)
 
 export func main() -> () ! {IO} {
-  let result = double(21);
-  println(show(result))
+  println(show(double(21)))
 }
 ```
 
-### Encapsulation
+## Capabilities, CLI Flags & `ailang inspect`
 
-Only **exported** bindings are accessible from other modules:
+| Command / Flag | Purpose |
+|---|---|
+| `ailang inspect --format=agent <path>` | Emit compact semantic X-ray (types, exports, `! {Effects}`, contracts, callees) |
+| `ailang inspect --json <path>` | Machine-readable interface JSON for a file or directory |
+| `ailang run --caps IO,FS --entry fn file.ail` | Grant runtime capabilities matching declared `! {Effects}` |
+| `ailang run --args-json '{"k":1}' file.ail` | Pass JSON payload to 1-arg entrypoint |
+| `ailang run --bytecode file.ail` | Execute on the bytecode VM (`--strict-bytecode` fails on evaluator fallback) |
+| `ailang run --no-print file.ail` | Suppress automatic printing of non-unit return value |
 
-```ailang
-module lib/secret
+<details>
+<summary>More runnable entrypoint patterns (0-arg int, CLI greeter, record input)</summary>
 
--- Private (not accessible from imports)
-func private_helper() -> int {
-    42
-}
+<CodeBlock language="ailang" title="examples/docs/module_main_int.ail">
+  {ModuleMainInt}
+</CodeBlock>
 
--- Public (accessible via import)
-export func public_api() -> int {
-    private_helper()
-}
-```
+<CodeBlock language="ailang" title="examples/docs/module_process_record.ail">
+  {ModuleProcessRecord}
+</CodeBlock>
 
----
+<CodeBlock language="ailang" title="examples/docs/cli_greeter.ail">
+  {CliGreeter}
+</CodeBlock>
 
-## CLI Reference
+</details>
 
-### Flags
+## Common Errors
 
-- `--entry <name>`: Specify entrypoint function (required for modules)
-- `--args-json <json>`: Pass arguments as JSON (for 1-arg functions)
-- `--runner <mode>`: Choose execution runner (`module` or `fallback`)
-- `--no-print`: Suppress output (exit code only)
-
-### Examples
-
-```bash
-# Basic execution
-ailang run --entry main app.ail
-
-# With arguments
-ailang run --entry process --args-json '{"data": [1,2,3]}' app.ail
-
-# Use fallback runner (pre-M-R1 execution)
-ailang run --runner fallback app.ail
-
-# Exit code only (no output)
-ailang run --entry main --no-print app.ail
-echo $?  # Check exit code
-```
-
----
-
-## Troubleshooting
-
-### Module won't load
-
-1. Check module path matches file path
-2. Ensure all imports exist
-3. Verify no circular imports
-4. Check for syntax errors: `ailang check module.ail`
-
-### Function won't execute
-
-1. Ensure function is exported: `export func ...`
-2. Check arity (0 or 1 parameters only)
-3. Verify entrypoint name: `--entry <name>`
-4. Check type errors: `ailang check module.ail`
-
-### No output
-
-- Functions returning `()` (Unit) produce no output
-- Use `println()` from `std/io` for explicit output
-- Check stderr for errors: `ailang ... 2>&1 | grep Error`
-
----
+| Error | Cause | Fix |
+|---|---|---|
+| `MOD010` module path mismatch | `module` header doesn't match file path | Rename header to match path, or pass `--relax-modules` |
+| `IMP010: symbol not exported` | Missing `export` on type/func or removed alias | Add `export` or check `ailang docs std/<mod>` |
+| `PAR_EXPORT_REQUIRES_FUNC` | Used `export import ...` | Not yet supported (`#2475`); define an exported wrapper |
+| Entrypoint takes 2+ args | CLI `--entry` supports 0 or 1 arg | Wrap parameters in a record and pass `--args-json` |
+| `Missing capability: IO` | Program declares `! {IO}` without `--caps IO` | Add `--caps IO` before the file path |
 
 ## See Also
 
-- [Effect System](/docs/reference/effects) - Understanding effects and capabilities
-- [Module Reference](/docs/reference/modules) - Module syntax and organization
-- [Testing Guide](/docs/guides/testing) - Testing module code
-- [Debugging Guide](/docs/guides/debugging) - Troubleshooting execution issues
-- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
-- [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
-
-## Resources
-
-- **Examples**: `examples/` directory
-- **stdlib**: `std/io.ail`, `std/option.ail`
-- **CHANGELOG**: Track new features and breaking changes
+- [Effects & Capabilities](/docs/reference/effects) — static effect checking and budgets
+- [Module Reference](/docs/reference/modules) — full import/export grammar
+- [Testing Guide](/docs/guides/testing) — `ailang test` and inline tests
+- [Debugging Guide](/docs/guides/debugging) — `ailang inspect`, `--emit-trace`, and repair loops

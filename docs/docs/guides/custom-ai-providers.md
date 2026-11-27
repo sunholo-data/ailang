@@ -1,12 +1,11 @@
 ---
 title: Custom AI Providers
 sidebar_position: 50
-reviewBy: 2026-11-30
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Custom AI Providers (Config-Driven)
-
-**Status**: Available since AILANG **v0.15.0**.
 
 Add a new AI provider as a **package** — no Go code, no binary fork. Declare an `[[ai_provider]]` block in your `ailang.toml`, and AILANG registers it as a first-class provider with full budget tracking, AI capability gating, and trace integration. Same machinery as the hardcoded built-ins (`openai`, `anthropic`, `gemini`, `ollama`, `openrouter`).
 
@@ -66,7 +65,7 @@ The first AI effect still requires the configured provider's credentials and rep
 ```toml
 [[ai_provider]]
 # REQUIRED FIELDS
-schema_version = 1                        # only "1" accepted in v0.15.0
+schema_version = 1                        # only "1" currently accepted
 name           = "my-llm"                 # routing prefix; call("my-llm/<model>", ...) routes here
 endpoint       = "https://api.example.com/v1/chat/completions"
 request_shape  = "openai_chat"            # "openai_chat" | "anthropic_messages" | "simple_completion" | "custom"
@@ -87,7 +86,7 @@ auth_headers   = { Authorization = "Bearer ${MY_TOKEN}", X-Org = "${MY_ORG}" }
 # CUSTOM REQUEST SHAPE ESCAPE (only when request_shape = "custom")
 request_template = "{ \"model\": \"{{model}}\", \"input\": \"{{prompt}}\" }"
 
-# STREAMING (consumed by M-AI-STREAMING-HELPER, v0.17.0)
+# STREAMING
 [ai_provider.streaming]
 enabled         = true
 delta_path      = "$.choices[0].delta.content"
@@ -106,7 +105,7 @@ allowed = ["llama-3.1-70b", "llama-3.1-8b"]
 | `openai_chat` | OpenAI Chat Completions (`{messages, model, max_tokens, ...}`) | OpenAI, OpenRouter, Together, Groq, Anyscale, Fireworks, vLLM, llama.cpp openai-compat, anything else OpenAI-shaped |
 | `anthropic_messages` | Anthropic Messages API (`{messages: [{role, content: [{type:"text", text}]}], model, max_tokens, system}`) | Anthropic native, Anthropic-shaped proxies |
 | `simple_completion` | Single-prompt format (`{prompt, model, max_tokens, ...}`) | Ollama-style endpoints |
-| `custom` | Your `request_template` Go template | Anything else (deferred to schema v2 — not implemented in v0.16) |
+| `custom` | Your `request_template` Go template | Anything else (deferred to schema v2) |
 
 ### Auth shapes
 
@@ -127,7 +126,7 @@ The TOML keys match the wire identifiers used in [`internal/ai/routing.go`](http
 |-----|---------|
 | `tool_calling` | Function/tool calling supported |
 | `json_mode` | JSON-mode output supported |
-| `streaming` | SSE token streaming supported. Surface: [`std/ai/streaming.callStream`](../recipes/ai-token-streaming.md#quick-start-callstream) (v0.15.1+) and `openaiCompatStream`/`anthropicStream` (v0.15.0+) |
+| `streaming` | SSE token streaming supported. Surface: [`std/ai/streaming.callStream`](../recipes/ai-token-streaming.md#quick-start-callstream) and `openaiCompatStream`/`anthropicStream` |
 | `vision` | Multimodal image input/output supported |
 | `structured_outputs` | Schema-enforced structured output (`response_format = json_schema`) supported |
 
@@ -200,11 +199,11 @@ When multiple installed packages declare `[[ai_provider]]` blocks:
 
 The runtime tracks the harvested providers in a global registry (see [`internal/ai/registry.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/ai/registry.go)). The dispatch chain in [`cmd/ailang/ai_handlers.go`](https://github.com/sunholo-data/ailang/blob/dev/cmd/ailang/ai_handlers.go) consults this registry after the built-in switch falls through.
 
-## Limitations (v0.15.0)
+## Limitations
 
 - **Custom auth flows** (AWS SigV4, Azure AD, OAuth) — not supported; use the `auth_headers` escape with `${ENV_VAR}` for static tokens, or rely on built-in providers for full custom auth.
 - **Non-HTTP transports** (gRPC, persistent WebSocket) — Go-side; not in v1 schema.
-- **Streaming** — `[ai_provider.streaming]` blocks are runtime-supported via [`std/ai/streaming`](../recipes/ai-token-streaming.md): `callStream` for the accumulated final string (v0.15.1+), `openaiCompatStream`/`anthropicStream` + the manual event loop for per-delta hooks (v0.15.0+).
+- **Streaming** — `[ai_provider.streaming]` blocks are runtime-supported via [`std/ai/streaming`](../recipes/ai-token-streaming.md): `callStream` for the accumulated final string, `openaiCompatStream`/`anthropicStream` + the manual event loop for per-delta hooks.
 - **Tool-use templating** — `capabilities.tool_calling` flag works, but the request-shape templating for tool definitions is deferred to schema v2.
 - **Image input templating** — same.
 - **`request_shape = "custom"` + `request_template`** — reserved in the schema; runtime support deferred to schema v2.
@@ -218,4 +217,4 @@ If you hit a limitation, file feedback via the MCP `submit_feedback` tool or ope
 - [Design doc: M-AI-PROVIDER-CONFIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md) — architectural reasoning
 - [Design doc: motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md) — the external-consumer evidence base for this milestone
 - [`std/ai`](./ai-effect.mdx) — the `AI` effect this dispatches through
-- [`std/stream`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/stream_sse.ail) — the SSE infrastructure consumed by streaming providers (v0.17.0)
+- [`std/stream`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/stream_sse.ail) — the SSE infrastructure consumed by streaming providers

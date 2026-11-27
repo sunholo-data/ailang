@@ -2,7 +2,8 @@
 sidebar_position: 8
 title: Contracts & Verification
 description: Design-by-contract programming with requires/ensures clauses and Z3 static verification
-reviewBy: 2026-11-23
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -24,301 +25,97 @@ import ResultErrorGuardExample from '!!raw-loader!@site/../examples/runnable/con
 
 # Contracts & Verification
 
-AILANG supports **design-by-contract** programming through `requires` and `ensures` clauses. Contracts make function invariants explicit and machine-checkable — both at runtime and at compile time via Z3 SMT solving.
+AILANG supports **design-by-contract** programming via `requires` (preconditions) and `ensures` (postconditions), checked at runtime with `--verify-contracts` or mathematically proved at compile time with Z3 (`ailang verify`). Grounded in the AWS ARC neurosymbolic approach ([Bayless et al., 2025](https://arxiv.org/abs/2511.09008)).
 
-:::info Research Foundation
-This feature implements techniques from the **ARC (Automated Reasoning Checks)** system developed by AWS:
+![Z3 Contract Pipeline](/img/diagrams/z3-contract-pipeline.svg)
 
-> Bayless et al., ["A Neurosymbolic Approach to Natural Language Formalization and Verification"](https://arxiv.org/abs/2511.09008) (2025)
-> [PDF](/references/bayless-2025-neurosymbolic.pdf)
-
-ARC demonstrates that formal verification combined with AI code generation dramatically improves correctness. AILANG brings these techniques into the language itself.
-:::
-
-:::tip Try It Live
-See contracts in action in the browser — no installation required:
-- **[Z3 Verify Demo](https://www.sunholo.com/ailang-demos/verify.html)** — Watch Z3 mathematically prove correctness or find counterexamples across 4 real-world scenarios
-- **[AI + Contracts Demo](https://www.sunholo.com/ailang-demos/contracts-ai.html)** — AI extracts data from documents, contracts validate every field
-- **[Safe Agent Demo](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)** — Contract-verified AI tool calling with path traversal and SQL injection prevention
-:::
+```mermaid
+flowchart LR
+    Src["Func + requires/ensures"] --> Frag["Fragment & Purity Check"]
+    Frag -->|Outside fragment| Skip["⚠ SKIPPED (reason + hint)"]
+    Frag -->|Decidable| SMT["Encode SMT-LIB (Tuple0..8, Records, Seq, Str)"]
+    SMT --> Z3["Z3 Solver (negate ensures)"]
+    Z3 -->|unsat| Ver["✓ VERIFIED (notes: int_overflow / helpers_not_checked)"]
+    Z3 -->|sat, no unroll| Cex["✗ VIOLATION (canonical AILANG counterexample)"]
+    Z3 -->|sat, bounded| Replay["Witness Replay on Evaluator"]
+    Replay -->|Fails ensures| Cex
+    Replay -->|Passes / not replayable| Inc["? INCONCLUSIVE (bounded: depth N)"]
+```
 
 ## Contract Syntax
 
-Contracts appear after the effect annotation and before the function body:
+Contracts follow the effect annotation (`! {}`) and precede the function body:
 
 ```ailang
 export func safeDivide(dividend: int, divisor: int) -> int ! {}
-requires { divisor != 0 }        -- Precondition: checked at entry
-ensures { result >= 0 }          -- Postcondition: checked before return
+requires { divisor != 0 }
+ensures { result >= 0 }
 {
   dividend / divisor
 }
 ```
 
-### Key Elements
+| Clause | Purpose | Scope |
+|---|---|---|
+| `requires { ... }` | Precondition assumed while proving `ensures`, and checked at verified call sites | Entry |
+| `ensures { ... }` | Postcondition proved for all inputs satisfying `requires` | Return |
+| `result` | Binds the return value inside `ensures` | Postcondition only |
 
-| Clause | Purpose | When Checked |
-|--------|---------|--------------|
-| `requires { ... }` | Precondition - what must be true when calling | Function entry |
-| `ensures { ... }` | Postcondition - what will be true when returning | Before return |
-| `result` | Special identifier for the return value | Only in `ensures` |
+## Quick Start & CLI Flags
 
-## Reading verification evidence
+Install Z3 (`brew install z3`, `apt install z3`, or set `AILANG_Z3_PATH`), then run:
 
-Runtime `requires`/`ensures` assertions run when `ailang run --verify-contracts`
-is enabled. A static result is separate evidence; it does not establish that a
-runtime assertion or a generated property test ran. Checked APIs should guard
-bad inputs in ordinary execution rather than rely on that opt-in flag.
-
-**A `requires` clause is assumed by the function and checked at verified calls.**
-The verifier assumes a function's precondition while proving that function's
-`ensures`. When a verified function calls it, each call in that function's body
-must meet it: a call that may not is a VIOLATION (`requires_violation`). That
-includes calls inside a helper it calls, a lambda passed to `map`/`filter`/`foldl`,
-and its own recursive calls (which must meet its own `requires`). Inside a recursive
-helper or a lambda the check reaches only the unrolling depth (a note says so). An
-unverified caller is never checked.
-`ailang run` checks `requires` only with `--verify-contracts`. So a `VERIFIED`
-result means "the `ensures` holds whenever the `requires` holds"; guard inputs
-that come from unverified code.
-
-The verifier encodes floats as SMT `Real` and integers as `Int`, and checks the
-operations where that differs from the runtime:
-
-- **int64 overflow.** Every int `+ - *` in a verified body must keep in-range
-  operands in range. `ensures { result > x } { x + 1 }` is VERIFIED with a note
-  (`caveats: int_overflow`) and the input that shows it, `x = 9223372036854775807`,
-  where the runtime wraps to `-9223372036854775808`. Bound the input in `requires`
-  (`x < 1000000`) to remove the note. `ailang verify --int-model=int64` makes it a
-  VIOLATION (`int_overflow`).
-- **NaN and ±Infinity.** Float `/` and `%` by a possible zero, `sqrt` of a possible
-  negative and `log` of a possible non-positive are VIOLATIONS (`float_nan_or_inf`).
-  Float inputs are assumed to be ordinary numbers (`caveats:
-  float_inputs_assumed_non_nan`); a float product overflowing to ±Infinity is not
-  modelled.
-
-Results still do not establish IEEE-754 rounding or cross-architecture byte
-equality. Every `verify` run prints this model on its `Scope:` line and in the
-JSON `numeric_model` field. Bounded recursion results carry their actual
-`bounded_depth`; a missing depth is not an inductive proof.
-
-Int `/` and `%` use truncation toward zero for nonzero divisors, matching
-ordinary execution (for example, `-7 / 2` is `-3` and `-7 % 2` is `-1`).
-Division by zero still raises RT001 at runtime. The verifier's partial-correctness
-model totalizes zero division without assuming a nonzero divisor; a proof does
-not establish termination or freedom from runtime errors.
-
-When an eligible callee is represented through its contract, its value depends
-on its actual arguments: repeated equal arguments share a value, while distinct
-arguments remain distinct. Only the evaluated invocation contributes a finite
-`requires => ensures` fact, within its lexical bindings and selected branch.
-An unencodable precondition contributes no postcondition assumption. This does
-not prove the caller satisfies a callee's precondition, and does not add a global
-contract axiom for uncalled inputs. These facts retain the existing contract-trust
-and helper eligibility boundaries.
-
-`ailang verify --package . --json` retains its existing schema and counts while
-adding `evidence_schema`, `numeric_model`, typed `reason_code` values, function
-`reason_counts`, rejection details, bounded depth and module-scoped issues.
-`missing_postcondition` differs from `unsupported_encoding`; `solver_unknown`
-and `solver_timeout` remain unproved and keep their existing error accounting.
-A package wall-cap issue concerns a module, not a counted individual function.
-Older reports with absent metadata show evidence unavailable, not a guessed model.
-Package-quality output keeps property-test skipped counts distinct from proofs
-and records runtime contract evidence as not measured unless separately supplied.
-
-## Basic Example
-
-This example demonstrates core contract patterns:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/basic.ail">
-  {BasicContracts}
-</CodeBlock>
-
-**Run it:**
 ```bash
-ailang run --caps IO --entry main examples/runnable/contracts/basic.ail
-# Output: 116
+ailang verify examples/runnable/contracts/park.ail           # Static Z3 proof
+ailang verify --int-model=int64 file.ail                     # Treat int64 + - * overflow as VIOLATION
+ailang verify --verify-recursive-depth 5 file.ail            # Bounded unrolling depth (default 2, max 10)
+ailang verify --strict --json file.ail                       # Fail on skipped/inconclusive; JSON report
+ailang verify --allow-inconclusive file.ail                  # Exit 0 on bounded-unrolling inconclusive
+ailang verify --package . --json                             # Verify whole package (Schema + reason_counts)
+ailang verify --verbose file.ail                             # Print generated SMT-LIB
+ailang run --verify-contracts --caps IO --entry main file.ail # Runtime assertion checks (evaluator only)
 ```
 
-## Policy Example: Park Admission
+:::note Runtime vs Static Verification
+`ailang run` does **not** check contracts unless `--verify-contracts` is passed (evaluator only; combining `--verify-contracts` with `--bytecode` exits `2` with `CTR004`). Static `VERIFIED` proves `ensures` whenever `requires` holds; validate inputs crossing from unverified callers explicitly.
+:::
 
-This example reproduces the park admission policy from the [ARC paper](https://arxiv.org/abs/2511.09008), demonstrating how AILANG can express the same policy models with machine-checkable contracts.
+## Reading Verification Evidence & Numeric Model
+
+Every `ailang verify` run prints its `Scope:` line (and JSON `numeric_model` / `evidence_schema`) disclosing what the solver proved:
+
+| Aspect | Default Model | Strict / Notes |
+|---|---|---|
+| `int` (`+`, `-`, `*`) | Unbounded SMT `Int` | Reports `caveats: int_overflow` with witness input (e.g. `x = 9223372036854775807`); pass `--int-model=int64` to make overflow a `VIOLATION` (`int_overflow`), or bound inputs in `requires`. |
+| `int` (`/`, `%`) | Truncation toward zero (`-7 / 2 == -3`) | Zero divisor raises `RT001` at runtime; proofs are partial-correctness (not termination). |
+| `float` | Mathematical `Real` (non-NaN inputs assumed) | Possible `/ 0.0`, `% 0.0`, `sqrt(< 0)`, `log(<= 0)` are `VIOLATION` (`float_nan_or_inf`). Does not model IEEE-754 rounding. |
+| Call-site `requires` | Checked at every call inside verified bodies | Unsatisfied callee preconditions fail as `VIOLATION` (`requires_violation`), including inside helpers, HOF lambdas, and recursive self-calls. |
+| Opaque helpers | Callee with unencodable body & no `ensures` | Represented as an uninterpreted function of its signature; proofs hold for any return value and carry `caveats: helpers_not_checked` (models are `INCONCLUSIVE`, never violations). |
+
+### Exit Codes (`verify`, `check --verify`, `ai-check`) {#exit-codes}
+
+| Outcome | Exit | `outcome` field |
+|---|---:|---|
+| Type-check failed | `1` | `not_run` |
+| No obligations (`ensures` other than `true`) | `0` | `no_obligations` |
+| All obligations proved | `0` | `verified` |
+| Some proved, some skipped (`requires`-only rows don't fail) | `0` (`1` with `--strict`) | `partial` |
+| Obligations exist, none proved | `1` | `unproved` |
+| Bounded recursion model (`INCONCLUSIVE`) | `1` (`0` with `--allow-inconclusive`) | `inconclusive` |
+| Any counterexample (`VIOLATION`) | `1` | `counterexample` |
+| Solver error / `unknown` / timeout / missing Z3 | `1` | `error` / `unavailable` |
+
+Each invocation verifies one module; unverified non-stdlib imports declaring contracts are listed in `imported_contracts_unverified`.
+
+## Canonical AILANG Counterexamples & Examples
+
+Z3 models are formatted back into **canonical AILANG syntax** (`{ x: 0, y: 100 }`, `[1, 2]`, `(a, b)`, `Some(42)`), stripping internal `$p_` prefixes and solver stub tables.
+
+### Policy & Billing (Cross-Function Proofs)
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/park.ail">
   {ParkExample}
 </CodeBlock>
-
-`AgeClass` is declared `deriving (Eq)` because the `ensures` of `classifyAge` compares it with `==`. Contracts are type-checked like function bodies: `==` on an enum without `deriving (Eq)` is an error in a contract too.
-
-**Run it:**
-```bash
-ailang run --caps IO --entry main examples/runnable/contracts/park.ail
-# Output: 35 (= 5 + 10 + 0 + 20)
-```
-
-**Verify it — Z3 proves ALL policy rules correct:**
-```bash
-$ ailang verify examples/runnable/contracts/park.ail
-
-→ Verifying contracts in examples/runnable/contracts/park.ail
-  Solver: Z3 version 4.15.4 - 64 bit
-
-  ✓ VERIFIED admissionFee    -- fee is always >= 0 for any age/season
-  ✓ VERIFIED canEnterPark    -- decision matches budget vs fee (cross-function)
-  ✓ VERIFIED seniorDiscount  -- seniors ALWAYS pay less than adults
-  ✓ VERIFIED classifyAge     -- classification is exhaustive and consistent
-
-  4 functions: 4 verified
-```
-
-:::info ARC Paper Implementation Complete
-The ARC paper uses an external LLM + Z3 pipeline to verify natural-language policies. AILANG achieves the same result **natively** — contracts are first-class syntax, verification is a single CLI command, and Z3 proves properties like "seniors always pay less" across all possible inputs with cross-function inlining.
-:::
-
-:::tip See also: IFC Labels
-For prompt-injection prevention and information-flow control, see the
-[**Information-Flow Control (IFC) Labels** guide](ifc-labels.mdx).
-Labels (`T<label>` and `T{not LABEL}`) are a sibling feature to
-contracts — they work at the type-system layer rather than the SMT
-layer, and the two are designed to compose.
-:::
-
-## Why Contracts Matter for AI
-
-Contracts are particularly valuable for AI code generation:
-
-| Benefit | Explanation |
-|---------|-------------|
-| **Specification surface** | AI can read contracts to understand intent |
-| **Verification target** | Generated code can be checked against contracts |
-| **Confidence scoring** | Multiple AI-generated implementations can be compared for contract satisfaction |
-| **Audit trail** | Contracts document what was specified vs. implemented |
-
-### The ARC Approach
-
-The [ARC paper](https://arxiv.org/abs/2511.09008) demonstrates that:
-
-1. Having AI generate both contracts *and* code improves correctness
-2. Redundant generation (multiple samples) + verification catches bugs
-3. Formal specifications make AI reasoning auditable
-
-AILANG implements this pattern natively: contracts are first-class syntax, not comments or annotations.
-
-## Runtime Contract Checking
-
-**`ailang run` does not check contracts by default.** Enable runtime contract
-verification with the `--verify-contracts` flag:
-
-```bash
-ailang run --verify-contracts --caps IO --entry main examples/runnable/contracts/basic.ail
-```
-
-Runtime contracts run on the evaluator only. `--verify-contracts` together with
-`--bytecode` or `--strict-bytecode` (also under `--batch`) is refused before the
-program runs, with exit code 2:
-
-```
-Error: CTR004: --verify-contracts is not enforced on the bytecode VM yet (runtime contracts run only on the evaluator). Drop --bytecode to check contracts, or drop --verify-contracts to run on the VM. Tracking: #1956.
-```
-
-### Contract Violation Messages
-
-When a contract is violated at runtime, the run stops with exit code 1. For a
-`half(x) = x - 100` with `ensures { result >= 0 }`, called as `half(5)`:
-
-```
-Error: execution failed: contract violation: ensures failed in half at k1.ail:5:11: (result >= 0)
-```
-
-The message includes:
-- Contract type (`requires` or `ensures`)
-- The function whose contract failed
-- Source location (file:line:column)
-- Original predicate expression
-
-## Static Verification with Z3
-
-:::tip Compile-Time Proofs
-`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all inputs that satisfy `requires`**, under the encoded model (unbounded `Int`, real-valued `float`). That covers every case a test suite would sample. Each call a verified function makes is also checked against the callee's `requires`, int overflow is reported, and float operations that could produce NaN are checked — see [Reading verification evidence](#reading-verification-evidence).
-:::
-
-### Quick Start
-
-```bash
-# Verify all contracts in a file
-ailang verify examples/runnable/contracts/finance.ail
-
-# Show generated SMT-LIB for debugging
-ailang verify --verbose examples/runnable/contracts/basic.ail
-
-# Machine-readable JSON output (for CI/CD)
-ailang verify --json examples/runnable/contracts/basic.ail
-
-# Strict mode: fail if any contract is skipped or inconclusive
-ailang verify --strict examples/runnable/contracts/basic.ail
-
-# Accept inconclusive (bounded-unrolling) results instead of failing on them
-ailang verify --allow-inconclusive examples/runnable/contracts/cross_module_functions_lib.ail
-
-# Custom timeout per function (default: 5s)
-ailang verify --timeout 10s examples/runnable/contracts/park.ail
-```
-
-**Prerequisites**: Install Z3 via `brew install z3` (macOS), `apt install z3` (Linux), `choco install z3` or `scoop install z3` (Windows), or download from [Z3 releases](https://github.com/Z3Prover/z3/releases) and set `AILANG_Z3_PATH`.
-
-### Exit codes
-
-`ailang verify`, `ailang check --verify` and `ailang ai-check` share one exit
-rule: they exit non-zero whenever something that should have been proved was
-not. The JSON field `outcome` names which case it was (`verify.outcome` in the
-`check --verify` report).
-
-An **obligation** is a function with at least one `ensures` clause. A
-`requires`-only function is not one: the verifier assumes a precondition while
-proving that function's own `ensures`, and it does not check preconditions at
-call sites, so a precondition alone gives it nothing to prove. Such a function
-is still listed in `results` (status `skipped`, reason code
-`missing_postcondition`) but never changes the outcome or the exit code, with
-or without Z3, and passes `--strict`. The same holds for a function whose only `ensures` is the
-literal `true`: it proves nothing, so it is not an obligation either. Other tautologies
-(`1 == 1`, `result == result`) are not detected and count as verified.
-
-| Outcome | Exit | `outcome` |
-|---|---|---|
-| The file does not type-check | 1 | `not_run` |
-| No obligations in the file (with or without Z3) | 0 | `no_obligations` |
-| Every obligation proved | 0 | `verified` |
-| At least one proved, at least one skipped (outside the decidable fragment) | 0, the skipped functions listed on stderr and by name in `results`; 1 with `--strict` | `partial` |
-| Obligations exist, **none** proved, the rest skipped | 1 | `unproved` |
-| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive`, even when the inconclusive result is the only obligation and nothing was proved (skips still count as without the flag) | `inconclusive` (never `verified` or `partial`) |
-| Any counterexample | 1 | `counterexample` |
-| Any solver error, `unknown` or timeout | 1 | `error` |
-| Obligations exist but Z3 is not found | 1, stderr names where it looked | `unavailable` |
-| `ai-check --no-verify`: type check only, verifier not run | 0 when it type-checks | `not_requested` (`no_obligations` when there are none) |
-
-`obligations` counts the functions with an `ensures` clause and is reported
-even when Z3 is missing. `available` means "the solver was found". The legacy
-counter `skipped` still includes `requires`-only rows. Each command checks one
-file: a second file is a usage error (exit 2), and flags may follow the file. `--strict` with
-`--allow-inconclusive`, and `check --strict` without `--verify`, are usage errors too. Only the
-checked file is verified: when it imports (non-stdlib) modules that declare contracts, stderr says
-so and `imported_contracts_unverified` names them, including modules reached only transitively (A
-imports B imports C: C is listed); the checked file itself is never listed. Verify each module on its own.
-`verify --package` refuses up front when Z3 is missing.
-
-### How It Works
-
-1. **Fragment check**: Each function with contracts is checked for SMT-encodability
-2. **Encoding**: Pure functions in the decidable fragment are translated to SMT-LIB
-3. **Negation**: The postcondition is negated — if Z3 finds a satisfying assignment, that's a counterexample
-4. **Result**: `VERIFIED` (proven correct), `VIOLATION` (counterexample found), `INCONCLUSIVE` (recursive function whose bounded unrolling found a model that may be an artifact), `SKIPPED` (outside fragment), or `ERROR` (solver error, `unknown` or timeout). See [Verification Output States](#verification-output-states) and the exit table above.
-
-### Real-World Example: Provably Correct Billing
-
-This is where `ailang verify` becomes genuinely valuable. Invoice processing is business-critical code where a bug means wrong charges, angry customers, and potential lawsuits. Traditional testing checks a handful of cases. Z3 proves correctness for **every possible input**.
-
-This single file combines every verification feature — enums, records, strings, lists, and cross-function calls — to model a realistic billing system:
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/invoice.ail">
   {InvoiceExample}
@@ -326,162 +123,17 @@ This single file combines every verification feature — enums, records, strings
 
 ```bash
 $ ailang verify examples/runnable/contracts/invoice.ail
-
-→ Verifying contracts in invoice.ail
-  Solver: Z3 version 4.15.4
-
-  ✓ VERIFIED taxRate               5ms
-  ✓ VERIFIED calculateTax          7ms     # calls taxRate
-  ✓ VERIFIED tierDiscountRate      6ms
-  ✓ VERIFIED applyTierDiscount     8ms     # calls tierDiscountRate
-  ✓ VERIFIED isValidPromo          5ms     # string: startsWith + length
-  ✓ VERIFIED promoRebate           8ms     # string-conditional discount
-  ✓ VERIFIED itemCount             5ms     # list: length
-  ✓ VERIFIED addItem               5ms     # list: cons + length
-  ✓ VERIFIED netFromSummary        7ms     # record: field access
   ✓ VERIFIED invoiceTotal        210ms     # 4-deep cross-function chain
   ✗ VIOLATION brokenVolumePrice
     Counterexample:
       unitPrice: Int = 0
       qty: Int = 1
-
   11 functions: 10 verified, 1 violations
 ```
 
-**What Z3 proved:**
-- `invoiceTotal` is non-negative for ANY subtotal × 5 tiers × 5 regions × any promo string — an infinite input space, verified in 210ms
-- Tax calculations never produce negative amounts
-- Tier discounts never exceed the original amount
-- Promo rebates are correctly bounded
-- Record field invariants (discount ≤ subtotal) guarantee non-negative net
-- Adding a line item increases the count by exactly 1
+### Records, Strings, Lists, Tuples & Unit (`Tuple0..Tuple8`)
 
-**What Z3 caught:** The developer assumed a $0.50/unit volume discount is always covered by the unit price. Z3 found: if `unitPrice=0` and `qty=1`, the discount exceeds the line total, producing a **negative charge** — effectively paying customers to buy items. This would only surface in production when a free-tier item gets ordered.
-
-### More Examples
-
-<details>
-<summary>Financial Calculations (simple cross-function + counterexample)</summary>
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/finance.ail">
-  {FinanceExample}
-</CodeBlock>
-
-```bash
-$ ailang verify examples/runnable/contracts/finance.ail
-
-  ✓ VERIFIED calculateTax    6ms
-  ✓ VERIFIED netIncome       6ms     # calls calculateTax
-  ✗ VIOLATION brokenDiscount
-    Counterexample: price=0, discount=1
-
-  3 functions: 2 verified, 1 violations
-```
-
-</details>
-
-<details>
-<summary>Access Control (enum-based security policy)</summary>
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/access_control.ail">
-  {AccessControlExample}
-</CodeBlock>
-
-</details>
-
-<details>
-<summary>Temperature Conversion (physical constraints)</summary>
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/temperature.ail">
-  {TemperatureExample}
-</CodeBlock>
-
-</details>
-
-<details>
-<summary>Insurance Pricing — 768 code paths</summary>
-
-Five enum types combine to create 768 distinct execution paths. A human reviewer would need to trace every combination — Z3 does it in milliseconds:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/insurance.ail">
-  {InsuranceExample}
-</CodeBlock>
-
-```bash
-$ ailang verify examples/runnable/contracts/insurance.ail
-
-  ✓ VERIFIED calculatePremium    30ms
-  ✓ VERIFIED basePremium          5ms
-  ✓ VERIFIED riskMultiplier       5ms
-  ✓ VERIFIED coverageSurcharge    7ms
-  ✗ VIOLATION applyDiscount
-    Counterexample: discountPercent=101, age=YOUTH, tier=LOW
-
-  5 functions: 4 verified, 1 violations
-```
-
-Z3 found that `discountPercent=101` causes a negative result — invisible when testing with "reasonable" values like 10% or 20%.
-
-</details>
-
-<details>
-<summary>Multi-Factor Scoring — 256 code paths</summary>
-
-Department weights can push scores above 100 for specific enum combinations. Z3 finds the exact combination:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/scoring.ail">
-  {ScoringExample}
-</CodeBlock>
-
-```bash
-$ ailang verify examples/runnable/contracts/scoring.ail
-
-  ✓ VERIFIED compositeScore      6ms
-  ✗ VIOLATION normalizedScore
-    Counterexample: dept=ENGINEERING, level=EXPERT, tenure=JUNIOR, perf=POOR
-
-  6 functions: 5 verified, 1 violations
-```
-
-EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. This combination would never appear in unit tests.
-
-</details>
-
-### Cross-Function Verification
-
-Functions that call other user-defined functions are verified by **inlining the callee as a `define-fun`** in the SMT-LIB context. Z3 then reasons about the caller with full knowledge of what the callee computes:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/cross_function.ail">
-  {CrossFunctionExample}
-</CodeBlock>
-
-```bash
-$ ailang verify examples/runnable/contracts/cross_function.ail
-
-  ✓ VERIFIED baseCost              5ms
-  ✓ VERIFIED priorityMultiplier    4ms
-  ✓ VERIFIED shippingCost          4ms    # calls baseCost + priorityMultiplier
-  ✓ VERIFIED discountedCost       32ms    # calls shippingCost (transitive 3-level chain)
-
-  4 functions: 4 verified
-```
-
-**How it works:**
-1. The callee resolver walks the function body for user-defined function calls
-2. Callees are topologically sorted (if A calls B, B's `define-fun` appears first)
-3. Each callee is emitted as `(define-fun name ((params)) RetSort body)` in the SMT-LIB output
-4. The caller can then use the callee name as a regular function in its body
-5. A helper that cannot be defined (its body does not encode, or it is in a call cycle) is called by its `ensures` when it has one, and otherwise as an **opaque helper** (below)
-
-**Limitations:**
-- Callees must be pure, and their signatures must have SMT sorts. A callee whose *body* does not encode (a builtin with no SMT form, a lambda it binds, a call cycle) and that has no `ensures` is an **opaque helper**: an uninterpreted function of its signature. A proof that holds for every value it could return is `✓ VERIFIED` with a `helpers_not_checked` note naming each such helper and why. Its body was not encoded, so the checks inside it (its callees' `requires`, overflow, NaN) were not made. A model that rests on its value is `INCONCLUSIVE`, never a violation, and witness replay runs the real function. Its own `requires` is still checked at each call
-- A self-recursive callee (an index scanner like `allFrom(s, i) = i >= length(s) || (ok(charAt(s, i)) && allFrom(s, i + 1))`) is unrolled to depth 3 below an uninterpreted stub. A proof through it holds for every value the stub could return, so it is a real proof, labelled `bounded: depth 3`; a counterexample through it is inconclusive until witness replay confirms it. Mutually recursive helpers are opaque helpers (or called by their `ensures`). See [Bounded Recursion](#bounded-recursion-verification) above
-- A callee's `requires` **is** checked at each call in the verified function's body, under the branch and `let` that reach the call: a caller with `requires { n < 0 }` that calls a callee declaring `requires { n > 0 }` is a `✗ VIOLATION` with reason `requires_violation`. The same holds for calls inside the helpers it calls, inside a lambda passed to `map`/`filter`/`foldl`, and for its own recursive calls; so do the int overflow and NaN checks. Inside a recursive helper or a lambda they reach only the unrolling depth, and the result carries a note saying so
-- Very deep call chains may slow down Z3 (each inlined definition increases formula size)
-
-### Record Verification
-
-Records can be verified by Z3. Record parameters are mapped to SMT-LIB `declare-datatype` declarations with named field accessors, enabling contracts that reference record fields:
+Unit `()` encodes as `Tuple0` (`mk_Tuple0`, enabling `Result[(), E]`) and tuples with 2–8 components encode as `Tuple2`..`Tuple8`, formatted back as `()` and `(a, b)`. Records map to SMT `declare-datatype` and display as AILANG record literals:
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/record_verify.ail">
   {RecordVerifyExample}
@@ -489,503 +141,114 @@ Records can be verified by Z3. Record parameters are mapped to SMT-LIB `declare-
 
 ```bash
 $ ailang verify examples/runnable/contracts/record_verify.ail
-
   ✓ VERIFIED getX            5ms
-  ✓ VERIFIED manhattan       5ms
-  ✓ VERIFIED moveRight      29ms     # record construction in return
-  ✓ VERIFIED isNearOrigin    5ms     # cross-function with records
+  ✓ VERIFIED manhattan       7ms     # caveat: int_overflow for x = 9223372036854775807
   ✗ VIOLATION brokenDistance
     Counterexample:
-      p: Record_x_y = (mk_Record_x_y 0 100)
-
-  5 functions: 4 verified, 1 violations
+      result: Bool = false
+      p: Record_x_y = { x: 0, y: 100 }
 ```
 
-**How it works:**
-1. Record types in parameters (e.g., `{x: int, y: int}`) generate `(declare-datatype Record_x_y ((mk_Record_x_y (x Int) (y Int))))`
-2. Field access (`p.x`) uses SMT-LIB auto-generated accessor functions: `(x p)`
-3. Record construction (`{x: 5, y: 10}`) becomes `(mk_Record_x_y 5 10)` with fields in alphabetical order
-4. Functional update (`{p with x: 20}`) reconstructs with the constructor: `(mk_Record_x_y 20 (y p))`
+<details>
+<summary>More verified examples: basic, finance, access control, temperature, insurance, scoring, record discovery, strings, lists, typed errors</summary>
 
-**Limitations:**
-- Record fields must use encodable types (int, float, bool, string, lists of those, enum ADTs, nested records)
-- Named record type declarations can be used via type aliases
+<CodeBlock language="ailang" title="examples/runnable/contracts/basic.ail">
+  {BasicContracts}
+</CodeBlock>
 
-#### Record Type Discovery
+<CodeBlock language="ailang" title="examples/runnable/contracts/finance.ail">
+  {FinanceExample}
+</CodeBlock>
 
-Record types are automatically discovered from **all positions** — not just function parameters. This means you can use record types in return annotations, construct records in function bodies, and reference record fields in ensures clauses:
+<CodeBlock language="ailang" title="examples/runnable/contracts/access_control.ail">
+  {AccessControlExample}
+</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/temperature.ail">
+  {TemperatureExample}
+</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/insurance.ail">
+  {InsuranceExample}
+</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/scoring.ail">
+  {ScoringExample}
+</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/cross_function.ail">
+  {CrossFunctionExample}
+</CodeBlock>
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/record_discovery_verify.ail">
   {RecordDiscoveryExample}
 </CodeBlock>
 
-```bash
-$ ailang verify examples/runnable/contracts/record_discovery_verify.ail
-
-  ✓ VERIFIED makePoint       5ms     # return-only record type
-  ✓ VERIFIED transform       5ms     # different param/return records
-  ✓ VERIFIED swapXY          5ms     # record construction in body
-
-  3 functions: 3 verified
-```
-
-**Discovery sources:**
-1. **Function parameters** — record types in parameter annotations (e.g., `p: {x: int, y: int}`)
-2. **Return type annotations** — record types in `->` return position (e.g., `-> {x: int, y: int}`)
-3. **Function body expressions** — record literals constructed anywhere in the body (let bindings, if branches, match arms)
-4. **Ensures clauses** — record references in postcondition expressions
-
-:::tip
-If parameter names match record field names (e.g., `makePoint(x: int, y: int) -> {x: int, y: int}`), Z3 may report an ambiguity error. Rename the parameters to avoid the collision: `makePoint(px: int, py: int) -> {x: int, y: int}`.
-:::
-
-### String Verification
-
-String parameters, literals, concatenation, length, comparison, and substring operations can all be verified by Z3 using its built-in string theory:
-
 <CodeBlock language="ailang" title="examples/runnable/contracts/string_verify.ail">
   {StringVerifyExample}
 </CodeBlock>
-
-```bash
-$ ailang verify examples/runnable/contracts/string_verify.ail
-
-  ✓ VERIFIED safeConcat          20ms
-  ✓ VERIFIED isEqual              5ms
-  ✗ VIOLATION brokenPrefixCheck
-    Counterexample:
-      prefix: String = "A"
-      s: String = "B"
-
-  3 functions: 2 verified, 1 violations
-```
-
-Z3 proved that `safeConcat` always produces a result at least as long as `a`, and that `isEqual` correctly returns the equality check. For `brokenPrefixCheck`, Z3 found that `s="B"` doesn't start with `prefix="A"`, so the result is `false` — violating `ensures { result == true }`.
-
-**Supported string operations:**
-
-Use `import std/string` to access these functions. The verifier resolves stdlib calls to Z3 natively.
-
-| AILANG (stdlib) | Z3 SMT-LIB | Purpose |
-|--------|-----------|---------|
-| `"${a}${b}"`, `concat([a, b])` | `str.++` | Concatenation (`++` is for lists only; on strings it is a type error) |
-| `a == b` | `=` | Equality |
-| `a != b` | `distinct` | Inequality |
-| `a < b` | `str.<` | Lexicographic less-than |
-| `a <= b` | `str.<=` | Less-than-or-equal |
-| `length(s)` | `str.len` | String length (`std/string`) |
-| `find(s, t)` | `str.indexof` | Find substring (`std/string`) |
-| `substring(s, i, j)` | `str.substr` | Substring extraction (`std/string`) |
-| `startsWith(s, p)` | `str.prefixof` | Prefix check (`std/string`) |
-| `endsWith(s, x)` | `str.suffixof` | Suffix check (`std/string`) |
-| `contains(s, t)` | `str.contains` | Substring membership (`std/string`) |
-
-**Known by facts, not values** (uninterpreted; each call adds what the runtime result always satisfies):
-
-| Function | Facts |
-|---|---|
-| `trim(s)` | a substring of `s`, no longer than `s` |
-| `toLower(s)`, `toUpper(s)` | same length as `s` (case maps rune by rune) |
-| `split(s, d)` | `d == ""`: one part per rune; `d` absent from `s`: `[s]`; otherwise ≥ 1 part |
-| `chars(s)` | one element per rune |
-| `join(d, xs)` | `[]` → `""`; `[x]` → `x` |
-| `repeat(s, n)` | `n <= 0` → `""`; else length `length(s) * n` |
-| `replace(s, old, new)` | `s` unchanged when `old` does not occur, or `old == new` |
-| `stringToInt(s)` | unsigned digits within int64 → `Some(n)`; no sign and not all digits (or `""`) → `None`; a signed `s` is left open |
-| `charCode(c)` | for one rune, 0 … 0x10FFFF (not Z3's `str.to_code`, whose characters stop at 0x2FFFF) |
-
-`charAt(s, i)` is exact (`str.at`). A model that rests on one of these is INCONCLUSIVE, and witness replay confirms real violations. **Not yet encodable:** `words`, `foldChars`, `replaceMany`, `splitAny`.
-
-### List Verification
-
-List parameters, literals, length, head, nth, and cons can all be verified by Z3 using its built-in sequence theory:
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/list_verify.ail">
   {ListVerifyExample}
 </CodeBlock>
 
-```bash
-$ ailang verify examples/runnable/contracts/list_verify.ail
+<CodeBlock language="ailang" title="examples/runnable/contracts/result_error_guard.ail">
+  {ResultErrorGuardExample}
+</CodeBlock>
 
-  ✓ VERIFIED safeListLength      34ms
-  ✓ VERIFIED prependLength        5ms
-  ✓ VERIFIED headIsNth0           5ms
-  ✓ VERIFIED singletonLength      5ms
-  ✗ VIOLATION brokenAllPositive
-    Counterexample:
-      xs: (Seq Int) = ...
+</details>
 
-  5 functions: 4 verified, 1 violations
-```
-
-Z3 proved that `safeListLength` always returns a non-negative result, that `prependLength` increases length by 1, that head equals nth at index 0, and that a singleton list has length 1. For `brokenAllPositive`, Z3 found a list whose head is non-positive.
-
-**Supported list operations:**
-
-Use `import std/list (length)` for list length. The raw builtins `_list_head` and `_list_nth` are used directly in contracts because the stdlib versions (`std/list.head`, `std/list.nth`) return `Option`, which has different semantics.
-
-| AILANG | Z3 SMT-LIB | Purpose |
-|--------|-----------|---------|
-| `length(xs)` | `seq.len` | List length (`std/list`) |
-| `_list_head(xs)` | `seq.nth xs 0` | First element (builtin) |
-| `_list_nth(xs, i)` | `seq.nth` | Element at index (builtin) |
-| `x :: xs` | `seq.++ (seq.unit x) xs` | Cons (prepend) |
-| `xs ++ ys` | `seq.++` | List concatenation |
-| `[1, 2, 3]` | `(seq.++ (seq.unit 1) ...)` | List literal |
-
-**Not yet encodable:** Higher-order list operations (`map`, `filter`, `foldl`) — a function calling them is currently SKIPPED, even with a literal lambda. See [Higher-Order Function Verification](#higher-order-function-verification).
-
-### Bounded Recursion Verification
-
-Recursive functions were previously outside the decidable fragment. With **bounded unrolling**, `ailang verify` can now verify recursive functions by generating a chain of `define-fun` declarations at a configurable depth (Dafny-style approach):
+## Bounded Recursion, HOFs & Witness Replay
 
 <CodeBlock language="ailang" title="examples/runnable/contracts/recursive_verify.ail">
   {RecursiveVerifyExample}
 </CodeBlock>
 
-```bash
-$ ailang verify examples/runnable/contracts/recursive_verify.ail
+- **Dafny-style unrolling:** Recursive functions unroll to `--verify-recursive-depth N` (default `2`) or per-function `@verify(depth: N)` over an uninterpreted frontier `f_0`. `VERIFIED` is sound up to depth `N`; a `sat` model is `INCONCLUSIVE` unless **witness replay** executes the real function and confirms a contract failure (`VIOLATION`).
+- **Higher-order functions:** `map`, `filter`, `foldl`, `any`, and `flatMap` with literal lambdas or top-level functions specialize and unroll (depth `3`). `length(result) == length(xs)` after `map` and `length(result) <= length(xs)` after `filter` are proved for any list length.
+- **Bounded quantifiers:** `forall i: 0..n => P(i)` in `ensures` encodes single-level integer quantifiers.
 
-→ Verifying contracts in recursive_verify.ail
-  Solver: Z3 version 4.15.4
+## The Decidable Fragment
 
-  ✓ VERIFIED (bounded: depth 6) factorial   10ms
-  ✓ VERIFIED (bounded: depth 6) sumTo        6ms
-  ✓ VERIFIED (bounded: depth 6) fib          7ms
-  ○ NO CONTRACTS main
+| Category | Supported in Z3 (`ailang verify`) | Skipped / Caveat |
+|---|---|---|
+| **Types** | `int`, `float`, `bool`, `string`, `()`, tuples `Tuple2..Tuple8`, enums/ADTs (e.g. `Result[(), Err]`, `Option[int]`), nested records, lists | Type variables in callee signatures, function-typed params, `bytes`, shadowed `TupleN` types |
+| **Operators & Control** | `+ - * /`, comparisons (`deriving (Eq)` for ADT `==`), `&& \|\| !`, `if`/`else`, `let`, exhaustive `match` (ADTs, records, tuples, lists) | Bitwise ops (`& ^ ~ << >>`), nested `forall`, unannotated params (`#2400`) |
+| **Strings (`std/string`)** | Exact: `"${a}${b}"`, `concat`, `length`, `find`, `substring`, `startsWith`, `endsWith`, `contains`, `charAt`. Axiomatized: `trim`, `toLower`/`toUpper`, `split`, `chars`, `join`, `repeat`, `replace`, `stringToInt`, `charCode` | `words`, `foldChars`, `replaceMany`, `splitAny` |
+| **Lists & Math** | `length`, `_list_head`, `_list_nth`, `::`, `++`, `take`/`drop`/`contains`, `nthOr`/`headOr`/`lastOr`, `std/option`, `floor`/`ceil`/`round`/`absInt`/`absFloat`; uninterpreted `reverse`, `sqrt`/`exp`/`pow`/`log`/`sin`/`cos` | Function-typed callback parameters (`map(f, xs)`) |
+| **Purity** | `! {}` (`pure func`) or `! {Declassify}` (`func ... ! {Declassify}`) | Effectful functions (`IO`, `FS`, `Net`, `AI`, etc.) |
 
-  4 exported functions: 3 verified, 1 without contracts
-
-  Note: "bounded: depth N" means the property was verified assuming at most N
-        levels of recursion. This is sound but not a full inductive proof.
-```
-
-**How it works:**
-
-For a recursive function `f(n)` at depth N, the verifier generates N+1 declarations:
-
-```smt2
-(declare-fun f_0 (Int) Int)           ; Level 0: uninterpreted (conservative)
-(define-fun f_1 ((n Int)) Int B[f_0]) ; Level 1: self-calls → f_0
-(define-fun f_2 ((n Int)) Int B[f_1]) ; Level 2: self-calls → f_1
-```
-
-Level 0 is an **uninterpreted function** — Z3 only proves properties that hold regardless of what `f_0` returns. This makes bounded verification **sound by construction**: if Z3 says VERIFIED, the property genuinely holds for inputs up to the given recursion depth.
-
-**CLI flag:**
-
-```bash
-# Default: depth 2 (verifies recursive functions automatically)
-ailang verify file.ail
-
-# Custom depth (higher = more coverage but slower)
-ailang verify --verify-recursive-depth 5 file.ail
-
-# Disable bounded recursion (skip recursive functions)
-ailang verify --verify-recursive-depth 0 file.ail
-```
-
-**Tradeoffs:**
-
-| Depth | Coverage | Speed | Use Case |
-|-------|----------|-------|----------|
-| 0 | None (skipped) | Instant | Disable recursive verification |
-| 2 | Shallow (default) | Fast | Quick CI checks |
-| 5 | Moderate | Moderate | Thorough verification |
-| 10 | Deep (max) | Slow | Maximum confidence |
-
-:::note Bounded vs Full Proofs
-Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded-unrolled function is reported **INCONCLUSIVE (bounded: depth N)**, never as a violation: Z3 can satisfy the negated postcondition by inventing a value for `f_0`, which no real run produces. **Witness replay** then decides most of them. The model's parameter values are concrete inputs, so `ailang verify` runs the real function on them and checks its contracts at runtime. If every `requires` holds and an `ensures` is false, the result becomes a `VIOLATION` showing those inputs (`witness replayed at runtime: ensures clause 1 is false for n = 2`). Otherwise it stays INCONCLUSIVE, and the reason says what the replay saw. Replay only ever confirms a violation the runtime produces. It covers int, float, bool, string, list and record inputs; Option and other ADT inputs are not replayed yet. A VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
-:::
-
-### Verification Output States
-
-| Status | Symbol | Meaning |
-|--------|--------|---------|
-| Verified | `✓` | Z3 proved the contract holds for ALL valid inputs |
-| Violation | `✗` | Z3 found concrete inputs that break the postcondition — or, under bounded unrolling, the function was run on the solver's inputs and broke it at runtime (`witness replayed`) |
-| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation, and replaying its inputs did not break the contract. Exit 1 (not proved); `--allow-inconclusive` exits 0. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
-| Skipped | `⚠` | Function is outside the decidable fragment (with reason) |
-| Error | `!` | Encoding or solver error |
-
-### The Decidable Fragment
-
-`ailang verify` can verify functions that stay within a decidable subset of the language:
-
-**Currently supported:**
-- `int`, `float` (as a mathematical real, not IEEE-754), `bool`, `string`, list, tuple (2 to 8 components, as the datatype `TupleN`), unit `()` (as `Tuple0`, so `Result[(), E]` works), and enum/ADT parameters and return types
-- Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
-- Records nested anywhere in an ADT payload, including a list of records that refers back to the ADT, as in `std/json`'s `Json` (`JObject([{ key: string, value: Json }])`)
-- Arithmetic: `+`, `-`, `*`, `/`
-- Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=` — a contract is type-checked like a function body, so `==`/`!=` on an enum or other ADT needs `deriving (Eq)` on the type (`type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)`); without it `check` reports TC_CONTRACT_001 naming the type to change
-- Logical: `&&`, `||`, `!`
-- String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
-- List operations: `length`, `take`, `drop`, `contains` from `std/list`, `_list_head`, `_list_nth`, `_list_contains`, `_list_extract`, `::` (cons), `++` (concat), list literals
-- Control flow: `if`/`else`, `let` bindings
-- Pattern matching: `match` on enums, ADTs, **records** (field destructuring) and **tuples** (`(a, _)`, nested in a constructor or list pattern, with literals inside, and `let (a, b) = p`)
-- Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
-- Cross-function calls: callees inlined via `define-fun` (transitive chains supported), including callees that take or return `Option`/`Result` or another parametric ADT at a concrete type (`Option[int]`, `Result[float, MyErr]`). Each callee must itself be pure by the rule below. A callee whose signature has a type variable, a function type or `bytes` makes the caller SKIPPED when the caller calls it directly; reached through another helper, that helper is called opaquely instead (see the limitations under cross-function calls)
-- Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
-- **Higher-order functions**: `map`, `filter`, `foldl`, `any`, `flatMap` with a **lambda or a named top-level function**, over any element type, specialized and unrolled (depth 3) — see [below](#higher-order-function-verification)
-- **Stdlib accessors**: `nthOr`/`headOr`/`lastOr` and the Option-returning `head`/`nth`/`last` from `std/list`, and `getOrElse`/`isSome`/`isNone` from `std/option`, encoded directly (full proofs). `std/list.reverse` is uninterpreted, with the facts every reversal has: the same length, and the first and last elements swapped. A model that rests on its value is INCONCLUSIVE
-- **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
-- **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
-- Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → truncation toward zero (as at runtime)
-- `std/math`: `floor`, `ceil`, `round` (half away from zero), `absFloat`, `absInt`, `PI()`, `E()` are encoded exactly. `sqrt`, `exp`, `pow`, `log`, `sin`, `cos` are uninterpreted: each call contributes only facts the IEEE result always satisfies (`x >= 0 ⇒ sqrt(x) >= 0`, `sqrt` maps [0,1] into [0,1], `exp(x) >= 0`, `pow(x, 0) == 1`, `-1 <= sin(x) <= 1`, …). So `ensures { result >= 0.0 }` on `sqrt(dx*dx + dy*dy)` is proved, while `sqrt(2.0) * sqrt(2.0) == 2.0` is not. A model that rests on these functions is reported INCONCLUSIVE (the solver may have picked a value the real function never returns), and witness replay then confirms real violations
-- Must be pure (`pure func`, an explicit `! {}`, or no `!` clause at all when no parameter has a function type), or declare only `! {Declassify}` (a declassification gate). The same rule applies to every helper it calls. A function with no `!` clause already fails `ailang check` if it performs an undeclared effect; one taking a function-typed parameter is excluded because the callback's effects could flow into it. `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
-
-**Currently skipped (with hints):**
-
-| Feature | Reason | Expandable? |
-|---------|--------|-------------|
-| Higher-order functions (named function) | `map(f, xs)` where `f` is not a literal lambda | Requires whole-program analysis |
-| Bitwise operators | `&`, `^`, `~`, `<<`, `>>` have no `Int` encoding | Needs a bit-vector encoding |
-| Unannotated parameters | `func inc(x) ensures {…}`, or a helper `func h(x)` it calls, is skipped and the reason names the parameter ([#2400](https://github.com/sunholo-data/ailang/issues/2400)) | Yes — annotate `x: int` |
-| `words`/`foldChars`/`replaceMany`, datetime builtins | No SMT encoding yet | Yes — planned |
-| Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
-| Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
-| Open or unsupported ADT payloads | Unresolved type variables and function-valued fields have no encoding here | Requires additional type encodings |
-
-Functions outside the fragment are skipped with clear messages explaining why and what to change:
-
-```
-  ⚠ SKIPPED effectfulFunc
-    Reason: Function "effectfulFunc" has effects
-    Hint: Remove effect annotations or use ! {} for pure
-```
-
-### Typed error payloads
-
-A guard can return a successful value or a structured error and state its
-postcondition by matching the result:
-
-<CodeBlock language="ailang" title="examples/runnable/contracts/result_error_guard.ail">
-  {ResultErrorGuardExample}
-</CodeBlock>
-
-```bash
-ailang verify --verbose examples/runnable/contracts/result_error_guard.ail
-ailang test examples/runnable/contracts/result_error_guard.ail
-ailang run --caps IO --entry main examples/runnable/contracts/result_error_guard.ail
-```
-
-The verifier preserves `Result`'s two type parameters. For this guard it declares
-`AudioError`, including `ResourceLimit(string)`, and uses the concrete SMT sort
-`(Result Int AudioError)`. Constructor applications use their own checked types,
-including nested ADTs and different instances in one function. Dependencies
-used only in `requires` or `ensures` are included too.
-
-Changing the successful branch to `Ok(-1)` produces a counterexample. An
-unsupported payload or ambiguous constructor ownership instead reports an
-unsupported encoding; it does not receive an assumed `Int` payload. Calls to
-helpers still use the existing conservative callee-signature gate, so this does
-not make every helper accepting or returning a generic ADT verifiable.
-
-### Per-Function Recursion Depth
-
-Use the `@verify(depth: N)` attribute to set recursion unrolling depth per function:
-
-```ailang
-@verify(depth: 5)
-export func fibonacci(n: int) -> int ! {}
-requires { n >= 0 }
-ensures { result >= 0 }
-{ if n <= 1 then n else fibonacci(n - 1) + fibonacci(n - 2) }
-```
-
-This overrides the global `--verify-recursive-depth` flag for that specific function.
-
-### Higher-Order Function Verification
-
-When `map`, `filter`, or `foldl` are called with **literal lambda arguments**, the verifier automatically inlines them into recursive functions and applies bounded unrolling:
+### Supported String & List SMT Encodings
 
 ```ailang
 import std/list (map, length)
 
-export func incrementAll(xs: [int]) -> [int] ! {}
-ensures { length(result) >= 0 }
-{ map(\x. x + 1, xs) }
-```
+export pure func incrementAll(xs: [int]) -> [int]
+ensures { length(result) == length(xs) }
+{
+  map(\x. x + 1, xs)
+}
 
-The lambda `\x -> x + 1` is specialized into a recursive `_map_spec_incrementAll` function over the list's real element sort, then unrolled three levels for Z3. `map`, `filter`, `foldl`, `any` and `flatMap` are specialized this way, over any element type (`[string]`, `[float]`, records).
-
-A named top-level function works the same way (`map(double, xs)` is treated as `map(\x. double(x), xs)`), and a lambda may use the enclosing function's parameters and `let`s.
-
-The unrolling bottoms out in a stub standing for the rest of the list. For `map` the stub is a `seq.map` over an unknown function and for `filter` a list no longer than its input, so **`length(result) == length(xs)` after `map` and `length(result) <= length(xs)` after `filter` are proved for lists of any length**. Other properties follow the rules of [bounded recursion](#bounded-recursion-verification): `VERIFIED (bounded: depth 3)` when `requires` bounds the list within the depth (`requires { length(xs) <= 3 }`), `INCONCLUSIVE` for any model the solver finds — never a violation. A function-typed parameter (`map(f, xs)` where `f` is an argument) has no body to specialize, and the function is skipped.
-
-### Bounded Quantifiers
-
-Use `forall` in `ensures` clauses to assert element-wise properties:
-
-```ailang
-export func allPositive(n: int) -> int ! {}
+export pure func allPositive(n: int) -> int
 requires { n >= 0 }
 ensures { forall i: 0..n => i >= 0 }
-{ n }
+{
+  n
+}
 ```
 
-This encodes to `(forall ((i Int)) (=> (and (>= i 0) (< i n)) (>= i 0)))` in SMT-LIB. Only integer-typed bounded quantifiers are currently supported.
+## Why AILANG Makes Verification Practical
 
-## Comparison with Other Languages
-
-| Language | Runtime Checks | Compile-Time Proofs | Counterexamples | AI-Friendly |
-|----------|---------------|--------------------|-----------------| ------------|
-| **AILANG** | `--verify-contracts` | `ailang verify` (Z3) | Yes | Deterministic traces + effects |
-| **Dafny** | N/A (verified only) | Built-in (Z3) | Yes | No effect system |
-| **F*** | N/A | Type-level proofs | Manual | No |
-| **SPARK Ada** | Optional | GNATprove (CVC5) | Partial | Industrial, not AI-focused |
-| **Python** | Assertions only | No | No | No |
-| **Go** | Assertions only | No | No | No |
-| **Rust** | `debug_assert!` | No (type safety only) | No | No |
-| **TypeScript** | Runtime type checks | No | No | No |
-
-AILANG is unique in combining compile-time verification with an effect system and deterministic execution traces — making it ideal for AI code generation workflows where you want to **prove** the generated code is correct.
-
-## Why AILANG Makes Verification Easier
-
-Adding SMT verification to a mainstream language like Go or Python is extremely hard. AILANG's design eliminates most of the complexity at the language level, so the verification tooling can be simple and reliable.
-
-### Purity is tracked, not inferred
-
-In AILANG, every function declares its effects: `! {}` means pure, `! {IO}` means it does I/O. The SMT encoder checks one flag to know if a function is verifiable:
-
-```ailang
-import std/io (println)
-
--- Pure: SMT can verify this
-export func tax(income: int) -> int ! {}
-requires { income >= 0 }
-ensures { result >= 0 }
-{ income * 20 / 100 }
-
--- Effectful: SMT skips this (with clear message)
-export func logAndTax(income: int) -> int ! {IO}
-requires { income >= 0 }
-ensures { result >= 0 }
-{ println(show(income)); income * 20 / 100 }
-```
-
-In Go or Python, determining whether a function is pure requires **whole-program analysis** — tracing through every call to check for global writes, I/O, or mutation. This analysis is unsolvable in general for those languages. In AILANG, it's a single field lookup.
-
-### Expressions map directly to SMT-LIB
-
-AILANG has no statements — everything is an expression that returns a value. This maps almost 1:1 to SMT-LIB, which is also expression-based:
-
-| AILANG | SMT-LIB |
-|--------|---------|
-| `let x = 3` | `(let ((x 3)) ...)` |
-| `if a { b } else { c }` | `(ite a b c)` |
-| `match status { A => 1, B => 2 }` | `(match status ((A 1) (B 2)))` |
-
-In Go, `if` is a statement, assignment mutates variables, and `switch` can fall through. In Python, `if`/`elif` chains and assignments would need to be transformed into nested expressions before encoding. AILANG's expression-based design eliminates this entire translation layer.
-
-### A-Normal Form is already done
-
-AILANG compiles surface syntax into a Core intermediate representation that's already in let-normal form. By the time the SMT encoder sees the code, complex subexpressions are broken into named bindings:
-
-```ailang sketch
--- Surface AILANG
-manhattan(p) + getX(p)
-
--- Core (what SMT encoder receives)
-let _t1 = manhattan(p) in
-let _t2 = getX(p) in
-add_Int(_t1, _t2)
-```
-
-Each `let` becomes an SMT `let`. In Go or Python, building this transformation (called A-normalization or SSA conversion) from scratch is an entire compiler pass.
-
-### No mutation means no aliasing problem
-
-AILANG variables are immutable bindings. There are no pointers, no references, no reassignment. This means:
-
-- No need to model memory or heap state in SMT
-- No aliasing analysis (does `x` point to the same thing as `y`?)
-- No need to track "which version of variable `x` at which point in time?"
-
-In Go, you'd need to handle pointers, slices, and maps — all mutable, all aliasable. In Python, everything is mutable by default. Modeling mutable state in SMT requires encoding a memory model, which is what makes tools like CBMC and Klee so complex.
-
-### ADTs map directly to SMT datatypes
-
-AILANG's algebraic data types:
-
-```ailang
-type FlightStatus = DEPARTED | CANCELLED | DELAYED
-```
-
-become SMT datatypes with zero transformation:
-
-```
-(declare-datatype FlightStatus ((DEPARTED) (CANCELLED) (DELAYED)))
-```
-
-And exhaustive pattern matching (enforced by the compiler) means every case is covered — the SMT encoding never needs to handle "what if no branch matches?"
-
-In Go, you'd use interfaces with type switches (not exhaustive) or integer constants (no compiler-enforced coverage). In Python, there are no native ADTs — you'd need to encode class hierarchies or string unions.
-
-### No loops to reason about
-
-AILANG has no `for` or `while` loops. Non-recursive functions fall directly into the decidable fragment that SMT solvers handle well. Recursive functions are handled by **bounded unrolling** (`--verify-recursive-depth N`, default 2): a function is VERIFIED when its `requires` bounds the recursion within that depth, and is otherwise reported INCONCLUSIVE — no loop invariants required, but no inductive proof either.
-
-In Go or Python, verifying loops requires discovering **loop invariants** — statements that remain true before and after each iteration. Finding loop invariants automatically is one of the hardest problems in program verification, and is what makes tools like Dafny and SPARK so difficult to use. AILANG sidesteps this: non-recursive functions need no invariants, and recursive functions use bounded unrolling (sound by construction via an uninterpreted base case).
-
-### Contracts are first-class, not bolted on
-
-`requires` and `ensures` are part of AILANG's grammar. The parser, elaborator, type checker, and code generator all know about contracts at every stage. In Go, contracts would be comments or magic annotations requiring a separate extraction tool. In Python, they'd be decorators needing their own parser. Both approaches create a gap between the contract specification and the compiler's understanding of the code.
-
-### Complete type information everywhere
-
-AILANG's [CoreTypeInfo invariant](/docs/reference/language-syntax) guarantees that every AST node has a known type after compilation. The SMT encoder can look up the type of any subexpression to determine its SMT sort. In Python, you'd need to run a separate type inference engine (mypy-level complexity) that often returns `Any` for dynamic code. Go has types, but its simpler type system can't express the same generic contracts.
-
-### The net effect
-
-The "verifiable fragment" (pure, no higher-order functions, quantifier-free logic, with bounded recursion support) describes a **large and natural subset** of AILANG programs — business rules, validation logic, pricing functions, game mechanics, recursive algorithms. In Go or Python, the equivalent restriction would eliminate virtually all idiomatic code because most code depends on loops, mutation, and side effects.
-
-AILANG pays the "make it SMT-friendly" cost **once** in the language design, rather than on every function you want to verify.
-
-## Current Status
-
-:::note Implementation Status
-**Phase 0 + 0.5 (v0.6.2)** — Runtime contract checking:
-- ✅ Contract syntax (`requires`/`ensures`) parses correctly
-- ✅ Contracts stored in Core AST (`core.DeclMeta.Contracts`)
-- ✅ Runtime checks with `--verify-contracts` flag
-- ✅ `result` identifier maps to return value in ensures
-
-**Phase 1 (v0.7.4)** — Static verification with Z3:
-- ✅ `ailang verify` command with `--verbose`, `--json`, `--strict` flags
-- ✅ Fragment checker with 6 rejection categories and hints
-- ✅ SMT-LIB encoding for int/bool/enum ADTs
-- ✅ Z3 solver integration with model extraction
-- ✅ Counterexample display for violated contracts
-- ✅ Cross-function verification via `define-fun` inlining (transitive call chains)
-- ✅ Record verification via `declare-datatype` (field access, construction, update)
-- ✅ Record type discovery from return annotations, body expressions, and ensures clauses
-- ✅ String verification via Z3 string theory (concat, length, comparison, prefix/suffix, substring)
-- ✅ List verification via Z3 sequence theory (length, head, nth, cons, literals)
-
-**Phase 2 (v0.8.0)** — Expanding the decidable fragment:
-- ✅ Bounded recursion via Dafny-style unrolling (`--verify-recursive-depth`, default 2)
-
-**v0.57.5 – v0.60** — Honest verdicts:
-- ✅ A bounded-unrolling model is INCONCLUSIVE, never a violation
-- ✅ One exit contract for `verify`, `check --verify` and `ai-check` (`unproved`, `inconclusive`, `--allow-inconclusive`)
-- ✅ Witness replay: an inconclusive model's inputs are run through the real function; a runtime contract failure is a confirmed violation
-- ✅ Numeric model (`float=Real, int=Int`) disclosed on every run
-
-**On dev (2026-11-24)** — Call-site preconditions:
-- ✅ A call that may break its callee's `requires` is a VIOLATION (`requires_violation`), including calls in helpers, `map`/`filter`/`foldl` lambdas and recursion (recursive helpers and lambdas: to the unrolling depth)
-- ✅ int64 overflow of `+ - *` reported on the verified result (`--int-model=int64` makes it a violation); float division by zero, `sqrt` of a negative and `log` of a non-positive are violations
-
-**Open gaps** (measured at v0.60.6, 2026-11-23):
-- `map`/`filter`/`foldl`/`any`/`flatMap` callers are bounded like recursion beyond depth 3, except map/filter length relations
-- Recursive functions are inconclusive unless `requires` bounds their depth — full induction is future work
-- Option/ADT inputs are not yet replayed
-:::
+| Design Property | Effect on SMT Verification |
+|---|---|
+| **Explicit effect rows** (`! {}`) | Purity is a type-level flag, not whole-program alias analysis |
+| **Everything is an expression** | `if`, `let`, and exhaustive `match` map 1:1 to SMT-LIB `ite`, `let`, `match` |
+| **Immutable bindings + Core ANF** | No heap/aliasing model; subexpressions are already A-normalized |
+| **No loops** | Non-recursive functions need no loop invariants; recursion uses bounded unrolling |
 
 ## See Also
 
-- [ARC Paper (arXiv:2511.09008)](https://arxiv.org/abs/2511.09008) ([PDF](/references/bayless-2025-neurosymbolic.pdf)) - Research foundation
-- [Language Syntax Reference](/docs/reference/language-syntax) - Full syntax documentation
-- [Effects System](/docs/reference/effects) - How contracts interact with effects
-- [Citations & Bibliography](/docs/references) - Complete academic references
+- [IFC Labels](./ifc-labels.mdx) — type-level taint tracking (`T<label>` and `T{not LABEL}`)
+- [Testing Guide](./testing.md) — QuickCheck `property` tests and inline `tests [...]`
+- [Effects Reference](/docs/reference/effects) — `! {}` and `! {Declassify}`
+- [ARC Paper (arXiv:2511.09008)](https://arxiv.org/abs/2511.09008) ([PDF](/references/bayless-2025-neurosymbolic.pdf))

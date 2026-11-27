@@ -45,6 +45,8 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 
 ## Algebraic Data Types
 
+See [Option vs Result](./option-vs-result) for choosing between `Option` and `Result` and using `let x = expr?` spine propagation.
+
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/option` | `Some(x)` / `None` for values that may not exist | — |
@@ -115,9 +117,9 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/package` | Resolve paths to assets shipped inside a package (helper scripts, schemas, templates) | `FS` |
-| `std/extension` | Conventions and helpers for packages that plug into a host runtime (workdir requirements, etc.) | `FS` |
-| `std/smoke` | Pre-publish smoke-gate helpers: `dispatchAllTools`, `dispatchTool`, `okSuite` for v0.19.0+ canonical smoke suites | `IO` |
+| `std/package` | [Resolve paths to assets shipped inside a package](./std-package) (helper scripts, schemas, templates) | `FS` |
+| `std/extension` | [Conventions and helpers for packages that plug into a host runtime](./std-extension) (workdir requirements, etc.) | `FS` |
+| `std/smoke` | Pre-publish smoke-gate helpers: `dispatchAllTools`, `dispatchTool`, `okSuite` for canonical smoke suites | `IO` |
 
 ## Cognitive OS (Browser substrate)
 
@@ -183,6 +185,8 @@ module was read from. `ailang run --strict` turns a stdlib `VERSION` mismatch in
 
 ## See also
 
+- **[Option vs Result](./option-vs-result)** — choosing between `Option`/`Result` and `let x = expr?` propagation
+- **[Deep-dive stdlib guides](./std-audio)**: [`std/audio`](./std-audio) · [`std/xml` (perf)](./std-xml) · [`std/yaml`](./std-yaml) · [`std/package`](./std-package) · [`std/extension`](./std-extension)
 - **[Effects](/docs/reference/effects)** — how the capability system works
 - **[Modules](/docs/reference/modules)** — import syntax, `module`, `export func`
 - **[Browse Packages](/docs/packages)** — third-party modules published to the registry

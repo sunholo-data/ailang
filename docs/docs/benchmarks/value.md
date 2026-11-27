@@ -2,8 +2,9 @@
 sidebar_position: 4
 title: Value Score
 description: Cost vs quality vs speed analysis — Pareto frontier, weighted value scores, industry-standard "score vs cost" scatter plots
-last_updated: 2026-05-05
-reviewBy: 2026-11-30
+last_updated: 2026-11-26
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import ValueDashboard from '@site/src/components/ValueDashboard';
@@ -28,7 +29,7 @@ score = pass_rate^N / (cost_per_success × (1 + median_TTS_seconds / 60))
 
 - **`pass_rate`** — fraction of benchmarks the model solved correctly (final, with self-repair)
 - **`cost_per_success`** — total dollars spent ÷ number of successful runs
-- **`median_TTS_seconds`** — wall-clock time to a passing solution (post-v0.15.1; older runs fall back to total duration)
+- **`median_TTS_seconds`** — wall-clock time to a passing solution (older runs without TTS fall back to total duration)
 - **`N`** — quality weighting:
   - `N=1` — pure cost efficiency (raw $/success)
   - `N=2` — balanced (default recommendation)
@@ -45,4 +46,4 @@ AILANG's [eval suite](/docs/guides/evaluation/) measures real-world AI code gene
 
 The score formula here is intentionally simple — multiplicative, transparent, and tunable via the N exponent. It rewards models that are simultaneously cheap, accurate, and fast.
 
-For the underlying definitions and methodology behind cost-as-primary-gate eval semantics (introduced in v0.15.1), see the [Cost-and-Speed Budgets guide](/docs/guides/evaluation/cost-and-speed-budgets).
+For the underlying definitions and methodology behind cost-as-primary-gate eval semantics, see the [Cost-and-Speed Budgets guide](/docs/guides/evaluation/cost-and-speed-budgets).

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG Progressive Learning Map">
+  <defs>
+    <marker id="arr-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arr-red2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+    <marker id="arr-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#6b46c1"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Progressive Onboarding Map — Humans &amp; AI Agents</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Start in 60 seconds, branch by persona, and converge on the normative 1.0 reference</text>
+
+  <!-- Stage 1: Explore -->
+  <rect x="28" y="112" width="174" height="148" rx="10" fill="#172033" stroke="#e73c17" stroke-width="2"/>
+  <rect x="28" y="112" width="174" height="30" rx="10" fill="#e73c17"/>
+  <rect x="28" y="130" width="174" height="12" fill="#e73c17"/>
+  <text x="115" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">1. Start Here</text>
+  <text x="42" y="164" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="#f8fafc">Zero-install tour</text>
+  <text x="42" y="186" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Playground (WASM)</text>
+  <text x="42" y="205" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• 9 Live Demos</text>
+  <text x="42" y="224" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Examples Gallery</text>
+  <text x="42" y="246" font-family="Inter, sans-serif" font-size="10.5" fill="#fca5a5">5-minute orientation</text>
+
+  <!-- Branch arrows from Stage 1 to Stage 2A / 2B -->
+  <path d="M 202 162 C 228 162, 228 134, 250 134" fill="none" stroke="#e73c17" stroke-width="2" marker-end="url(#arr-red2)"/>
+  <path d="M 202 210 C 228 210, 228 256, 250 256" fill="none" stroke="#6b46c1" stroke-width="2" marker-end="url(#arr-purple)"/>
+
+  <!-- Stage 2A: Human Developer Path -->
+  <rect x="258" y="78" width="210" height="114" rx="10" fill="#172033" stroke="#2c7a7b" stroke-width="2"/>
+  <rect x="258" y="78" width="210" height="28" rx="10" fill="#2c7a7b"/>
+  <rect x="258" y="96" width="210" height="10" fill="#2c7a7b"/>
+  <text x="363" y="97" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">2A. Human Developer</text>
+  <text x="272" y="126" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• quick-start &amp; getting-started</text>
+  <text x="272" y="145" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• |&gt;, deriving (Json), expr?</text>
+  <text x="272" y="164" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• module_execution &amp; LSP</text>
+  <text x="272" y="182" font-family="Inter, sans-serif" font-size="10.5" fill="#5eead4">Write &amp; run first module</text>
+
+  <!-- Stage 2B: AI Agent Path -->
+  <rect x="258" y="206" width="210" height="114" rx="10" fill="#172033" stroke="#6b46c1" stroke-width="2"/>
+  <rect x="258" y="206" width="210" height="28" rx="10" fill="#6b46c1"/>
+  <rect x="258" y="224" width="210" height="10" fill="#6b46c1"/>
+  <text x="363" y="225" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">2B. AI Agent / Harness</text>
+  <text x="272" y="254" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• for-ai-agents + /llms.txt</text>
+  <text x="272" y="273" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• ailang prompt + Hosted MCP</text>
+  <text x="272" y="292" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• inspect + check --fix</text>
+  <text x="272" y="310" font-family="Inter, sans-serif" font-size="10.5" fill="#c4b5fd">Autonomous synthesis loop</text>
+
+  <!-- Converge arrows 2 -> 3 -->
+  <path d="M 468 134 C 490 134, 490 172, 510 172" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr-slate)"/>
+  <path d="M 468 256 C 490 256, 490 202, 510 202" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr-slate)"/>
+
+  <!-- Stage 3: Verify & Secure -->
+  <rect x="518" y="112" width="166" height="148" rx="10" fill="#172033" stroke="#dd6b20" stroke-width="2"/>
+  <rect x="518" y="112" width="166" height="30" rx="10" fill="#dd6b20"/>
+  <rect x="518" y="130" width="166" height="12" fill="#dd6b20"/>
+  <text x="601" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">3. Verify &amp; Ship</text>
+  <text x="530" y="164" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Z3 contracts</text>
+  <text x="530" y="184" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• IFC taint labels</text>
+  <text x="530" y="204" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• --caps / --policy</text>
+  <text x="530" y="224" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• --bytecode VM</text>
+  <text x="530" y="246" font-family="Inter, sans-serif" font-size="10.5" fill="#fdba74">Production guarantees</text>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="684" y1="186" x2="708" y2="186" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr-slate)"/>
+
+  <!-- Stage 4: Normative Reference -->
+  <rect x="716" y="112" width="138" height="148" rx="10" fill="#172033" stroke="#2b6cb0" stroke-width="2"/>
+  <rect x="716" y="112" width="138" height="30" rx="10" fill="#2b6cb0"/>
+  <rect x="716" y="130" width="138" height="12" fill="#2b6cb0"/>
+  <text x="785" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">4. Reference</text>
+  <text x="728" y="164" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Syntax &amp; Stdlib</text>
+  <text x="728" y="184" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Effects &amp; CLI</text>
+  <text x="728" y="204" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• Error Codes</text>
+  <text x="728" y="224" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">• 1.0 Stability</text>
+  <text x="728" y="246" font-family="Inter, sans-serif" font-size="10.5" fill="#93c5fd">Normative spec</text>
+
+  <!-- Footer legend -->
+  <text x="440" y="344" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Evaluating AILANG? Jump directly to Why AILANG, Why 1.0, Benchmarks, and Known Limitations.</text>
+</svg>

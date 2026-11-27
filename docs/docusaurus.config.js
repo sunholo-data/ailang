@@ -103,6 +103,73 @@ const config = {
   },
 
   plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          // Merged guides & recipes
+          {
+            from: '/docs/guides/three-camps-self-audit',
+            to: '/docs/guides/three-camps-comparison',
+          },
+          {
+            from: '/docs/recipes/ai-tool-loop',
+            to: '/docs/guides/ai-effect',
+          },
+          // Superseded historical prompt snapshots + active version alias -> /docs/prompts/current
+          {
+            from: [
+              '/docs/prompts/v0.8.2',
+              '/docs/prompts/v0.9.0',
+              '/docs/prompts/v0.11.4',
+              '/docs/prompts/v0.12.1',
+              '/docs/prompts/v0.16.0',
+              '/docs/prompts/v0.16.1',
+              '/docs/prompts/v0.16.2',
+              '/docs/prompts/v0.16.3',
+              '/docs/prompts/v0.16.4',
+              '/docs/prompts/v0.16.5',
+              '/docs/prompts/v0.16.6',
+              '/docs/prompts/v0.16.7',
+              '/docs/prompts/v0.16.8',
+              '/docs/prompts/v0.16.9',
+              '/docs/prompts/v0.16.10',
+              '/docs/prompts/v0.16.11',
+              '/docs/prompts/v0.16.12',
+              '/docs/prompts/v0.16.13',
+              '/docs/prompts/v0.16.14',
+              '/docs/prompts/v0.16.15',
+              '/docs/prompts/v0.16.16',
+              '/docs/prompts/v0.16.17',
+              '/docs/prompts/v0.16.18',
+              '/docs/prompts/v0.16.20',
+            ],
+            to: '/docs/prompts/current',
+          },
+          // Relocated internal operator / fleet runbooks (moved to docs/internal/runbooks/)
+          {
+            from: [
+              '/docs/guides/mission-bootstrap',
+              '/docs/guides/mission-model-fleet',
+              '/docs/guides/mission-iteration',
+              '/docs/guides/mission-role-dispatch',
+              '/docs/guides/claude-api-credits',
+              '/docs/guides/coordinator-workers',
+              '/docs/guides/notify-daemon',
+            ],
+            to: '/docs/guides/coordinator',
+          },
+          {
+            from: [
+              '/docs/guides/maintenance-benchmark',
+              '/docs/guides/database-architecture',
+              '/docs/guides/evaluation/local-ollama',
+            ],
+            to: '/docs/guides/development-workflow',
+          },
+        ],
+      },
+    ],
     function webpackPlugin() {
       return {
         name: 'custom-webpack-plugin',
@@ -136,7 +203,7 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/sunholo-data/ailang/tree/main/docs/',
+            'https://github.com/sunholo-data/ailang/tree/dev/docs/',
         },
         blog: false,
         theme: {
@@ -159,20 +226,10 @@ const config = {
         },
         items: [
           {
-            to: '/docs/why-ailang',
-            label: 'Why AILANG',
-            position: 'left',
-          },
-          {
-            to: '/docs/vision',
-            label: 'Vision',
-            position: 'left',
-          },
-          {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Documentation',
+            label: 'Docs',
           },
           {
             to: '/docs/examples',
@@ -187,16 +244,6 @@ const config = {
           {
             to: '/docs/benchmarks/performance',
             label: 'Benchmarks',
-            position: 'left',
-          },
-          {
-            href: 'https://www.sunholo.com/ailang-demos/',
-            label: 'Live Demos',
-            position: 'left',
-          },
-          {
-            to: '/docs/feedback',
-            label: 'Feedback',
             position: 'left',
           },
           {
@@ -286,6 +333,10 @@ const config = {
               {
                 label: 'llms.txt',
                 href: 'https://ailang.sunholo.com/llms.txt',
+              },
+              {
+                label: 'llms-full.txt',
+                href: 'https://ailang.sunholo.com/llms-full.txt',
               },
             ],
           },

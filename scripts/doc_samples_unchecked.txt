@@ -8,9 +8,8 @@
 # must be listed, and every line must still be a sketch/repl block.
 docs/docs/guides/ai-effect.mdx 457d264c9266 sketch
 docs/docs/guides/ai-routing.md aad5b06a800c sketch
-docs/docs/guides/contracts.mdx e2eb760c2483 sketch
-docs/docs/guides/getting-started.mdx ba7062246b3e repl
-docs/docs/guides/quick-start-examples.mdx ba7062246b3e repl
+docs/docs/guides/getting-started.mdx 8b478dc23f77 repl # reviewed: updated REPL prompt to λ[Debug,IO]> and defaulted :type output
+docs/docs/guides/quick-start-examples.mdx 8b478dc23f77 repl # reviewed: updated REPL prompt to λ[Debug,IO]> and defaulted :type output
 docs/docs/guides/serve-api.md 34d242d83f1a sketch
 docs/docs/guides/serve-api.md ef9477efae24 sketch
 docs/docs/guides/testing.md f95885e748f3 sketch
@@ -33,4 +32,4 @@ docs/docs/reference/no-loops.md 4659edc4b82f sketch
 docs/docs/reference/no-loops.md 51bac7c7ce3c sketch
 docs/docs/reference/no-loops.md 891405216bfa sketch
 docs/docs/reference/no-loops.md fed6a6309817 sketch
-docs/docs/reference/repl-commands.md c011c6296dc6 repl
+docs/docs/reference/repl-commands.md f6f6ee817534 repl # reviewed: updated REPL prompt to λ[Debug,IO]>

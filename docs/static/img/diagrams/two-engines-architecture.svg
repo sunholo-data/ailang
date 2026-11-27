@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG Two Engines and Browser WASM Architecture">
+  <defs>
+    <marker id="arr-e1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arr-e2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2c7a7b"/>
+    </marker>
+    <marker id="arr-e3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+    <marker id="arr-e4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#6b46c1"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">One Binary, Two Aligned Engines (+ Browser WASM)</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Shared frontend lowers .ail into Core ANF; evaluator and bytecode VM produce byte-identical deterministic results</text>
+
+  <!-- Frontend Stage 1 -->
+  <rect x="28" y="124" width="150" height="114" rx="10" fill="#172033" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="103" y="150" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#93c5fd">Surface AST</text>
+  <text x="103" y="174" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#cbd5e1">.ail modules</text>
+  <text x="103" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#94a3b8">HM + Row Types</text>
+  <text x="103" y="214" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#94a3b8">Effects + IFC</text>
+
+  <line x1="178" y1="181" x2="218" y2="181" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr-e1)"/>
+
+  <!-- Frontend Stage 2: Core ANF -->
+  <rect x="226" y="114" width="176" height="134" rx="10" fill="#1a1826" stroke="#dd6b20" stroke-width="2.2"/>
+  <rect x="226" y="114" width="176" height="28" rx="10" fill="#dd6b20"/>
+  <rect x="226" y="132" width="176" height="10" fill="#dd6b20"/>
+  <text x="314" y="133" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Core ANF IR</text>
+  <text x="240" y="164" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">• Explicit dict passing</text>
+  <text x="240" y="185" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">• Exhaustive matches</text>
+  <text x="240" y="206" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">• Capability rows</text>
+  <text x="240" y="229" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#fdba74">Single semantic truth</text>
+
+  <!-- Branch Arrows to 3 Backends -->
+  <path d="M 402 146 C 436 146, 444 108, 480 108" fill="none" stroke="#2c7a7b" stroke-width="2.2" marker-end="url(#arr-e2)"/>
+  <path d="M 402 181 L 480 181" fill="none" stroke="#e73c17" stroke-width="2.2" marker-end="url(#arr-e3)"/>
+  <path d="M 402 216 C 436 216, 444 268, 480 268" fill="none" stroke="#6b46c1" stroke-width="2.2" marker-end="url(#arr-e4)"/>
+
+  <!-- Engine 1: Reference Evaluator -->
+  <rect x="488" y="72" width="364" height="72" rx="10" fill="#0f292a" stroke="#2c7a7b" stroke-width="2"/>
+  <text x="504" y="96" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#5eead4">Reference Evaluator (Default)</text>
+  <text x="504" y="115" font-family="Inter, sans-serif" font-size="11" fill="#cbd5e1">Specification oracle · --verify-contracts · --emit-trace jsonl</text>
+  <text x="504" y="133" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#99f6e4">ailang run --caps IO program.ail</text>
+
+  <!-- Engine 2: Bytecode VM -->
+  <rect x="488" y="156" width="364" height="72" rx="10" fill="#2b1416" stroke="#e73c17" stroke-width="2"/>
+  <text x="504" y="180" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#fca5a5">Bytecode VM (~40× Faster Pure Code)</text>
+  <text x="504" y="199" font-family="Inter, sans-serif" font-size="11" fill="#fecaca">Register VM · tail-call reuse · CI parity via --strict-bytecode</text>
+  <text x="504" y="217" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#fde047">ailang run --bytecode --caps IO program.ail</text>
+
+  <!-- Engine 3: Browser WASM -->
+  <rect x="488" y="240" width="364" height="72" rx="10" fill="#1e1633" stroke="#6b46c1" stroke-width="2"/>
+  <text x="504" y="264" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#c4b5fd">Browser WebAssembly (ailang.wasm)</text>
+  <text x="504" y="283" font-family="Inter, sans-serif" font-size="11" fill="#e9d5ff">Full interpreter + stdlib client-side · JS effect handler bridge</text>
+  <text x="504" y="301" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#c4b5fd">Playground + 9 interactive Live Demos</text>
+
+  <text x="440" y="344" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Go codegen and extern func were removed prior to 1.0 so every runtime path shares Core ANF semantics.</text>
+</svg>

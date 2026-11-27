@@ -1,25 +1,53 @@
 ---
 title: AI Agent Integration Guide
 sidebar_position: 1
-description: Quick start guide for AI coding agents to integrate AILANG
-reviewBy: 2027-01-11
+description: Agent command routing, hosted MCP setup, and repair-loop workflow for AI coding agents
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
-import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+import Icon, { CheckIcon } from '@site/src/components/Icon';
 import { ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # AILANG for AI Agents - Quick Integration Guide
 
-**AILANG is an AI-first programming language designed for AI-assisted development.**
+This guide is the operational onboarding path for AI coding agents (Claude, GPT, Gemini, Codex) and the humans configuring them. Syntax lives in one canonical place — `ailang prompt` — so it never drifts from the compiler.
 
-This guide is the onboarding path for AI coding agents (Claude, GPT, Gemini, …)
-and the humans configuring them. It deliberately contains **no syntax
-reference** — syntax lives in one place, the teaching prompt, so it can never
-drift from the compiler.
+![Agent Knowledge Stack](/img/diagrams/agent-knowledge-stack.svg)
+
+## Agent Task Routing Table
+
+| Agent Task | Local CLI Command | Hosted MCP Tool (`mcp.ailang.sunholo.com/mcp/`) | Reference / Example |
+|---|---|---|---|
+| **1. Load current syntax before coding** | `ailang prompt` | `prompt_get(part="core")` + `prompt_get(part="reference")` | [Current Prompt](/docs/prompts/current) |
+| **2. X-ray an existing `.ail` file/dir (`<100ms`)** | `ailang inspect --format=agent <path>` | — (local CLI) | [Debugging Guide](/docs/guides/debugging) |
+| **3. Type + effect check (compact agent output)** | `ailang check --format=agent <file.ail>` | `ailang_check` (executor MCP) | [Language Syntax](/docs/reference/language-syntax) |
+| **4. Auto-repair missing `! {Effects}`, `++`, `TC_MATCH_002`** | `ailang check --fix <file.ail>` | — (local CLI / `ailang lsp`) | [LSP & Quick-Fix](/docs/guides/lsp) |
+| **5. Query expected type & bindings at expression** | Put `_?` or `?goal` in code → `ailang check --format=agent` | `ailang_check` | [LSP Typed Holes](/docs/guides/lsp) |
+| **6. Prove `requires`/`ensures` contracts via Z3** | `ailang verify --json <file.ail>` (add `--int-model=int64` for overflow) | — (local CLI) | [Contracts & Z3](/docs/guides/contracts) |
+| **7. Run inline `tests [...]` & property checks** | `ailang test <file.ail>` (or `--package`) | — (local CLI) | [Testing Guide](/docs/guides/testing) |
+| **8. Execute deterministically (interpreter or VM)** | `ailang run --caps IO,FS --bytecode <file.ail>` | `ailang_run` (sandboxed) | [Effects Reference](/docs/reference/effects) |
+| **9. Look up stdlib module exports & signatures** | `ailang docs --list` / `ailang docs std/json` | `stdlib_modules`, `stdlib_module` | [Stdlib Reference](/docs/reference/stdlib) |
+| **10. Find working runnable `.ail` examples** | `ailang examples search "<query>"` | `example_for_concept`, `example_get` | [Examples](/docs/examples) |
+| **11. Inspect JSON module interface & lock packages** | `ailang iface <mod>` / `ailang pkg docs <pkg>` | `docs_search` | [Packages Guide](/docs/guides/packages) |
+| **12. Capture JSONL execution trace for repair** | `ailang run --emit-trace jsonl --quiet --caps IO <file.ail>` | — (local CLI) | [Execution Traces](/docs/guides/traces) |
+
+## Agent Repair Loop
+
+```mermaid
+flowchart LR
+    P["1. prompt\nailang prompt"] --> I["2. inspect\nailang inspect --format=agent"]
+    I --> W["3. write\n.ail source"]
+    W --> C["4. check --fix\nailang check --fix --format=agent"]
+    C -->|"errors or _? hole"| W
+    C -->|"clean"| V["5. verify\nailang verify --json"]
+    V -->|"counterexample"| W
+    V -->|"proved"| T["6. test & run\nailang test && ailang run --bytecode"]
+```
 
 ---
 
-## 🚀 Quick Start (4 Steps)
+## Quick Start (4 Steps)
 
 ### Step 1: Verify AILANG is Installed
 
@@ -27,31 +55,25 @@ drift from the compiler.
 ailang --version
 ```
 
-If not installed, use the one-line installer (see the
-[getting started guide](/docs/guides/getting-started) for manual options):
+If missing, install the latest binary (see [Getting Started](/docs/guides/getting-started) for source builds):
 
 ```bash
 curl -fsSL https://ailang.sunholo.com/install.sh | bash
 ```
 
-### Step 2: Load the AILANG Teaching Prompt
+### Step 2: Load the Canonical Teaching Prompt
 
-**CRITICAL**: Before writing ANY AILANG code, load the canonical syntax guide —
-never write AILANG from memory:
+**CRITICAL**: Never write AILANG from memory. Load the active syntax guide first:
 
 ```bash
 ailang prompt
 ```
 
-The same content is served as the
-<a href={`/docs/prompts/${ACTIVE_PROMPT}`}>current teaching prompt {ACTIVE_PROMPT}</a>,
-and version-scoped via the [hosted docs MCP server](/docs/guides/agent-mcp).
-It carries the full syntax, the common mistakes, and the idioms — it is the
-single source of truth, updated with every release.
+The web mirror is always at the [Current Teaching Prompt](/docs/prompts/current) (`{ACTIVE_PROMPT}`), and version-scoped via the [Hosted Docs MCP](/docs/guides/agent-mcp).
 
 ### Step 3: Write AILANG Code
 
-Every AILANG program has this shape:
+Every executable AILANG program has an explicit `module` header and `! {Effects}` row:
 
 ```ailang
 module benchmark/solution
@@ -63,56 +85,27 @@ export func main() -> () ! {IO} {
 }
 ```
 
-Everything beyond this shape — operators, ADTs, records, effects, recursion
-patterns — comes from the teaching prompt you loaded in Step 2.
-
-### Step 4: Check, then Run
+### Step 4: Inspect, Check, Verify, Run
 
 ```bash
-ailang check solution.ail                       # type + effect check first
-ailang run --caps IO --entry main solution.ail  # flags BEFORE the filename
+ailang inspect --format=agent solution.ail      # <100ms semantic X-ray
+ailang check --fix solution.ail                 # auto-fix safe mechanical issues
+ailang check --format=agent solution.ail        # compact agent type + effect check
+ailang test solution.ail                        # run inline tests [...]
+ailang run --caps IO --entry main solution.ail  # flags BEFORE filename
 ```
-
-`ailang check` gives structured errors designed for machine repair — check
-before running, and re-check after every edit.
-
----
-
-## 📚 Where Everything Lives
-
-| You need | Go to |
-|----------|-------|
-| Syntax and idioms | `ailang prompt` / <a href={`/docs/prompts/${ACTIVE_PROMPT}`}>current teaching prompt</a> |
-| Live, version-scoped docs for agents | [Hosted docs MCP](/docs/guides/agent-mcp) |
-| Working programs | [Examples](https://github.com/sunholo-data/ailang/tree/dev/examples) |
-| What AILANG can't do yet | [Known limitations](/docs/reference/limitations) |
-| Current pass rates by model | [Benchmarks dashboard](https://ailang.sunholo.com/benchmarks) |
-| Debugging flags and REPL | [Debugging guide](/docs/guides/debugging) |
-| Human-oriented setup | [Getting started](/docs/guides/getting-started) |
-
-Success-rate numbers are deliberately **not** quoted here — they change every
-release. The [benchmarks dashboard](https://ailang.sunholo.com/benchmarks) is
-always current.
 
 ---
 
 ## <CheckIcon inline size={14} /> Pre-Flight Checklist
 
-Before generating AILANG code, confirm:
+- [ ] Loaded `ailang prompt` (or [Current Teaching Prompt](/docs/prompts/current)) in this session
+- [ ] Inspected existing code with `ailang inspect --format=agent` instead of guessing signatures
+- [ ] Started every file with `module` and declared explicit `! {Effects}`
+- [ ] Verified edits with `ailang check --fix`, `ailang verify --json`, and `ailang test`
 
-- [ ] Loaded the full teaching prompt (`ailang prompt`) — this session, not from memory
-- [ ] Understand: AILANG is NOT Python/JavaScript/Rust
-- [ ] Know: every program starts with a `module` declaration
-- [ ] Plan to `ailang check` after every edit, and validate output with `ailang run`
+## Getting Help
 
-**If unsure about syntax**: re-read the relevant prompt section, look at a
-[working example](https://github.com/sunholo-data/ailang/tree/dev/examples),
-or verify the claim directly with `ailang check`. When in doubt, use simpler
-constructs.
-
----
-
-## 📞 Getting Help
-
-- Report issues: https://github.com/sunholo-data/ailang/issues
-- Documentation: https://ailang.sunholo.com/
+- Report issues: [github.com/sunholo-data/ailang/issues](https://github.com/sunholo-data/ailang/issues)
+- Known limits: [Known Limitations](/docs/reference/limitations)
+- Live pass rates: [Benchmarks Dashboard](/docs/benchmarks/performance)

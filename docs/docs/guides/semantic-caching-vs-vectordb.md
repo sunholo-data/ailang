@@ -2,7 +2,8 @@
 sidebar_position: 9
 title: Semantic Caching vs Vector DBs
 description: When to use AILANG's semantic caching versus a dedicated vector database like ChromaDB
-reviewBy: 2027-01-11
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Semantic Caching vs Vector Databases
@@ -124,35 +125,11 @@ Avoid "accidental RAG" by keeping boundaries clear:
 
 ### Wiring Them Together
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Incoming Document                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Semantic Cache (Ingestion Gate)                │
-│  • Dedupe: Is this 95% same as existing?                    │
-│  • Delta: Extract only changed sections                     │
-│  • Skip: Don't re-embed if already processed                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    (only new/changed content)
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                Vector Store (The Library)                   │
-│  • Full embedding                                           │
-│  • Rich metadata indexing                                   │
-│  • Long-term retention                                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│          Semantic Cache (Loop Accelerator)                  │
-│  • Memoize: Cache RAG results for similar queries           │
-│  • Compress: Store query→answer for fast replay             │
-│  • Coordinate: CAS for "one agent handles this"             │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    IN["Incoming Document"] --> GATE["Semantic Cache (Ingestion Gate)\nDedupe 95%+ | Delta changed sections | Skip re-embed"]
+    GATE -->|"Only new / changed content"| VDB["Vector Store (The Library)\nFull embedding + rich metadata + long-term retention"]
+    VDB --> LOOP["Semantic Cache (Loop Accelerator)\nMemoize RAG results | Compress query->answer | CAS task claims"]
 ```
 
 ---

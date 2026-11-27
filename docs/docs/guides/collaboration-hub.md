@@ -2,7 +2,9 @@
 sidebar_position: 13
 title: Collaboration Hub
 description: Human-AI collaboration via the coordinator daemon, the CLI and the headless dashboard API
-reviewBy: 2027-02-15
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Collaboration Hub Guide
@@ -173,7 +175,7 @@ Agent: [Approval received]
        [Done! Results sent to the requester's inbox]
 ```
 
-### Multi-Channel Approvals (v0.6.4+)
+### Multi-Channel Approvals
 
 Approvals can come from multiple sources:
 
@@ -205,7 +207,7 @@ ailang serve --db /path/to/collab.db
 ailang serve --cors-origin http://localhost:5173
 ```
 
-#### Cross-origin access (v0.44.x+)
+#### Cross-origin access
 
 The server is **same-origin only** by default. CLIs, Claude Code hooks, OTLP exporters and
 other server-to-server callers (no `Origin` header) all work with no flag.
@@ -318,19 +320,10 @@ AILANG uses three SQLite databases that cross-reference each other through share
 
 When a message triggers task execution, IDs flow across all three databases:
 
-```
-collaboration.db                coordinator.db                    observatory.db
-================                ==============                    ==============
-
-threads.id ─────────────────────► tasks.thread_id
-
-messages.id (UUID) ─────────────► tasks.message_id
-                                       │
-                                       ├── tasks.id = "task-" + first_8(message_id)
-                                       │        │
-                                       │        └─────────────────────► tasks.id (same)
-                                       │                                     │
-                                       │                                spans.task_id (FK)
+```mermaid
+flowchart LR
+    C["collaboration.db<br/>threads.id, messages.id"] -->|"thread_id, message_id"| CO["coordinator.db<br/>tasks.id = task-first8(message_id)"]
+    CO -->|"tasks.id -> spans.task_id"| O["observatory.db<br/>tasks & spans"]
 ```
 
 ### Key ID Formats

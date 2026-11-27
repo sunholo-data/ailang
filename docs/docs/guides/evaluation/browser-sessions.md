@@ -1,7 +1,9 @@
 ---
 sidebar_position: 10
 title: AI Browser Sessions
-reviewBy: 2027-01-18
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # AI Browser Sessions

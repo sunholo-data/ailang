@@ -1,15 +1,15 @@
 ---
 sidebar_position: 8
 title: Pilot-3 (learning from its own mistakes)
-description: The third AILANG fine-tune, in progress. It trains on the pilot-2 model's own failing attempts, repaired and verified, and on the habit of looking things up after a fix fails.
-reviewed: 2026-11-09
-reviewBy: 2027-02-09
+description: The third AILANG fine-tune — trained on pilot-2's own failing attempts repaired by Opus, reaching 10/24 on the held-out set (up from 4/24) and exposing dropped runaway write calls.
+reviewed: 2026-11-25
+reviewBy: 2027-02-25
+tier: internal
 ---
 
 # Pilot-3: learning from its own mistakes
 
-**Status: in progress.** This page is written as the work happens, so it records each step
-and why we took it, not only the result.
+**Status: finished (10/24 on the held-out set with the slim prompt, up from pilot-2's 4/24; 1/23 when later tested with the full prompt in [pilot-4](./pilot-4.md)).** This page was written as the work happened, so it records each step and why we took it, not only the result.
 
 ## Where pilot-2 left us
 

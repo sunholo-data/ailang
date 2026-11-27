@@ -2,34 +2,35 @@
 title: I'm new — get me started
 description: Five-minute paths into AILANG for human developers
 sidebar_label: New & human
-reviewBy: 2026-11-30
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import Icon from '@site/src/components/Icon';
 
 # I'm new — get me started
 
-You're a human developer who wants to try AILANG. Pick the path that fits how you learn.
+Pick the path that fits how you learn.
 
 ## Run something in 5 minutes (no install)
 
-- <Icon name="play" inline /> **[Playground](/docs/playground)** — type AILANG in your browser, no setup.
-- <Icon name="book" inline /> **[Examples Gallery](/docs/examples)** — runnable, annotated programs.
-- <Icon name="globe" inline /> **[Live Demos](https://www.sunholo.com/ailang-demos/)** — 9 in-browser demos (verification, streaming, AI agents).
+- <Icon name="play" inline /> **[Playground](/docs/playground)** — run AILANG in your browser via WebAssembly.
+- <Icon name="book" inline /> **[Examples Gallery](/docs/examples)** — runnable, annotated programs from the repo.
+- <Icon name="globe" inline /> **[Live Demos](/docs/demos)** — 9 in-browser demos (Z3 verification, DocParse, streaming, safe AI agents).
 
 ## Install and write your first module (15 minutes)
 
-- <Icon name="rocket" inline /> **[Quick Start](/docs/guides/getting-started)** — install the CLI, set up an editor, run your first `.ail` file.
-- <Icon name="code" inline /> **[Module Execution](/docs/guides/module_execution)** — how `module`, `import`, and `export func main()` fit together.
-- <Icon name="wrench" inline /> **[Editor Setup](/docs/guides/editor-setup)** — VS Code, Vim, JetBrains.
+- <Icon name="rocket" inline /> **[Getting Started](/docs/guides/getting-started)** — install the CLI, write your first `.ail` module, and learn `|>`, `deriving (Json)`, and `expr?`.
+- <Icon name="code" inline /> **[Module Execution](/docs/guides/module_execution)** — how `module`, `import`, `export func main()`, and `ailang inspect` work together.
+- <Icon name="wrench" inline /> **[Editor Setup](/docs/guides/editor-setup)** & **[LSP & Quick-Fixes](/docs/guides/lsp)** — VS Code, Vim, JetBrains, and `ailang lsp`.
 
 ## Understand the design (deep dive)
 
-- <Icon name="target" inline /> **[Why AILANG](/docs/why-ailang)** — what problem the language exists to solve.
-- <Icon name="brain" inline /> **[Vision](/docs/vision)** — the long-form version.
-- <Icon name="zap" inline /> **[The Effect System](/docs/reference/effects)** — the headline feature.
-- <Icon name="check" inline /> **[Why AILANG Has No Loops](/docs/reference/no-loops)** — the constraint that makes the rest work.
+- <Icon name="target" inline /> **[Why AILANG](/docs/why-ailang)** — 2-minute pitch, Python/Go/TS comparison, and LoCoBench research.
+- <Icon name="shield" inline /> **[Why 1.0](/docs/why-1-0)** — stability contract and honest limits.
+- <Icon name="brain" inline /> **[Vision](/docs/vision)** — symbolic reasoning kernel and two-level traces.
+- <Icon name="zap" inline /> **[The Effect System](/docs/reference/effects)** & **[Why AILANG Has No Loops](/docs/reference/no-loops)**.
 
-## Already an AI engineer?
+## Configuring an AI coding agent?
 
-If you're here because you want to use AILANG **with** an AI coding agent (Claude Code, Cursor, custom harness), [start here instead](/docs/start-here/for-ai-agents).
+If you want to use AILANG **with** Claude Code, Cursor, or a custom agent harness, jump to **[For AI Agents](/docs/start-here/for-ai-agents)**.

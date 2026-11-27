@@ -1,8 +1,8 @@
 ---
 title: Strict Fallbacks (STRICT_FALLBACK_001)
 sidebar_label: Strict Fallbacks
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Strict Fallbacks — `STRICT_FALLBACK_001`
@@ -123,4 +123,4 @@ Only reach for `@allow_empty_ok` when the empty result is semantically a success
 ## See also
 
 - Runnable example: [`examples/strict_fallbacks_demo.ail`](https://github.com/sunholo-data/ailang/blob/main/examples/strict_fallbacks_demo.ail)
-- Design axiom [A11 — Structured Failure](/docs/references/axioms#a11-structured-failure)
+- Design axiom [A11 — Structured Failure](/docs/references/axioms#axiom-11-failure-must-be-representable)

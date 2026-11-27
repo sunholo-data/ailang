@@ -1,5 +1,7 @@
 ---
-reviewBy: 2026-12-14
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Model Configuration Guide
@@ -177,12 +179,12 @@ ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --seed 42
 make eval-suite
 ```
 
-### For Multi-Harness Cross-Comparison (v0.15.0+)
+### For Multi-Harness Cross-Comparison
 
 `agent_suite` routes the same benchmarks through the supported CLI-subprocess
 harnesses — Claude Code, Codex, and opencode — using the executor factory. One
 command, identical result schema. (Gemini-family agent evals run through the
-hosted [Managed Agents API](./harness-setup.md#managed-agents-api-managed_agents)
+hosted [Managed Agents API](./harness-setup.md#supported-harnesses)
 — it has no local CLI and is opt-in rather than part of the routine suite.)
 
 ```bash

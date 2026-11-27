@@ -1,20 +1,22 @@
 ---
 title: Cost-and-Speed Budgets
 sidebar_position: 9
-reviewBy: 2026-12-14
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
-# Cost-and-Speed Budgets (v0.15.1+)
+# Cost-and-Speed Budgets
 
 The eval harness uses **cost** as the primary execution gate, not wall-clock time. This lets cheap-but-slow models (like the open-source SOTA models on OpenRouter) get fair evaluation, while still preventing expensive models from running away.
 
 ## Why cost > time
 
-Before v0.15.1, the harness enforced wall-clock timeouts (60s opencode, 90-180s benchmark-level) as a *proxy* for cost control. This systematically excluded cheap-but-slow models — DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash — even though they cost fractions of a cent per benchmark.
+Previously, the harness enforced wall-clock timeouts (60s opencode, 90-180s benchmark-level) as a *proxy* for cost control. This systematically excluded cheap-but-slow models — DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash — even though they cost fractions of a cent per benchmark.
 
 Meanwhile expensive models (`opencode-sonnet-4-6` at ~$0.20/call × multi-turn = $13.38 across 68 runs) were *not* effectively constrained by wall-clock — each call was fast, just expensive.
 
-**Cost is the right dimension.** v0.15.1 makes it explicit.
+**Cost is the right dimension.** The harness enforces cost directly.
 
 ## How it works
 
@@ -94,17 +96,17 @@ These flow into the dashboard's `efficiency` block per model:
 
 Two new charts visualize the new metrics:
 
-- **Speed Radar** — median time-to-success per model, outlier-clipped at 5× median (mirroring the v0.15.0 cost radar pattern)
+- **Speed Radar** — median time-to-success per model, outlier-clipped at 5× median (mirroring the cost radar pattern)
 - **Cost-Speed Frontier** — Pareto scatter (x = $/success log scale, y = sec/success log scale, marker size = success rate, color = harness). Dominated points highlighted; frontier line drawn through optimal models.
 
 The existing `PerModelTrend` chart gains a metric dropdown: Success Rate / Time to Success / Cost per Success.
 
 ## Migration guide
 
-**For existing baselines (v0.14.x, v0.15.0):**
-- Pre-v0.15.1 result JSONs lack `cost_killed_at`/`first_attempt_ms`/`success_at_ms`/`tokens_per_sec` fields → all default to 0
+**For legacy baselines:**
+- Older result JSONs without `cost_killed_at`/`first_attempt_ms`/`success_at_ms`/`tokens_per_sec` default those fields to 0
 - `median_time_to_success_ms` falls back to `duration_ms` for these baselines (`ComputeEfficiency` uses `DurationMs` when `SuccessAtMs <= 0`)
-- Dashboard Speed Radar will show realistic data for v0.15.1+ baselines; pre-v0.15.1 entries appear with full DurationMs (post-hoc) instead of true TTS
+- Dashboard Speed Radar shows true TTS on current baselines; legacy entries appear with full DurationMs (post-hoc) instead of true TTS
 
 **For new evaluations:**
 - No action needed — the eval harness automatically populates `Task.Budget` from each model's resolved `MaxCostUSD`
@@ -124,7 +126,7 @@ some-model:
 
 `MaxCostUSD == 0` makes `CostBudget.Add()` always return `exceeded=false`. Useful for back-compat testing and replay verification.
 
-## Reading the sweet-spot report (v0.19.0+, M-EVAL-SWEET-SPOT)
+## Reading the sweet-spot report (`M-EVAL-SWEET-SPOT`)
 
 `ailang eval-sweet-spot <results_dir>` consumes the same per-result speed and cost metrics described above and answers a different question: **where is the cost-vs-time-vs-success Pareto frontier across all the models that ran in this directory?**
 
@@ -137,7 +139,7 @@ ailang eval-sweet-spot eval_results/standard --format=json    # programmatic con
 
 ### Failure-category taxonomy
 
-To make the buckets meaningful, v0.19.0 introduced 5 typed `ErrorCategory` values that replace catch-all `api_error` attribution where the cause is identifiable:
+Typed `ErrorCategory` values replace catch-all `api_error` attribution where the cause is identifiable:
 
 | Category | What it means | Capability signal? |
 |---|---|---|
@@ -167,7 +169,7 @@ The per-benchmark "Cheapest / Fastest pass" footer names the model with the lowe
 
 See [`examples/eval_sweet_spot_example.md`](https://github.com/sunholo-data/ailang/blob/dev/examples/eval_sweet_spot_example.md) for a real CLI output snippet against `eval_results/v0_18_5_core_3harness`.
 
-## Reading the dashboard sweet-spot view (v0.19.0+, M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION)
+## Reading the dashboard sweet-spot view (`M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION`)
 
 The same sweet-spot data that drives `ailang eval-sweet-spot` is now embedded in `docs/static/benchmarks/latest.json` and surfaced by 3 new components on the public benchmark dashboard. All three read pre-computed values from the Go exporter — there is **no client-side recomputation** of bucket assignment or Pareto frontier membership. A CI test (`sweet_spot_parity_test`) asserts numerical equality between the CLI output and the dashboard JSON, so anywhere you see a number on the dashboard, the CLI will produce the same value to 4 decimal places.
 
@@ -237,7 +239,7 @@ The Go exporter (`ExportBenchmarkJSON` in `internal/eval_analysis/export_json.go
 }
 ```
 
-Pre-v0.19.0 baselines that don't carry `finish_reason` or typed `error_category` values still produce a valid (mostly-zero) `sweet_spot` block — the dashboard components gate-check for presence and render a "regenerate with v0.19.0+" hint when missing.
+Legacy baselines that don't carry `finish_reason` or typed `error_category` values still produce a valid (mostly-zero) `sweet_spot` block — the dashboard components gate-check for presence and prompt regeneration when missing.
 
 ### Known limitations
 
@@ -248,5 +250,5 @@ Pre-v0.19.0 baselines that don't carry `finish_reason` or typed `error_category`
 
 - [Design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — full architectural rationale + axiom scoring
 - [Sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md) — milestone breakdown
-- [Sweet-spot design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot.md) — v0.19.0 follow-on for failure-category disambiguation + sweet-spot CLI
+- [Sweet-spot design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot.md) — follow-on for failure-category disambiguation + sweet-spot CLI
 - [Model configuration guide](./model-configuration.md) — full `models.yml` schema

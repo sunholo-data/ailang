@@ -1,8 +1,9 @@
 ---
 title: Type System
 sidebar_position: 2
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 # Type System Architecture

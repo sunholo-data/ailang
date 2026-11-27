@@ -2,8 +2,8 @@
 sidebar_position: 2
 title: Vision
 description: AILANG as a symbolic reasoning kernel for neural program synthesis
-reviewed: 2026-11-24
-reviewBy: 2027-05-24
+reviewed: 2026-11-26
+reviewBy: 2027-05-26
 ---
 
 import Icon from '@site/src/components/Icon';
@@ -14,64 +14,28 @@ import Icon from '@site/src/components/Icon';
 
 AILANG sits between probabilistic program synthesis (LLMs) and deterministic execution environments. It constrains, verifies, and traces programs synthesized by neural systems.
 
-```
-  LLM (Neural Synthesis)
-          │
-          │  Symbolic Program
-          ▼
-  ┌──────────────────────────┐
-  │      AILANG KERNEL       │
-  │                          │
-  │  • Effect relations      │
-  │  • Contract verification │
-  │  • Budget enforcement    │
-  │  • Trace generation      │
-  │  • Authority bounds      │
-  └──────────────────────────┘
-          │
-          │  Constrained Execution
-          ▼
-  OS / Runtime / Cloud
-```
+*(For the 2-minute comparison with Python/Go/TypeScript, see [Why AILANG](/docs/why-ailang). For the `1.0` stability contract, see [Why 1.0](/docs/why-1-0).)*
+
+![AILANG Symbolic Kernel Loop](/img/diagrams/ailang-kernel-loop.svg)
 
 ---
 
 ## The Five Pillars
 
-AILANG's design rests on five pillars that together form a coherent system for trustworthy AI execution:
-
-| Pillar | What It Means | Status |
-|--------|---------------|--------|
-| **1. Symbolic/Concrete Separation** | Programs represent symbolic intent; concrete values arise at execution within constraints | Core AST, elaboration, deterministic eval |
-| **2. Effects as Relations** | Effects are `(Intent × EffContext) ⇒ Outcome \| Constraints`, not opaque functions | Capabilities, budgets (`@limit=N`), policies |
-| **3. Contracts as Specs** | `requires`/`ensures` are symbolic predicates for AI-facing specifications | Runtime enforcement, panic/warn modes |
-| **4. Traces as Artifacts** | Execution produces structured, replayable, auditable traces | Agent traces (`ailang chains`) + program traces (`--emit-trace`) |
-| **5. Explicit Authority** | All authority must be declared, bounded, and enforced — no ambient capabilities | Deny-by-default `--caps`, budget limits, structured failures |
-
----
-
-## How AILANG Differs from Traditional Languages
-
-| Aspect | Traditional Languages | AILANG |
-|--------|----------------------|--------|
-| **Primary author** | Human | AI |
-| **Execution model** | Direct | Mediated through kernel |
-| **Effects** | Invisible side-effects | Explicit relations with budgets |
-| **Verification** | Type-centric | Contract + trace-centric |
-| **Traces** | Ad-hoc logs | Structured semantic artifacts |
-| **Authority** | Ambient (can do anything) | Declared and bounded |
-| **Purpose** | Program correctness | Trustworthy AI execution |
+| Pillar | What It Means | Shipped Mechanism |
+|--------|---------------|-------------------|
+| **1. Symbolic/Concrete Separation** | Programs encode symbolic intent; concrete values arise within checked constraints | Core ANF IR, deterministic evaluator & VM |
+| **2. Effects as Relations** | Effects are `(Intent × EffContext) ⇒ Outcome \| Constraints`, not opaque calls | `! {Effects}`, `--caps`, `@limit=N`, `--policy` |
+| **3. Contracts as Specs** | `requires` / `ensures` are machine-checkable specifications | `ailang verify` (Z3 SMT) + `--verify-contracts` |
+| **4. Traces as Artifacts** | Execution emits structured, replayable, auditable traces | `ailang chains` (agent) + `--emit-trace jsonl` (program) |
+| **5. Explicit Authority** | Zero ambient authority — every capability is declared and bounded | Deny-by-default `--caps`, `Declassify` effect |
 
 ---
 
 ## Effects as Capability Relations
 
-**Normal compilers:**
-- `doAnything()` is fine as long as types line up
-- Side-effects are invisible to the type system
-- No semantic boundary between "pure logic" and "this talks to the database"
+In traditional compilers, side effects are invisible to the type checker. In AILANG, the signature constrains what synthesized code **can** do:
 
-**AILANG:**
 ```ailang
 import std/fs (writeFile)
 import std/string (toUpper)
@@ -87,66 +51,7 @@ func saveUser(user: User) -> () ! {FS} {
 pure func formatUser(user: User) -> string = toUpper(user.name)
 ```
 
-**Why this matters for AI:**
-- The model literally cannot "hallucinate" a network call in a pure function
-- Effect boundaries are machine-checkable constraints, not just documentation
-- Budget limits (`! {IO @limit=5}`) bound resource consumption per function
-
----
-
-## Traces as Semantic Artifacts
-
-AILANG captures traces at two complementary levels:
-
-### Level 1: Agent Execution Traces
-
-The `ailang chains` system captures what **AI agents** do during task execution:
-
-- Full conversation history with reasoning blocks
-- Tool usage timeline (file edits, commands, searches)
-- Cost, tokens, turns, and duration metrics
-- Session correlation across multi-step workflows
-- Approval workflow tracking
-
-```bash
-ailang chains view <chain-id> --spans    # See agent execution flow
-ailang chains tree <chain-id> --detailed # Tree view with tool timeline
-ailang chains stats --by-agent           # Cost and token breakdown
-```
-
-### Level 2: Program Execution Traces
-
-The `--emit-trace` flag captures what happens when **AILANG code evaluates**:
-
-- Function call entry/exit with arguments and results
-- Effect invocations (IO, FS, Net operations)
-- Contract check results (requires/ensures)
-- Budget consumption deltas
-- Call depth tracking
-
-```bash
-# Export program-level trace as JSONL
-ailang run --emit-trace jsonl --caps IO --entry main program.ail
-
-# Validate with jq
-ailang run --emit-trace jsonl --quiet --caps IO --entry main program.ail 2>/dev/null | jq .
-```
-
-**Example trace output:**
-```json
-{"version":"1.0","event":"function_enter","timestamp_ns":42459,"depth":1,"function":{"name":"processFile","args":["\"input.txt\""]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":44125,"depth":2,"function":{"name":"std/io.println","args":["\"Processing...\""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":45750,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":46500,"depth":1,"function":{"name":"processFile","result":"()","duration_ns":4041}}
-```
-
-**Why both levels matter:** When something goes wrong, agent traces show *what the AI decided to do*; program traces show *what the code actually did*. Together they provide full observability from intent to execution.
-
----
-
-## Explicit Authority and Bounded Power
-
-AILANG eliminates ambient authority. Every capability must be explicitly declared:
+An LLM literally cannot hallucinate a network call inside `formatUser`, and budget annotations bound how many times an effect may fire:
 
 ```ailang
 import std/fs (readFile)
@@ -161,112 +66,48 @@ export func process(path: string) -> string ! {IO @limit=3, FS} {
 }
 ```
 
-**Budget enforcement:**
-- Functions declare maximum effect usage: `! {IO @limit=5}`
-- Runtime enforces the limit — exceeding it is a structured failure
-- Callers are charged the callee's declared budget (semantic charging)
-- Minimum budgets ensure effects were actually exercised
-
-**Contract verification:**
-- `requires` blocks check preconditions before execution
-- `ensures` blocks verify postconditions after execution
-- Contract checks are recorded in traces for auditability
+Callers are charged the callee's declared budget (semantic charging), and exceeding a budget produces a structured failure.
 
 ---
 
-## Better Feedback Loops
+## Two-Level Semantic Traces
 
-AI code generation is iterative. AILANG makes each iteration more productive:
+When AI-generated code misbehaves, AILANG separates **what the agent decided** from **what the program executed**:
 
-| Traditional | AILANG |
-|-------------|--------|
-| Arbitrary logs | Structured effect traces |
-| "Something crashed" | "Effect mismatch at line 42" |
-| Blind retry | Targeted fix with trace evidence |
-| No resource bounds | Budget-limited, auditable execution |
+| Trace Level | Tool | Captures |
+|---|---|---|
+| **Level 1: Agent Traces** | `ailang chains view <id> --spans` | Reasoning turns, tool calls, tokens, cost, approvals |
+| **Level 2: Program Traces** | `ailang run --emit-trace jsonl --caps IO prog.ail` | Function enter/exit, effect invocations, contract checks, budget deltas |
 
-The result: faster convergence to working code.
+**Example program trace (`--emit-trace jsonl`):**
 
----
+```json
+{"version":"1.0","event":"function_enter","timestamp_ns":42459,"depth":1,"function":{"name":"processFile","args":["\"input.txt\""]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":44125,"depth":2,"function":{"name":"std/io.println","args":["\"Processing...\""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45750,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":46500,"depth":1,"function":{"name":"processFile","result":"()","duration_ns":4041}}
+```
 
-## Research Foundation: LoCoBench
-
-Recent research validates AILANG's design thesis. The [LoCoBench benchmark](https://arxiv.org/abs/2509.09614) ([PDF](/references/qiu-2025-locobench.pdf)) (Salesforce AI Research, 2025) evaluated LLMs on 8,000 multi-file software engineering tasks and found:
-
-- **30-50% performance degradation** as context grows from 10K to 1M tokens
-- **Systems languages (C, Rust) score worst**; high-level languages (Python, PHP) score best
-- **Architectural reasoning is a key failure mode** — especially for tightly-coupled systems
-
-AILANG's explicit effects, static imports, and deterministic semantics directly address these failure modes.
-
-**[See detailed analysis →](/docs/why-ailang#research-validation-long-context-code-synthesis)**
-
----
-
-## Benchmark Results — M-EVAL
-
-We continuously track AI code generation success across 46 benchmarks with Claude, GPT, and Gemini.
-
-Key metrics:
-- **Zero-Shot**: Code works on first try
-- **Final Success**: Code works after self-repair
-- **Agent Success**: Multi-turn agent completes task
-
-The jump from zero-shot to agent mode shows structured error feedback helping models self-correct.
-
-See the [Benchmark Dashboard](/docs/benchmarks/performance) for live results, trends, and per-model breakdowns.
-
----
-
-## Core Capabilities
-
-AILANG provides:
-
-- <Icon name="check" inline /> **Algebraic Effects** — `! {IO, FS, Net, AI, SharedMem}` declares capabilities in types
-- <Icon name="check" inline /> **Deterministic Core** — pure functions are referentially transparent
-- <Icon name="check" inline /> **Structured Traces** — agent-level (`ailang chains`) and program-level (`--emit-trace`)
-- <Icon name="check" inline /> **Contracts** — `requires`/`ensures` as machine-readable specifications
-- <Icon name="check" inline /> **Budget Enforcement** — `@limit=N` bounds effect usage per function
-- <Icon name="check" inline /> **Bytecode VM** — `ailang run --bytecode`, about 40× faster than the interpreter
-- <Icon name="check" inline /> **Semantic Caching** — multi-agent coordination through shared memory
-- <Icon name="check" inline /> **AI Effect** — unified interface for LLM calls across providers
-
-See [Implementation Status](/docs/reference/implementation-status) for detailed feature availability.
+Structured diagnostics (`ailang check --format=agent`), Z3 counterexamples, and JSONL traces turn blind retries into targeted self-repair.
 
 ---
 
 ## What AILANG Deliberately Excludes
 
-AILANG prioritizes machine reasoning over human ergonomics:
+AILANG prioritizes machine decidability and semantic clarity over syntactic variety:
 
-- No **LSP/IDE servers** — AIs use CLI/API, not text editors
-- No **multiple syntaxes** — one canonical way to express each concept
-- No **implicit behaviors** — all effects are explicit
-- No **ambient authority** — everything requires explicit capability grants
+- **No multiple syntaxes** — one canonical way to express each concept
+- **No implicit side effects or hidden state** — every effect is declared in types
+- **No ambient authority** — capabilities require explicit `--caps` / `--policy` grants
+- **No unstructured concurrency** — no ad-hoc threads or data races (structured concurrency is planned via static effect-typed task graphs)
 
-These aren't limitations — they're design choices that make the language a reliable substrate for AI-synthesized programs.
-
-*See [Design Lineage](/docs/references/design-lineage) for the full adopted/rejected analysis.*
-
----
-
-## Get Involved
-
-- <Icon name="rocket" inline /> **Try it:** See [Getting Started](/docs/guides/getting-started)
-- <Icon name="bar-chart" inline /> **Benchmark it:** Run `ailang eval-suite` to test AI code generation
-- <Icon name="github" inline /> **Contribute:** [github.com/sunholo-data/ailang](https://github.com/sunholo-data/ailang)
-
----
-
-> **AILANG — a symbolic reasoning kernel for trustworthy AI execution.**
+*(Editor integration IS supported via `ailang lsp --stdio` and `ailang check --fix`, sharing the same diagnostic and quick-fix engine that agents use on the CLI.)*
 
 ---
 
 ## Theoretical Foundations
 
-For the academic grounding behind these design choices:
-
 - <Icon name="book" inline /> **[Design Axioms](/docs/references/axioms)** — The 12 non-negotiable principles
 - <Icon name="book" inline /> **[Philosophical Foundations](/docs/references/philosophical-foundations)** — Block-universe determinism and computation as navigation
 - <Icon name="book" inline /> **[Design Lineage](/docs/references/design-lineage)** — What we adopted, rejected, and why
-- <Icon name="book" inline /> **[Citations & Bibliography](/docs/references)** — Full academic references
+- <Icon name="bar-chart" inline /> **[Benchmark Dashboard](/docs/benchmarks/performance)** · **[Citations & Bibliography](/docs/references)**

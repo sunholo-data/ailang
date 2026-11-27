@@ -1,5 +1,8 @@
 ---
-reviewBy: 2027-03-01
+title: AI Effect (`std/ai`)
+description: Effect-typed LLM calls, structured deriving(Json) + callJsonResult decoding, multi-turn tool loops with step/runTools, image/speech, and deterministic fixture replay.
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 import CodeBlock from '@theme/CodeBlock';
@@ -9,272 +12,126 @@ import AICallResultExample from '!!raw-loader!@site/../examples/runnable/ai_call
 import AIToolLoopExample from '!!raw-loader!@site/../examples/runnable/ai_tool_loop.ail';
 import AIImageExample from '!!raw-loader!@site/../examples/runnable/ai_image_generation.ail';
 
-# AI Effect: Calling LLMs from AILANG
+# AI Effect: Calling LLMs & Tool Loops from AILANG
 
-AILANG v0.5.10 provides a simple, high-level AI effect for calling external AI/ML systems directly from your code. Perfect for game NPCs, agents, CLI tools, and data pipelines.
+`std/ai` is AILANG's effect-typed interface (`! {AI}`) for single-shot text/JSON/media/speech generation and multi-turn tool-use loops (`step`, `runTools`).
 
-:::tip Try AI Effects Live
-See the AI effect in action in the browser:
-- **[Claude Chat Demo](https://www.sunholo.com/ailang-demos/streaming/claude_chat/)** — SSE streaming with Claude Messages API
-- **[Gemini Live Demo](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)** — Bidirectional WebSocket audio with 30 voices
-- **[Safe Agent Demo](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)** — Contract-verified AI tool calling
+:::tip Live Demos
+- **[Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/)** · **[Gemini Live Audio](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)** · **[Safe Agent](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)**
 :::
 
-## Overview
-
-The AI effect (`std/ai`) is a **general-purpose AI oracle** - an opaque string-to-string interface for calling LLMs:
-
-```ailang
-import std/ai (call)
-
-func ask_ai(question: string) -> string ! {AI} =
-    call(question)
-```
-
-**Key Features:**
-- Simple string → string interface (JSON by convention)
-- Multi-provider support (Anthropic, OpenAI, Google)
-- Vertex AI ADC support (no API key required with gcloud auth)
-- Deterministic stub for testing
-- Effect-typed for capability tracking
-
-## Quick Start
-
-### 1. Basic Usage
+## Quick Start & Providers
 
 <CodeBlock language="ailang" title="examples/runnable/ai_effect.ail">
   {AIEffectExample}
 </CodeBlock>
 
-### 2. Run with Different Providers
-
 ```bash
-# Claude (Anthropic) - requires ANTHROPIC_API_KEY
-ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main my_app.ail
-
-# GPT (OpenAI) - requires OPENAI_API_KEY
-ailang run --caps IO,AI --ai gpt5-mini --entry main my_app.ail
-
-# Gemini (Google) - uses Vertex AI ADC if no GOOGLE_API_KEY
-ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
-
-# Stub (deterministic testing)
-ailang run --caps IO,AI --ai-stub --entry main my_app.ail
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main my_app.ail   # Anthropic
+ailang run --caps IO,AI --ai gpt5-mini --entry main my_app.ail           # OpenAI
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail    # Google (API key or ADC)
+ailang run --caps IO,AI --ai-stub --entry main my_app.ail                # Deterministic offline stub
 ```
 
-## Supported Providers
+| Provider | Auth / Env | Key Flags |
+|---|---|---|
+| **Anthropic / OpenAI** | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | `--ai <model>`, `--ai-key-file PATH` |
+| **Google (AI Studio / Vertex)** | `GOOGLE_API_KEY` or `gcloud` ADC | `--ai-no-adc` (`AILANG_AI_NO_ADC=1`) blocks silent ADC billing fallback; key sent in `x-goog-api-key` header |
+| **OpenRouter / Custom** | `OPENROUTER_API_KEY` / `ailang.toml` | `--ai openrouter/auto`; see [AI Routing](./ai-routing.md) & [Custom Providers](./custom-ai-providers.md) |
+| **Offline Stub / Fixtures** | None | `--ai-stub` returns `{"kind":"Wait"}`; `--ai-stub-fixtures file.json` replays canonical sha256 fixtures (miss -> `E_AI_STUB_FIXTURE_MISS`) |
 
-| Provider | Models | Auth Method | Environment Variable |
-|----------|--------|-------------|---------------------|
-| Anthropic | claude-sonnet-4-5, claude-haiku-4-5, etc. | API Key | `ANTHROPIC_API_KEY` |
-| OpenAI | gpt-5, gpt-5-mini, etc. | API Key | `OPENAI_API_KEY` |
-| Google | gemini-2-5-pro, gemini-2-5-flash, etc. | API Key or ADC | `GOOGLE_API_KEY` (optional) |
+## Structured `deriving (Json)` + `callJsonResult` + `runTools`
 
-### Google Vertex AI (ADC)
-
-For Google models, if no `GOOGLE_API_KEY` is set, AILANG automatically falls back to **Application Default Credentials** (ADC):
-
-```bash
-# Configure ADC once
-gcloud auth application-default login
-
-# Run without API key - uses ADC automatically
-unset GOOGLE_API_KEY
-ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
-```
-
-### Disabling the ADC fallback, and reading the key from a file
-
-The automatic ADC fallback is convenient on a developer machine, but it is a
-billing hazard for an application that should run on its *user's* key: when
-the key is missing, the call silently bills whatever project `gcloud` points
-at. Two switches close that gap:
-
-| Switch | Effect |
-|--------|--------|
-| `--ai-no-adc` or `AILANG_AI_NO_ADC=1` | The ADC lane is never tried. A missing `GOOGLE_API_KEY` / `GEMINI_API_KEY` is a hard `AuthFailed` error at startup. Combining it with a pinned Vertex project is refused. |
-| `--ai-key-file PATH` or `AILANG_AI_KEY_FILE=PATH` | The API key for the `--ai` model's provider is read from `PATH` once, at startup (the flag wins over the variable). The file must hold the key on a single line (surrounding whitespace is trimmed). The key never enters argv or the environment, and AILANG does not echo it in logs, errors or traces; errors name the path only. A key-less lane (local Ollama, a config-driven provider) refuses the flag instead of ignoring it. |
-
-```bash
-# Run on the player's key only; never fall back to the developer's gcloud project
-ailang run --caps IO,AI --ai gemini-2-5-flash --ai-no-adc \
-  --ai-key-file "$HOME/.config/mygame/gemini.key" --entry main my_app.ail
-```
-
-The Google client sends the key in the `x-goog-api-key` header, not in the
-request URL, so a transport error (which quotes the URL) cannot leak it.
-
-## Game Development Example
-
-Here's a complete example of using AI for NPC dialogue generation:
-
-<CodeBlock language="ailang" title="examples/docs/npc_dialogue.ail">
-  {NPCDialogueExample}
-</CodeBlock>
-
-**Run it:**
-
-```bash
-# With Claude
-ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/docs/npc_dialogue.ail
-```
-
-**Output:**
-
-```
-=== NPC Dialogue Demo ===
-
-[At the Forge]
-Player: Can you forge me an enchanted sword?
-Grimnar: *pounds hammer on anvil*
-The metal's got a stubborn spirit—takes patience and a steady hand to coax out the magic.
-```
-
-## Testing with Stub Handler
-
-For deterministic testing, use `--ai-stub`:
-
-```bash
-ailang run --caps IO,AI --ai-stub --entry main my_app.ail
-```
-
-The stub handler returns `{"kind":"Wait"}` for all inputs, making tests predictable and fast.
-
-### Replaying recorded responses with `--ai-stub-fixtures`
-
-`{"kind":"Wait"}` proves the AI capability is wired, but it cannot exercise an
-adapter that parses provider-shaped output. Point the stub at a fixture file
-and it replays recorded responses instead, with no key, no network and no spend:
-
-```bash
-ailang run --caps IO,AI --ai-stub --ai-stub-fixtures fixtures.json --entry main my_app.ail
-```
-
-Each request is looked up by the **sha256 of its canonical request bytes**. A
-request with no fixture is an error, never a quiet fall back to the default
-stub: `callResult`/`step` return `Err(AIError{code: "Internal"})` whose message
-starts `E_AI_STUB_FIXTURE_MISS` and names the missing sha256, so you can paste
-it straight into the file; the legacy `call`/`callJson` fail the run.
-`--ai-stub-fixtures` without `--ai-stub` is refused, and the whole file is
-validated at startup (unknown fields, bad base64 or duplicate keys are errors).
-
-```json
-{
-  "version": 1,
-  "fixtures": [
-    {"kind": "text",  "prompt": "hello", "response": "GRIMNAR: Well met."},
-    {"kind": "text",  "sha256": "62aef194e227811665a1c0e28b470d18d7d3b6d05145e7cb2767d02455e277c1",
-     "response": "{\"kind\":\"Move\"}"},
-    {"kind": "text",  "prompt": "look it up", "response": "",
-     "tool_calls": [{"id": "c1", "name": "lookup", "arguments": "{\"q\":\"forge\"}"}]},
-    {"kind": "text",  "prompt": "flaky", "error": {"code": "RateLimit", "message": "slow down", "retryable": true}},
-    {"kind": "image", "prompt": "a red cube", "base64": "iVBORw0KGgo...", "mime_type": "image/png"},
-    {"kind": "speech", "request": {"text": "Well met.", "voice": "Kore", "style": "Say gruffly"},
-     "pcm_base64": "AAD/fwCA..."}
-  ]
-}
-```
-
-(The `sha256` above is `printf 'what next?' | shasum -a 256`.)
-
-| Field | Meaning |
-|-------|---------|
-| `version` | Must be `1`. |
-| `kind` | `text`, `image` or `speech`. Kinds are separate key spaces. |
-| `prompt` / `request` / `sha256` | Exactly one. `prompt` is the literal request for `text`/`image`; `request` (`{text, voice, style}`) is the literal request for `speech`; `sha256` is the lowercase hex sha256 of the canonical bytes. |
-| `response` | `text`: the reply string. |
-| `tool_calls` | `text`, optional: replayed by `step`; `finish_reason` becomes `"tool_calls"`. |
-| `base64`, `mime_type` | `image`: the image bytes (standard base64) and media type, both required. |
-| `pcm_base64` | `speech`: s16le mono 24 kHz PCM (standard base64, a whole number of samples). |
-| `error` | Any kind, instead of a payload: `{code, message, retryable}` replayed as a typed `AIError`. |
-
-Canonical request bytes:
-
-| Kind | Operations | Canonical bytes |
-|------|------------|-----------------|
-| `text` | `call`, `callJson`, `callJsonSimple` and their `*Result` variants | the prompt (a `callJson` schema is not part of the key) |
-| `text` | `step`, `stepWithCache`, `stepWithStream` | the `content` of the **last** message in the conversation |
-| `image` | `callImage`, `callImageBase64` | the prompt (options are not part of the key) |
-| `speech` | `callSpeech` | the compact JSON `{"style":S,"text":T,"voice":V}`: keys sorted, no spaces, UTF-8 not escaped. In Python: `json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Options are not part of the key. |
-
-Replay is deterministic: the same file and the same requests always produce
-the same responses.
-
-## Text-to-Speech with `callSpeech`
+Combine `deriving (Json)` (auto-synthesizing `decode<Type>`) with schema-enforced `callJsonResult` and multi-turn `runTools` for end-to-end typed agent loops:
 
 ```ailang
-import std/ai (callSpeech, speechSampleRate)
-import std/audio (wavFromPcm)
-import std/fs (writeFileBytes)
-import std/io (println)
+module docs/ai_structured_tool_loop
 
-func speakLine() -> () ! {AI, FS, IO} {
-  match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
-    Ok(pcm) => writeFileBytes("line.wav", wavFromPcm(pcm, speechSampleRate(), 1, 16)),
-    Err(e)  => println("speech failed (${e.code}): ${e.message}")
+import std/ai (callJsonResult, runTools, ToolSchema, ToolCall, Message, AIError)
+import std/io (println)
+import std/json (Json, decode)
+import std/list (length)
+import std/result (Result, Ok, Err)
+
+type ReadDocArgs = { path: string } deriving (Json)
+type Summary = { topic: string, bullets: [string] } deriving (Json)
+
+export pure func dispatch(call: ToolCall) -> string {
+  if call.name == "read_doc" then
+    match decode(call.arguments) {
+      Ok(j) => match decodeReadDocArgs(j) {
+        Ok(args) => "Read ${args.path}: [NDA 2-year term, Delaware law]",
+        Err(err) => "invalid args: ${err}"
+      },
+      Err(err) => "invalid json: ${err}"
+    }
+  else "unknown tool: ${call.name}"
+}
+
+export func summarizeTyped(text: string) -> Result[Summary, string] ! {AI} {
+  let schema = "{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"bullets\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"topic\",\"bullets\"]}";
+  match callJsonResult("Summarize:\n${text}", schema) {
+    Err(e) => Err(e.message),
+    Ok(raw) => match decode(raw) {
+      Ok(j) => decodeSummary(j),
+      Err(e) => Err(e)
+    }
+  }
+}
+
+export func main() -> () ! {AI, IO} {
+  let tools: [ToolSchema] = [{
+    name: "read_doc",
+    description: "Read a document by path",
+    parameters: "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"}},\"required\":[\"path\"]}"
+  }];
+  let msgs: [Message] = [{
+    role: "user", content: "Read nda.docx and summarize it.",
+    tool_calls: [], tool_call_id: "", media: []
+  }];
+  match runTools("", msgs, tools, dispatch, 6) {
+    Ok(transcript) => println("Completed in ${show(length(transcript))} messages"),
+    Err(e) => println("[${e.code}] retryable=${show(e.retryable)}: ${e.message}")
   }
 }
 ```
 
-- **Output format is fixed:** raw PCM, signed 16-bit little-endian, mono,
-  24000 Hz (`speechSampleRate()`), which is what `std/audio`'s `wavFromPcm`
-  and `encode` take. A provider reply in any other format is
-  `Err(ProtocolError)` rather than bytes that would play as noise.
-- **`voice`**: a provider voice name (Gemini prebuilt voices such as `Kore`,
-  `Puck`); `""` uses the provider default.
-- **`style`**: a natural-language delivery instruction. Gemini receives it as
-  `"<style>: <text>"`; `""` sends the text alone.
-- **`options`**: JSON, `""` for none. `model` picks the TTS model; the default
-  is the bound `--ai` model when its name contains `tts`, else
-  `gemini-2.5-flash-tts` on Vertex or `gemini-2.5-flash-preview-tts` on AI Studio.
-  `language_code` is an optional BCP-47 code.
-  Any other key is `Err(SchemaValidation)`.
-- **Providers:** Gemini (AI Studio and Vertex, through the same `--ai` handler,
-  so `--ai-no-adc` and `--ai-key-file` apply). Every other provider returns
-  `Err(CapabilityNotSupported)`.
-- **Testing:** `--ai-stub` returns a fixed 250 ms 400 Hz tone (12000 bytes,
-  identical on every platform); `--ai-stub-fixtures` replays `speech` fixtures.
+## Multi-Turn Tool Dispatch (`step` and `runTools`)
 
-Runnable: `examples/runnable/ai_call_speech.ail`.
-
-## JSON Input/Output Pattern
-
-By convention, use JSON for structured input/output:
-
-```ailang
-import std/ai (call)
-import std/json (encode, decode, getString, jo, kv, jint, jb)
-
-type GameContext = {
-    player_health: int,
-    enemy_count: int,
-    has_weapon: bool
-}
-
-type Action = Wait | Attack | Retreat | Heal
-
-func decide_action(ctx: GameContext) -> Action ! {AI} {
-    let input = encode(jo([
-        kv("player_health", jint(ctx.player_health)),
-        kv("enemy_count", jint(ctx.enemy_count)),
-        kv("has_weapon", jb(ctx.has_weapon))
-    ]));
-    let output = call(input);
-    match decode(output) {
-        Ok(j) => match getString(j, "kind") {
-            Some("Attack") => Attack,
-            Some("Retreat") => Retreat,
-            Some("Heal") => Heal,
-            _ => Wait
-        },
-        Err(_) => Wait  -- Safe fallback
-    }
-}
+```mermaid
+flowchart LR
+    M["messages + tools"] --> S["step(model, messages, tools)"]
+    S -->|"Err(AIError)"| R["Check e.retryable / e.code"]
+    S -->|"finish_reason != tool_calls"| D["Return Ok(transcript)"]
+    S -->|"tool_calls"| DP["dispatch(call) ! {FS, Process, ...}"]
+    DP -->|"append tool Message"| M
 ```
 
-## Effect System Integration
+`runTools(model, messages, tools, dispatch, step_budget)` drives `step` until completion or `step_budget <= 0`. Because `dispatch` is effect-polymorphic (`ToolCall -> string`), passing a handler with `! {FS, Process}` automatically propagates `! {AI, FS, Process}` to the caller via row polymorphism. Drop down to `step` directly when you need per-turn approval gates or custom token caps.
 
-The AI effect integrates with AILANG's capability system:
+| Provider | Tool Calling | Notes |
+|---|---|---|
+| **Anthropic / Gemini / OpenAI / OpenRouter** | Supported | Normalized into `ToolSchema` / `ToolCall` / `Message` across wire formats |
+| **Ollama / Configdriven** | Typed reject | Returns `Err(AIError{code: "ToolsNotSupported"})`; use chat/JSON calls without tools |
+
+<CodeBlock language="ailang" title="examples/runnable/ai_tool_loop.ail">
+  {AIToolLoopExample}
+</CodeBlock>
+
+## Typed Errors (`callResult` / `callJsonResult`)
+
+Prefer `callResult`, `callJsonResult`, and `callJsonSimpleResult` over legacy crashing `call`/`callJson`: failures return `Err(AIError { code, message, retryable })` — the same shape used by `std/ai/streaming`.
+
+| Code | Retryable | Typical Cause |
+|---|---|---|
+| `RateLimit`, `Timeout`, `ConnectionFailed`, `Internal` | `true` | Transient 429/5xx, network, or context deadline |
+| `AuthFailed`, `ContextLength`, `SchemaValidation`, `ToolsNotSupported`, `ModelNotFound`, `BudgetExhausted` | `false` | Bad key, window exceeded, schema mismatch, unsupported tools, or budget cap hit |
+
+<CodeBlock language="ailang" title="examples/runnable/ai_call_result.ail">
+  {AICallResultExample}
+</CodeBlock>
+
+## Effect System Integration
 
 ```ailang sketch
 -- Effect declared in signature
@@ -284,219 +141,29 @@ func my_ai_func() -> string ! {AI} = ...
 ailang run --caps IO,AI --ai <model> --entry main file.ail
 ```
 
-Effects are tracked at the type level, ensuring:
-- AI calls are explicit in function signatures
-- Capability requirements are validated at compile time
-- Effect boundaries are clear and auditable
+## Speech (`callSpeech`) & Image Generation
 
-## Configuration
+- **`callSpeech(text, voice, style, options)`**: Gemini TTS returning raw s16le mono 24 kHz PCM (`speechSampleRate()`), ready for `std/audio.wavFromPcm`. `--ai-stub` emits a deterministic 250 ms 400 Hz tone. See `examples/runnable/ai_call_speech.ail`.
+- **Image generation**: `callImage` / `callImageBase64` (plus `*WithRefs` taking `[ImagePart]`) support Gemini image models and OpenRouter image-output models.
 
-### CLI Flags
+<CodeBlock language="ailang" title="examples/runnable/ai_image_generation.ail">
+  {AIImageExample}
+</CodeBlock>
 
-| Flag | Description |
-|------|-------------|
-| `--ai <model>` | Set the AI model to use |
-| `--ai-stub` | Use deterministic stub handler |
-| `--ai-stub-fixtures <file>` | With `--ai-stub`: replay JSON fixtures keyed by the request's sha256; a miss is an error |
-| `--ai-no-adc` | Google: never fall back to Application Default Credentials; a missing key is `AuthFailed` (also `AILANG_AI_NO_ADC=1`) |
-| `--ai-key-file PATH` | Read the provider API key from a file at startup; never echoed (also `AILANG_AI_KEY_FILE`) |
-| `--caps AI` | Enable AI capability |
+## NPC Dialogue Example & Fixture Replay
 
-### Model Lookup
+<CodeBlock language="ailang" title="examples/docs/npc_dialogue.ail">
+  {NPCDialogueExample}
+</CodeBlock>
 
-Models are looked up in `models.yml` or guessed from name prefixes:
-- `claude-*` → Anthropic
-- `gpt-*` → OpenAI
-- `gemini-*` → Google
+For deterministic offline testing with `--ai-stub --ai-stub-fixtures fixtures.json`, requests are matched by `sha256` of canonical request bytes (`text` prompt, last `step` message content, or compact sorted JSON for `speech`), with `version: 1` entries (`text`, `image`, `speech`, `tool_calls`, or `error`).
 
-## Typed Errors with `callResult` / `callJsonResult` (v0.17.0+)
+## Choosing the Right Surface
 
-The legacy `call` and `callJson` crash the host on provider failure, which is
-fine for one-shot scripts but wrong for agent loops, retries, or pipelines.
-`callResult` / `callJsonResult` are drop-in replacements that return
-`Result[string, AIError]` instead — the same wire path, but typed errors flow
-back as `Err(AIError {code, message, retryable})`.
-
-`AIError.code` is one of a fixed vocabulary that lets agents route on failure
-type without parsing message strings:
-
-| Code | Retryable? | Typical cause |
-|---|---|---|
-| `AuthFailed` | no | 401/403 — bad API key |
-| `RateLimit` | yes | 429 — slow down and retry |
-| `Timeout` | yes | network / context deadline |
-| `ConnectionFailed` | yes | TCP / TLS / DNS issues |
-| `ContextLength` | no | prompt exceeds model window |
-| `SchemaValidation` | no | response doesn't match callJson schema |
-| `ToolsNotSupported` | no | provider can't do tools (Ollama, configdriven) |
-| `ModelNotFound` | no | 404 — model name typo |
-| `BudgetExhausted` | no | AI cap budget overflow |
-| `Internal` | yes | 5xx or unclassified — conservative default |
-
-**Same shape as `std/ai/streaming.AIError`** (shipped v0.15.0) — one error
-record across the whole `std/ai` surface, single source of truth for
-retry-decision logic.
-
-```bash
-ailang run --caps AI,IO --ai gemini-3-flash-preview \
-  examples/runnable/ai_call_result.ail
-```
-
-<CodeBlock language="ailang">{AICallResultExample}</CodeBlock>
-
-## Multi-Turn Tool Dispatch with `step` and `runTools` (v0.17.0+)
-
-For agentic workflows where the model emits tool calls and the host
-dispatches them, `step` (one model turn) and `runTools` (loop driver) close
-the gap. The full agent loop — provider HTTP, tool-call parsing, message
-threading, typed errors — fits in a few lines of pure AILANG.
-
-**Shapes:**
-```ailang
-type Message = { role: string, content: string,
-                 tool_calls: [ToolCall], tool_call_id: string }
-type ToolSchema = { name: string, description: string, parameters: string }
-type ToolCall = { id: string, name: string, arguments: string }
-type StepResult = { message: Message, tool_calls: [ToolCall],
-                    finish_reason: string,
-                    input_tokens: int, output_tokens: int }
-```
-
-**`step`** is one model turn. Pass conversation + tool catalog, get the
-assistant's response back. When `finish_reason == "tool_calls"`, the model
-is asking the host to dispatch tools and continue.
-
-**`runTools`** is the convenience loop driver. It calls `step` in a loop,
-runs your `dispatch` callback on each tool call, threads results back as
-tool-role messages, and terminates when the model is done OR the step
-budget hits zero.
-
-```not-ailang
-runTools(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema],
-  dispatch: (ToolCall) -> string,   -- effect-polymorphic; can be ! {FS, Process, ...}
-  step_budget: int
-) -> Result[[Message], AIError] ! {AI}
-```
-
-The `dispatch` callback's effects propagate via row polymorphism — pass a
-dispatch with `! {FS, Process}` (e.g. real file I/O + shell exec) and
-`runTools` infers `! {AI, FS, Process}` automatically. No signature change
-needed.
-
-**Provider parity:**
-
-| Provider | Tool support | Notes |
-|---|---|---|
-| Anthropic | yes | Messages API `tool_use` content blocks |
-| Gemini | yes | `functionCall` parts; adapter generates stable IDs |
-| OpenAI | yes | Chat Completions `tool_calls` |
-| OpenRouter | yes | Passthrough (composes with `Routing` policies) |
-| Ollama | no — typed reject | `AIError{ToolsNotSupported}`; falls through to chat for no-tools |
-| Configdriven | no in v1 | Same typed reject pattern |
-
-**Worked example:** a 2-tool catalog with offline-deterministic dispatch.
-
-```bash
-ailang run --caps AI,IO --ai gemini-3-flash-preview \
-  examples/runnable/ai_tool_loop.ail
-```
-
-<CodeBlock language="ailang">{AIToolLoopExample}</CodeBlock>
-
-For the broader integration with `motoko_agent` (the first AILANG-native
-coding agent retiring its hand-rolled tool dispatch), see the
-[Motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md).
-
-## Image Generation
-
-`std/ai` generates images through the same AI effect:
-
-| Function | Effects | Returns |
-|----------|---------|---------|
-| `callImage(prompt, output_path, options)` | `{AI, FS}` | the output path |
-| `callImageBase64(prompt, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
-| `callImageWithRefs(prompt, refs, output_path, options)` | `{AI, FS}` | the output path |
-| `callImageBase64WithRefs(prompt, refs, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
-
-**Providers.** Gemini image models (`--ai gemini-2.5-flash-image`) and
-OpenRouter image-output models (for example `google/gemini-3-pro-image`,
-`openai/gpt-5-image`) through the OpenRouter key. OpenRouter image calls use
-the chat endpoint with `"modalities": ["image","text"]`, so the image cost
-appears in the same `usage.cost` figure as text calls. Anthropic, OpenAI-direct,
-Ollama and config-driven providers reject image generation with an error.
-
-**Options** is a JSON string; every key is optional:
-
-- `aspect_ratio`: `"1:1"`, `"16:9"`, `"9:16"`, ...
-- `mime_type`: `"image/png"` (default) or `"image/jpeg"`. OpenRouter also
-  accepts `"image/webp"`; any other value fails before the request is sent.
-- `model`: a model for this call only. When it is absent or empty, the `--ai`
-  model is used. A friendly `models.yml` name resolves the same way `step()`
-  resolves one. A model that belongs to a different provider than the `--ai`
-  handler fails with `ModelNotAllowed`. For example, one OpenRouter-bound
-  program can keep a text model bound and name an image model for each
-  portrait.
-
-**Reference images** (`*WithRefs`) let the model see one or more images as
-well as the prompt. Use them to edit an image, or to keep the same character
-across variations. Each ref is an `ImagePart` record `{source, mime}`, the
-same record `step()` uses for vision input. `source` is a base64 payload or a
-data-URI. `std/fs.readFileBase64` returns base64 you can pass straight in, and
-`mime` is required for raw base64. Gemini receives refs as `inlineData` parts
-and OpenRouter as `image_url` content parts. Every other provider fails with
-"not supported" instead of dropping them, and an empty `refs` list behaves
-like the call without refs. Under `--ai-stub`, all four functions return a
-fixed 1x1 PNG without any network call.
-
-<CodeBlock language="ailang">{AIImageExample}</CodeBlock>
-
-## Builtin Documentation
-
-View full builtin documentation:
-
-```bash
-ailang builtins show _ai_call
-ailang builtins show _ai_call_result   # v0.17.0+
-ailang builtins show _ai_step          # v0.17.0+
-ailang builtins show _ai_call_image_with_refs
-```
-
-## Comparison: AI Effect vs HTTP API
-
-| Feature | AI Effect (`std/ai`) | HTTP API (`std/net`) |
-|---------|---------------------|---------------------|
-| Complexity | Simple string→string | Full HTTP control |
-| Provider setup | CLI flag | Manual headers/auth |
-| JSON handling | By convention | Required |
-| Best for | Quick LLM calls | Custom API integration |
-
-Use the AI effect for simple LLM calls. Use `std/net` when you need full control over HTTP requests (custom endpoints, streaming, etc.).
-
-## OpenRouter for Multi-Vendor Routing
-
-The AI effect can also be backed by [OpenRouter](https://openrouter.ai),
-a single API that fronts ~100 models across many vendors. Pass a
-`vendor/model` model string (e.g., `anthropic/claude-sonnet-4.5`,
-`openai/gpt-5-mini`, or `openrouter/auto`) and AILANG dispatches the
-call through OpenRouter automatically.
-
-```bash
-export OPENROUTER_API_KEY=sk-or-...
-ailang run --caps IO,AI --ai openrouter/auto --entry main file.ail
-```
-
-For dynamic provider selection (fallback chains, capability requirements,
-cost preferences) see the [AI Provider Routing](./ai-routing.md) guide —
-this complements the `--ai` flag with `--routing-fallback`,
-`--routing-require`, `--routing-prefer`, and the `--allow-routing` safety
-gate.
-
-## Related Documentation
-
-- [AI Provider Routing](./ai-routing.md) - OpenRouter routing flags and policy reference
-- [AI API Integration (HTTP)](/docs/examples/ai-api-integration) - Raw HTTP approach
-- [Effects Reference](/docs/reference/effects) - Effect system overview
-- [Module Execution](/docs/guides/module_execution) - Running AILANG modules
+| Goal | Use |
+|---|---|
+| One-shot text or JSON with typed errors | `callResult` / `callJsonResult` / `callJsonSimpleResult` |
+| Token-by-token streaming | [AI Token Streaming](/docs/recipes/ai-token-streaming) (`callStream` / `stepWithStream`) |
+| Single turn or full tool-use agent loop | `step` / `runTools` |
+| Custom HTTP headers or non-LLM REST APIs | [AI API Integration (`std/net`)](/docs/examples/ai-api-integration) |
+| Multi-vendor fallback & cost routing | [AI Provider Routing](./ai-routing.md) |

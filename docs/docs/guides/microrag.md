@@ -1,5 +1,6 @@
 ---
-reviewBy: 2026-12-21
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # μRAG: Just-in-Time Knowledge Injection
@@ -34,7 +35,7 @@ Concretely, μRAG closes three gaps:
    importing. μRAG's `lint-builtin` returns the actual signature on the
    *first* call site this session.
 3. **Breaking-change blindspots.** When a release changes operator semantics
-   (e.g. `++` becoming list-only in v0.13.0), μRAG nudges the model the next
+   (e.g. `++` becoming list-only instead of string concatenation), μRAG nudges the model the next
    time it touches a `.ail` file.
 
 ## Quick Start (Claude Code)

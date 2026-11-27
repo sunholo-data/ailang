@@ -1,0 +1,35 @@
+MISSION-ROLE: planner
+
+You are the PLANNER for fleet mission iteration 143 (repo sunholo-data/ailang). This worktree is a detached checkout of branch fleet/i142-idle-fp-record-eval-json at 04f307466 (PR #2473, not merged). Produce ONE file: `plan_iter143.md` at the worktree root. Do NOT edit any other file. Do NOT run any git write operation (add/commit/stash/checkout/reset). The controller owns all git operations.
+
+## Context
+
+Open fleet ticket `idle-fingerprint:record-eval-json-moves-head` (stapledon). PR #2473 adds one exclusion to `tools/launchd/lib/idle-fingerprint.sh`:
+
+    ':(exclude).ailang/state/evaluations/eval_MISSION-ITER-*_record.json' \
+
+and test arms in `tools/launchd/test_mission_idle_fingerprint.sh` (a record-only arm `eval_MISSION-ITER-9_record.json` must NOT move the hash; a negative control `eval_M-FOO_round_1.json` MUST move it; mutants `exclude-record-eval` and `exclude-evaluations-broad` with an `expected_fail` exact-first-FAIL check).
+
+The independent judge (PASS 88) raised one non-blocking objection, the strongest: the glob's `_record.json` suffix and `eval_MISSION-ITER-` prefix are not pinned. Four WIDENING mutants of that one helper line survive the plain test:
+
+- b: `eval_MISSION-ITER-*`              (drops the `_record.json` suffix)
+- e: `eval_*_record.json`               (drops the `MISSION-ITER-` literal)
+- f: `eval_MISSION-ITER-*_*.json`       (any MISSION-ITER verdict)
+- g: `:(exclude)*_record.json`          (drops directory and prefix; replaces the whole pathspec)
+
+PR #2473 cannot merge this fire (dev's required `test` is red for reasons outside fleet scope), so this iteration hardens the test on the same branch, to be re-judged.
+
+## What the plan must specify (test-only change; the helper must NOT change)
+
+1. Negative controls in the plain test, in the existing fixture style (around the `eval_M-FOO_round_1.json` control): at minimum a commit adding only `.ailang/state/evaluations/eval_MISSION-ITER-9_round_1.json` MUST move the hash (kills b and f), and a commit adding only `.ailang/state/evaluations/eval_M-FOO_record.json` MUST move the hash (kills e and g). Decide the exact FAIL message for each (distinct strings), where they go in the sequence, and how `h0` is advanced after each so later assertions stay valid. Verify by reading the test that nothing after the new arms assumes a particular `h0`.
+2. Four new mutants in the `--mutations` list (names e.g. `exclude-record-eval-no-suffix`, `exclude-record-eval-any-mission`, `exclude-record-eval-any-verdict`, `exclude-record-any-dir`), each a single `sed` edit of the HELPER copy, each with an `expected_fail` equal to the exact first FAIL line the plan predicts. Give the exact sed for each. Note: in a sed `s|…|…|` with BRE, `*` and `.` in the pattern need escaping; the replacement text does not. The sed must actually change the file — specify that the mutation loop (or the plan's own verification) detects a no-op sed (e.g. `cmp -s "$HELPER" "$TMP/helper"` → fail "mutant sed did not apply"), and say whether to add that guard to the loop for all helper mutants (recommended; check that every existing helper mutant still changes the file, and name any that are driver-only so the guard must apply only when the helper was edited).
+3. Predict the new total mutant count (currently 17) and the exact expected KILLED lines.
+4. A changelog: decide whether to amend the existing fragment `changelogs/unreleased/2026-11-26-idle-fingerprint-record-eval-json.md` with one sentence (preferred: one fragment per fix) — give the exact sentence.
+5. The executor's gate list with expected results: `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` (rc 0, 3 PASS lines), `--mutations` (rc 0, every mutant KILLED, total count), `shellcheck tools/launchd/lib/idle-fingerprint.sh tools/launchd/test_mission_idle_fingerprint.sh` (rc 0), `make check-changelog` (rc 0), and a sole-killer check for each new control (run the plain test with the corresponding widened helper via `IDLE_TEST_HELPER=<scratch copy>` and confirm the intended FAIL). `make test-launchd-drivers` is run by the controller outside the sandbox.
+6. Constraints: bash 3.2 + BSD sed/grep; no new env vars; nothing may write outside the worktree and the test's own temp fixture; nothing touches `$HOME/.ailang/state`.
+
+Acceptance criteria must be observations, never seeded writes to anything outside the test's disposable fixture repo.
+
+## Sandbox notes
+
+You run in a write sandbox. A gate that fails here on a permission/socket denial is UNINFORMATIVE UNDER SANDBOX — label it that way. No network access is needed. If you run a background command, poll its output file inside a bounded `date +%s` loop; a Monitor is not a wait and nothing will re-invoke you, so never end your turn announcing that you are waiting. Keep the plan concise (under ~120 lines). Final message: a 5-line summary of the plan.

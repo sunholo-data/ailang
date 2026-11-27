@@ -1,8 +1,10 @@
 ---
-reviewBy: 2026-12-14
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
-# M-EVAL-LOOP Architecture (v2.0)
+# M-EVAL-LOOP Architecture
 
 ## Quick Reference
 
@@ -23,10 +25,10 @@ make eval-baseline                # Quick baseline (dev models)
 make eval-baseline FULL=true      # Full baseline (all models)
 
 # Compare results
-ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
+ailang eval-compare eval_results/baselines/prev eval_results/current
 
 # Analyze failures
-ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
+ailang eval-analyze -results eval_results/baselines/prev -dry-run
 ```
 
 ### Available Commands
@@ -38,9 +40,9 @@ ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
 | `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
 | `ailang eval-compare --chain` | Compare two chain-based runs | `ailang eval-compare --chain ID1 --chain ID2` |
 | `ailang eval-analyze` | Analyze failures, generate design docs | `ailang eval-analyze -results dir -dry-run` |
-| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
+| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ current` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
-| `ailang eval-report` | Generate reports (file or chain) | `ailang eval-report --from-chain ID v0.8.0` |
+| `ailang eval-report` | Generate reports (file or chain) | `ailang eval-report --from-chain ID current` |
 | `ailang eval-chains` | List/view/analyze eval chains | `ailang eval-chains stats ID` |
 
 ## Architecture Overview
@@ -94,7 +96,7 @@ ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
 - Agent mode: ~$0.01-0.05 per benchmark (uses CLI tools for multi-turn coding)
 - **5-10x cheaper for day-to-day development**
 
-### eval-chains: Chain-Based Result Analysis (v0.8.0+)
+### eval-chains: Chain-Based Result Analysis
 
 Agent eval results are stored as chains in `observatory.db` — one chain per suite, one stage per benchmark. Use `ailang eval-chains` to query results:
 
@@ -116,13 +118,13 @@ Results can also be loaded into the existing report/compare pipeline:
 
 ```bash
 # Generate report from chain
-ailang eval-report --from-chain <chain-id> v0.8.0 --format=json
+ailang eval-report --from-chain <chain-id> current --format=json
 
 # Compare two chains
 ailang eval-compare --chain <id1> --chain <id2>
 
 # Use most recent eval chain
-ailang eval-report --from-latest-chain v0.8.0
+ailang eval-report --from-latest-chain current
 ```
 
 ### eval-compare: Diff Two Runs
@@ -131,7 +133,7 @@ ailang eval-report --from-latest-chain v0.8.0
 # File-based comparison
 ailang eval-compare baseline/ current/
 
-# Chain-based comparison (v0.8.0+)
+# Chain-based comparison
 ailang eval-compare --chain <id1> --chain <id2>
 ```
 
@@ -144,8 +146,8 @@ Shows:
 ### eval-analyze: Failure Analysis
 
 ```bash
-ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
-ailang eval-analyze -results eval_results/baselines/v0.3.0 -generate  # Create design docs
+ailang eval-analyze -results eval_results/baselines/prev -dry-run
+ailang eval-analyze -results eval_results/baselines/prev -generate  # Create design docs
 ```
 
 Categorizes failures by type (compile_error, runtime_error, logic_error) and can generate design docs for fixes.
@@ -153,9 +155,9 @@ Categorizes failures by type (compile_error, runtime_error, logic_error) and can
 ### Other Commands
 
 ```bash
-ailang eval-matrix results/ v0.3.0     # Aggregate stats
+ailang eval-matrix results/ current     # Aggregate stats
 ailang eval-summary results/           # Export JSONL
-ailang eval-report results/ v0.3.0 -f html  # Generate report
+ailang eval-report results/ current -f html  # Generate report
 ```
 
 ## Tier 2: Smart Agents
@@ -208,9 +210,9 @@ make eval-diff BASELINE=X NEW=Y # Compare runs
 
 ### Direct Commands (Power Users)
 ```bash
-ailang eval-analyze -results baselines/v0.3.0 -dry-run
-ailang eval-compare baselines/v0.3.0 current
-ailang eval-report results/ v0.3.0 --format=html
+ailang eval-analyze -results baselines/prev -dry-run
+ailang eval-compare baselines/prev current
+ailang eval-report results/ current --format=html
 ```
 
 ## Model Selection Strategy
@@ -233,7 +235,7 @@ ailang eval-report results/ v0.3.0 --format=html
 - **Use for**: Targeted testing, specific model evaluation
 - **Command**: `ailang eval-suite --models X,Y,Z`
 
-## Data Storage Architecture (v0.8.0+)
+## Data Storage Architecture
 
 ### Standard Evals (0-shot + self-repair)
 - **Storage**: JSON files on disk (`eval_results/baselines/VERSION/*.json`)
@@ -246,20 +248,12 @@ ailang eval-report results/ v0.3.0 --format=html
 - **Access**: `ailang eval-chains`, `ailang eval-report --from-chain ID`
 
 ### Chain Structure
-```
-execution_chains (source_type = "eval_suite")
-├── source_ref: "eval-<timestamp>/agent"
-├── status: completed
-├── total_cost, total_tokens
-│
-├── chain_stage 1: fizzbuzz / claude-haiku / ailang
-│   ├── eval_assessment: { compile_ok, runtime_ok, stdout_ok, ... }
-│   ├── cost, tokens, turns, tool_calls
-│   └── chat_messages (Claude) or session_tools (streaming executors)
-│
-├── chain_stage 2: fizzbuzz / gemini-flash / python
-│   └── ...
-└── ... (one stage per benchmark × model × language)
+
+```mermaid
+flowchart TB
+    EC["execution_chains (source_type = eval_suite)<br/>source_ref, status, total_cost, total_tokens"] --> S1["chain_stage 1: fizzbuzz / claude-haiku / ailang<br/>eval_assessment, cost, tokens, turns, tool_calls"]
+    EC --> S2["chain_stage 2: fizzbuzz / gemini-flash / python"]
+    S1 --> M1["chat_messages (Claude) or session_tools (streaming)"]
 ```
 
 ### Chat/Tool Data Capture (Executor-Aware)
@@ -267,7 +261,7 @@ execution_chains (source_type = "eval_suite")
 | Executor | Data Source | Table | Quality |
 |----------|------------|-------|---------|
 | **Claude** | Post-execution JSONL disk import | `chat_messages` | Full tool inputs/outputs, thinking |
-| **Gemini** (retired v0.22.0) | Real-time streaming | `session_tools` | Historical only — the Gemini CLI executor was removed; `session_tools` retains its past runs |
+| **Gemini** (retired) | Real-time streaming | `session_tools` | Historical only — the Gemini CLI executor was removed; `session_tools` retains its past runs |
 
 ## File Organization
 
@@ -281,7 +275,7 @@ execution_chains (source_type = "eval_suite")
 internal/
   eval_analysis/                  # Native Go implementation (~2,000 LOC)
     types.go, loader.go, comparison.go, matrix.go, formatter.go,
-    loader_chains.go              # Chain-based result loading (v0.8.0+)
+    loader_chains.go              # Chain-based result loading
     export.go, *_test.go (90%+ coverage)
   eval_harness/                   # Benchmark execution
     models.yml                    # Model configurations

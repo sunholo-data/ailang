@@ -1,5 +1,7 @@
 ---
-reviewBy: 2027-02-22
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Notification Channels
@@ -10,7 +12,7 @@ you'll actually see them. It is the Go port of the design behind Aitana's v6
 Channels Framework: a tiny `Channel` interface plus a `Registry` that the
 notification daemon uses as an output router.
 
-> **Status (v0.24.0):** outbound-only. The macOS desktop notifier and a Discord
+> **Status:** outbound-only. The macOS desktop notifier and a Discord
 > webhook channel ship today. Inbound ("reply *approve* to apply the
 > `design-approved` label") is a planned follow-up. See
 > [m-notify-channels-framework](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-framework.md).

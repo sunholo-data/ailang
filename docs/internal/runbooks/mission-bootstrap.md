@@ -1,0 +1,391 @@
+---
+title: Bootstrapping a Mission Loop
+description: Point AILANG's autonomous mission loop at another repo — driver, skill, charter, and a token-free dry-run acceptance
+tier: internal
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
+---
+
+# Bootstrapping an autonomous mission loop
+
+> **⚠ SUPERSEDED IN PART (2026-09-05).** Missions are now described by a registry entry —
+> one TOML file per mission in `missions/` — and the artifacts are generated from it.
+>
+> ```bash
+> ailang mission list              # which missions exist, and how each is wired
+> ailang mission doctor            # does what is installed match what was reviewed?
+> ailang mission install <name>    # render this mission's artifacts to *.staged
+> ```
+>
+> `install` RENDERS ONLY; it writes nothing the fleet reads. Promotion (`apply`) is
+> Phase 2 of [M-MISSION-LOOP-WORKBENCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
+> and is not implemented yet, so the manual steps below are still how a change reaches
+> the fleet. Read `doctor` first: on 2026-09-05 it reported that two of four missions
+> were running config that disagreed with the reviewed copy in the repo.
+>
+> Model and role assignment is NOT in the registry — see `ailang models role`.
+
+
+AILANG ships with a **mission loop**: a scheduled outer loop that picks the top item off a written
+backlog, routes it through a design → plan → execute → evaluate inner loop of specialised agents,
+records what happened, and reports to a human — then does it again, unattended, on a cadence. The
+loop that built AILANG itself (the "V1 mission", paused since 2026-09-08) ran this way. This guide shows how to point a
+*second* loop at a *different* repository, so one machine can advance several missions concurrently
+without them colliding.
+
+> **Who this is for.** You have the `ailang` binary installed, a GitHub repo you want worked
+> autonomously, and a machine that stays on. You do **not** need to have read the AILANG source. The
+> mission loop is a general harness; the language it happens to build is incidental to *this* recipe.
+
+## How the loop is put together
+
+Three layers, each replaceable per mission without touching the others:
+
+| Layer | What it is | Per-mission? |
+|---|---|---|
+| **Driver** | `tools/launchd/mission-control.sh` — the shell script launchd fires. Handles the billing guard, model selection, overlap/pidfile guard, stall watchdog, and invokes one agent iteration. | Shared script, parameterised by env |
+| **Skill** | `.claude/skills/mission-control/SKILL.md` — the agent's gate-by-gate instructions for one iteration (observe → pick → route → record → retro). | **One skill, never forked** |
+| **Charter** | `design_docs/<name>-mission.md` — the mission's bar, queue, guardrails, and **Repo Profile**. The loop's memory + backlog. | One per mission |
+
+The single skill is the point: every improvement the loop discovers about *how to run a mission*
+(a sharper gate, a new guardrail) is edited into the one skill and benefits **all** missions. Fork
+the skill per mission and you lose that. What varies per mission is data — the charter and a small
+env profile — not logic.
+
+## Reaching the host machine (from a laptop)
+
+Most of what follows runs **on the always-on host**, not on your laptop — the checkout, the launchd
+job, `~/.config/ailang/`, and `~/.ailang/state/` all live there. The fleet reaches it over
+[Tailscale](https://tailscale.com), which gives the host a stable address that survives the laptop
+changing networks.
+
+For AILANG's own rig the host is `voights-mac-studio` at **`100.83.21.3`**:
+
+```bash
+ssh voightkampff@100.83.21.3
+```
+
+The hostname works too (`ssh voightkampff@voights-mac-studio`) when MagicDNS is on. To list what is
+on the tailnet and confirm an address before trusting a written-down one:
+
+```bash
+/Applications/Tailscale.app/Contents/MacOS/Tailscale status
+```
+
+The GUI app ships the CLI at that path but does **not** put it on `PATH`, so a bare `tailscale`
+often returns a Swift `Fatal error: The current bundleIdentifier is unknown to the registry` — that
+is the wrapper refusing to run outside its bundle, not a network problem. Use the full path.
+
+**Prefer a durable shell for anything long.** Plain SSH freezes on every network roam or laptop
+sleep: the TCP socket dies while `sshd` holds it `ESTABLISHED`, leaving a ghost session where
+"commands don't go through". On the AILANG rig `~/.local/bin/cx` starts the work inside `tmux` so a
+drop is survivable:
+
+```bash
+cx --bare          # durable plain shell
+cx -c              # claude --continue, in tmux
+```
+
+Two caveats worth knowing before you fight them. **mosh has no scrollback at all** — its protocol
+syncs the current screen and never sends a byte stream, so there is no backlog for any client to
+show; that is a property of mosh, not a setting. And Claude Code repaints its TUI in place rather
+than appending lines, so even `tmux` copy-mode history of a Claude session is gappy. If you want
+readable history of a long session, use plain SSH (accepting the freeze risk) or drive it from the
+mobile app via `cx -r`, where the history lives in the app rather than the terminal.
+
+## Prerequisites (hard preconditions)
+
+Do these once on the machine that will host the loop:
+
+1. **The target repo has CI workflows.** Gate 3b ("an item is not landed until remote CI passes")
+   is meaningless without them. Note the exact workflow *names* — you will list them in the charter's
+   Repo Profile.
+2. **`gh` authenticated as the automation account** with push rights to the repo:
+   `gh auth status` should show your bot account (for AILANG's own missions that is
+   `sunholo-voight-kampff`). The loop commits and comments as this identity.
+3. **`ailang` installed** and on `PATH` — `ailang install` from a release, or `make install` from
+   source. The fleet substrate the loop uses (design-quorum, exec lanes, agent messaging,
+   coordinator) ships *inside* the binary, so it ports with the install; there is no per-repo
+   plumbing to stand up.
+4. **The billing guard is in place** — API keys stripped from the loop's environment so it runs on a
+   subscription, never a metered key. (For AILANG this is a `~/.zshenv` unset plus a `claude-sub`
+   wrapper; adapt to your shell. The driver probes auth cheaply and refuses loudly with zero spend if
+   the subscription is not reachable.)
+5. **Claude Code has been run interactively in the mission's checkout ONCE** — added 2026-08-12 after
+   it cost the motoko mission its entire first fire. A checkout Claude Code has never seen has no
+   `hasCompletedProjectOnboarding` entry in `~/.claude.json`, so a headless `claude -p` blocks on the
+   trust dialog it cannot display. **Every** model in `MISSION_MODEL_PREFS` then burns its full probe
+   timeout twice (2 × 120s × 3 models ≈ 12 minutes) and the driver correctly refuses with
+   *"NO usable model in prefs"* — a message that reads exactly like a quota outage or an auth
+   failure, which is the trap. The captured probe output names the real cause, so **read it** rather
+   than the summary line.
+
+   ```bash
+   cd <mission-checkout> && claude     # accept the trust dialog once, then quit
+   ```
+
+   Measured across three checkouts, including the counterfactual: `ailang` (trust=T, onboarded=T)
+   works; `ailang-world` (trust=**F**, onboarded=T) works; `ailang-motoko` failed with **neither**,
+   then worked with **trust=T and onboarding still absent**. So **either flag suffices** — the error
+   message's own advice is correct, and running `claude` once in the checkout sets what is needed.
+
+   > An earlier draft of this section claimed onboarding was *the* discriminator and the trust flag
+   > was not. That was inferred from three config snapshots by picking the variable that correlated,
+   > without testing the counterfactual — `ailang-world` licensed *"trust=false can work"*, never
+   > *"trust=true alone cannot"*. Kept as a caution: with N=3 configs and no counterfactual, a
+   > correlation is not a mechanism.
+
+   Separately, `hasCompletedProjectOnboarding` **is** load-bearing for the #558 launchd-driver pin —
+   see PR #667, which gates the pin root on it after finding the pin would otherwise walk every fire
+   into this same probe-hang.
+
+   **This bites only missions whose `MISSION_WORKDIR` is a NEW checkout.** A mission anchored on an
+   already-used working tree (V1) never sees it, which is why four prior mission bootstraps did not
+   surface it.
+
+   > **SETTLED 2026-09-26 — the hang no longer happens; one side effect remains.** Run from an
+   > authenticated host shell in a brand-new clone (`ailang-fleet`, no `~/.claude.json` entry at all):
+   > `claude -p 'reply with exactly: ok'` returned `ok`, rc=0, well within 90s. So the trust dialog
+   > IS skipped under `-p` and the step is **not required** to avoid a hang. What an untrusted
+   > workspace still does, printed on stderr: *"Ignoring 66 permissions.allow entries from
+   > .claude/settings.json: this workspace has not been trusted."* The mission controller runs with
+   > `--permission-mode bypassPermissions`, so the ignored allowlist does not affect it. Opening
+   > Claude Code once in the checkout is still worthwhile for parity (project settings apply), but
+   > it is no longer a precondition. The `pin-root.sh` onboarding gate checks the *driver's* clone
+   > (the onboarded main checkout), not the mission workdir, so it is unaffected either way.
+   >
+   > **⚠ This step may now be obsolete — settle it before paying for it (open, 2026-08-28).**
+   > `claude --help` (v2.1.228) states, under `-p/--print`, that "the workspace trust dialog **is
+   > skipped** when Claude is run in non-interactive mode (via `-p`, or when stdout is not a TTY)".
+   > `claude -p` is exactly how the driver invokes the controller. If that holds, the whole
+   > interactive step above is unnecessary and `pin-root.sh`'s onboarding gate refuses valid targets
+   > for nothing — which costs staleness on every fire, permanently.
+   >
+   > This has **not** been verified, and the failed attempt is worth recording because it is a
+   > standing trap: a probe run from a tooling shell returned `Not logged in · Please run /login`,
+   > and **its control from a known-trusted directory failed identically** — so that instrument
+   > could not discriminate trust at all. An environment without claude auth cannot answer this
+   > question, and a probe that fails for the wrong reason looks exactly like a probe that failed
+   > for the right one.
+   >
+   > **The experiment that would settle it** — run from a shell that HAS working claude auth (an
+   > interactive login shell on the host), in a git repo with no `~/.claude.json` entry:
+   >
+   > ```bash
+   > mkdir -p /tmp/trust-probe && cd /tmp/trust-probe && git init -q . && claude -p 'reply with exactly: ok'
+   > ```
+   >
+   > An `ok` means the dialog is skipped under `-p`, the step is dead, and the gate in
+   > `tools/launchd/lib/pin-root.sh` should be relaxed. A hang to timeout means the step stands.
+   > Do not relax the gate on the strength of the help string alone: staleness is the strictly
+   > smaller harm than a dead loop, which is the reasoning the gate was built on.
+
+## Step 1 — Write the charter
+
+Copy the template (it lives in the AILANG checkout, at `design_docs/mission-charter-TEMPLATE.md`)
+into the target repo's `design_docs/` and fill it in:
+
+```bash
+cp <ailang-checkout>/design_docs/mission-charter-TEMPLATE.md design_docs/<name>-mission.md
+touch design_docs/<name>-mission-log.md   # the append-only log the loop writes each iteration
+```
+
+Fill every `<PLACEHOLDER>` — and update the template's `PROGRAM.md` / `v1-mission.md` header links to
+point at your own repo's equivalents (or drop them). The two load-bearing sections:
+
+- **Repo Profile** — the single source of truth the skill reads: repo slug, mission name (this
+  becomes the state namespace), bookkeeping-issue number, the CI workflow names Gate 3b polls, and
+  the **verify profile**. Pick the verify profile that matches the repo:
+  - `go-compiler` if the repo compiles a Go toolchain (build both binaries, `make test`).
+  - `ailang-code` if the repo is AILANG source — the shipped binary is the whole gate:
+    `ailang check` / `ailang test` / `ailang ai-check` (the unified check+verify; do not
+    reinvent a split gate).
+- **The bar** — the concrete, checkable clauses that define "done" for the mission. Number them;
+  queue items clause-tag against them.
+
+## Step 2 — Create the bookkeeping issue and seed state
+
+The loop reports every iteration to a GitHub issue (a human reads it by email) and rolls it weekly.
+Create it and record its number:
+
+```bash
+gh issue create --repo <owner>/<repo> \
+  --title "<Name> mission bookkeeping — week of <this Monday>" \
+  --body "Bookkeeping thread for the <name> mission loop. Comments from the directive account steer the loop."
+# then seed the state file with the issue number it returns:
+echo <NNN> > ~/.ailang/state/mission-<name>-gh-issue
+```
+
+Because the mission name is anything other than `v1`, the driver automatically namespaces **all**
+its state under `~/.ailang/state/mission-<name>-*` (pidfile, kill switch, model override, gh-issue,
+watermark). It cannot collide with the V1 loop's state — that isolation is guaranteed by the M1
+driver parameterisation, not by convention.
+
+## Step 3 — Write the env profile
+
+One file per mission, sourced by the driver when launchd sets `MISSION_PROFILE=<name>`:
+
+```bash
+# ~/.config/ailang/mission-<name>.env
+MISSION_NAME=<name>
+MISSION_REPO=<owner>/<repo>
+MISSION_DOC=design_docs/<name>-mission.md
+MISSION_WORKDIR=/absolute/path/to/the/repo/checkout
+# Optional per-mission routing overrides (spread quota across providers):
+# MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol   # a non-Anthropic executor from day one
+```
+
+New missions default their executor to a **non-Anthropic lane** where possible, so a second
+concurrent loop does not double the Anthropic burn. The evaluator must differ in provider from the
+executor (generator ≠ judge) — the skill enforces this.
+
+## Step 3.5 — Make the shared skills visible to the new checkout
+
+The mission skills live in the AILANG checkout (`.claude/skills/…`) — one copy, never forked.
+A session working in *your* repo finds them via **user-level symlinks** (edits made through them
+land in the single shared file, so every mission inherits every retro improvement):
+
+```bash
+mkdir -p ~/.claude/skills
+for s in mission-control design-doc-creator sprint-planner sprint-executor sprint-evaluator agent-inbox use-ailang; do
+  ln -s <ailang-checkout>/.claude/skills/$s ~/.claude/skills/$s
+done
+```
+
+Do NOT copy the skill files into your repo — a copy is a fork, and forks stop learning.
+
+## Step 3.6 — Register the mission (no driver copy)
+
+**Superseded 2026-09-06 (the de-fork).** Missions no longer carry their own copy of the driver.
+Every mission runs the ONE driver in `sunholo-data/ailang`, re-executed from the committed
+`origin/dev` pin (`tools/launchd/lib/pin-root.sh`), and points it at its own checkout through
+`MISSION_WORKDIR`. A copied driver is the fork that made World miss every fleet fix for weeks.
+
+What a mission needs instead is a registry entry, `missions/<name>.toml`, in the ailang repo:
+
+```toml
+name    = "<name>"
+repo    = "<owner>/<repo>"
+workdir = "/absolute/path/to/the/checkout"
+doc     = "design_docs/<name>-mission.md"
+
+[schedule]
+mode             = "interval"      # or "keepalive" with throttle_seconds
+interval_seconds = 21600
+boot_offset      = <next free 420s slot>   # also add an arm to _mc_boot_offset in the driver
+```
+
+Also commit the reviewable env copy at `tools/launchd/mission-env/mission-<name>.env` and keep it
+byte-identical to `~/.config/ailang/mission-<name>.env` (the mission-loop-change skill's Gate 0).
+Worked example: the fleet mission, 2026-09-26 (`missions/fleet.toml`).
+
+## Step 4 — Install the launchd job
+
+**Set the kill switch FIRST.** Plists carry `RunAtLoad=true` (so reboots can never silently kill
+the cadence), which means loading one **fires an iteration immediately**. Without the switch, that
+first fire runs unattended against a not-yet-ratified charter, spending real tokens.
+
+```bash
+touch ~/.ailang/state/mission-<name>.disabled   # armed-but-silent: every fire exits at the kill switch
+ailang mission install <name>                    # RENDERS the env + plist to staged files; touches nothing that runs
+diff <printed target> <printed staged>           # review both diffs it prints
+ailang mission apply <name>                      # puts them in place and (re)loads the job; --no-reload to skip loading
+ailang mission doctor                            # reports drift between registry, plist and env
+```
+
+**Run these from the MAIN ailang checkout**, never from a worktree: the plist's driver path is
+resolved from where the registry is read (`ailang mission list` shows it in the DRIVER column), and a
+worktree path dies with the worktree.
+
+The switch comes off in Step 6, deliberately — never as a side effect.
+
+## Step 5 — Dry-run acceptance (no tokens spent)
+
+Before the first real fire, prove the wiring in isolation. `MISSION_DRY_RUN=1` runs the driver's
+setup — profile sourcing, path namespacing, model resolution — and exits **before** spending a
+single token:
+
+```bash
+MISSION_PROFILE=<name> MISSION_DRY_RUN=1 tools/launchd/mission-control.sh
+```
+
+It logs one line: `DRY RUN ok: mission=<name> repo-slug=<owner>/<repo> doc=… pidfile=… roles: …`.
+Confirm the mission name, repo slug, doc path, and — critically — that the **pidfile path contains
+your mission name** (`mission-<name>.pid`, not `mission-control.pid`). That distinct pidfile is the
+proof the new loop cannot disturb the V1 loop. Run the V1 dry-run alongside it and check the two
+pidfiles differ.
+
+## Step 6 — Iteration 0: ratify the charter
+
+Lift the kill switch and fire the first iteration while the human is present:
+
+```bash
+rm ~/.ailang/state/mission-<name>.disabled
+launchctl kickstart gui/$UID/dev.ailang.mission-<name>
+```
+
+The first *real* iteration is not a sprint — it ratifies the charter itself. Run one iteration
+attended, with the human, and put the bar, queue, and guardrails through the design quorum
+(`ailang design-quorum`). Only once the bar is agreed does the loop start picking backlog items.
+From then on it is autonomous: every subsequent fire is one gate-walk of the inner loop, reported to
+your bookkeeping issue.
+
+**How the human's answers get recorded.** The loop asks through a `DECISIONS FOR MARK` section on
+the bookkeeping issue, generated from the OPEN rows of the charter's decision ledger (see the
+template's `## Decision ledger`). The human answers through either of two channels of **equal rank**:
+
+- **Remotely:** comment on the bookkeeping issue from the allowlisted account.
+- **In an attended session:** the session writes the ruling straight into the ledger. This is the
+  fast path for iteration-0 ratification, which usually happens with the human at the terminal:
+
+  ```bash
+  # from the mission's repo (a separate worktree if the loop is mid-iteration), one line per ruling:
+  <ailang-checkout>/scripts/mission_answer.sh --id D-1 \
+      --answer "RATIFIED as drafted (…ruling…)" --file design_docs/<name>-mission.md --commit
+  <ailang-checkout>/scripts/mission_decisions.sh --check --file design_docs/<name>-mission.md
+  git push
+  ```
+
+An agent in an attended session **must** record a ruling the human states this way; it must not
+send them back to the issue because its git identity is the fleet bot. Only the unattended loop is
+barred from resolving rows on its own behalf (`mission-control` skill, gate 0, "ATTENDED LEDGER
+EDITS").
+
+## Step 7 — Wire the cross-mission channel (and test it)
+
+Missions on the same machine share one message bus (`ailang messages` — a rig-level store, not
+per-repo), which gives every loop an **upstream lane** to its siblings: defect reports, language-gap
+requests, corroborations. Conventions, learned from the first live use (Ailang World → AILANG v1,
+2026-07-23, received→verified→fixed→acknowledged in under an hour):
+
+- **Send to `controlplane`** (the inbox every loop's Gate-0 triages) and identify as your mission:
+  ```bash
+  ailang messages send controlplane "<summary + repro + issue link>" \
+    --title "<what and where>" --from "mission-<name>"
+  ```
+- **Attach a repro.** The receiving loop applies its ghost discipline (live-repro your claim at its
+  HEAD) before anything enters its queue — a claim without a repro is a rumor.
+- **What your message can and cannot do** (the cross-mission contract, enforced by the shared
+  skill): it **never sets the sibling's priorities** — only their human and genuine regressions
+  outrank their queue. A verified language-gap request enters their queue as a normal item tagged
+  `[<your-mission>-DEMAND]` — and note that a real downstream consumer is the *strongest* demand
+  evidence there is. Soundness bugs and crashes you actually hit triage like regressions on their
+  side — those can outrank.
+- **Expect an acknowledgment** on YOUR bookkeeping issue with the triage verdict (queued / fixed /
+  refuted-with-evidence), so your loop can plan around it.
+- **Respect ownership**: report defects in *shared* machinery (the skill, the driver, the manual)
+  upstream — never edit another mission's files or the shared skill from your loop.
+
+**Smoke-test the channel as part of bootstrap**: send one test message from the new mission and
+confirm the sibling's next triage sees it. Delivery is unconditional (same store), so this is
+really testing your `--from` naming and their triage classification.
+
+## What ports for free, and what does not
+
+**Ports unchanged** (already repo-agnostic): the directive-author allowlist, quorum-at-pick, the
+billing tripwire, the pidfile/overlap guard, the designer-model rotation, weekly issue rotation, and
+the entire fleet of exec lanes — they all live in the shared skill and the `ailang` binary.
+
+**Does not port automatically**: the machine-level setup (Steps in Prerequisites) is per-machine, not
+per-mission — do it once. And the charter's *content* (bar, queue, guardrails) is yours to write;
+the template gives you the format, iteration 0 gives you the agreement.

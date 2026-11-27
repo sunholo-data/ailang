@@ -2,7 +2,9 @@
 sidebar_position: 22
 title: Cloud Messaging Integration
 description: How to send messages to AILANG agents and receive results — REST API, Firestore, and Pub/Sub integration options
-reviewBy: 2027-02-08
+tier: experimental
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Cloud Messaging Integration Guide
@@ -13,44 +15,14 @@ How to send messages to AILANG agents and receive results from an external clien
 
 The coordinator runs on Cloud Run and exposes a REST API for message ingestion. Clients send a single HTTP POST — the coordinator handles storage (Firestore) and notification (Pub/Sub) internally.
 
-```
-Your Client
-  │
-  POST /api/messages { inbox, title, content, from }
-  │
-  ▼
-Cloud Coordinator (Cloud Run)
-  │
-  ├── 1. Stores message in Firestore (durable)
-  ├── 2. Publishes Pub/Sub notification (trigger)
-  ├── 3. Routes to agent based on inbox
-  ├── 4. Dispatches Cloud Run Job
-  │       env: AILANG_GIT_MODE, AILANG_PUSH_BRANCH, AILANG_TASK_ID
-  │
-  ▼
-Agent executes task (git guardrails enforced by PreToolUse hook)
-  │
-  ├── 5a. Streams progress events to Pub/Sub (text, tool_use, tool_result, error)
-  ├── 5b. Pushes changes to git (branch or direct to main for skip_approval agents)
-  ├── 6. Publishes TaskCompletion to Pub/Sub
-  │
-  ▼
-Dashboard (Cloud Run) subscribes to ailang-events-dashboard
-  │
-  ├── PubSubEventSubscriber pulls events → BroadcastTaskEvent() to WebSocket clients
-  │
-  ▼
-Coordinator receives completion (ailang-completions topic)
-  │
-  ├── 7. Updates task status (completed/failed/pending_approval)
-  ├── 8. Posts completion message to agent inbox (with correlation_id)
-  │
-  ▼
-Your Client
-  ← GET /api/messages + filter by correlation_id (polling, recommended for completion)
-  ← OR Dashboard WebSocket /ws (real-time streaming of all events)
-  ← OR Firestore onSnapshot (real-time completion)
-  ← OR Pub/Sub pull subscription (backend services)
+```mermaid
+flowchart TD
+    C["Your Client"] -->|"POST /api/messages (inbox, title, content, from)"| CO["Cloud Coordinator (Cloud Run)<br/>1. Store in Firestore, 2. Publish Pub/Sub<br/>3. Route to inbox, 4. Dispatch Cloud Run Job"]
+    CO -->|"AILANG_GIT_MODE, AILANG_PUSH_BRANCH, AILANG_TASK_ID"| AG["Agent Executor<br/>Git guardrails via PreToolUse hook<br/>Streams events & pushes git branch"]
+    AG -->|"ailang-events Pub/Sub"| DB["Dashboard (Cloud Run)<br/>BroadcastTaskEvent() -> WebSocket /ws"]
+    AG -->|"ailang-completions Pub/Sub"| CO2["Coordinator Completion<br/>Updates task status & posts to inbox"]
+    CO2 -->|"GET /api/messages (correlation_id) / Firestore / Pub/Sub"| C
+    DB -.->|"WSS /ws live stream"| C
 ```
 
 **Key principle**: One HTTP call to send a message. The coordinator handles Firestore storage and Pub/Sub notification atomically.
@@ -141,13 +113,12 @@ curl -X POST "${COORDINATOR_URL}/api/messages" \
   }'
 ```
 
-#### Example: Python
+<details>
+<summary>REST API examples: Python, Node.js, Go</summary>
 
 ```python
+# Python
 import requests
-
-COORDINATOR_URL = "https://your-coordinator.run.app"
-API_KEY = "your-api-key"
 
 resp = requests.post(
     f"{COORDINATOR_URL}/api/messages",
@@ -155,7 +126,7 @@ resp = requests.post(
     json={
         "inbox": "design-doc-creator",
         "title": "Feature: Semantic Caching",
-        "content": "Design and implement semantic caching with TTL...",
+        "content": "Design and implement semantic caching with TTL support...",
         "from": "my-python-app",
         "category": "feature",
     },
@@ -164,50 +135,42 @@ resp.raise_for_status()
 print(f"Created: {resp.json()['message_id']}")
 ```
 
-#### Example: Node.js
-
 ```javascript
+// Node.js
 const resp = await fetch(`${COORDINATOR_URL}/api/messages`, {
   method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${API_KEY}`,
-  },
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
   body: JSON.stringify({
     inbox: "design-doc-creator",
     title: "Feature: Semantic Caching",
-    content: "Design and implement semantic caching with TTL...",
+    content: "Design and implement semantic caching with TTL support...",
     from: "my-node-app",
     category: "feature",
   }),
 });
 const { message_id } = await resp.json();
-console.log(`Created: ${message_id}`);
 ```
 
-#### Example: Go
-
 ```go
+// Go
 body, _ := json.Marshal(map[string]string{
-    "inbox":   "design-doc-creator",
-    "title":   "Feature: Semantic Caching",
-    "content": "Design and implement semantic caching with TTL...",
-    "from":    "my-go-app",
-    "category": "feature",
+    "inbox": "design-doc-creator", "title": "Feature: Semantic Caching",
+    "content": "Design and implement semantic caching with TTL support...",
+    "from": "my-go-app", "category": "feature",
 })
-
 req, _ := http.NewRequest("POST", coordinatorURL+"/api/messages", bytes.NewReader(body))
 req.Header.Set("Content-Type", "application/json")
 req.Header.Set("Authorization", "Bearer "+apiKey)
-
 resp, err := http.DefaultClient.Do(req)
 ```
+
+</details>
 
 ### Per-request API keys (retired)
 
 Until 2026-11-10 a client could put its own Anthropic key in `anthropic_api_key`
 and have the task run on a separate `agent-executor-apikey` Cloud Run job, billed
-to that key (M-CLOUD-DUAL-AUTH, v0.9.2). That lane never ran a task in production
+to that key (`M-CLOUD-DUAL-AUTH`). That lane never ran a task in production
 and has been removed. A `POST /api/messages` that still carries `anthropic_api_key`
 is refused with `400 Bad Request`, and nothing is stored:
 
@@ -293,189 +256,84 @@ Publish a **lightweight notification** to the `ailang-messages` topic. The notif
 
 **Ordering key**: Set to the `inbox` value. This ensures messages to the same agent are delivered in order.
 
-#### Example: Python Client
+<details>
+<summary>Direct Firestore + Pub/Sub examples: Python, Node.js, Go, curl</summary>
 
 ```python
+# Python (google-cloud-firestore + google-cloud-pubsub)
 from google.cloud import pubsub_v1, firestore
-import json
-import uuid
+import json, uuid
 from datetime import datetime, timezone
 
-PROJECT_ID = "your-gcp-project"
-TOPIC_PREFIX = "ailang"
-
-# Step 1: Store in Firestore
 db = firestore.Client(project=PROJECT_ID)
 message_id = str(uuid.uuid4())
-
 db.collection("messages").document(message_id).set({
-    "message_id": message_id,
-    "from_agent": "my-python-app",
-    "to_inbox": "design-doc-creator",
-    "message_type": "request",
+    "message_id": message_id, "from_agent": "my-python-app",
+    "to_inbox": "design-doc-creator", "message_type": "request",
     "title": "Create design doc for caching",
     "payload": "We need semantic caching with TTL support...",
-    "category": "feature",
-    "status": "unread",
+    "category": "feature", "status": "unread",
     "created_at": datetime.now(timezone.utc).isoformat(),
 })
 
-# Step 2: Publish notification
 publisher = pubsub_v1.PublisherClient()
 topic_path = publisher.topic_path(PROJECT_ID, f"{TOPIC_PREFIX}-messages")
-
-future = publisher.publish(
-    topic_path,
-    data=json.dumps({"message_id": message_id}).encode("utf-8"),
-    inbox="design-doc-creator",
-    from_agent="my-python-app",
-    workspace="sunholo-data/ailang",
-    category="feature",
-    message_type="request",
-    ordering_key="design-doc-creator",
-)
-print(f"Published: {future.result()}")
+publisher.publish(
+    topic_path, data=json.dumps({"message_id": message_id}).encode("utf-8"),
+    inbox="design-doc-creator", from_agent="my-python-app",
+    workspace="sunholo-data/ailang", category="feature",
+    message_type="request", ordering_key="design-doc-creator",
+).result()
 ```
 
-#### Example: Node.js Client
-
 ```javascript
+// Node.js (@google-cloud/firestore + @google-cloud/pubsub)
 const { PubSub } = require("@google-cloud/pubsub");
 const { Firestore } = require("@google-cloud/firestore");
 const { v4: uuidv4 } = require("uuid");
 
-const PROJECT_ID = "your-gcp-project";
-const TOPIC_PREFIX = "ailang";
-
-async function sendMessage(inbox, title, content, category = "general") {
-  const db = new Firestore({ projectId: PROJECT_ID });
-  const pubsub = new PubSub({ projectId: PROJECT_ID });
-
-  const messageId = uuidv4();
-
-  // Step 1: Store in Firestore
-  await db.collection("messages").doc(messageId).set({
-    message_id: messageId,
-    from_agent: "my-node-app",
-    to_inbox: inbox,
-    message_type: "request",
-    title: title,
-    payload: content,
-    category: category,
-    status: "unread",
-    created_at: new Date().toISOString(),
-  });
-
-  // Step 2: Publish notification
-  const topic = pubsub.topic(`${TOPIC_PREFIX}-messages`, {
-    enableMessageOrdering: true,
-  });
-
-  await topic.publishMessage({
+const messageId = uuidv4();
+await new Firestore({ projectId: PROJECT_ID }).collection("messages").doc(messageId).set({
+  message_id: messageId, from_agent: "my-node-app", to_inbox: inbox,
+  message_type: "request", title, payload: content, category,
+  status: "unread", created_at: new Date().toISOString(),
+});
+await new PubSub({ projectId: PROJECT_ID }).topic(`${TOPIC_PREFIX}-messages`, { enableMessageOrdering: true })
+  .publishMessage({
     data: Buffer.from(JSON.stringify({ message_id: messageId })),
-    attributes: {
-      inbox: inbox,
-      from_agent: "my-node-app",
-      workspace: "sunholo-data/ailang",
-      category: category,
-      message_type: "request",
-    },
+    attributes: { inbox, from_agent: "my-node-app", workspace: "sunholo-data/ailang", category, message_type: "request" },
     orderingKey: inbox,
   });
-
-  return messageId;
-}
 ```
-
-#### Example: Go Client
 
 ```go
-package main
-
-import (
-    "context"
-    "encoding/json"
-    "fmt"
-
-    "cloud.google.com/go/firestore"
-    "cloud.google.com/go/pubsub"
-    "github.com/google/uuid"
-)
-
-func sendMessage(ctx context.Context, inbox, title, content string) (string, error) {
-    projectID := "your-gcp-project"
-    prefix := "ailang"
-
-    // Step 1: Store in Firestore
-    fsClient, _ := firestore.NewClient(ctx, projectID)
-    defer fsClient.Close()
-
-    messageID := uuid.New().String()
-    fsClient.Collection("messages").Doc(messageID).Set(ctx, map[string]interface{}{
-        "message_id":   messageID,
-        "from_agent":   "my-go-app",
-        "to_inbox":     inbox,
-        "message_type": "request",
-        "title":        title,
-        "payload":      content,
-        "category":     "feature",
-        "status":       "unread",
-        "created_at":   time.Now().UTC().Format(time.RFC3339),
-    })
-
-    // Step 2: Publish notification
-    psClient, _ := pubsub.NewClient(ctx, projectID)
-    defer psClient.Close()
-
-    topic := psClient.Topic(fmt.Sprintf("%s-messages", prefix))
-    topic.EnableMessageOrdering = true
-
-    data, _ := json.Marshal(map[string]string{"message_id": messageID})
-    result := topic.Publish(ctx, &pubsub.Message{
-        Data: data,
-        Attributes: map[string]string{
-            "inbox":        inbox,
-            "from_agent":   "my-go-app",
-            "workspace":    "sunholo-data/ailang",
-            "category":     "feature",
-            "message_type": "request",
-        },
-        OrderingKey: inbox,
-    })
-
-    serverID, err := result.Get(ctx)
-    return serverID, err
-}
+// Go (cloud.google.com/go/{firestore,pubsub})
+messageID := uuid.New().String()
+fsClient.Collection("messages").Doc(messageID).Set(ctx, map[string]interface{}{
+    "message_id": messageID, "from_agent": "my-go-app", "to_inbox": inbox,
+    "message_type": "request", "title": title, "payload": content,
+    "category": "feature", "status": "unread", "created_at": time.Now().UTC().Format(time.RFC3339),
+})
+topic := psClient.Topic(fmt.Sprintf("%s-messages", prefix))
+topic.EnableMessageOrdering = true
+data, _ := json.Marshal(map[string]string{"message_id": messageID})
+_, err := topic.Publish(ctx, &pubsub.Message{
+    Data: data,
+    Attributes: map[string]string{"inbox": inbox, "from_agent": "my-go-app", "workspace": "sunholo-data/ailang", "category": "feature", "message_type": "request"},
+    OrderingKey: inbox,
+}).Get(ctx)
 ```
-
-#### Example: curl (REST API)
 
 ```bash
-# Get access token
+# curl (Pub/Sub notification — store in Firestore separately)
 TOKEN=$(gcloud auth print-access-token)
-PROJECT_ID="your-gcp-project"
-
-# Publish to Pub/Sub (notification only — store in Firestore separately)
-# Data must be base64-encoded
 DATA=$(echo -n '{"message_id":"550e8400-e29b-41d4-a716-446655440000"}' | base64)
-
-curl -X POST \
-  "https://pubsub.googleapis.com/v1/projects/${PROJECT_ID}/topics/ailang-messages:publish" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"messages\": [{
-      \"data\": \"${DATA}\",
-      \"attributes\": {
-        \"inbox\": \"coordinator\",
-        \"from_agent\": \"curl-client\",
-        \"workspace\": \"sunholo-data/ailang\",
-        \"category\": \"bug\"
-      },
-      \"orderingKey\": \"coordinator\"
-    }]
-  }"
+curl -X POST "https://pubsub.googleapis.com/v1/projects/${PROJECT_ID}/topics/ailang-messages:publish" \
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+  -d "{\"messages\": [{\"data\": \"${DATA}\", \"attributes\": {\"inbox\": \"coordinator\", \"from_agent\": \"curl-client\", \"workspace\": \"sunholo-data/ailang\", \"category\": \"bug\"}, \"orderingKey\": \"coordinator\"}]}"
 ```
+
+</details>
 
 ## Receiving Results
 
@@ -538,95 +396,57 @@ curl -s "${COORDINATOR_URL}/api/messages?from=design-doc-creator" \
   -H "Authorization: Bearer ${API_KEY}" | jq .
 ```
 
-#### Python
+<details>
+<summary>REST API polling examples: Python, Node.js, Go</summary>
 
 ```python
-import requests
-import time
-
-COORDINATOR_URL = "https://your-coordinator.run.app"
-API_KEY = "your-api-key"
-HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+# Python
+import requests, time
 
 def poll_messages(inbox, interval=10):
-    """Poll for new messages with backoff."""
+    headers = {"Authorization": f"Bearer {API_KEY}"}
     while True:
-        resp = requests.get(
-            f"{COORDINATOR_URL}/api/messages",
-            params={"inbox": inbox, "status": "unread"},
-            headers=HEADERS,
-        )
+        resp = requests.get(f"{COORDINATOR_URL}/api/messages", params={"inbox": inbox, "status": "unread"}, headers=headers)
         resp.raise_for_status()
-        data = resp.json()
-
-        for msg in data["messages"]:
-            print(f"[{msg['from_agent']}] {msg['title']}")
-            print(f"  {msg['payload'][:200]}...")
-            # Process the message...
-
+        for msg in resp.json()["messages"]:
+            print(f"[{msg['from_agent']}] {msg['title']}: {msg['payload'][:200]}...")
         time.sleep(interval)
-
-poll_messages("my-client")
 ```
 
-#### Node.js
-
 ```javascript
-const COORDINATOR_URL = "https://your-coordinator.run.app";
-const API_KEY = "your-api-key";
-
+// Node.js
 async function pollMessages(inbox, intervalMs = 10000) {
   while (true) {
-    const resp = await fetch(
-      `${COORDINATOR_URL}/api/messages?inbox=${inbox}&status=unread`,
-      { headers: { Authorization: `Bearer ${API_KEY}` } }
-    );
-    const data = await resp.json();
-
-    for (const msg of data.messages) {
+    const resp = await fetch(`${COORDINATOR_URL}/api/messages?inbox=${inbox}&status=unread`, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+    });
+    for (const msg of (await resp.json()).messages) {
       console.log(`[${msg.from_agent}] ${msg.title}`);
-      // Process the message...
     }
-
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 }
-
-pollMessages("my-client");
 ```
 
-#### Go
-
 ```go
-func pollMessages(coordinatorURL, apiKey, inbox string) error {
+// Go
+func pollMessages(coordinatorURL, apiKey, inbox string) {
     client := &http.Client{Timeout: 10 * time.Second}
     for {
-        req, _ := http.NewRequest("GET",
-            fmt.Sprintf("%s/api/messages?inbox=%s&status=unread", coordinatorURL, inbox), nil)
+        req, _ := http.NewRequest("GET", fmt.Sprintf("%s/api/messages?inbox=%s&status=unread", coordinatorURL, inbox), nil)
         req.Header.Set("Authorization", "Bearer "+apiKey)
-
-        resp, err := client.Do(req)
-        if err != nil {
-            log.Printf("poll error: %v", err)
-            time.Sleep(10 * time.Second)
-            continue
+        if resp, err := client.Do(req); err == nil {
+            var res struct{ Messages []map[string]interface{} `json:"messages"` }
+            json.NewDecoder(resp.Body).Decode(&res)
+            resp.Body.Close()
+            for _, m := range res.Messages { fmt.Printf("[%s] %s\n", m["from_agent"], m["title"]) }
         }
-
-        var result struct {
-            Messages []map[string]interface{} `json:"messages"`
-            Count    int                      `json:"count"`
-        }
-        json.NewDecoder(resp.Body).Decode(&result)
-        resp.Body.Close()
-
-        for _, msg := range result.Messages {
-            fmt.Printf("[%s] %s\n", msg["from_agent"], msg["title"])
-        }
-
         time.Sleep(10 * time.Second)
     }
 }
 ```
+
+</details>
 
 ### Option 2: Firestore onSnapshot (Real-Time, Web/Mobile)
 
@@ -769,32 +589,12 @@ The AILANG Dashboard provides a WebSocket endpoint for real-time task streaming 
 
 **Full streaming chain**:
 
-```
-Cloud Run Job (agent executor)
-  │
-  cloudEventHandler receives executor callbacks:
-  │  OnText()       → rate-limited 1 per 500ms
-  │  OnToolUse()    → tool name + summary
-  │  OnToolResult() → tool output (truncated to 2000 chars)
-  │  OnError()      → error message
-  │  OnMetrics()    → final status with tokens/cost
-  │
-  ▼
-PubSubBroadcaster.Broadcast()
-  │  Serializes TaskStreamEvent → publishes to ailang-events topic
-  │  Attributes: event_type, task_id, workspace
-  │
-  ▼
-Dashboard (PubSubEventSubscriber)
-  │  Pulls from ailang-events-dashboard subscription
-  │  Deserializes → wsServer.BroadcastTaskEvent()
-  │
-  ▼
-WebSocket /ws endpoint
-  │  Broadcasts to all connected clients
-  │
-  ▼
-Your Client (browser, portal, CLI)
+```mermaid
+flowchart TD
+    Job["Cloud Run Job (agent executor)<br/>OnText (1/500ms), OnToolUse, OnToolResult, OnError, OnMetrics"] --> PS["PubSubBroadcaster.Broadcast()<br/>Publishes TaskStreamEvent to ailang-events"]
+    PS --> Sub["Dashboard (PubSubEventSubscriber)<br/>Pulls ailang-events-dashboard -> BroadcastTaskEvent()"]
+    Sub --> WS["WebSocket /ws endpoint"]
+    WS --> Client["Your Client (browser, portal, CLI)"]
 ```
 
 **Authentication**: When `COORDINATOR_API_KEY` is set (cloud deployments), external WebSocket clients must connect with `?token=API_KEY` query parameter. The same API key used for `POST /api/messages` works for WebSocket. The embedded dashboard UI (same-origin) connects without a token. In local mode (no key configured), all connections are open.
@@ -817,119 +617,61 @@ The task_id will be `task-29404032`. Your client can derive this immediately —
 
 #### End-to-End Flow
 
-```
-Portal/Client                  Coordinator              Dashboard
-  │                               │                        │
-  POST /api/messages ───────────► │                        │
-  │                               │                        │
-  ◄── { message_id: "2940..." }   │                        │
-  │                               │                        │
-  │  task_id = "task-" +          │ processes message      │
-  │    message_id[:8]             │ creates task-29404032  │
-  │  = "task-29404032"            │ dispatches to agent    │
-  │                               │                        │
-  ws://dashboard/ws ──────────────────────────────────────► │
-  │  filter by task_id            │                        │
-  │                               │  agent executes...     │
-  │◄── task_stream: text ─────────────────────────────────  │
-  │◄── task_stream: tool_use ─────────────────────────────  │
-  │◄── task_stream: status=completed ─────────────────────  │
-  │                               │                        │
-  │  Task complete — agent has pushed to GitHub             │
-  │  Load preview / fetch results                          │
+```mermaid
+sequenceDiagram
+    participant Cl as "Portal/Client"
+    participant Co as "Coordinator"
+    participant Db as "Dashboard"
+
+    Cl->>Co: "POST /api/messages"
+    Co-->>Cl: "{ message_id: '2940...' }"
+    Note over Cl,Co: "task_id = 'task-' + message_id[:8] = 'task-29404032'"
+    Cl->>Db: "ws://dashboard/ws (filter by task_id)"
+    Co->>Co: "processes message, creates & dispatches task-29404032"
+    Db-->>Cl: "task_stream: text"
+    Db-->>Cl: "task_stream: tool_use"
+    Db-->>Cl: "task_stream: status=completed"
+    Note over Cl: "Agent pushed to GitHub -> load preview / fetch results"
 ```
 
 **Timing note**: There is a brief delay between the `POST /api/messages` response and the first task_stream event (the coordinator needs to process the message and dispatch the task). Show a "Queued" state in your UI until the first `status: "running"` event arrives.
 
-#### JavaScript Example (Full Flow)
+<details>
+<summary>WebSocket live streaming examples: JavaScript & Python</summary>
 
 ```javascript
-const COORDINATOR_URL = "https://your-coordinator.run.app";
-const DASHBOARD_URL = "wss://your-dashboard.run.app/ws";
-const API_KEY = "your-api-key";
-
-// 1. Send message and derive task_id
+// JavaScript
 async function submitBuild(inbox, title, content) {
   const response = await fetch(`${COORDINATOR_URL}/api/messages`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
     body: JSON.stringify({ inbox, title, content, from: "portal" }),
   });
-
   const { message_id } = await response.json();
-  const task_id = `task-${message_id.substring(0, 8)}`;
-
-  return { message_id, task_id };
+  return { message_id, task_id: `task-${message_id.substring(0, 8)}` };
 }
 
-// 2. Connect to WebSocket and filter by task_id
 function watchTask(task_id, callbacks) {
   const ws = new WebSocket(`${DASHBOARD_URL}?token=${API_KEY}`);
-
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
-    if (msg.type !== "task_stream") return;
-    if (msg.data.task_id !== task_id) return;
-
-    const { stream_type, text, tool_name, status, agent_id } = msg.data;
-
-    switch (stream_type) {
-      case "text":
-        callbacks.onText?.(text);
-        break;
-      case "tool_use":
-        callbacks.onToolUse?.(tool_name, msg.data.tool_input);
-        break;
-      case "tool_result":
-        callbacks.onToolResult?.(tool_name, msg.data.tool_output);
-        break;
-      case "status":
-        callbacks.onStatus?.(status);
-        if (status === "completed" || status === "failed") {
-          ws.close();
-        }
-        break;
-      case "error":
-        callbacks.onError?.(msg.data.error_msg);
-        break;
-    }
+    if (msg.type !== "task_stream" || msg.data.task_id !== task_id) return;
+    const { stream_type, text, tool_name, status } = msg.data;
+    if (stream_type === "text") callbacks.onText?.(text);
+    else if (stream_type === "tool_use") callbacks.onToolUse?.(tool_name, msg.data.tool_input);
+    else if (stream_type === "tool_result") callbacks.onToolResult?.(tool_name, msg.data.tool_output);
+    else if (stream_type === "status") { callbacks.onStatus?.(status); if (status === "completed" || status === "failed") ws.close(); }
+    else if (stream_type === "error") callbacks.onError?.(msg.data.error_msg);
   };
-
   return ws;
 }
-
-// 3. Usage
-const { task_id } = await submitBuild(
-  "sprint-executor",
-  "Build landing page",
-  "Create a responsive landing page with hero section..."
-);
-
-watchTask(task_id, {
-  onText: (text) => appendToLog(text),
-  onToolUse: (tool) => showStep(`Running: ${tool}`),
-  onStatus: (status) => updateBuildStatus(status),
-  onError: (err) => showError(err),
-});
 ```
 
-#### Python Example (Full Flow)
-
 ```python
-import asyncio
-import json
-import httpx
-import websockets
-
-COORDINATOR_URL = "https://your-coordinator.run.app"
-DASHBOARD_URL = "wss://your-dashboard.run.app/ws"
-API_KEY = "your-api-key"
+# Python
+import asyncio, json, httpx, websockets
 
 async def submit_and_watch(inbox: str, title: str, content: str):
-    # 1. Send message
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{COORDINATOR_URL}/api/messages",
@@ -937,37 +679,18 @@ async def submit_and_watch(inbox: str, title: str, content: str):
             headers={"Authorization": f"Bearer {API_KEY}"},
         )
         message_id = resp.json()["message_id"]
-
-    # 2. Derive task_id
     task_id = f"task-{message_id[:8]}"
-    print(f"Submitted: message_id={message_id}, task_id={task_id}")
-
-    # 3. Watch WebSocket for events (token required for external clients)
     async with websockets.connect(f"{DASHBOARD_URL}?token={API_KEY}") as ws:
         async for raw in ws:
             msg = json.loads(raw)
-            if msg.get("type") != "task_stream":
+            if msg.get("type") != "task_stream" or msg["data"].get("task_id") != task_id:
                 continue
-            data = msg["data"]
-            if data.get("task_id") != task_id:
-                continue
-
-            stream_type = data.get("stream_type")
-            if stream_type == "text":
-                print(data.get("text", ""), end="")
-            elif stream_type == "tool_use":
-                print(f"\n[Tool] {data.get('tool_name')}")
-            elif stream_type == "status":
-                print(f"\n[Status] {data.get('status')}")
-                if data.get("status") in ("completed", "failed"):
-                    break
-
-asyncio.run(submit_and_watch(
-    "sprint-executor",
-    "Build landing page",
-    "Create a responsive landing page with hero section..."
-))
+            st = msg["data"].get("stream_type")
+            if st == "text": print(msg["data"].get("text", ""), end="")
+            elif st == "status" and msg["data"].get("status") in ("completed", "failed"): break
 ```
+
+</details>
 
 #### WebSocket Message Format
 
@@ -1052,7 +775,7 @@ must watch **both** dev and prod inbox-message subscriptions in one process.
 This is an **opt-in** (`extra_message_envs: [prod]` in `daemon.yaml`, or
 `--also-subscribe prod`), off by default. Full setup, semantics, and the
 one-time `launchctl` reload are documented in
-[macOS Notification Daemon → Dual-subscribe](./notify-daemon.md#dual-subscribe-devprod-external-feedback).
+[macOS Notification Daemon → Dual-subscribe](https://github.com/sunholo-data/ailang/blob/dev/docs/internal/runbooks/notify-daemon.md#dual-subscribe-devprod-external-feedback).
 
 ### Skip-Approval Agents (Direct Push)
 
@@ -1251,48 +974,15 @@ The website-builder agent builds websites from text briefs and pushes them direc
 
 ### Architecture
 
-```
-Portal (GitHub Pages SPA)
-  │
-  ├── POST /api/build { title, content }
-  ├── WSS /api/ws (live streaming)
-  │
-  ▼
-Express Sidecar (Cloud Run)
-  │
-  ├── POST /api/messages { inbox: "website-builder", title, content, from: "sidecar" }
-  ├── WSS proxy → DASHBOARD_URL/ws?token=COORDINATOR_API_KEY
-  │
-  ▼
-Coordinator (Cloud Run)
-  │
-  ├── Creates task-{id}
-  ├── Dispatches Cloud Run Job with AILANG_PUSH_BRANCH=main
-  │
-  ▼
-Cloud Run Job (website-builder agent)
-  │
-  ├── Clones sunholo-data/sunholo-websites (branch: main)
-  ├── Runs Claude CLI to build HTML/CSS
-  ├── Streams progress → PubSubBroadcaster → ailang-events topic
-  ├── git add + commit + push to main
-  ├── Publishes TaskCompletion to ailang-completions
-  │
-  ▼                                          ▼
-Coordinator                           Dashboard
-  │                                     │
-  ├── Marks task completed              ├── PubSubEventSubscriber pulls events
-  ├── Posts completion message          ├── Broadcasts to WebSocket /ws
-  │                                     │
-  ▼                                     ▼
-Sidecar polls GET /api/messages    Sidecar proxies WSS to portal
-  │                                     │
-  ├── Finds completion                  ├── Portal shows live activity:
-  ├── Returns result to portal          │   text, tool_use, status, error
-  │                                     │
-  ▼                                     ▼
-Portal loads preview               Portal shows "Build complete"
-from GitHub Pages                  (completedViaWs fast-path)
+```mermaid
+flowchart TD
+    Portal["Portal (GitHub Pages SPA)<br/>POST /api/build & WSS /api/ws"] --> Sidecar["Express Sidecar (Cloud Run)<br/>POST /api/messages & WSS proxy"]
+    Sidecar --> Coord["Coordinator (Cloud Run)<br/>Creates task-{id}, dispatches AILANG_PUSH_BRANCH=main"]
+    Coord --> Job["Cloud Run Job (website-builder)<br/>Clones repo, runs Claude CLI, pushes to main"]
+    Job -->|"ailang-completions"| CoordDone["Coordinator marks completed & posts message"]
+    Job -->|"ailang-events"| Dash["Dashboard broadcasts to WebSocket /ws"]
+    CoordDone --> Poll["Sidecar polls GET /api/messages -> preview"]
+    Dash --> Proxy["Sidecar proxies WSS -> Build complete"]
 ```
 
 ### Sidecar Endpoints
@@ -1318,28 +1008,11 @@ The Express.js sidecar mediates between the portal and the coordinator:
 
 The sidecar proxies WebSocket connections from the portal to the dashboard, enabling real-time build progress without exposing the dashboard URL or API key to the browser.
 
-```
-Portal (BuildStep.vue)
-  │
-  wss://sidecar-url/api/ws
-  │
-  ▼
-Sidecar (Express.js on Cloud Run)
-  │
-  Upgrades connection, proxies to:
-  wss://DASHBOARD_URL/ws?token=COORDINATOR_API_KEY
-  │
-  ▼
-Dashboard (AILANG Coordinator)
-  │
-  PubSubEventSubscriber → BroadcastTaskEvent() → WebSocket broadcast
-  │
-  ▼
-Portal receives task_stream messages:
-  • text: AI reasoning output (truncated to 200 chars in UI)
-  • tool_use: tool name with friendly labels ("Writing file...")
-  • status: completed/failed → triggers final pollStatus()
-  • error: error messages
+```mermaid
+flowchart TD
+    P["Portal (BuildStep.vue)"] -->|"wss://sidecar-url/api/ws"| S["Sidecar (Express.js on Cloud Run)"]
+    S -->|"wss://DASHBOARD_URL/ws?token=COORDINATOR_API_KEY"| D["Dashboard (AILANG Coordinator)"]
+    D -->|"task_stream: text, tool_use, status, error"| P
 ```
 
 **Portal event handling** (BuildStep.vue):
@@ -1410,7 +1083,7 @@ const pollInterval = setInterval(async () => {
 
 To enable the website-builder flow:
 
-- [ ] Deploy coordinator with completion notification support (v0.9.1+)
+- [ ] Deploy coordinator with completion notification support
 - [ ] Deploy agent executor Cloud Run Job with `AILANG_PUSH_BRANCH` support
 - [ ] Upload config: `make config-upload` (adds `skip_approval: true` to website-builder)
 - [ ] Verify sidecar has `COORDINATOR_URL` and `COORDINATOR_API_KEY` env vars

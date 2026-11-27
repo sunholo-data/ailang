@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="AILANG Static Effect and Runtime Capability Gate">
+  <defs>
+    <marker id="arr-g1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2c7a7b"/>
+    </marker>
+    <marker id="arr-g2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#e73c17"/>
+    </marker>
+    <marker id="arr-g3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2b6cb0"/>
+    </marker>
+  </defs>
+
+  <rect width="880" height="360" rx="14" fill="#0f1420"/>
+  <rect x="1" y="1" width="878" height="358" rx="13" fill="none" stroke="#233044" stroke-width="1.5"/>
+
+  <text x="32" y="36" font-family="Inter, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Effect &amp; Capability Gate — Static Types Meet Runtime Authority</text>
+  <text x="32" y="55" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Every side effect must pass both compile-time effect checking and explicit runtime capability grants</text>
+
+  <!-- Left: Static Declaration -->
+  <rect x="28" y="84" width="236" height="190" rx="10" fill="#172033" stroke="#2b6cb0" stroke-width="2"/>
+  <rect x="28" y="84" width="236" height="30" rx="10" fill="#2b6cb0"/>
+  <rect x="28" y="102" width="236" height="12" fill="#2b6cb0"/>
+  <text x="146" y="104" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">Compile-Time Effect Row</text>
+  <text x="42" y="136" font-family="JetBrains Mono, monospace" font-size="11" fill="#93c5fd">func fetch() -&gt; string</text>
+  <text x="42" y="154" font-family="JetBrains Mono, monospace" font-size="11.5" font-weight="700" fill="#fde047">  ! {IO, FS, Net @limit=3}</text>
+  <line x1="42" y1="172" x2="250" y2="172" stroke="#334155" stroke-width="1"/>
+  <text x="42" y="194" font-family="Inter, sans-serif" font-size="11.5" fill="#e2e8f0">• Pure functions: ! {}</text>
+  <text x="42" y="214" font-family="Inter, sans-serif" font-size="11.5" fill="#e2e8f0">• Undeclared call → type error</text>
+  <text x="42" y="234" font-family="Inter, sans-serif" font-size="11.5" fill="#e2e8f0">• Auto-fix: ailang check --fix</text>
+  <text x="42" y="258" font-family="Inter, sans-serif" font-size="10.5" fill="#93c5fd">Static proof of max authority</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="264" y1="179" x2="314" y2="179" stroke="#2b6cb0" stroke-width="2.2" marker-end="url(#arr-g3)"/>
+
+  <!-- Middle: Runtime Gate -->
+  <rect x="322" y="84" width="256" height="190" rx="10" fill="#1a1826" stroke="#dd6b20" stroke-width="2.2"/>
+  <rect x="322" y="84" width="256" height="30" rx="10" fill="#dd6b20"/>
+  <rect x="322" y="102" width="256" height="12" fill="#dd6b20"/>
+  <text x="450" y="104" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">Runtime Capability Gate</text>
+
+  <rect x="338" y="128" width="224" height="40" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <text x="450" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#f8fafc">--caps IO,FS,Net</text>
+  <text x="450" y="161" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#94a3b8">Deny-by-default capability set</text>
+
+  <rect x="338" y="176" width="224" height="40" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <text x="450" y="193" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#fdba74">@limit=3 budget counter</text>
+  <text x="450" y="209" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#94a3b8">Semantic charging across callees</text>
+
+  <rect x="338" y="224" width="224" height="40" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <text x="450" y="241" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#c4b5fd">--policy / AILANG_FS_SANDBOX</text>
+  <text x="450" y="257" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#94a3b8">Narrow host paths &amp; HTTPS allowlist</text>
+
+  <!-- Branch Arrows 2 -> Allowed / Denied -->
+  <path d="M 578 148 L 634 148" fill="none" stroke="#2c7a7b" stroke-width="2.2" marker-end="url(#arr-g1)"/>
+  <path d="M 578 228 L 634 228" fill="none" stroke="#e73c17" stroke-width="2.2" marker-end="url(#arr-g2)"/>
+
+  <!-- Right Top: Allowed -->
+  <rect x="642" y="96" width="210" height="86" rx="10" fill="#0f292a" stroke="#2c7a7b" stroke-width="2"/>
+  <text x="658" y="121" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#5eead4">✓ Granted &amp; Within Budget</text>
+  <text x="658" y="143" font-family="Inter, sans-serif" font-size="11" fill="#cbd5e1">Executes effect handler</text>
+  <text x="658" y="162" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#99f6e4">Logs span to --emit-trace</text>
+
+  <!-- Right Bottom: Denied -->
+  <rect x="642" y="196" width="210" height="86" rx="10" fill="#2b1416" stroke="#e73c17" stroke-width="2"/>
+  <text x="658" y="221" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#fca5a5">✗ Missing Cap or Over Budget</text>
+  <text x="658" y="243" font-family="Inter, sans-serif" font-size="11" fill="#fecaca">Blocked before host syscall</text>
+  <text x="658" y="262" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#fca5a5">Structured runtime error</text>
+
+  <!-- Security Warning Footer -->
+  <rect x="28" y="298" width="824" height="40" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="440" y="322" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#e2e8f0">
+    <tspan font-weight="700" fill="#fde047">Security note:</tspan> --caps auto and [bin] shims grant all effects declared by main — run ailang inspect before running untrusted code.
+  </text>
+</svg>

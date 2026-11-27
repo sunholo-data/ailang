@@ -1,210 +1,104 @@
 ---
 sidebar_position: 7
 title: Publishing Your Package
-reviewBy: 2027-03-15
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 ---
 
 # Publishing Your Package
 
-Two tiers exist for sharing AILANG packages. Pick the one matching where you are in the lifecycle.
+Share packages locally via `{ path = "../pkg" }` in `ailang.toml` during development, or publish immutable versions to the AILANG registry with `ailang publish`.
 
-| Tier | When | Mechanism | Visible to others? |
-|---|---|---|---|
-| **1. Local development** | While editing the package | `path = "../path/to/pkg"` in host's `ailang.toml` | Only to checkouts that contain the path (the lock records it relative to `ailang.toml`) |
-| **2. Published** | When the package is stable + reusable | `ailang publish` → AILANG registry | Yes — anyone can `"<your-namespace>/<pkg>" = "0.1.0"` |
+## Publish Workflow in One Screen
 
-The motoko-extension tutorial shows Tier 1 in detail. This guide covers Tier 2.
-
----
-
-## Tier 2 in one screen
-
-```bash
-# 1. Your package directory must have a valid ailang.toml
-cd ~/dev/myorg/my-extensions/packages/myorg-ext-foo
-cat ailang.toml
-# [package]
-# name = "myorg/ext_foo"     ← namespace MUST match your authority (see below)
-# version = "0.1.0"
-# ...
-
-# 2. Store the issued key privately outside the package (macOS/Linux).
-# Provision it through your secure channel; do not put it in shell startup files.
-# The existing file must be owned by you with mode 0400 or 0600.
-
-# 3. Dry-run first to see exactly what would upload (prints the full sha256 digests)
-ailang publish --dry-run
-
-# 4. Publish for real with an explicit protected file
-ailang publish --key-file /private/path/publisher.key
-
-# 5. Anyone (you, the host project, other contributors) can now depend on it
-#    Replace your local path = "../..." with a registry version:
-#    "myorg/ext_foo" = "0.1.0"
+```mermaid
+flowchart LR
+    M["ailang.toml + CHANGELOG.md + AGENT.md"] --> Q["ailang pkg quality ."]
+    Q --> D["ailang publish --dry-run"]
+    D --> P["ailang publish --key-file publisher.key"]
+    P --> V["Validator: Check + Z3 Verify + v2 Identity"]
+    V --> R["GCS Registry + Cascade Notification"]
 ```
 
-That's the whole flow. The rest of this guide explains the prerequisites and gotchas.
-
----
-
-## What `publish` checks — the quality report (v0.40.0)
-
-`ailang publish` (and `--dry-run`) runs the same quality report the registry validator runs
-on upload, and refuses on the same `PUBnnn` codes **before** a tarball is built. You can run
-it on its own:
-
 ```bash
-ailang pkg quality .            # human summary
-ailang pkg quality --json .     # schema ailang.package-quality/v1
-ailang pkg quality --strict .   # warn-level badges become gates (exit 2)
-ailang pkg quality --no-run .   # skip executing tests and _smoke.ail (reported "not run", never a gate)
+ailang pkg quality .                       # Local + server-equivalent quality report
+ailang publish --dry-run                   # Build preview tarball & print SHA256 digests
+ailang publish --key-file /private/pub.key # Upload with mode 0400/0600 scoped key file
 ```
 
-Every section carries a **provenance**:
+## Quality Report Gates (`PUBnnn`)
 
-| Provenance | Sections | Who computes it | Can it block a publish? |
-|---|---|---|---|
-| `server` | compile · contracts (Z3) · interface identity · effects · release · docs · style | you locally **and** the validator, identically | yes — these are the registry's gates |
-| `attested` | tests · `_smoke.ail` | **only your machine** (the validator never executes package code) | locally yes; at the registry never — it is banked with `attested_by` = your key owner and shown as a badge |
+`ailang publish` and `ailang pkg quality .` run the exact checks enforced by the registry validator:
 
-Gates vs badges depend on `[stability] level`: at `experimental` only compile failures,
-refuted contracts (`PUB006`), release-description problems and identity skew block; at
-`stable`/`frozen` the badges (uncontracted exports, tests, effect ceiling) become gates too.
+| Provenance | Checks Included | Gates Publish? |
+|---|---|---|
+| `server` | `ailang check --package`, Z3 `ailang verify --package`, v2 interface identity, `[effects].max`, `[release].kind` + `CHANGELOG.md`, `PUBnnn` docs/style | **Yes** — validator recomputes and enforces |
+| `attested` | `ailang test --package` + staged `_smoke.ail` | Locally yes (`--no-run` skips); banked as `attested_by` badge on registry |
 
-Discoverability feedback uses four additional codes: `PUB008` asks for a
-`[metadata] license_url`; `PUB018` asks for the short `ai_summary` shown in registry
-search; `PUB022` warns when `AGENT.md` mentions none of the exported modules; and
-`PUB023` lists packages with exact export overlap, or explicitly reports that the
-registry lookup could not run. `PUB018` and `PUB022` are warnings (and therefore gates
-under `--strict`); `PUB008` and `PUB023` remain informational.
+- **Stability gates:** `experimental` blocks on compile failures, refuted contracts (`PUB006`), missing release metadata (`PUB001`/`PUB002`), and v2 skew (`PUB005`); `stable`/`frozen` also gate on tests, effect ceilings, and contract coverage.
+- **Discoverability & hygiene:** `PUB008` (`license_url`), `PUB018` (`ai_summary`), `PUB021` (`[metadata].repository` for `pkg:` inbox routing), `PUB022` (`AGENT.md` mentions exports), `PUB023` (export overlap check), `PUB024` (stale `_namedtest_body_*.ail` debris), and `PUB025` (`[release].kind` vs measured A/B/C class).
+- **Published-view smoke staging:** Smoke runs rewrite local `{ path = ... }` deps to exact published versions in a temporary lock (`PUB015` surfaces root setup failures within a 2048-byte excerpt) without altering your working `ailang.toml`/`ailang.lock`.
 
-`PUB024` is a gate at every stability level. It names each `_namedtest_body_<digits>.ail`
-in the package. An interrupted `ailang test` of v0.51.0 or older left these files: each is a
-full copy of a test module. Delete them. The tarball, content hash and smoke staging leave
-them out anyway. `ailang init package` scaffolds a `.gitignore` entry so `git add -A` skips
-them too.
+## Release Metadata, v2 Signatures & Nested Packages
 
-### Portable smoke tests with local path dependencies
-
-The smoke run uses an isolated **published dependency view**. If A depends on
-`"myorg/b" = {path = "../b"}` and B declares version `0.2.0`, staging changes that
-entry to `"myorg/b" = "0.2.0"` and resolves a new temporary lock. It tests the
-registry copy of B, including its assets, even when your local B has different
-bytes at the same version. Your source manifest and author lock remain intact.
-
-Make that exact dependency version available before checking A. Offline builds
-can use a configured registry mirror or preprovisioned `AILANG_PACKAGE_ROOT`.
-If the version is unavailable, PUB015 reports the download/provisioning cause and
-operator remedy. A newer cached version does not substitute for the required
-one. Existing confined git pins can be reused only when their validated pin and
-provisioned content match; changing a pin still needs the existing operator
-workflow. Staging does not grant network, HOME-write or runtime capabilities.
-
-```bash
-ailang pkg quality --json .   # inspect smoke.passed and bounded smoke.notes
-ailang publish --dry-run     # the same smoke gate; no upload
-```
-
-PUB015 includes the first useful setup/process error or timeout context, with an
-excerpt bounded to 2048 bytes. JSON uses the existing `smoke.notes` field; human
-output includes the same first cause. Long output and trace frames do not hide
-the initial error. `--no-run` remains deliberate non-execution, not a failed smoke.
-
-Root package assets are read from the staged copy. Dependency code and assets
-use the same locked package directory. A missing locked installation or malformed
-lock fails explicitly rather than falling through to another cached version.
-The temporary execution lock is not shipped in the tarball; consumers generate
-their own lock. Tarballs include `CHANGELOG.md`; the smoke source copy does not
-need it. This does not change the published file set.
-
-`ailang lock` also warns when a transitive registry or git resolution has already
-selected a dependency that the root declared as a local path. That warning means
-your local dependency edits are absent from the generated lock. It reports the
-actual selected source and leaves dependency selection, versions and exit codes
-unchanged; it does not make root paths override transitive pins.
-
-### Every version describes itself
-
-Two things are required from v0.41.0 (badges in v0.40.0):
+Every publish requires `[release].kind` (`security | fix | feature | breaking`) and a matching `## <version>` entry in `CHANGELOG.md`:
 
 ```toml
 # ailang.toml
+[package]
+name = "myorg/ext_foo"
+version = "0.2.1"
+edition = "1"
+ailang = ">=0.64.0"
+
 [release]
-kind = "fix"     # security | fix | feature | breaking
+kind = "fix"
 ```
 
-```markdown
-# CHANGELOG.md
-## 0.8.2
-- token refresh no longer logs the refresh token on failure
+- **v2 Contract Signatures (`interface_hash_v2` & `interface_signatures`):** Exports carry type signatures, class constraints (`Eq[a]`, `Num[a]`), `literals`, and contract lines (`<module>:contract:<fn>:<clause>` + `meta:contracts:v1`). Contracts do not alter `interface_hash_v2`, so publisher/validator hashes agree, while tightening `requires` under an unchanged type classifies as breaking **Class C** (`affected_exports` listed on cascade notices). Mismatched toolchains fail with `PUB005`.
+- **Nested `ailang.toml` packages:** Subdirectories containing their own `ailang.toml` are separate packages — excluded from the parent's compilation, content hash, and tarball so a monorepo can publish a dependency-free core alongside higher-level packages.
+- **Path-dep rewriting:** During `ailang publish`, `{ path = "../dep" }` entries are rewritten to exact published registry versions inside the uploaded tarball (leaves must be published before dependents).
+- **Consumer docs:** `ailang pkg docs <vendor/name>` prints the package's `AGENT.md` and `pkg/<vendor>/<name>/...` import paths.
+
+## Scoped Publish Keys & CI
+
+Prefer `--key-file PATH` (regular non-symlink file owned by you, mode `0400` or `0600`, `<= 16 KiB`, not inherited by child processes) over `AILANG_REGISTRY_API_KEY`:
+
+| Key Kind | Scope Example | Authority |
+|---|---|---|
+| Scoped (`ailr_...`) | `myorg/*`, `sunholo/my_pkg` | Publish/unpublish matching globs; stamps `published_by` |
+| Superuser | `*` (maintainers only) | Mint/revoke keys (`ailang pkg key create\|list\|revoke`), rebuild index |
+
+<details>
+<summary>GitHub Actions publish workflow & verifying published packages</summary>
+
+```yaml
+# .github/workflows/publish.yml
+name: Publish to AILANG registry
+on:
+  push:
+    tags: ['v*']
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sunholo-data/setup-ailang@v1
+        with: { version: latest, cache: true }
+      - name: Publish
+        env:
+          AILANG_REGISTRY_API_KEY: ${{ secrets.AILANG_REGISTRY_API_KEY }}
+        run: ailang publish
 ```
 
-`ailang init package` scaffolds both. The section for the version being published must
-exist and be non-empty (`PUB001`); the kind must be declared (`PUB002`). `CHANGELOG.md`
-ships in the tarball; `ailang pkg versions <name>` prints the kind and notes per version.
-The kind is your *claim*, and it is checked against the **measured** change class: your
-version's signature set compared with the previous published version's, using the same
-classifier the dependency cascade uses (A: nothing exported changed, B: additions only,
-C: an export or a contract was removed or changed, U: not measurable, because one side
-predates the contract-aware signature set). `pkg quality` prints it as `measured C vs 0.8.1`
-and banks it in the report's `release.measured_class`.
+```bash
+ailang pkg info myorg/ext_foo --refresh
+ailang lock && jq '[.packages[] | select(.name=="myorg/ext_foo") | {name, version, source}]' ailang.lock
+```
 
-- `kind = "fix"`, `"security"` or `"feature"` over a measured **C** is `PUB025`. It is a warning
-  until v0.64.0 and a gate from then on: dependents' cascades will route the change to
-  review either way, so declare `kind = "breaking"`.
-- `kind = "breaking"` over a measured **A** is an informational `PUB025`.
-- A **U** raises nothing. The first publish after the contract-aware signature set arrives is
-  U for every package.
+</details>
 
-### Contracts are now counted
-
-The validator verifies `requires`/`ensures` contracts package-wide (`ailang verify
---package .`) and banks `contracts_verified/contracts_total` in `metadata.json` and
-`contracts_total` in the index. A refuted contract is a gate everywhere.
-
-### Interface identity (v2)
-
-Alongside the manifest-level `interface_hash`, the validator now banks a
-signature-sensitive `interface_hash_v2` and the exported `interface_signatures`. If your
-`ailang` computes a different v2 hash than the validator's, the publish is refused with
-`PUB005` naming both — upgrade the publisher. A package whose v2 identity cannot be built
-gets a badge today (shadow mode); `GET /api/stats` reports `v2_clean_streak`.
-
-The v2 hash covers each export's class constraints (`Eq[a]`, `Num[a]`, as `ailang iface`
-lists them) since the release that carries constraints across modules (#2290). A package
-with a constrained export therefore has a different v2 hash under that release than under
-the one before, and a publisher and a validator on either side of it disagree (`PUB005`):
-deploy the validator in step with that release. The lockfile's `interface_hash` (v1) is
-computed from the manifest alone and does not change.
-
-The same holds for the `literals` an export lists (#2378): the type variables whose `Num`
-constraint carries an integer literal, over which the export is compiled once per numeric
-instance. A package with such an export has a different v2 hash under the release that adds
-the field, and the validator is deployed in step with it.
-
-Each export's `requires`/`ensures` contracts are listed in the signature set (as
-`<module>:contract:<fn>:<clause>` lines, plus one `meta:contracts:v1` marker), but **not** in
-`interface_hash_v2`: adding contracts never changes a package's identity, and a publisher
-and validator on either side of that release still agree. What changes is classification:
-tightening a `requires` under an unchanged type is class C, and dependents are told which
-signatures went away (`affected_exports` on the upgrade message).
-
-### Nested packages are separate packages
-
-A directory below your package root that has its own `ailang.toml` is another package. It is
-left out of your package's source discovery, compile, content hash and tarball, and it is
-published on its own. Use this to keep a smaller, separately versioned package (for example
-a dependency-free core) in the same repository.
-
-### How dependents import you
-
-Dependents can import your modules by their `[exports]` names (your `module_prefix`), or by
-`pkg/<vendor>/<name>/<module path after the prefix>`. Both resolve, but only the `pkg/` form
-names exactly one package: the loader lets several dependencies share a prefix and tries
-each. `ailang pkg docs <vendor/name>` ends with the `pkg/` import line for every exported
-module.
-
-### Moving a module without breaking dependents
+## Moving a Module Without Breaking Dependents
 
 To move a module to another package (for example into a smaller core package), leave a
 **facade** at the old path that re-exports it:
@@ -224,281 +118,14 @@ class C change.
 The facade package's `[effects].max` must cover the functions it re-exports: re-exporting
 a `! {Net}` function under `max = []` fails `ailang check` and names the function.
 
-### The package inbox
+## Current Limitations
 
-Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from
-`[metadata] repository` — a GitHub tree URL such as
-`https://github.com/sunholo-data/ailang-packages/tree/main/packages/gcp-auth`. Without a
-parseable URL **no agent is derived** — the repository is not a function of the package name —
-and `PUB021` warns until you add it. A `pkg:` inbox for a package that is not in the registry is
-served by nothing either — a typo stays visible. See the autonomous-package-updates guide.
+- **Central key minting:** No self-serve signup; request a scoped key from maintainers.
+- **Immutable versions:** No version yanking; publish a patch bump (`x.y.(z+1)`) to supersede a broken release.
+- **Single public registry:** Private packages use `{ path = ... }` or git dependencies inside a repo.
 
----
+## Related Guides
 
-## Prerequisites
-
-### 1. An API key
-
-Publishing accepts an explicit `--key-file PATH` on macOS/Linux, or the legacy
-`AILANG_REGISTRY_API_KEY` environment variable. There are two kinds of key:
-
-| Kind | Who holds it | Can write |
-|---|---|---|
-| **Scoped key** (`ailr_…`) | each publisher | only the package globs it was minted with, e.g. `daneel/*` or `sunholo/daneel_*` |
-| **Superuser key** | the AILANG maintainers | every namespace, plus `unpublish` of anything, `rebuild-index`, and minting scoped keys |
-
-Ask [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel) for a scoped key for your namespace. Reads never need a key — the registry bucket is public.
-
-For publishing, prefer `ailang publish --key-file /private/path/publisher.key`
-(or `ailang pkg publish --key-file ...`). There is no default key-file location
-and no file-path environment variable. A nonempty `AILANG_REGISTRY_API_KEY` plus
-`--key-file` is an error; unset the environment key before selecting a file.
-An empty, missing, unsafe or invalid selected file is an error with no fallback.
-Real publishing also refuses locally if neither source is supplied.
-
-The macOS/Linux file must be regular, not a symlink, owned by the effective user,
-and have exactly mode `0400` or `0600` without special bits. It is opened once
-without following its final symlink and without blocking on a FIFO. Ownership,
-mode and contents are checked through that same handle, then it is closed before
-package tests or smoke commands run. The limit is 16 KiB, including surrounding
-whitespace; after trimming, the key must be a nonempty single line without header
-control bytes. AILANG never repairs permissions or creates the file. Keep its
-parent directories protected too; this does not defend against malicious code
-running as your own user.
-
-The file lane is unsupported on Windows and fails before opening the path.
-Windows can use the existing environment lane. `publish --help` and
-`publish --dry-run` do not load or verify credentials, including a supplied file;
-a successful dry run therefore says nothing about key validity. The existing
-operator confinement policy still refuses publishing, including dry-run.
-
-The file key stays local to this invocation and is not exported into subprocess
-environments or arguments. The legacy environment lane emits one inheritance
-warning because package subprocesses receive that variable. If you use it,
-prefer a per-command assignment instead of a shell startup export:
-
-```bash
-AILANG_REGISTRY_API_KEY=<issued-key> ailang publish
-```
-
-Only `publish` accepts `--key-file`; `unpublish` and key-management commands retain
-their existing environment credential behavior.
-
-A maintainer mints one with:
-
-```bash
-export AILANG_REGISTRY_API_KEY=<superuser key>
-ailang pkg key create --owner daneel --scope 'daneel/*' --note "Daneel's publish key"
-# ✓ Minted key for daneel (scopes: daneel/*)
-#   id:  3f9c…        ← for `ailang pkg key revoke <id>`
-#   key: ailr_…       ← shown ONCE; hand over on a private channel
-ailang pkg key list
-```
-
-The key MUST be kept private — don't commit it, don't paste it in a PR, don't put it in a GitHub Action without using a secret. A scoped key publishing outside its scope gets a 403 that names the owner and the package; the scopes are enforced on `publish` and `unpublish` alike, and `published_by` in the package metadata is stamped with the key's owner.
-
-### 2. A namespace
-
-Your package name in `ailang.toml` must follow `<namespace>/<package_name>`:
-
-```toml
-[package]
-name = "arniwesth/motoko_ext_openkb"   # arniwesth = the namespace
-```
-
-**Choose a stable namespace** — it ends up in every consumer's `ailang.toml` and lockfile. Common conventions:
-- Your GitHub username (`arniwesth/...`)
-- Your org name (`sunholo/...`, `acme/...`)
-- A project-specific prefix (`motoko/...` if you maintain motoko-side packages independently)
-
-Once published, **a name is permanent** — there's no rename.
-
-### 3. A clean `ailang.toml`
-
-Your package's `ailang.toml` must:
-- Have `[package]` with `name`, `version`, `edition` set
-- Declare `[exports].modules` listing every module that consumers should be able to `import`
-- Declare `[effects].max` listing every effect your package uses (consumers' effect ceilings will reject your package if you under-declare)
-- For any cross-package internal dependency, use `path = ...` during dev — `ailang publish` automatically rewrites these to registry versions in the published tarball (see [How publish handles path deps](#how-publish-handles-path-deps))
-
----
-
-## Source-repo flexibility
-
-**The registry is repo-agnostic.** Your package source can live anywhere:
-- Your own GitHub repo (`github.com/arniwesth/my-extensions`)
-- A monorepo with multiple packages (mirrors the [`sunholo-data/ailang-packages`](https://github.com/sunholo-data/ailang-packages) layout)
-- A private GitLab/Bitbucket — the registry only sees the tarball you upload via `ailang publish`
-
-A reasonable starting layout for one publisher with multiple packages:
-
-```
-github.com/arniwesth/motoko-extensions/
-├── packages/
-│   ├── motoko-ext-openkb/
-│   │   ├── ailang.toml
-│   │   ├── register.ail
-│   │   └── ...
-│   └── motoko-ext-other-thing/
-│       └── ...
-├── README.md
-└── .github/workflows/publish.yml   # optional: auto-publish on tag push
-```
-
-You can mirror Sunholo's `motoko-ext-` naming convention so motoko_agent's registry-generator strips the prefix correctly — see the [build-an-extension tutorial](./build-a-motoko-extension.md#step-1-scaffold-the-package-one-command) for details.
-
----
-
-## How `publish` handles path deps
-
-A common confusion: your package depends on another package via `{ path = "../some-other-pkg" }` while you're editing both together. When you publish, those path refs would be invalid for anyone who downloads the tarball — they don't have your local sibling layout.
-
-`ailang publish` handles this automatically:
-
-1. Reads your `ailang.toml`
-2. For each `path = ...` dep, looks up the actual published version from the path target's `ailang.toml`
-3. Rewrites the dep to `"name" = "X.Y.Z"` in the **tarball's** `ailang.toml` (your local file is restored after upload)
-4. Uploads the rewritten tarball
-
-This means you can develop with sibling-checkout convenience and publish without manual edits — but it requires that **every transitive `path =` dependency is also published**. If you publish `motoko-ext-foo` while `motoko-ext-foo` depends on `path = "../motoko-ext-bar"` AND `motoko-ext-bar` isn't yet on the registry, the publish will fail.
-
-**Order matters when releasing a package set:** publish leaves first.
-
----
-
-## Publishing from CI
-
-Once you're past the manual-publish stage, automate via GitHub Actions:
-
-```yaml
-# .github/workflows/publish.yml
-name: Publish to AILANG registry
-on:
-  push:
-    tags: ['v*']
-
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install ailang
-        run: |
-          curl -sSL https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar xz
-          sudo mv ailang /usr/local/bin/
-      - name: Publish
-        env:
-          AILANG_REGISTRY_API_KEY: ${{ secrets.AILANG_REGISTRY_API_KEY }}
-        run: |
-          for pkg in packages/*/; do
-            cd $pkg
-            ailang publish || echo "skipped $pkg (already at this version?)"
-            cd -
-          done
-```
-
-Store the API key as a repo secret, not in the workflow file.
-
----
-
-## Verifying your published package
-
-```bash
-# Look up your package
-ailang pkg info myorg/ext_foo
-
-# Force-fetch latest (bypass local cache)
-ailang pkg info myorg/ext_foo --refresh
-
-# In a consumer project, verify the dep resolves from registry
-cd ../host-project
-ailang lock
-jq '[.packages[] | select(.name=="myorg/ext_foo") | {name, version, source}]' ailang.lock
-# Expected: { "source": "registry" }
-```
-
-The package also auto-appears at `https://ailang.sunholo.com/docs/packages/<namespace>/<name>` after a doc-rebuild cycle (typically under one hour).
-
----
-
-## For maintainers: issuing and managing keys
-
-Keys are minted centrally (CRAN-style) — there is no signup. The superuser key in Secret
-Manager (`ailang-registry-api-key`, project `ailang-registry`) is the only thing that can mint.
-
-### What a publisher may write
-
-A key carries one or more **scopes**, globs over the full `vendor/name`. Two shapes cover
-the cases we actually have:
-
-| Situation | Scope | Effect |
-|---|---|---|
-| Their own namespace — they publish whatever they like there | `daneel/*` | any package under `daneel/` |
-| A package of ours we hand to them | `sunholo/daneel_tools` | that one package, nothing else under `sunholo/` |
-| A family of ours we hand to them | `sunholo/daneel_*` | every `sunholo/daneel_…` package |
-
-Combine with repeated `--scope`:
-
-```bash
-ailang pkg key create --owner daneel \
-  --scope 'daneel/*' \
-  --scope 'sunholo/daneel_tools' \
-  --note "Daneel: own namespace + the docs tooling we delegated"
-```
-
-Rules of thumb:
-
-- **Namespace = owner name.** The `--owner` you record and the vendor they publish under
-  should match (`--owner daneel` ↔ `daneel/*`). `published_by` in metadata is stamped with
-  the owner, so provenance reads cleanly.
-- **Never hand out `sunholo/*`.** Delegate specific packages or a prefix; the wildcard on our
-  own namespace is superuser territory.
-- **Nothing stops two keys covering the same package.** Scopes are permissions, not ownership
-  records. Before minting a scope inside a namespace someone else already holds, check
-  `ailang pkg key list` — it is the only registry of who can write what.
-
-### Changing what someone can publish
-
-There is deliberately no "edit scopes" — mint a replacement and revoke the old one, so the
-change is a new key in the holder's hands and an audit row, not a silent widening:
-
-```bash
-ailang pkg key list                          # find the id
-ailang pkg key create --owner daneel --scope 'daneel/*' --scope 'sunholo/new_thing'
-ailang pkg key revoke <old-id>               # after they have switched
-```
-
-Revocation is immediate (checked on every write) and permanent — a revoked id cannot be
-re-enabled. Keys are stored as SHA-256 only; a lost key is re-minted, never recovered.
-
-### The superuser key
-
-- Existing holders keep working unchanged. It is still the break-glass and the minting authority.
-- **Rotate it once every current holder has a scoped key** — the point of scoping is that only
-  maintainers hold `*`. Rotation: add a new version to the `ailang-registry-api-key` secret in
-  `ailang-registry`, mirror it into `ailang-multivac`'s copy (recipe in that repo's
-  `terraform/secrets.tf`), then roll the validator revision so the new version is read — the
-  env is resolved at instance start, not on every request.
-- The fleet's own publish jobs (`ailang-multivac/terraform/cloud_run_jobs.tf`) currently use
-  the superuser key. They should be moved to a scoped `sunholo/*`-shaped key before rotation
-  so a leaked job env cannot mint keys.
-
-## Current limitations
-
-These are real today. Known and tracked.
-
-1. **No self-registration.** Only a maintainer can mint a scoped key (CRAN-style curation); there is no signup flow. Scopes are globs, not ownership records — two keys can be minted over the same namespace, and nothing stops a maintainer from doing so.
-
-2. **No version yanking yet.** Once published, a version is immutable — no way to retract a broken release. Workaround: publish a fixed `x.y.(z+1)`. Yanking is on the roadmap.
-
-3. **No private registries.** All publishes go to the same Sunholo-hosted GCS bucket. For private packages, keep them as path-deps in a monorepo.
-
-4. **The key is the only identity.** `published_by` records the key's owner, but there is no owner concept beyond that — no transfer, no co-owners, no per-package ACL other than the key scopes.
-
----
-
-## Related guides
-
-- [Build Your First motoko Extension](./build-a-motoko-extension.md) — covers the Tier 1 (local path) workflow end-to-end
-- [Extension Packages reference](./extension-packages.md) — manifest schema + generator
-- [Path vs registry checklist](./extension-packages.md#path-vs-registry-checklist) — the pre-PR audit you should run on every extension-host project
+- [Package System](./packages.md) — `ailang.toml`, atomic `ailang.lock`, effect ceilings
+- [Autonomous Package Updates](./autonomous-package-updates.md) — downstream PR cascades
+- [Extension Packages](./extension-packages.md) — `experimental` plugin registry generator
