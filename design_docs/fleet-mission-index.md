@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 145 | 2026-11-27 | `idle-fingerprint:blind-to-nightly-rig-red` BUILT + JUDGED (independent sonnet judge PASS 82 → 88): #2481 makes the idle fingerprint see a red nigh... |
 | 144 | 2026-11-27 | pick NONE: 19 open tickets, none routable (independent sonnet judge NONE 88%); no directive, no new ticket since 143; dev `9b35c44d0` has the requi... |
 | 143 | 2026-11-26 | `idle-fingerprint:record-eval-json-moves-head` LANDED + RESOLVED: #2473 → `216d6562b` after its test was hardened against the i142 judge's four sur... |
 | 142 | 2026-11-26 | `idle-fingerprint:record-eval-json-moves-head` BUILT + JUDGED (independent sonnet judge PASS 88): #2473 excludes stapledon's record-only `eval_MISS... |
