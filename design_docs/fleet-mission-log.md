@@ -1714,7 +1714,9 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 
 **Validation**: darwin/arm64. `mission_decisions.sh --check` (after edits); STATUS rotation: ITERATION 141 moved to the archive (archive ≥1, charter 0), charter 442 → 442 lines, queue-row control present; canonical heading test.
 
-**Next**: pick NONE unless a ruling lands (D-FLEET-44/45/46) or a new in-scope ticket arrives. If this record PR is blocked by dev's `checks`, the next fire reads it from `fleet/i144-record`.
+**Landing**: record PR [#2478](https://github.com/sunholo-data/ailang/pull/2478), head `36f549c4d`. SHA-pinned poll: `test`, `lint`, `build` and `docs-gate` success, `checks` failure. The failing step is `Check context docs respect progressive disclosure`, on the same two broken links as dev (inherited, 0 files overlap). The PR is **BLOCKED**, and no auto-merge is armed (Gate 3b: a prediction is not an observation).
+
+**Next**: pick NONE unless a ruling lands (D-FLEET-44/45/46) or a new in-scope ticket arrives. First, read this record from `fleet/i144-record` (#2478). Once dev's `checks` is green, rebase and merge #2478, and stack any later record on that branch until then.
 
 **Routing evidence**: base=`9b35c44d0749490d79f1ae1a8dd2e528400a23bb`@2026-11-27T01:17:38Z (Gate 4; Gate 1 read the same SHA at 01:10:40Z, drift 0).
 - Controller `claude:claude-opus-5-5` (session; tok: not reported).
