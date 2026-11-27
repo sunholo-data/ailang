@@ -21,7 +21,7 @@ offline, direct SQLite).
 - Tag-routed messages need HTTP `POST /api/messages` with a `requires: ["..."]` array — the CLI
   `messages send` does not support `--requires` (SQLite-only path).
 
-Setup and details: [docs/docs/guides/coordinator-workers.md](../../docs/docs/guides/coordinator-workers.md).
+Setup and details: [docs/internal/runbooks/coordinator-workers.md](../../docs/internal/runbooks/coordinator-workers.md).
 
 ## Adding a New Executor
 
@@ -48,7 +48,7 @@ compile testing.
 ## Database Architecture
 
 Three SQLite databases: `observatory.db` (spans/traces), `coordinator.db` (tasks/approvals),
-`collaboration.db` (messages). Full reference: `docs/docs/guides/database-architecture.md`.
+`collaboration.db` (messages). Full reference: `docs/internal/runbooks/database-architecture.md`.
 
 ## TRACEPARENT Not Propagated
 

@@ -7,7 +7,7 @@ description: Run AILANG agent-mode evaluations against local Ollama models on a 
 
 Run AILANG agent-mode evals against **local Ollama models** (typically `gemma4:26b`) on a dedicated Apple Silicon rig with 64+ GB unified memory. This is the canonical workflow for cost-free continuous OS-model evaluation, replacing pay-per-token OpenRouter routing.
 
-Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The user guide at [docs/docs/guides/evaluation/local-ollama.md](../../../docs/docs/guides/evaluation/local-ollama.md) is the human-facing reference; this skill is the Claude-facing operational checklist.
+Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The operator runbook at [docs/internal/runbooks/local-ollama.md](../../../docs/internal/runbooks/local-ollama.md) is the human-facing reference; this skill is the Claude-facing operational checklist.
 
 ## Current State
 

@@ -37,7 +37,7 @@ curl -X POST <coordinator-host>/api/messages \
     -d '{"inbox":"eval-rig","title":"smoke n=3","requires":["ollama:gemma4-26b-ailang"]}'
 ```
 
-Only workers advertising tags that satisfy `requires` will claim. Full guide: [docs/docs/guides/coordinator-workers.md](../../../../docs/docs/guides/coordinator-workers.md).
+Only workers advertising tags that satisfy `requires` will claim. Full guide: [docs/internal/runbooks/coordinator-workers.md](../../../../docs/internal/runbooks/coordinator-workers.md).
 
 ## TL;DR setup checklist (new model, e.g. qwen3-coder:30b)
 

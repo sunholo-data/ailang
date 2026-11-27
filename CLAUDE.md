@@ -148,5 +148,5 @@ look them up. These are the docs you would NOT think to look for:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — layer map and enforced import directions.
 - **[docs/LIMITATIONS.md](docs/LIMITATIONS.md)** — what AILANG genuinely cannot do yet.
 - **[docs/docs/guides/](docs/docs/guides/)** — development-workflow, coordinator, agent-messaging,
-  evaluation, telemetry, debugging, collaboration-hub, database-architecture, lsp.
+  evaluation, telemetry, debugging, collaboration-hub, lsp; operator runbooks in `docs/internal/runbooks/`.
 - **[design_docs/](design_docs/)** · **[examples/](examples/)**
