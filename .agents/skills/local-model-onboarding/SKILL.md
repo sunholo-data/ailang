@@ -212,4 +212,4 @@ models.yml + the filler change + `~/.pi/agent/models.json` mirror together.
 - `model-manager` — models.yml mechanics, API access, pricing (cloud + OR).
 - `local-ollama-eval` — running/monitoring evals on the rig, OTEL observability.
 - `tools/launchd/os-rotation-filler.sh` — the continuous rotation.
-- `docs/docs/guides/evaluation/local-ollama.md` — human-facing rig reference.
+- `docs/internal/runbooks/local-ollama.md` — human-facing rig reference.
