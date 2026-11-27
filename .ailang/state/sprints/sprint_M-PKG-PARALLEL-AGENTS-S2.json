@@ -1,0 +1,155 @@
+{
+  "sprint_id": "M-PKG-PARALLEL-AGENTS-S2",
+  "status": "completed",
+  "created": "2026-11-25T22:00:00Z",
+  "design_doc": "design_docs/planned/v0_63_0/m-pkg-parallel-agents.md",
+  "sprint_plan": "design_docs/planned/v0_63_0/sprint-plan-m-pkg-parallel-agents-s2.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    },
+    {
+      "milestone": "M2",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    },
+    {
+      "milestone": "M3",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    },
+    {
+      "milestone": "M4",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    },
+    {
+      "milestone": "M5",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    },
+    {
+      "milestone": "M6",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler internals (Go); no registry package applies"
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_PARSE",
+      "description": "export import M (names) [@deprecated(\"path\")] in the parser header loop; selective form required; formatter round-trip",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Parser tests: the form, its errors (no symbol list, `as` alias), trailing @deprecated; annotation before export import stays PAR_ATTR_REQUIRES_FUNC",
+        "Conflict Surface fixtures parse unchanged (examples/wasm_friendly_patterns.ail, examples/progress_bar.ail, std/json, std/sem, std/ai, std/array, std/bytes)",
+        "ailang fmt keeps an export import line byte-identical"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "parser_reexport.go: EXPORT+IMPORT continues the header loop; PAR_REEXPORT_FORM (no list / as alias), PAR_REEXPORT_ANNOTATION; trailing @deprecated -> MovedTo; misplaced export import -> PAR_IMPORT_PLACEMENT; formatter round-trips. Conflict Surface fixtures parse unchanged (reexport_test.go)."
+    },
+    {
+      "id": "M2_RESOLVE",
+      "description": "Load-time rewrite of selective imports of re-exported names to their origin (chains, aliases, mixed imports); MOD016 cycles; facade kept as a dependency edge",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1_PARSE"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-06: a constructor imported through a facade matches the origin's, on the evaluator and the strict VM",
+        "TST-PKGPAR-09: a re-export cycle is MOD016; re-exporting a missing name is IMP010",
+        "Cross-package: app depends only on facade, facade re-exports from core; the import resolves",
+        "Cache: dropping a re-export makes a cached dependent recompile and fail"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "loader_reexport.go: LoadAll rewrites selective imports of re-exported names to their origin (chains, aliases, mixed imports), records ViaModule/ViaMovedTo, keeps the facade as a dependency edge; MOD016 on cycles. TST-PKGPAR-06 (4 shapes, eval + strict VM), TST-PKGPAR-09, cross-package CLI test, warm-cache test."
+    },
+    {
+      "id": "M3_IFACE",
+      "description": "The facade's interface carries re-exported items with origin identity; signature lines equal the origin's; alias access F.name binds the origin",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_RESOLVE"
+      ],
+      "acceptance_criteria": [
+        "Re-exported func/type/ctor signature lines equal the origin's lines with the module renamed",
+        "Dropping a re-export classifies as C",
+        "import facade as F: F.Red matches the origin's Red"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "iface/reexports.go + pipeline/reexport_iface.go: Iface.Reexported (origins + nested Items), rendered as if declared (signature lines equal the origin's), digest section, cache serialization, alias binding. Dropping a re-export classifies C (hasher_v2_reexport_test.go)."
+    },
+    {
+      "id": "M4_MOVED",
+      "description": "The 'moved' variant of TC_DEPRECATED_001 for re-export lines marked @deprecated(\"path\"): functions, types and constructors",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2_RESOLVE"
+      ],
+      "acceptance_criteria": [
+        "A warning for each of the three kinds, with the fix 'import X from <path>'; no warning without @deprecated",
+        "internal/pipeline/warn_deprecated_test.go unchanged and green"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "pipeline/warn_moved.go: TC_DEPRECATED_001 per name imported through a moved line, for functions, types and constructors; fix 'import X from <path>'. Existing warn_deprecated tests unchanged."
+    },
+    {
+      "id": "M5_CEILING",
+      "description": "The facade package's [effects].max covers its re-exported functions",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3_IFACE"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-16: max = [] re-exporting a ! {Net} function fails, naming the function",
+        "effect_ceiling_reachable_test.go re-export shape unchanged and green"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "validateReexportCeiling: a facade package's [effects].max covers re-exported functions; violation names the function and its origin. TST-PKGPAR-16 (CLI)."
+    },
+    {
+      "id": "M6_CLOSE",
+      "description": "Remove MOD003, register MOD016; language-syntax and package-publishing docs; changelog fragment; runnable example; parity",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_PARSE",
+        "M2_RESOLVE",
+        "M3_IFACE",
+        "M4_MOVED",
+        "M5_CEILING"
+      ],
+      "acceptance_criteria": [
+        "make test-changed, lint, check-file-sizes, check-changelog, verify-stdlib, verify-examples",
+        "The C1 tests pass on the evaluator and the strict VM"
+      ],
+      "passes": true,
+      "started": "2026-11-25T22:00:00Z",
+      "completed": "2026-11-25T23:30:00Z",
+      "notes": "MOD003 removed, MOD016 registered, dist/error_codes.json regenerated; language-syntax, package-publishing and error index docs; changelog fragment; examples/runnable/reexport_facade (both engines, inline tests); doc-samples and verify-examples green."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 310,
+    "estimated_total_loc": 730,
+    "estimated_days": 3
+  }
+}

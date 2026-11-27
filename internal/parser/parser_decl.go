@@ -477,6 +477,13 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		if p.curTokenIs(lexer.TYPE) {
 			return p.parseTypeDeclaration(true) // exported=true
 		}
+		if p.curTokenIs(lexer.IMPORT) {
+			// `export import` after the header: the same placement rule as a
+			// plain import (re-exports are header lines, M-PKG-PARALLEL-AGENTS C1).
+			node := p.reportMisplacedImport()
+			p.skipTrailingAnnotations()
+			return node
+		}
 		if p.curTokenIs(lexer.LET) {
 			// Error: export let not supported
 			err := NewParserError(
@@ -495,9 +502,9 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 			"PAR_EXPORT_REQUIRES_FUNC",
 			p.curPos(),
 			p.curToken,
-			fmt.Sprintf("export must be followed by 'func' or 'type', got '%s'", p.curToken.Literal),
-			[]lexer.TokenType{lexer.FUNC, lexer.PURE, lexer.TYPE},
-			"Use 'export func name(...) { ... }' or 'export type Name = ...'",
+			fmt.Sprintf("export must be followed by 'func', 'type' or (in the import header) 'import', got '%s'", p.curToken.Literal),
+			[]lexer.TokenType{lexer.FUNC, lexer.PURE, lexer.TYPE, lexer.IMPORT},
+			"Use 'export func name(...) { ... }', 'export type Name = ...' or 'export import module/path (Name)'",
 		)
 		p.errors = append(p.errors, err)
 		return nil

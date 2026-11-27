@@ -63,9 +63,16 @@ func (p *Parser) ParseFile() (file *ast.File) {
 		p.nextToken()
 	}
 
-	// Import declarations
-	for p.curTokenIs(lexer.IMPORT) {
-		imp := p.parseImportDecl()
+	// Import declarations, including re-exports (`export import M (names)`,
+	// M-PKG-PARALLEL-AGENTS C1): EXPORT followed by IMPORT continues the
+	// header; EXPORT followed by anything else ends it, as before.
+	for p.curTokenIs(lexer.IMPORT) || (p.curTokenIs(lexer.EXPORT) && p.peekTokenIs(lexer.IMPORT)) {
+		var imp *ast.ImportDecl
+		if p.curTokenIs(lexer.EXPORT) {
+			imp = p.parseReexportDecl()
+		} else {
+			imp = p.parseImportDecl()
+		}
 		if imp != nil {
 			file.Imports = append(file.Imports, imp)
 			p.importLowerTypeNames(imp)

@@ -567,6 +567,7 @@ func buildAndRegisterInterface(
 	aliases *aliasTables,
 	derivedEq []string,
 	ifcImports types.IFCImports,
+	reexports map[string]loader.Reexport,
 ) error {
 	// Convert pipeline constructors to iface constructors
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
@@ -589,6 +590,7 @@ func buildAndRegisterInterface(
 	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in
 	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
 	embedTransitiveAliases(unitIface, aliases)
+	attachReexports(unitIface, reexports, modLinker.GetIface)
 
 	// SetDerivedEq also finalizes the digest after closure and transitive embedding.
 	if err := unitIface.SetDerivedEq(derivedEq); err != nil {

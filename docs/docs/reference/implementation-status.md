@@ -61,7 +61,7 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 See [Known Limitations](/docs/reference/limitations) for the full capability & cliff matrix.
 
 **Not yet implemented:**
-- `export import` module re-exports (pending PR `#2475`; emits `PAR_EXPORT_REQUIRES_FUNC`)
+- Qualified constructor access through a module alias (`import M as C`, then `C.Red` is `IMP010`; import constructors by name)
 - Arbitrary sub-expression `?` propagation (use `let x = expr?` along the return spine)
 - User-defined `class`/`instance` typeclasses and higher-kinded type parameters
 - Typed quasiquotes

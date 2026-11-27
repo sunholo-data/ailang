@@ -200,8 +200,19 @@ type ImportDecl struct {
 	// binding of its names (M-V1-NOMINAL-TYPE-IDENTITY) and carries no
 	// position, so no diagnostic may point at it.
 	Implicit bool
-	Pos      Pos
-	Span     Span
+	// Reexport marks `export import M (names)`: the listed names become this
+	// module's exports with the original's identity (M-PKG-PARALLEL-AGENTS
+	// C1). It is always selective. MovedTo is the path a trailing
+	// `@deprecated("path")` names, for the "moved" TC_DEPRECATED_001.
+	Reexport bool
+	MovedTo  string
+	// ViaModule is set on an import the loader rewrote to a re-exported
+	// name's origin: the facade the author imported it through. ViaMovedTo
+	// is that facade line's MovedTo.
+	ViaModule  string
+	ViaMovedTo string
+	Pos        Pos
+	Span       Span
 }
 
 func (f *File) String() string {
@@ -226,10 +237,13 @@ func (m *ModuleDecl) Position() Pos { return m.Pos }
 
 func (i *ImportDecl) String() string {
 	var result string
+	if i.Reexport {
+		result = "export "
+	}
 	if i.ModuleAlias != "" {
-		result = fmt.Sprintf("import %s as %s", i.Path, i.ModuleAlias)
+		result += fmt.Sprintf("import %s as %s", i.Path, i.ModuleAlias)
 	} else {
-		result = fmt.Sprintf("import %s", i.Path)
+		result += fmt.Sprintf("import %s", i.Path)
 	}
 	if len(i.Symbols) > 0 {
 		// Format symbols with aliases
@@ -242,6 +256,9 @@ func (i *ImportDecl) String() string {
 			}
 		}
 		result += fmt.Sprintf(" (%s)", strings.Join(symStrs, ", "))
+	}
+	if i.MovedTo != "" {
+		result += fmt.Sprintf(" @deprecated(%q)", i.MovedTo)
 	}
 	return result
 }

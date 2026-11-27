@@ -72,8 +72,8 @@ Imports in AILANG are **never transitive** — if module A imports B and B uses 
 | Intra-package sibling | `import ./types (Config)` | Same package without needing `ailang.lock` first |
 | External package | `import pkg/vendor/name/mod (fn)` | Resolved via `ailang.lock` |
 
-:::note `export import` re-exports are not yet supported
-`export import mod (sym)` is rejected by the parser with `PAR_EXPORT_REQUIRES_FUNC` (`export must be followed by 'func' or 'type', got 'import'`). Until package re-export facades land (tracked in `#2475`), export explicit wrapper functions or import directly from the defining module.
+:::note `export import` re-exports
+`export import mod (sym)` makes the listed names part of this module's exports, with the original's identity. A module can move behind such a facade without breaking its importers. See [Re-exports](/docs/reference/language-syntax#re-exports-export-import).
 :::
 
 ```ailang file=math/utils.ail
@@ -127,7 +127,7 @@ export func main() -> () ! {IO} {
 |---|---|---|
 | `MOD010` module path mismatch | `module` header doesn't match file path | Rename header to match path, or pass `--relax-modules` |
 | `IMP010: symbol not exported` | Missing `export` on type/func or removed alias | Add `export` or check `ailang docs std/<mod>` |
-| `PAR_EXPORT_REQUIRES_FUNC` | Used `export import ...` | Not yet supported (`#2475`); define an exported wrapper |
+| `PAR_REEXPORT_FORM` | `export import M` without a name list, or with `as` | List the names: `export import M (a, b)` |
 | Entrypoint takes 2+ args | CLI `--entry` supports 0 or 1 arg | Wrap parameters in a record and pass `--args-json` |
 | `Missing capability: IO` | Program declares `! {IO}` without `--caps IO` | Add `--caps IO` before the file path |
 
