@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	agyexec "github.com/sunholo-data/ailang/internal/executor/agy"
 )
 
 // The google bucket: the Google AI subscription the agy executor runs on
@@ -74,6 +75,11 @@ var agyQuotaRunner = runAgyQuota
 const agyQuotaTimeout = 45 * time.Second
 
 func runAgyQuota(agyPath, home string) ([]byte, error) {
+	// Without a locked keychain of its own, every token refresh under this HOME left a
+	// macOS "Keychain Not Found" dialog open on the rig (agy.EnsureLockedKeychain).
+	if err := agyexec.EnsureLockedKeychain(home); err != nil {
+		fmt.Fprintf(os.Stderr, "agy /quota: %v (a macOS keychain dialog may appear)\n", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), agyQuotaTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, agyPath, "--print-timeout", "30s", "-p", "/quota")

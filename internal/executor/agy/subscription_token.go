@@ -118,6 +118,9 @@ const quotaTimeout = 45 * time.Second
 // when something it spawned still holds its output after the kill. Evaluate the
 // output with mission.EvaluateGoogleQuota.
 func RunQuota(ctx context.Context, home string) ([]byte, error) {
+	if err := EnsureLockedKeychain(home); err != nil {
+		fmt.Fprintf(os.Stderr, "agy /quota: %v (a macOS keychain dialog may appear)\n", err)
+	}
 	ctx, cancel := context.WithTimeout(ctx, quotaTimeout)
 	defer cancel()
 	var out bytes.Buffer
