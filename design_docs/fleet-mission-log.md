@@ -1674,3 +1674,54 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Operator request for this fire: spawn the roles as the routing table specifies, the evaluator required. Planner and executor ran on their codex pins (the table's lane, not the Agent tool); the evaluator ran on the Agent tool. The designer had no doc to write. No role was unspawnable, and no fallback was used. After this fire's runs codex reads over its daily ration (done-gate probe rc 75), so the next fleet fire's codex roles will likely degrade.
 - Driver routing note verbatim: (empty; no lane degraded this fire).
 - Cost: metered $0 (codex and Anthropic subscriptions only).
+
+## 144 — 2026-11-27 — pick NONE: 19 open tickets, none routable (independent sonnet judge NONE 88%); no directive, no new ticket since 143; dev `9b35c44d0` has the required `checks` red on two broken context-doc links left by the attended docs-overhaul merge, outside fleet Authority and V1-owned [ADMIN]
+
+**Pick**: NONE. Iteration 143's **Next** said to pick NONE unless a ruling lands or a new in-scope ticket arrives, and neither happened.
+- [Tickets](fleet-mission-evidence/iteration144/tickets.json): 19 open, the same set 143 left. Newest `first_seen` and `last_seen` are both 2026-11-24T16:06Z, so none was filed or re-seen after 143's fire ([diff](fleet-mission-evidence/iteration144/ticket-diff.txt)).
+- OPEN rows D-FLEET-44, 45, 46, 48. No ledger row changed since 143 (charter diff `216d6562b..origin/dev` is 143's own record only). D-FLEET-48 stays moot.
+- Step screen: 44 A asks for corrected design evidence (no diff); 45's recommendation is B (no change); 46 A is resolving tickets, which is the ruling itself. No row's recommended option begins with an in-scope code step.
+- 0 allowlisted directives on #2445 (15 comments; no watermark file, whole issue read). Self-notices: the same crash (`…#issuecomment-7063993188`, 11-21) and transcript (fire `fleet-1795100889-10927`) notices as 125–143, both already credited; control 852:10. No new death.
+- Died-mid-flight traces: no open `fleet/*` PR, no `i144` worktree before this fire's own.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=codex ollama google` (codex over its daily ration, so the driver handed planner and executor to `opus` / `claude:claude-haiku-5-5`; neither ran).
+- Skill drift: SKILL.md and all 13 resources byte-identical to origin/dev in the resolved symlink copy and in the pin copy, per file. Pin HEAD = origin/dev = `9b35c44d0`; driver drift 20.
+- **Dev CI red at `9b35c44d0`** (22 check-runs, 2 not green; [excerpts](fleet-mission-evidence/iteration144/dev-ci.txt)). Required contexts: `test`, `lint`, `build`, `docs-gate`, `checks`.
+  - `checks`: `make check-context-docs` fails on `.claude/rules/coordinator.md` → `docs/docs/guides/coordinator-workers.md` and `.claude/skills/local-ollama-eval/SKILL.md` → `docs/docs/guides/evaluation/local-ollama.md`. Both targets exist at `216d6562b` and were moved by `d03096c91` (docs M5 overhaul, attended). Walk: `e06d90554` (143's record) `checks=success`; `e5b18e2d7` and `9b35c44d0` `failure`.
+  - `Build (1074573805007)` (google-cloud-build): "Couldn't read commit", a Cloud Build read failure, not a code defect.
+  - Fix paths: repointing the links or baselining them in `scripts/context_docs_links_baseline.txt` are both outside fleet Authority. Dev reds are V1's, and the V1 loop is disabled.
+
+**Did**: no design, plan, build or merge.
+- Evidence directory `iteration144/`: tickets, ticket diff, dev CI excerpts.
+- Judge: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only, 86,950 tok), first attempt. The brief named the sources and the question, not the controller's verdict.
+  - Verdict **NONE, 88%**. [Report](fleet-mission-evidence/iteration144/judge.md).
+  - It re-derived the ticket count and dates, the OPEN-row set, each row's first step, the directive count and the `checks` cause. Its per-ticket table matches 137/143.
+  - Strongest objection: recreating the two moved guides under `docs/**` (inside Authority) would turn `checks` green. Rejected: no ticket, it would undo the overhaul's deliberate move, and the real fix (repoint or baseline) is outside Authority.
+  - Cautions, all followed: no edits to `.claude/rules/**`, `.claude/skills/local-ollama-eval/**` or the baseline; no resolve while D-FLEET-46 is OPEN (including tickets 17–19, whose fixes have landed); no self-sourced two-digit control test; no `messages read` on `mission-fleet`.
+
+**Ruled out**:
+- Recreating the moved `docs/docs/guides/` files to green `checks`: self-sourced, and it reverses attended work.
+- Resolving the attended-fixed tickets (D-FLEET-46's set, rows 71–73, and the two config tickets): that is D-FLEET-46 A, Mark's call.
+- The two-digit record control 143 floated: not a ticket.
+
+**Retro lane**: one friction, no skill edit.
+- (a) `cd /Users/voightkampff/.ailang-driver-pin && git -C fleet worktree add … fleet-i144-rec …` placed the worktree INSIDE the pin (`fleet/fleet-i144-rec`), because the `cd` outside the session's working directory did not hold and the relative path resolved against the pin. Fixed with `git worktree move`. Instance 1; give `git worktree add` an absolute path.
+
+**Progress**: 19 open tickets (unchanged). Goal unmoved.
+- Clause 1 UNMEASURED; clause 2 not moved (every remaining ticket waits on a ruling or an owner outside fleet scope); clause 3 MET; clause 4 met by its letter (tickets are open); clause 5 preserved (nothing landed).
+- Last 3 landings: 135, 141, 143.
+
+**Validation**: darwin/arm64. `mission_decisions.sh --check` (after edits); STATUS rotation: ITERATION 141 moved to the archive (archive ≥1, charter 0), charter 442 → 442 lines, queue-row control present; canonical heading test.
+
+**Next**: pick NONE unless a ruling lands (D-FLEET-44/45/46) or a new in-scope ticket arrives. If this record PR is blocked by dev's `checks`, the next fire reads it from `fleet/i144-record`.
+
+**Routing evidence**: base=`9b35c44d0749490d79f1ae1a8dd2e528400a23bb`@2026-11-27T01:17:38Z (Gate 4; Gate 1 read the same SHA at 01:10:40Z, drift 0).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned**: no pick, no doc. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus` (codex `gpt-6.2-sol` probe rc 75, ration gate → `opus`). **Not spawned**: no pick.
+- Executor: resolver `recipe claude:claude-haiku-5-5` (codex rc 75 → fallback). **Not spawned**: no pick.
+- Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, read-only, 1 spawn (86,950 tok). Judge independence: distinct from the controller (opus); no generator this fire.
+- Operator request for this fire: spawn the roles as the routing table specifies, the evaluator required. The evaluator ran and judged the pick. The designer, planner and executor had nothing to do on a NONE pick. No role was unspawnable, and no fallback was used.
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — blocked by the ration gate (no reason line captured)) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — blocked by the ration gate (no reason line captured)) → handed to `claude:claude-haiku-5-5`
+- Cost: metered $0 (Anthropic subscription only).
