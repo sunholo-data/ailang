@@ -254,40 +254,85 @@ export func main() -> string { let a = wrap(fromInbox("hi")) in let b = fwd(from
 	}
 }
 
-// The join of two callables is at least as strict as either side: anything
-// rejected through one alternative is rejected through the join.
+// The join of two callables is at least as strict as either side: a value
+// that may be either sink is checked against both sinks' demands.
 func TestIFCCallableJoinIsMonotone(t *testing.T) {
-	g := &ifcCallable{alts: []*ifcFn{{kind: fnDeclared, name: "g", params: []ifcDemand{{param: "a", forbid: []string{"email"}}}}}}
-	s := &ifcCallable{alts: []*ifcFn{{kind: fnDeclared, name: "s", params: []ifcDemand{{param: "b", covers: []Label{LabelConst("sqlsafe")}}}}}}
-	j := joinCallable(g, s)
+	a, b := funAtom("a"), funAtom("b")
+	j := joinCallable(a, b)
 	if joinCallable(j, nil) != j || joinCallable(nil, j) != j {
 		t.Error("nil must be the identity of the join")
 	}
-	if len(j.alts) != 2 || len(joinCallable(j, g).alts) != 2 {
-		t.Errorf("join must union alternatives without duplicates: %d", len(j.alts))
+	if len(j.atoms) != 2 || joinCallable(j, a) != j {
+		t.Errorf("join must be set union without duplicates: %d", len(j.atoms))
 	}
-	for _, d := range []struct {
-		arg  Label
-		fail bool
-	}{{LabelConst("email"), true}, {LabelConst("secret"), true}, {LabelConst("sqlsafe"), false}, {LabelBottom(), false}} {
-		got := demandViolations(j, d.arg)
-		if (got > 0) != d.fail {
-			t.Errorf("join on %s: violations=%d, want fail=%v", d.arg, got, d.fail)
+	for _, tc := range []struct {
+		arg       string
+		gate, sto bool // rejected through gate alone / store alone
+	}{
+		{`fromInbox("hi")`, true, true},
+		{`"clean"`, false, false},
+		{`tagSql("q")`, false, false},
+		{`tagSecret("s")`, false, true},
+	} {
+		count := func(sel string) int {
+			src := "module r/join\n" + fvPrelude +
+				"pure func tagSql(s: string) -> string<sqlsafe> { s }\n" +
+				"pure func tagSecret(s: string) -> string<secret> { s }\n" +
+				"export func main(c: bool) -> string { let g = " + sel + " in g(" + tc.arg + ") }\n"
+			return len(fvCheck(t, src))
 		}
-		if demandViolations(g, d.arg) > got || demandViolations(s, d.arg) > got {
-			t.Errorf("join on %s is less strict than a side", d.arg)
+		both, g, s := count("if c then gate else store"), count("gate"), count("store")
+		if (g > 0) != tc.gate || (s > 0) != tc.sto {
+			t.Fatalf("%s: fixture drifted (gate=%d store=%d)", tc.arg, g, s)
+		}
+		if both < g || both < s || (both > 0) != (g > 0 || s > 0) {
+			t.Errorf("%s through the joined value: %d diagnostics, sides %d and %d", tc.arg, both, g, s)
 		}
 	}
 }
 
-func demandViolations(c *ifcCallable, arg Label) int {
-	n := 0
-	for _, a := range c.alts {
-		for _, d := range a.params {
-			if d.violation(arg) != "" {
-				n++
-			}
+// A recursive function that builds closures out of closures. The first
+// implementation of #1719 inlined summaries by substitution, so this shape
+// nested callables without bound and never reached its fixed point (measured:
+// ailang-parse's docx_parser.ail ran for minutes). Entities are identities now,
+// so the module converges; the leak is still caught and the clean call is not.
+func TestIFCFunctionValueRecursiveClosuresConverge(t *testing.T) {
+	src := "module r/pow\n" + fvPrelude + `pure func compose(f: string -> string, g: string -> string) -> (string -> string) { \x. f(g(x)) }
+pure func pow(f: string -> string, n: int) -> (string -> string) { if n <= 0 then f else compose(f, pow(f, n - 1)) }
+export func main() -> string { pow(gate, 3)(fromInbox("hi")) }
+export func ok() -> string { pow(gate, 3)("clean") }
+`
+	errs := fvCheck(t, src)
+	if len(errs) == 0 {
+		t.Fatal("pow(gate, 3) applied to <email> leaked")
+	}
+	for _, e := range errs {
+		if !strings.Contains(e.Position, ":7:") {
+			t.Errorf("only main's application (line 7) may be rejected, got %s: %s", e.Position, e.Message)
 		}
 	}
-	return n
+}
+
+// The breakage bound by construction: a module that declares no {not ℓ} and
+// no positive <ℓ> parameter anywhere takes the plain label walk.
+func TestIFCFunctionValueFastPathOnlyWithoutDemands(t *testing.T) {
+	for _, tc := range []struct {
+		src  string
+		want bool
+	}{
+		{"module r/a\npure func up(s: string) -> string { s }\nexport func main() -> string { let f = up in f(\"x\") }\n", false},
+		{"module r/b\npure func sink(s: string{not email}) -> string { s }\n", true},
+		{"module r/c\npure func h(f: string{not email} -> string) -> string { f(\"x\") }\n", true},
+		{"module r/d\nexport func main() -> string { let w = func(y: string<sqlsafe>) -> string { y } in w(\"x\") }\n", true},
+		{"module r/e\ntype Hook = { run: string{not secret} -> string }\n", true},
+	} {
+		p := parser.New(lexer.New(tc.src, "fp.ail"))
+		file := p.ParseFile()
+		if errs := p.Errors(); len(errs) > 0 {
+			t.Fatalf("parse: %v", errs)
+		}
+		if got := newIFCChecker(file).moduleHasDemands(file); got != tc.want {
+			t.Errorf("moduleHasDemands = %v, want %v for:\n%s", got, tc.want, tc.src)
+		}
+	}
 }

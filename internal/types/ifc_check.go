@@ -76,9 +76,11 @@ func newIFCChecker(file *ast.File) *ifcChecker {
 		sigs:      make(map[string]*ifcSig, len(file.Funcs)),
 		effLabel:  make(map[string]Label),
 		computing: make(map[string]bool),
-		summaries: make(map[string]*ifcSummary, len(file.Funcs)),
+		funs:      make(map[string]*ifcFun),
+		flow:      make(map[string]*ifcCallable),
 		rhos:      make(map[string]rhoRef),
 		lamIDs:    make(map[ast.Expr]string),
+		declIDs:   make(map[*ast.FuncType]string),
 		errSeen:   make(map[string]bool),
 	}
 	for _, fn := range file.Funcs {
@@ -90,9 +92,16 @@ func newIFCChecker(file *ast.File) *ifcChecker {
 }
 
 func (c *ifcChecker) run(file *ast.File) []*TypeCheckError {
-	// Summaries first (silent), so every application below sees what each
-	// module function does with the function values and labels it receives.
-	c.summariseModule(file)
+	// A module that declares no {not ℓ} / <ℓ> parameter anywhere cannot get a
+	// callable diagnostic (every demand starts at one), so it keeps the plain
+	// label walk. Otherwise summaries come first (silent), so every
+	// application below sees what each module function does with the function
+	// values and labels it receives.
+	c.callables = c.moduleHasDemands(file)
+	if c.callables {
+		c.registerTops(file)
+		c.summariseModule(file)
+	}
 	// Walk function bodies in source order for deterministic diagnostics.
 	for _, fn := range file.Funcs {
 		if fn != nil && fn.Body != nil {
@@ -140,10 +149,14 @@ type ifcChecker struct {
 	computing map[string]bool  // cycle guard for the effLabel fixpoint
 	silent    bool             // suppress sink diagnostics during effLabel and summary walks
 
-	summaries map[string]*ifcSummary // module fixed point (ifc_summary_local.go)
-	owners    []*ifcSummary          // active summaries, innermost last
-	rhos      map[string]rhoRef      // label variable name -> owner and param index
-	lamIDs    map[ast.Expr]string    // stable summary key per lambda / function literal
+	callables bool                     // the module declares a demand anywhere (moduleHasDemands)
+	funs      map[string]*ifcFun       // entity summaries (ifc_summary_local.go)
+	flow      map[string]*ifcCallable  // probe -> function atoms passed to it anywhere
+	version   int                      // bumped whenever a summary table grows
+	owners    []string                 // entities whose bodies are being walked, innermost last
+	rhos      map[string]rhoRef        // label variable name -> owner and param index
+	lamIDs    map[ast.Expr]string      // stable entity key per lambda / function literal
+	declIDs   map[*ast.FuncType]string // stable entity key per written function type
 }
 
 func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
@@ -183,7 +196,7 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 	// The diagnostic walk seeds parameters exactly as the summary walk does
 	// (declared label, or ρ when unlabelled — erased from bodyLabel), so Check
 	// A/C outcomes inside the body are today's plus the new application sites.
-	_, bodyLabel := c.walkFunc(sig, false)
+	bodyLabel := c.walkFunc(sig, false)
 
 	// Check B: the return label and declared authority jointly cover the body.
 	// Declassifiers with unlabelled returns lower to bottom too; check them.
@@ -276,7 +289,7 @@ func (c *ifcChecker) flowVal(expr ast.Expr, env ifcEnv) ifcVal {
 		// the record may be the one projected.
 		if ft := c.staticType(e, env); ft != nil {
 			v := c.flowVal(e.Record, env)
-			v.fn = joinCallable(v.fn, c.types.fromFuncType(ft, e.Field))
+			v.fn = joinCallable(v.fn, c.fromFuncType(ft, e.Field))
 			return v
 		}
 		return c.valueOf(e.Record, env)
@@ -320,13 +333,16 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 	if v, ok := env[name]; ok {
 		return ifcVal{label: v.label, fn: v.fn}
 	}
+	if !c.callables {
+		return ifcVal{label: LabelBottom()}
+	}
 	if sig, ok := c.sigs[name]; ok {
 		return ifcVal{label: LabelBottom(), fn: fromSig(sig)}
 	}
 	if _, ok := c.types.ctors[name]; ok || isCtorName(name) {
-		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
+		return ifcVal{label: LabelBottom(), fn: ctorCallable}
 	}
-	return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name})}
+	return ifcVal{label: LabelBottom(), fn: opaqueCallable}
 }
 
 // isCtorName: AILANG constructors are capitalised (Some, Ok, Cons, ...), so an
@@ -372,7 +388,7 @@ func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVa
 		t = c.staticType(value, env)
 	}
 	v := c.handOffVal(value, t, env)
-	return ifcVar{label: v.label, typ: t, fn: joinCallable(v.fn, c.types.fromFuncType(t, describeExpr(value)))}
+	return ifcVar{label: v.label, typ: t, fn: joinCallable(v.fn, c.fromFuncType(t, describeExpr(value)))}
 }
 
 // describeExpr names an expression for a diagnostic's via trail.
@@ -480,7 +496,10 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	if !isLocal {
 		via = []string{describeExpr(call.Func)}
 	}
-	fn := c.applyCallable(callee.fn, args, call, callee.label, via, 0)
+	var fn *ifcCallable
+	if c.callables {
+		fn = c.applyCallable(callee.fn, args, call, callee.label, via, 0)
+	}
 
 	if isLocal {
 		return ifcVal{label: c.calleeResultLabel(sig, passed, argLabels), fn: fn}

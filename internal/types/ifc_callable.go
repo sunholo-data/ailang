@@ -17,130 +17,142 @@ import (
 // same function value — an alias, a higher-order parameter, a record field, a
 // list element, a returned function, a wrapper lambda — dropped them.
 //
-// An ifcVal now carries, beside its label, an *ifcCallable: what this value
-// requires of its arguments if it is applied. It travels through every binding
-// form the label travels through, and Checks A/C run at EVERY application
-// against the callee value's callable, whatever the callee expression is.
-// Requirements stay in the IFC domain: nothing here touches HM types, CoreTI,
-// codegen or the iface (design F1).
+// An ifcVal now carries, beside its label, an *ifcCallable: the set of
+// function ATOMS the value may be. An atom names a function-like entity
+// (ifcFun) by identity — a module function, a lambda or function literal (by
+// AST node), a written function type, a parameter of the body being walked
+// (a probe), or an imported/unknown function. What an entity requires of its
+// arguments lives on the entity (ifc_summary_local.go), so the domain is
+// finite and the module fixed point is polynomial. Checks A/C run at EVERY
+// application against the atoms of the callee VALUE. Requirements stay in the
+// IFC domain: nothing here touches HM types, CoreTI, codegen or the iface
+// (design F1).
 
 // ifcVal is the IFC abstract value of an expression.
 type ifcVal struct {
 	label Label
-	fn    *ifcCallable // nil: no requirement known for applying this value
+	fn    *ifcCallable // nil: not (known to be) a function with requirements
 }
 
-// ifcCallable is a set of alternatives: the value may be any one of them. The
-// join of two callables is the union of their alternatives, so a join is
-// checked against every demand of either side — at least as strict as each.
-type ifcCallable struct {
-	alts []*ifcFn
-}
-
-type fnKind int
+type atomKind int
 
 const (
-	// fnTop is a module function referenced by name. Its declared demands are
-	// in params; its summary (deferred applications, result callable) is read
-	// from the module fixed point when it is applied.
-	fnTop fnKind = iota
-	// fnLambda is a lambda or function literal: demands from its typed params,
-	// plus the summary recorded while its body was walked.
-	fnLambda
-	// fnDeclared carries demands written in a function-type annotation
-	// (`f: string{not email} -> string`), or the demand-only leaf of a
-	// deferred application.
-	fnDeclared
-	// fnProbe is "parameter idx of the body being summarised (owner)": a
-	// symbolic function argument. Applying it records a deferred application
-	// that is replayed when the owner is applied to a concrete function.
-	fnProbe
-	// fnOpaque is an imported or otherwise unknown function. Passing a
-	// callable to it takes the conservative arg-join fallback (design F2).
-	fnOpaque
-	// fnCtor is a data constructor: it stores its arguments, it never applies
-	// them, so no fallback check is needed.
-	fnCtor
+	atomFun    atomKind = iota // a module function, lambda or written function type (ifcFun)
+	atomProbe                  // parameter idx of the entity `owner` (symbolic)
+	atomOpaque                 // imported or unknown function: arg-join fallback (design F2)
+	atomCtor                   // data constructor: stores its arguments, applies none
 )
 
-// maxProbeDepth bounds probe result chains (f, f(..), f(..)(..)).
-const maxProbeDepth = 3
-
-type ifcFn struct {
-	kind     fnKind
-	name     string      // display name for diagnostics
-	params   []ifcDemand // positional demands (fnTop, fnLambda, fnDeclared)
-	owner    string      // summary key: fnLambda's own, fnProbe's owner
-	idx      int         // fnProbe: parameter index
-	res      int         // fnProbe: applications already taken
-	deferred []ifcDeferred
-	result   *ifcCallable // fnLambda, fnDeclared: callable of the result
-	key      string       // memoised identity (see fnKey)
+type ifcAtom struct {
+	kind  atomKind
+	fun   string // atomFun: entity key
+	owner string // atomProbe
+	idx   int    // atomProbe
 }
 
-// ifcDemand is what one parameter position requires of its argument.
-type ifcDemand struct {
-	param  string
-	typ    ast.Type // declared parameter type, for messages (may be nil)
-	forbid []string // {not ℓ}
-	covers []Label  // positive <ℓ>: the argument must be covered by each
-}
-
-func (d ifcDemand) empty() bool { return len(d.forbid) == 0 && len(d.covers) == 0 }
-
-// violation reports the first constituent of arg that d rejects, or "".
-func (d ifcDemand) violation(arg Label) string {
-	for _, cv := range d.covers {
-		if l := labelNotCoveredBy(arg, cv); l != "" {
-			return l
-		}
+func (a ifcAtom) key() string {
+	switch a.kind {
+	case atomFun:
+		return "F:" + a.fun
+	case atomProbe:
+		return probeKey(a.owner, a.idx)
+	case atomOpaque:
+		return "O"
+	default:
+		return "C"
 	}
-	for _, f := range d.forbid {
-		if CheckSinkLabel(arg, f) != nil {
-			return f
-		}
-	}
-	return ""
 }
 
-func (d ifcDemand) String() string {
-	return fmt.Sprintf("%s{%s|%v}", d.param, strings.Join(d.forbid, ","), d.covers)
+func probeKey(owner string, idx int) string { return fmt.Sprintf("P:%s#%d", owner, idx) }
+
+// ifcCallable is an immutable set of atoms. The join is set union, so a
+// joined value is checked against every demand of either side: at least as
+// strict as each.
+type ifcCallable struct {
+	atoms map[string]ifcAtom
 }
 
-// ifcDeferred is an application recorded while a body was summarised whose
-// argument labels mention that body's label variables (ρ). It is replayed,
-// with ρ and probes substituted, when the summarised function is applied.
-type ifcDeferred struct {
-	target *ifcCallable
-	args   []ifcVal
-	via    []string
+func single(a ifcAtom) *ifcCallable {
+	return &ifcCallable{atoms: map[string]ifcAtom{a.key(): a}}
 }
 
-func single(f *ifcFn) *ifcCallable { return &ifcCallable{alts: []*ifcFn{f}} }
+func funAtom(key string) *ifcCallable { return single(ifcAtom{kind: atomFun, fun: key}) }
 
-// joinCallable is the join of two callables: the union of their alternatives
-// (deduplicated by identity, order preserved). nil is the identity.
+func probeAtom(owner string, idx int) *ifcCallable {
+	return single(ifcAtom{kind: atomProbe, owner: owner, idx: idx})
+}
+
+var (
+	opaqueCallable = single(ifcAtom{kind: atomOpaque})
+	ctorCallable   = single(ifcAtom{kind: atomCtor})
+)
+
+// joinCallable is the union of two atom sets; nil is the identity.
 func joinCallable(a, b *ifcCallable) *ifcCallable {
-	if a == nil || len(a.alts) == 0 {
-		if b == nil || len(b.alts) == 0 {
+	if a == nil || len(a.atoms) == 0 {
+		if b == nil || len(b.atoms) == 0 {
 			return nil
 		}
 		return b
 	}
-	if b == nil || len(b.alts) == 0 {
+	if b == nil || len(b.atoms) == 0 {
 		return a
 	}
-	seen := make(map[string]bool, len(a.alts)+len(b.alts))
-	out := &ifcCallable{}
-	for _, f := range append(append([]*ifcFn{}, a.alts...), b.alts...) {
-		k := fnKey(f)
-		if !seen[k] {
-			seen[k] = true
-			out.alts = append(out.alts, f)
+	grow := false
+	for k := range b.atoms {
+		if _, ok := a.atoms[k]; !ok {
+			grow = true
+			break
 		}
 	}
-	if len(out.alts) == len(a.alts) {
+	if !grow {
 		return a
+	}
+	out := &ifcCallable{atoms: make(map[string]ifcAtom, len(a.atoms)+len(b.atoms))}
+	for k, v := range a.atoms {
+		out.atoms[k] = v
+	}
+	for k, v := range b.atoms {
+		out.atoms[k] = v
+	}
+	return out
+}
+
+// sorted lists the atoms in key order (deterministic diagnostics).
+func (fn *ifcCallable) sorted() []ifcAtom {
+	if fn == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(fn.atoms))
+	for k := range fn.atoms {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]ifcAtom, len(keys))
+	for i, k := range keys {
+		out[i] = fn.atoms[k]
+	}
+	return out
+}
+
+// relevant drops the atoms that never lead to a demand when a value is stored
+// and passed on (opaque functions, constructors), so data built by imported
+// functions does not drag atoms along. nil when nothing relevant remains.
+func relevant(fn *ifcCallable) *ifcCallable {
+	if fn == nil {
+		return nil
+	}
+	var out *ifcCallable
+	for k, a := range fn.atoms {
+		if a.kind == atomFun || a.kind == atomProbe {
+			if out == nil {
+				out = &ifcCallable{atoms: map[string]ifcAtom{}}
+			}
+			out.atoms[k] = a
+		}
+	}
+	if out != nil && len(out.atoms) == len(fn.atoms) {
+		return fn
 	}
 	return out
 }
@@ -154,114 +166,71 @@ func joinVals(vals ...ifcVal) ifcVal {
 	return out
 }
 
-// fnKey is a canonical identity for an alternative, content-addressed for
-// lambdas because substitution produces new instances of the same literal.
-func fnKey(f *ifcFn) string {
-	if f.key != "" {
-		return f.key
-	}
-	var k string
-	switch f.kind {
-	case fnTop:
-		k = "T:" + f.name
-	case fnProbe:
-		k = fmt.Sprintf("P:%s#%d^%d", f.owner, f.idx, f.res)
-	case fnOpaque:
-		k = "O"
-	case fnCtor:
-		k = "C"
-	case fnDeclared:
-		k = "D:" + f.name + demandsKey(f.params) + "->" + callableKey(f.result)
-	case fnLambda:
-		parts := make([]string, len(f.deferred))
-		for i, d := range f.deferred {
-			parts[i] = deferredKey(d)
-		}
-		sort.Strings(parts)
-		k = "L:" + f.owner + demandsKey(f.params) + "{" + strings.Join(parts, ";") + "}->" + callableKey(f.result)
-	}
-	f.key = k
-	return k
+// --- demands -----------------------------------------------------------------
+
+// ifcDemand is one requirement on one parameter position. A concrete demand
+// forbids a label ({not ℓ}) or requires coverage by one (<ℓ>); a symbolic
+// demand says "this argument is applied, at position pos, by whatever function
+// is bound to probe". A symbolic demand is resolved against the actual
+// function argument at each call (context-sensitive), or through the module's
+// flow sets when the probe is out of scope (a returned closure).
+type ifcDemand struct {
+	forbid string // {not ℓ}
+	cover  Label  // positive <ℓ>; nil when not a cover demand
+
+	probe string // symbolic: probe key
+	owner string // symbolic: the probe's owner entity
+	idx   int    // symbolic: the probe's parameter index
+	pos   int    // symbolic: position the probe is applied at
+
+	leaf  string   // function that declares the concrete requirement
+	param string   // its parameter name
+	typ   ast.Type // its declared type, for messages (may be nil)
+	via   []string // hops from the entity carrying the demand to the leaf
 }
 
-func demandsKey(ds []ifcDemand) string {
-	parts := make([]string, len(ds))
-	for i, d := range ds {
-		parts[i] = d.String()
+func (d *ifcDemand) symbolic() bool { return d.probe != "" }
+
+// key identifies a demand for set membership; the via trail is provenance,
+// not identity (the first path recorded is the one reported).
+func (d *ifcDemand) key() string {
+	if d.symbolic() {
+		return fmt.Sprintf("S|%s|%d", d.probe, d.pos)
 	}
-	return "(" + strings.Join(parts, ",") + ")"
+	cover := ""
+	if d.cover != nil {
+		cover = d.cover.String()
+	}
+	return "D|" + d.forbid + "|" + cover + "|" + d.leaf + "|" + d.param
 }
 
-func callableKey(c *ifcCallable) string {
-	if c == nil {
-		return "_"
-	}
-	parts := make([]string, len(c.alts))
-	for i, f := range c.alts {
-		parts[i] = fnKey(f)
-	}
-	sort.Strings(parts)
-	return "[" + strings.Join(parts, "|") + "]"
-}
-
-func deferredKey(d ifcDeferred) string {
-	parts := make([]string, len(d.args))
-	for i, a := range d.args {
-		parts[i] = a.label.String() + "&" + callableKey(a.fn)
-	}
-	return callableKey(d.target) + "(" + strings.Join(parts, ",") + ")"
-}
-
-// demandOf projects a declared parameter type onto a demand.
-func demandOf(name string, t ast.Type) ifcDemand {
-	d := ifcDemand{param: name, typ: t}
-	if lt, ok := t.(*ast.LabelledType); ok {
-		if lt.Label != nil {
-			d.covers = []Label{LabelConst(lt.Label.Name)}
-		}
-		if lt.Refinement != nil {
-			d.forbid = []string{lt.Refinement.NotLabel}
+// violation reports what arg violates in a concrete demand, or "".
+func (d *ifcDemand) violation(arg Label) string {
+	if d.cover != nil {
+		if l := labelNotCoveredBy(arg, d.cover); l != "" {
+			return l
 		}
 	}
-	return d
-}
-
-// fromSig is the callable of a module function referenced as a value.
-func fromSig(sig *ifcSig) *ifcCallable {
-	f := &ifcFn{kind: fnTop, name: sig.decl.Name}
-	for _, p := range sig.params {
-		d := ifcDemand{param: p.name, typ: p.typ}
-		if !LabelEqual(p.label, LabelBottom()) {
-			d.covers = []Label{p.label}
-		}
-		if p.hasNot {
-			d.forbid = []string{p.notLabel}
-		}
-		f.params = append(f.params, d)
+	if d.forbid != "" && CheckSinkLabel(arg, d.forbid) != nil {
+		return d.forbid
 	}
-	return single(f)
+	return ""
 }
 
-// fromFuncType is the callable a written function type promises: the demands
-// of its labelled or refined parameters, and of its result if that is a
-// function type. nil when the type declares none (the common case, so plain
-// HOF code carries no callable at all).
-func (ts *ifcTypes) fromFuncType(t ast.Type, name string) *ifcCallable {
-	ft := ts.funcTypeOf(t)
-	if ft == nil {
+// demandsOfType projects a declared parameter type onto its demands.
+func demandsOfType(leaf, param string, t ast.Type) []*ifcDemand {
+	lt, ok := t.(*ast.LabelledType)
+	if !ok {
 		return nil
 	}
-	f := &ifcFn{kind: fnDeclared, name: name, result: ts.fromFuncType(ft.Return, name+"(..)")}
-	has := f.result != nil
-	for i, p := range ft.Params {
-		d := demandOf(fmt.Sprintf("#%d", i+1), p)
-		has = has || !d.empty()
-		f.params = append(f.params, d)
+	var out []*ifcDemand
+	if lt.Label != nil {
+		out = append(out, &ifcDemand{cover: LabelConst(lt.Label.Name), leaf: leaf, param: param, typ: t})
 	}
-	if !has {
-		return nil
+	if lt.Refinement != nil {
+		out = append(out, &ifcDemand{forbid: lt.Refinement.NotLabel, leaf: leaf, param: param, typ: t})
 	}
-	return single(f)
+	return out
 }
 
 // funcTypeOf resolves t to a function type through label wrappers and
@@ -294,46 +263,34 @@ func (ts *ifcTypes) funcTypeOf(t ast.Type) *ast.FuncType {
 
 // --- diagnostics -----------------------------------------------------------
 
-// demandErrors checks one argument against one demand. With an empty via the
+// demandError renders a violated concrete demand. With an empty via the
 // wording is the pre-#1719 direct-call message, byte for byte.
-func demandErrors(call *ast.FuncCall, callee string, d ifcDemand, arg Label, via []string) []*TypeCheckError {
-	var out []*TypeCheckError
-	for _, cv := range d.covers {
-		if labelNotCoveredBy(arg, cv) == "" {
-			continue
-		}
+func demandError(call *ast.FuncCall, d *ifcDemand, arg Label, via []string) *TypeCheckError {
+	if d.cover != nil {
 		if len(via) == 0 {
-			out = append(out, newParamLabelCoverError(call, ifcParam{name: d.param, typ: d.typ}, arg))
-			continue
+			return newParamLabelCoverError(call, ifcParam{name: d.param, typ: d.typ}, arg)
 		}
-		declared := cv.String()
+		declared := d.cover.String()
 		if d.typ != nil {
 			declared = d.typ.String()
 		}
-		out = append(out, &TypeCheckError{
+		return &TypeCheckError{
 			Kind:     ParamLabelCoverError,
 			Position: call.Pos.String(),
 			Message: fmt.Sprintf("information-flow violation: value labelled %s reaches parameter %q of %s (via %s) declared %s, which does not cover it",
-				arg, d.param, callee, strings.Join(via, " → "), declared),
+				arg, d.param, d.leaf, strings.Join(via, " → "), declared),
 			Suggestion: "relabel explicitly through a scoped declassifier before the value reaches this function, or widen the parameter's declared label",
-		})
-	}
-	for _, f := range d.forbid {
-		if CheckSinkLabel(arg, f) == nil {
-			continue
 		}
-		if len(via) == 0 {
-			out = append(out, newSinkError(call, d.param, f, arg))
-			continue
-		}
-		out = append(out, &TypeCheckError{
-			Kind:     SinkRefinementError,
-			Position: call.Pos.String(),
-			Message: fmt.Sprintf("information-flow violation: value labelled %s reaches parameter %q of %s (via %s) which forbids it (string{not %s})",
-				arg, d.param, callee, strings.Join(via, " → "), f),
-			Suggestion: fmt.Sprintf("declassify the value through a function declaring ! {Declassify} before it reaches %s; the {not %s} requirement holds through aliases, higher-order functions and wrappers",
-				callee, f),
-		})
 	}
-	return out
+	if len(via) == 0 {
+		return newSinkError(call, d.param, d.forbid, arg)
+	}
+	return &TypeCheckError{
+		Kind:     SinkRefinementError,
+		Position: call.Pos.String(),
+		Message: fmt.Sprintf("information-flow violation: value labelled %s reaches parameter %q of %s (via %s) which forbids it (string{not %s})",
+			arg, d.param, d.leaf, strings.Join(via, " → "), d.forbid),
+		Suggestion: fmt.Sprintf("declassify the value through a function declaring ! {Declassify} before it reaches %s; the {not %s} requirement holds through aliases, higher-order functions and wrappers",
+			d.leaf, d.forbid),
+	}
 }
