@@ -105,7 +105,7 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 					if len(line) > 55 {
 						line = line[:52] + "..."
 					}
-					notes = line
+					notes = escapeMDXTableCell(line)
 					break
 				}
 			}
@@ -132,6 +132,17 @@ func getStatusIcon(status string) string {
 	default:
 		return "❓ Unknown"
 	}
+}
+
+func escapeMDXTableCell(s string) string {
+	r := strings.NewReplacer(
+		`|`, `\|`,
+		`{`, `\{`,
+		`}`, `\}`,
+		`<`, `&lt;`,
+		`>`, `&gt;`,
+	)
+	return r.Replace(s)
 }
 
 func updateExamplesStatus(content, statusTable string, report reporttypes.VerificationReport) string {
