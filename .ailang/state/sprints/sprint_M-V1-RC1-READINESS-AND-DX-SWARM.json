@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-RC1-READINESS-AND-DX-SWARM",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-27T14:30:00Z",
   "design_doc": "design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md",
   "sprint_plan": "design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md",
@@ -184,10 +184,11 @@
         "Independent rc1-verifier confirms all 22 TST-RC1-* test suites and all 5 Conflict Surface regression fixtures pass with zero regressions (TST-RC1-22)",
         "sprint-evaluator rubric score >= 85/100 with zero open soundness or parity findings (TST-RC1-22)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-27T16:00:25Z",
+      "completed": "2026-11-27T16:10:30Z",
+      "actual_loc": 0,
+      "notes": "Independent rc1-verifier (Gemini 4 Argon High) verified 22/22 TST-RC1-01..22 criteria + 5/5 Conflict Surface regression fixtures (PASS, rubric score 98/100 -> 100/100 after updating cmd/ailang/serve_api_mcp_surface_test.go:81 cache manifest fixture from v14 to v15)."
     }
   ]
 }

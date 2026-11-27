@@ -258,8 +258,8 @@ Pre-verified against the live Sunholo package registry (`ailang pkg search` / `p
 - Verify all 5 Conflict Surface regression fixtures and confirm `git status --short` is clean and all gates pass >= 90/100 on the `sprint-evaluator` rubric.
 
 **Acceptance Criteria:**
-- [ ] Independent `rc1-verifier` confirms `22/22` `TST-RC1-*` test IDs and all 5 Conflict Surface regression programs pass with zero regressions — `TST-RC1-22`
-- [ ] `sprint-evaluator` score `>= 85/100` with `0` open findings
+- [x] Independent `rc1-verifier` confirms `22/22` `TST-RC1-*` test IDs and all 5 Conflict Surface regression programs pass with zero regressions — `TST-RC1-22`
+- [x] `sprint-evaluator` score `>= 85/100` with `0` open findings (`98/100` -> `100/100` after `serve_api_mcp_surface_test.go` `v15` fixture sync)
 
 **Risks:**
 - Subtle interaction between `E_CAPS_MISSING` pre-flight and existing CLI tests — Mitigation: `rc1-verifier` runs full `go test ./cmd/ailang/... ./internal/runner/... -count=1`.
