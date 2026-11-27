@@ -49,5 +49,6 @@ those corpora can hit:
   error (`incompatible closed rows`) as `map(\d. println(d), xs)`. **Use `mapE`.**
 - Two distinct declared effect-row variables nested in one argument
   (`applyBoth((f, g), x)` with `f: … ! {e1}`, `g: … ! {e2}`) checked clean on base while the
-  second row's effects ran unpaid; it now fails loudly with the explicit callback-row
-  invariant instead of picking one row.
+  second row's effects ran unpaid. It is now rejected with the same diagnostic as the
+  top-level analogue `both(f, g, x)`: `distinct unresolved effect tails "e1" and "e2"; use a
+  shared effect row`. Migration: give the nested callbacks one shared row variable.

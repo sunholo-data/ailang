@@ -27,7 +27,11 @@ func (ctx *InferenceContext) applicationEffectRow(callee Type) *Row {
 // ApplicationEffects is the single publication authority for a typed App.
 // CallRow excludes evaluation of arguments; the mask records pre-solve openness.
 type ApplicationEffects struct {
-	CallbackRows      []*Row
+	CallbackRows []*Row
+	// CallbackConflicts[i] is set when argument i nests callbacks whose rows
+	// have distinct unresolved tails (#616): CallbackRows[i] is then nil and the
+	// validator reports this error, as it does for the top-level analogue.
+	CallbackConflicts []error
 	ImplicitCallbacks []bool
 	ImplicitOwnedTail bool
 	LatentParamMask   []bool
@@ -58,6 +62,7 @@ func (tc *CoreTypeChecker) ApplicationEffects(id uint64) (ApplicationEffects, bo
 	}
 	record.CallbackRows = cloneCallbackRows(record.CallbackRows)
 	record.ImplicitCallbacks = append([]bool(nil), record.ImplicitCallbacks...)
+	record.CallbackConflicts = append([]error(nil), record.CallbackConflicts...)
 	return record, ok
 }
 
@@ -84,7 +89,7 @@ func (tc *CoreTypeChecker) substituteApplicationRows(sub Substitution) {
 				} else if !ok {
 					// Nested rows are usually unresolved at publish time: recompute.
 					zonk := func(r *Row) *Row { return zonkApplicationRow(safe, r) }
-					row = nestedLatentRow(tc.dataArrows(argType), zonk, record.implicitOwned)
+					row, record.CallbackConflicts[i] = nestedLatentRow(tc.dataArrows(argType), zonk, record.implicitOwned)
 				}
 			}
 			record.CallbackRows[i] = zonkApplicationRow(safe, row)
@@ -204,6 +209,7 @@ func (tc *CoreTypeChecker) publishApplicationWithCallee(id uint64, mask []bool, 
 	record.CallbackRows = make([]*Row, len(args))
 	record.callbackTypes = make([]Type, len(args))
 	record.ImplicitCallbacks = make([]bool, len(args))
+	record.CallbackConflicts = make([]error, len(args))
 	for i, arg := range args {
 		record.callbackTypes[i] = getType(arg)
 		argType := tc.effectAliasHead(getType(arg))
@@ -211,7 +217,7 @@ func (tc *CoreTypeChecker) publishApplicationWithCallee(id uint64, mask []bool, 
 			record.CallbackRows[i] = latentRow(fn)
 			record.ImplicitCallbacks[i] = fn.EffectRow != nil && fn.EffectRow.Tail != nil && record.implicitOwned[fn.EffectRow.Tail.Name]
 		} else {
-			record.CallbackRows[i] = nestedLatentRow(tc.dataArrows(argType), nil, record.implicitOwned)
+			record.CallbackRows[i], record.CallbackConflicts[i] = nestedLatentRow(tc.dataArrows(argType), nil, record.implicitOwned)
 		}
 	}
 	tc.applicationEffects[id] = record

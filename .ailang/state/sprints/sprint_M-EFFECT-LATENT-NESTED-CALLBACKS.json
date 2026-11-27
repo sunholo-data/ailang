@@ -111,7 +111,7 @@
       "passes": true,
       "started": "2026-10-26",
       "completed": "2026-10-26",
-      "notes": "DONE. Sweep examples+std 515 files base 432/83 vs fix 432/83, 0 flips, identical diagnostics, 0 internal invariant. ailang-packages 45 roots + ailang-parse: 44/2 both (pre-existing: motoko-ext-a2a deps, motoko-ext-typefix-agent manifest), 0 flips. mcp_oauth 0.1.0/0.1.1: invariant -> all passed. LIMITATIONS entries moved to Resolved; prompt v0.16.7 sentence + hash + mirrors; examples/runnable/effect_latent_nested_callbacks.ail + manifest; changelog fragment. Gates green: test-changed, lint, verify-examples, test-imports, check-file-sizes, check-changelog, check-boundaries."
+      "notes": "DONE. Sweep examples+std 515 files base 432/83 vs fix 432/83, 0 flips, identical diagnostics, 0 internal invariant. ailang-packages 45 roots + ailang-parse: 44/2 both (pre-existing: motoko-ext-a2a deps, motoko-ext-typefix-agent manifest), 0 flips. mcp_oauth 0.1.0/0.1.1: invariant -> all passed. LIMITATIONS entries moved to Resolved; teaching-prompt sentence deferred to a prompt version bump (evaluator round 1: v0.16.7 is banked, in-place edit reverted); examples/runnable/effect_latent_nested_callbacks.ail + manifest; changelog fragment. Gates green: test-changed, lint, verify-examples, test-imports, check-file-sizes, check-changelog, check-boundaries. Evaluator round 1: nested distinct declared tails now report the #616 conflict as a user diagnostic (ApplicationEffects.CallbackConflicts) instead of an internal invariant."
     }
   ]
 }

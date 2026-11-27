@@ -109,26 +109,38 @@ func TestLatentRow_ClosesOnlyConcreteTails(t *testing.T) {
 	}
 }
 
+// nestedRowOK is nestedLatentRow for cases that must not conflict.
+func nestedRowOK(t *testing.T, arrows []*TFunc2, zonk func(*Row) *Row, owned map[string]bool) *Row {
+	t.Helper()
+	row, err := nestedLatentRow(arrows, zonk, owned)
+	if err != nil {
+		t.Fatalf("unexpected conflict: %v", err)
+	}
+	return row
+}
+
 func TestNestedLatentRow_UnionOwnershipAndConflict(t *testing.T) {
 	io, fs := latentArrow("", "IO"), latentArrow("", "FS")
-	if row := nestedLatentRow([]*TFunc2{io, fs}, nil, nil); row == nil || row.Labels["IO"] == nil || row.Labels["FS"] == nil {
+	if row := nestedRowOK(t, []*TFunc2{io, fs}, nil, nil); row == nil || row.Labels["IO"] == nil || row.Labels["FS"] == nil {
 		t.Fatalf("union must keep every label (not first-wins): %v", row)
 	}
-	pure := nestedLatentRow([]*TFunc2{latentArrow(""), latentArrow("")}, nil, nil)
+	pure := nestedRowOK(t, []*TFunc2{latentArrow(""), latentArrow("")}, nil, nil)
 	if pure == nil || len(pure.Labels) != 0 || pure.Tail != nil {
 		t.Fatalf("pure callbacks must publish an empty (non-nil) row: %v", pure)
 	}
-	if row := nestedLatentRow(nil, nil, nil); row != nil {
+	if row := nestedRowOK(t, nil, nil, nil); row != nil {
 		t.Fatalf("no arrows must publish no row: %v", row)
 	}
 	two := []*TFunc2{latentArrow("e1"), latentArrow("e2")}
-	if row := nestedLatentRow(two, nil, nil); row != nil {
-		t.Fatalf("distinct unowned tails must be an explicit conflict, got %v", row)
+	row, err := nestedLatentRow(two, nil, nil)
+	const want = `distinct unresolved effect tails "e1" and "e2"; use a shared effect row`
+	if row != nil || err == nil || err.Error() != want {
+		t.Fatalf("distinct unowned tails must be an explicit #616 conflict (%q), got row %v err %v", want, row, err)
 	}
-	if row := nestedLatentRow(two, nil, map[string]bool{"e1": true, "e2": true}); row == nil || row.Tail != nil {
+	if row := nestedRowOK(t, two, nil, map[string]bool{"e1": true, "e2": true}); row == nil || row.Tail != nil {
 		t.Fatalf("implicitly owned tails are the caller's caller's: %v", row)
 	}
-	if row := nestedLatentRow(two, nil, map[string]bool{"e1": true}); row == nil || row.Tail == nil || row.Tail.Name != "e2" {
+	if row := nestedRowOK(t, two, nil, map[string]bool{"e1": true}); row == nil || row.Tail == nil || row.Tail.Name != "e2" {
 		t.Fatalf("only the owned tail is dropped: %v", row)
 	}
 	zonk := func(r *Row) *Row {
@@ -137,7 +149,7 @@ func TestNestedLatentRow_UnionOwnershipAndConflict(t *testing.T) {
 		r.Labels["Net"] = TUnit
 		return r
 	}
-	if row := nestedLatentRow(two, zonk, nil); row == nil || row.Labels["Net"] == nil {
+	if row := nestedRowOK(t, two, zonk, nil); row == nil || row.Labels["Net"] == nil {
 		t.Fatalf("rows must pass through zonk before union: %v", row)
 	}
 }

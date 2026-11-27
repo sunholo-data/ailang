@@ -103,7 +103,14 @@ Showcase module `examples/runnable/effect_latent_nested_callbacks.ail`:
 - [x] **M4** corpus + docs — examples/std sweep 515 files: 432/83 on base and fix, **0 flips, byte-identical
   diagnostics**, 0 `internal invariant`; 45 `ailang-packages` roots + `ailang-parse`: 44/2 both, 0 flips;
   `sunholo/mcp_oauth` 0.1.0/0.1.1 invariant → all passed (0.1.2 passes both). LIMITATIONS entries resolved,
-  prompt sentence, example + manifest, changelog fragment.
+  example + manifest, changelog fragment.
+- [ ] **Teaching-prompt sentence — moved to a follow-up (evaluator round 1).** v0.16.7 is banked in published
+  benchmarks, so the in-place edit was reverted; the sentence needs a prompt version bump via prompt-manager
+  (a separate decision). Text recorded in the PR description.
+- [x] **Evaluator round 1 (90/100 PASS) follow-up:** distinct declared tails nested in one argument now
+  report the #616 conflict with the same user diagnostic as the top-level analogue
+  (`distinct unresolved effect tails "e1" and "e2"; use a shared effect row`) instead of an internal
+  invariant — `ApplicationEffects.CallbackConflicts`, read by the validator's missing-row branch.
 - Gates: `make test-changed`, `make lint`, `make verify-examples`, `make test-imports`, `make check-file-sizes`,
   `make check-changelog`, `make check-boundaries` all exit 0 (run unpiped).
 - Design doc left in `planned/` — the sprint-evaluator owns the move to `implemented/`.

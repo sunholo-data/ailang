@@ -108,10 +108,12 @@ func latentRow(fn *TFunc2) *Row {
 // arrow's row is first passed through zonk (nil = identity); a tail the caller
 // owns implicitly (`implicitOwned`) is the caller's caller's to pay and is
 // dropped per arrow, as the validator does for a top-level ImplicitCallbacks
-// row. Two remaining distinct tails are an irreducible #616 conflict: the result
-// is nil (never first-wins), so a masked argument trips the validator's
-// fail-loud missing-callback-row invariant. No arrows also yields nil.
-func nestedLatentRow(arrows []*TFunc2, zonk func(*Row) *Row, implicitOwned map[string]bool) *Row {
+// row. Two remaining distinct tails are an irreducible #616 conflict: no row is
+// returned (never first-wins) and the CheckedUnionEffectRows error is, so the
+// validator reports exactly what the top-level analogue `both(f, g, x)` reports
+// ("distinct unresolved effect tails …; use a shared effect row"). No arrows
+// yields (nil, nil).
+func nestedLatentRow(arrows []*TFunc2, zonk func(*Row) *Row, implicitOwned map[string]bool) (*Row, error) {
 	var acc *Row
 	for _, fn := range arrows {
 		row := latentRow(fn)
@@ -123,14 +125,14 @@ func nestedLatentRow(arrows []*TFunc2, zonk func(*Row) *Row, implicitOwned map[s
 		}
 		union, err := CheckedUnionEffectRows(acc, row)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		if union == nil { // UnionEffectRows spells "pure" as nil
 			union = EmptyEffectRow()
 		}
 		acc = union
 	}
-	return acc
+	return acc, nil
 }
 
 // nestedLatentMask reports whether a non-arrow parameter type nests, in a data

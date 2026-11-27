@@ -186,14 +186,28 @@ func TestLatentNested_IntendedFlips(t *testing.T) {
 }
 
 // Two distinct declared tails nested in one argument cannot be one callback
-// row: the conflict is explicit (#616), never a silent first-wins acceptance.
-// (On base this program checked clean while g's effects ran unpaid.)
+// row: the conflict is explicit (#616), never a silent first-wins acceptance,
+// and it reads exactly like the top-level analogue `both(f, g, x)` — a user
+// diagnostic, not an internal invariant. (On base the nested form checked clean
+// while g's effects ran unpaid.)
 func TestLatentNested_DistinctDeclaredTailsFailLoud(t *testing.T) {
 	t.Setenv("AILANG_NO_CACHE", "1")
-	err := checkModules(t, map[string]string{"main.ail": nestedSource("main", nestedApplyBoth+
-		"func fwdE[e1, e2](f: (int) -> int ! {e1}, g: (int) -> int ! {e2}, x: int) -> int ! {e1} = applyBoth((f, g), x)\n")})
-	if err == nil || !strings.Contains(err.Error(), "missing callback row") {
-		t.Fatalf("want explicit callback-row conflict: %v", err)
+	const sig = "func fwdE[e1, e2](f: (int) -> int ! {e1}, g: (int) -> int ! {e2}, x: int) -> int ! {e1} = "
+	const want = `function fwdE: distinct unresolved effect tails "e1" and "e2"; use a shared effect row`
+	for _, tt := range []struct{ name, body string }{
+		{"top_level_analogue", "func both(f: (int) -> int, g: (int) -> int, x: int) -> int = f(g(x))\n" + sig + "both(f, g, x)\n"},
+		{"nested_tuple", nestedApplyBoth + sig + "applyBoth((f, g), x)\n"},
+		{"nested_record", "func applyRec(p: {f: (int) -> int, g: (int) -> int}, x: int) -> int = p.f(p.g(x))\n" + sig + "applyRec({f: f, g: g}, x)\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkModules(t, map[string]string{"main.ail": nestedSource("main", tt.body)})
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("want %q: %v", want, err)
+			}
+			if strings.Contains(err.Error(), "internal invariant") {
+				t.Fatalf("conflict surfaced as an internal invariant: %v", err)
+			}
+		})
 	}
 }
 

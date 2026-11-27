@@ -400,7 +400,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 					latent = collector.latentEffects(arg)
 				} else if i >= len(publication.CallbackRows) || publication.CallbackRows[i] == nil {
 					if *collector.invariant == nil {
-						*collector.invariant = fmt.Errorf("internal invariant: missing callback row for typed application %d at %s (argument %d)", e.ID(), e.Span(), i)
+						*collector.invariant = missingCallbackRowError(publication, e, i)
 					}
 				} else {
 					latent = cloneEffectRow(publication.CallbackRows[i])

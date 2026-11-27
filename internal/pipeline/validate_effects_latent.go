@@ -59,6 +59,17 @@ func (c *effectCollector) applicationEffects(app *core.App) types.ApplicationEff
 	return record
 }
 
+// missingCallbackRowError explains why a masked argument has no callback row.
+// Callbacks nested in one argument with distinct unresolved tails (#616) are a
+// user error, reported exactly as for the top-level analogue; any other absence
+// is a compiler invariant failure.
+func missingCallbackRowError(publication types.ApplicationEffects, app *core.App, i int) error {
+	if i < len(publication.CallbackConflicts) && publication.CallbackConflicts[i] != nil {
+		return publication.CallbackConflicts[i]
+	}
+	return fmt.Errorf("internal invariant: missing callback row for typed application %d at %s (argument %d)", app.ID(), app.Span(), i)
+}
+
 func recBindingNames(bindings []core.RecBinding) []string {
 	names := make([]string, len(bindings))
 	for i, b := range bindings {
