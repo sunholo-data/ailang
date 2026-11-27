@@ -25,7 +25,7 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale nightly-omit nightly-all-comments widen narrow nopr nouniq; do
+    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale nightly-omit nightly-all-comments widen narrow nopr nouniq nowhole idonly; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
       expected_fail=''
       mutation_target=helper
@@ -94,6 +94,14 @@ case "${1:-}" in
         nouniq)
           sed 's/ or (map(\.id)|unique|length)!=$expected//' "$HELPER" >"$TMP/helper"
           expected_fail='FAIL nightly duplicate comment id was accepted'
+          ;;
+        nowhole)
+          sed 's/def whole: type=="number" and \. == floor;/def whole: true;/' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly fractional issue number was accepted'
+          ;;
+        idonly)
+          sed '/"nightly comment:/s/:\\(\.id)//' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly replaced report did not move hash'
           ;;
       esac
       if [ "$mutation_target" = helper ]; then
@@ -281,7 +289,7 @@ case "$*" in
   'api --paginate repos/example/world/issues?state=open&labels=nightly-rig&per_page=100')
     [ "${STUB_NIGHTLY_FAIL:-}" != issues ] || { echo 'HTTP 502' >&2; exit 1; }
     cat "$STUB_DIR/nightly-issues";;
-  'api --paginate repos/example/world/issues/392/comments?per_page=100')
+  'api --paginate repos/example/world/issues/392/comments?per_page=100'|'api --paginate repos/example/world/issues/392.5/comments?per_page=100')
     [ "${STUB_NIGHTLY_FAIL:-}" != comments ] || { echo 'HTTP 502' >&2; exit 1; }
     cat "$STUB_DIR/nightly-comments";;
   *) echo "unexpected gh $*" >&2; exit 9;;
@@ -351,12 +359,17 @@ nightly_golden=$(hash) || fail "nightly golden failure read: $(cat "$TMP/herr")"
 jq -c '. + [{number:393,comments:0,body:null,pull_request:{},labels:[{name:"nightly-rig"}]}]' \
   "$S/nightly-issues" >"$S/nightly-with-pr" || fail 'nightly pull request fixture'
 mv "$S/nightly-with-pr" "$S/nightly-issues" || fail 'stage nightly pull request fixture'
-nightly_with_pr=$(hash); rc=$?
+nightly_pr_output=$(fp); rc=$?
 if grep -Fq 'unexpected gh api --paginate repos/example/world/issues/393/comments?per_page=100' "$TMP/herr"; then
   fail 'nightly pull request triggered a comments read'
 fi
 [ "$rc" -eq 0 ] || fail "nightly issue with pull request read: $(cat "$TMP/herr")"
+nightly_with_pr=${nightly_pr_output%% *}
 [ "$nightly_with_pr" = "$nightly_golden" ] || fail 'nightly pull request moved hash'
+replacement=$(jq -c '.id += 1' <<<"$report") || fail 'nightly replacement report fixture'
+{ cat "$S/nightly-page1"; printf '[%s,%s,%s,%s]\n' "$replacement" "$triage" "$fix_note" "$golden"; } >"$S/nightly-comments"
+nightly_replaced=$(hash) || fail "nightly replacement report read: $(cat "$TMP/herr")"
+[ "$nightly_replaced" != "$nightly_with_pr" ] || fail 'nightly replaced report did not move hash'
 [ "$nightly_open" != "$h0" ] || fail 'new nightly issue did not move hash'
 reset_stub
 nightly_closed=$(hash) || fail 'closed nightly issue read'
@@ -367,6 +380,16 @@ for broken in 'not json' '{}' ''; do
   reset_stub; printf '%s' "$broken" >"$S/nightly-issues"; bad
 done
 reset_stub; echo '[{"comments":0,"body":null}]' >"$S/nightly-issues"; bad
+reset_stub
+printf '[{"number":392.5,"comments":0,"body":"%s"}]\n' "$opening" >"$S/nightly-issues"
+BAD_READ_FAIL='nightly fractional issue number was accepted' bad
+reset_stub; nightly_issue -1 "$opening"
+BAD_READ_FAIL='nightly negative comment count was accepted' bad
+grep -Fq 'invalid nightly issue fields' "$TMP/herr" || fail "nightly negative comment count diagnostic: $(cat "$TMP/herr")"
+reset_stub; nightly_issue 1.5 "$opening"
+printf '[%s]\n' "$report" >"$S/nightly-comments"
+BAD_READ_FAIL='nightly fractional comment count was accepted' bad
+grep -Fq 'invalid nightly issue fields' "$TMP/herr" || fail "nightly fractional comment count diagnostic: $(cat "$TMP/herr")"
 reset_stub; nightly_issue 1 "$opening"; STUB_NIGHTLY_FAIL=comments bad
 for broken in 'not json' '{}' ''; do
   reset_stub; nightly_issue 1 "$opening"; printf '%s' "$broken" >"$S/nightly-comments"; bad
