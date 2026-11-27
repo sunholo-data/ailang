@@ -20,7 +20,7 @@ reviewBy: 2027-05-26
 | **Bounded Z3 recursion & verification scope** | `ailang verify` unrolls named recursion (`--verify-recursive-depth N`, default `2`) and literal-lambda HOFs (`map`/`filter`/`foldl`/`any`/`flatMap`, depth `3`). Unbounded recursion is `inconclusive` (no induction). Bitwise ops (`&`, `^`, `~`, `<<`, `>>`) and function parameters are `skipped`; floats model as SMT `Real` (non-NaN input assumed; `/0`, `sqrt(<0)`, `log(<=0)` are violations); opaque helpers note `helpers_not_checked`. | Bound depth/lengths in `requires`, guard floats with `std/math.isNaN`, and run runtime contract checks via `ailang run --verify-contracts` (evaluator only; `--bytecode --verify-contracts` errors `CTR004`). |
 | **Explicit-flow IFC (`T<label>`, `Declassify`)** | Information-flow labels track **explicit data flow** only, not implicit control-flow channels (branching on a tainted boolean to return untainted literals). Parameters allow one `not` refinement (`string{not a, not b}` does not parse). | Use explicit `Declassify` at boundary functions; group forbidden labels under a shared parent label (`string{not sensitive}`). |
 | **`--bytecode` VM coverage & parity** | `186 / 205` runnable examples run natively on the VM (`~40×` faster than the evaluator on call-heavy code). Remaining gaps (unwired effect builtins, contract-module ADTs, user ADTs/closures passed to evaluator-only helpers, newtype `w.x` access) warn on stderr (`BC001` under `--strict-bytecode`). `Map.insert`/`Set.insert`/`Array.set` copy `O(n)` per update; module-level `let` initializers recompute per read on VM. | Run `ailang check --strict-bytecode` in CI to catch fallbacks; build collections via `fromList`/`updateMany`/`accumulate`; cache expensive module `let` values in locals. |
-| **`export import` re-export syntax** | `export import std/io (println)` fails with `PAR_EXPORT_REQUIRES_FUNC` (pending open PR `#2475`). | Define an `export func` wrapper in the facade module. |
+| **Constructors through a module alias** | `import M as C` binds functions and types (`C.f`, `C.T`), including names a facade re-exports with `export import`, but a qualified constructor (`C.Red`) fails with `IMP010` for every module. | Import constructors by name: `import M (Color, Red)`. |
 | **No ad-hoc user typeclasses** | Built-in classes (`Num`, `Eq`, `Ord`, `Show`, `Fractional`) and `deriving (Eq, Json)` work; user `class`/`instance` definitions, explicit constraints (`Num a => ...`), and higher-kinded type params (`m[int]`, `PAR_TYPE_PARAM_APPLIED`) are unsupported. | Pass explicit record-of-functions dictionaries or use ADTs. |
 | **Type size & WASM checker budgets** | `check` rejects types >`65,536` nodes / `1,000` depth (`TC_TYPE_SIZE_001`) or excessive alias expansion work (`TC_TYPE_WORK_001`). Browser WASM adds a `2 s` wall-clock type-check budget (`ailangSetTypeCheckBudget` adjusts; CLI unaffected). | Extract helper functions or nominal ADTs for huge record/match chains; flatten nested matches. |
 | **Syntax & stdlib constraints** | Multi-statement `if`/`else` branches require `{ ... }`; `let x = expr?` works on `let` bindings along a `Result`/`Option` return spine (`PAR_TRY_LET_ONLY` elsewhere); no Y-combinator/infinite types (`TC004`); no typed quasiquotes or CSP channels; `std/regex` uses RE2 (no backreferences/lookaround); `std/json` integers outside int64 decode as `JNumber(float)`; `std/terminal` native keys are macOS/Linux only. | Wrap multi-statement `else` in `{ ... }`; use `"${expr}"` interpolation; keep >53-bit JSON IDs as strings. |
@@ -62,22 +62,23 @@ export pure func sumList(xs: [int]) -> int =
 
 `sumAcc` runs in constant stack depth on both engines; `takeMap` avoids allocating unvisited elements under strict evaluation.
 
-### 3. Re-exporting Symbols (`export import` Pending `#2475`)
+### 3. Constructors Through a Module Alias
 
-```ailang error=PAR_EXPORT_REQUIRES_FUNC
--- Fails today with PAR_EXPORT_REQUIRES_FUNC:
-module docs/limits_reexport_fail
-export import std/io (println)
+```ailang parse
+-- Fails today with IMP010: constructors are not reachable through a module alias.
+module docs/limits_alias_ctor_fail
+import std/json as J
+export func nul() -> J.Json = J.JNull
 ```
 
-Workaround — wrap the imported symbol in an exported function:
+Workaround: import the constructor by name.
 
 ```ailang
-module docs/limits_reexport_ok
+module docs/limits_alias_ctor_ok
 
-import std/io (println)
+import std/json (Json, JNull)
 
-export func logLine(msg: string) -> () ! {IO} = println(msg)
+export func nul() -> Json = JNull
 ```
 
 ### 4. Named Recursion, Explicit Braces & RE2 Regex

@@ -2,6 +2,18 @@
   "schema_version": "v1",
   "records": [
     {
+      "code": "BC001",
+      "category": "coverage",
+      "summary": "Function is evaluator-only under --strict-bytecode",
+      "fix_hint": "BC001 indicates a function the bytecode compiler tagged evaluator-only\n(EvalOnly) is reachable under --strict-bytecode, where no evaluator\nbridge is wired. Reported by `ailang check --strict-bytecode` and by a\nstrict run or test before dispatch, instead of a mid-run VM CALL trap\n(M-BYTECODE-STRICT-256-REG-CEILING Phase A)."
+    },
+    {
+      "code": "CTR004",
+      "category": "contract",
+      "summary": "--verify-contracts is not enforced on the bytecode VM",
+      "fix_hint": "CTR004 refuses `run --verify-contracts` together with `--bytecode` or\n`--strict-bytecode` (including under --batch): the VM does not enforce\ncontracts yet, so the combination used to run unchecked and exit 0\n(#1956, M-RUNTIME-CONTRACT-PARITY M1). Lifted when the VM enforces them."
+    },
+    {
       "code": "DSG001",
       "category": "transform",
       "summary": "Invalid desugaring",
@@ -24,6 +36,30 @@
       "category": "purity",
       "summary": "Pure func calls effectful (warning)",
       "fix_hint": "DSG010 indicates pure func calls effectful things (warning placeholder)"
+    },
+    {
+      "code": "ELB001",
+      "category": "structure",
+      "summary": "Invalid AST structure",
+      "fix_hint": "Invalid AST structure"
+    },
+    {
+      "code": "ELB002",
+      "category": "dictionary",
+      "summary": "Dictionary resolution failed",
+      "fix_hint": "Dictionary resolution failed"
+    },
+    {
+      "code": "ELB003",
+      "category": "transform",
+      "summary": "ANF transformation error",
+      "fix_hint": "ANF transformation error"
+    },
+    {
+      "code": "ELB004",
+      "category": "pattern",
+      "summary": "Non-exhaustive pattern",
+      "fix_hint": "Pattern match exhaustiveness"
     },
     {
       "code": "ELB005",
@@ -66,6 +102,12 @@
       "category": "recursion",
       "summary": "Infinite recursion",
       "fix_hint": "EVA005 indicates infinite recursion detected"
+    },
+    {
+      "code": "EXT004",
+      "category": "removed",
+      "summary": "extern func is not supported (the Go emitter that implemented it was removed)",
+      "fix_hint": "EXT004 indicates an `extern func` declaration. Extern functions were\nimplemented only in Go emitted by `ailang compile --emit-go`, which was\nremoved (#2389); no engine can run one, so the declaration itself is an\nerror, called or not (#2390). EXT001-EXT003 were the parser's shape\nchecks for the same declaration and are retired with it."
     },
     {
       "code": "IMP001",
@@ -131,7 +173,7 @@
       "code": "LDR003",
       "category": "namespace",
       "summary": "Duplicate module",
-      "fix_hint": "LDR003 indicates duplicate module definition"
+      "fix_hint": "LDR003 indicates duplicate module definition: one module file loaded\nunder two identities in one build (M1b, canonical module identity)"
     },
     {
       "code": "LDR004",
@@ -143,7 +185,37 @@
       "code": "LDR005",
       "category": "resolution",
       "summary": "Ambiguous import",
-      "fix_hint": "LDR005 indicates ambiguous import (multiple modules export same name)"
+      "fix_hint": "LDR005 indicates ambiguous import (multiple modules export same name, or\ntwo declared dependencies provide one module_prefix spelling)"
+    },
+    {
+      "code": "LDR006",
+      "category": "resolution",
+      "summary": "Import from an undeclared package",
+      "fix_hint": "LDR006 indicates an import satisfied only by a package the importing\npackage does not declare (or a dependency importing the root package)"
+    },
+    {
+      "code": "LNK001",
+      "category": "instance",
+      "summary": "Missing dictionary instance",
+      "fix_hint": "Missing dictionary instance"
+    },
+    {
+      "code": "LNK002",
+      "category": "instance",
+      "summary": "Ambiguous instance",
+      "fix_hint": "Ambiguous instance"
+    },
+    {
+      "code": "LNK003",
+      "category": "module",
+      "summary": "Module not found",
+      "fix_hint": "Module not found"
+    },
+    {
+      "code": "LNK004",
+      "category": "dependency",
+      "summary": "Circular dependency",
+      "fix_hint": "Circular dependency"
     },
     {
       "code": "LNK005",
@@ -162,12 +234,6 @@
       "category": "structure",
       "summary": "Multiple modules per file",
       "fix_hint": "MOD002 indicates multiple module declarations in single file"
-    },
-    {
-      "code": "MOD003",
-      "category": "feature",
-      "summary": "Re-export not supported",
-      "fix_hint": "MOD003 indicates unsupported re-export attempt"
     },
     {
       "code": "MOD004",
@@ -216,6 +282,18 @@
       "category": "package",
       "summary": "Shared module_prefix between root and dependency",
       "fix_hint": "MOD013 indicates two packages share the same module_prefix, causing\nambiguous import resolution when one of them is the root project"
+    },
+    {
+      "code": "MOD015",
+      "category": "namespace",
+      "summary": "Imported name collides with a module-level definition or another import",
+      "fix_hint": "MOD015 indicates an ambiguous module-scope name: a selectively imported name\n(import M (x) or import M (y as x)) that a module-level func, let or\nconstructor also defines, or that two imports bind to different exports.\nThe import used to win silently; now a compile error naming both sites\n(#1467). MOD014 is the module-less-file error raised inline by the pipeline."
+    },
+    {
+      "code": "MOD016",
+      "category": "namespace",
+      "summary": "Re-export cycle (export import chain returns to itself)",
+      "fix_hint": "MOD016 indicates a re-export cycle: `export import` lines whose chain of\nre-exported names returns to a name already on it (M-PKG-PARALLEL-AGENTS C1)."
     },
     {
       "code": "PAR001",
@@ -314,6 +392,42 @@
       "fix_hint": "PAR999 indicates internal parser error/panic"
     },
     {
+      "code": "RT001",
+      "category": "arithmetic",
+      "summary": "Division by zero",
+      "fix_hint": "Integer / or % by zero: guard the divisor (if d == 0 then ... else n / d)"
+    },
+    {
+      "code": "RT002",
+      "category": "pattern",
+      "summary": "Pattern match failure",
+      "fix_hint": "Pattern match failure"
+    },
+    {
+      "code": "RT003",
+      "category": "bounds",
+      "summary": "Index out of bounds",
+      "fix_hint": "Index out of bounds"
+    },
+    {
+      "code": "RT004",
+      "category": "null",
+      "summary": "Null pointer",
+      "fix_hint": "Null pointer"
+    },
+    {
+      "code": "RT005",
+      "category": "stack",
+      "summary": "Stack overflow",
+      "fix_hint": "Stack overflow"
+    },
+    {
+      "code": "RT006",
+      "category": "type",
+      "summary": "Type assertion failed",
+      "fix_hint": "Type assertion failed"
+    },
+    {
       "code": "RT007",
       "category": "memory",
       "summary": "Out of memory",
@@ -332,6 +446,54 @@
       "fix_hint": "RT009 indicates value initialization cycle detected"
     },
     {
+      "code": "RT010",
+      "category": "unreachable",
+      "summary": "unreachable(msg) was evaluated",
+      "fix_hint": "RT010 is raised by `unreachable(msg)` (M-V1-MATCH-EXHAUSTIVENESS §8): the\nprogram reached a case its author declared impossible. Both engines raise\nthis one type with the same text."
+    },
+    {
+      "code": "TC001",
+      "category": "type",
+      "summary": "Type mismatch",
+      "fix_hint": "Type mismatch"
+    },
+    {
+      "code": "TC002",
+      "category": "scope",
+      "summary": "Unbound variable",
+      "fix_hint": "Unbound variable"
+    },
+    {
+      "code": "TC003",
+      "category": "constraint",
+      "summary": "Constraint solving failed",
+      "fix_hint": "Constraint solving failed"
+    },
+    {
+      "code": "TC004",
+      "category": "unification",
+      "summary": "Occurs check failed",
+      "fix_hint": "Occurs check failed"
+    },
+    {
+      "code": "TC005",
+      "category": "kind",
+      "summary": "Kind mismatch",
+      "fix_hint": "Kind mismatch"
+    },
+    {
+      "code": "TC006",
+      "category": "annotation",
+      "summary": "Missing type annotation",
+      "fix_hint": "Missing type annotation"
+    },
+    {
+      "code": "TC007",
+      "category": "defaulting",
+      "summary": "Defaulting ambiguity",
+      "fix_hint": "Defaulting ambiguity"
+    },
+    {
       "code": "TC008",
       "category": "recursion",
       "summary": "Non-terminating type",
@@ -348,6 +510,18 @@
       "category": "instance",
       "summary": "Missing type class instance",
       "fix_hint": "TC010 indicates missing type class instance"
+    },
+    {
+      "code": "TST001",
+      "category": "testing",
+      "summary": "Unsupported inline test row expression",
+      "fix_hint": "TST001 rejects unsupported inline-row syntax."
+    },
+    {
+      "code": "TST002",
+      "category": "testing",
+      "summary": "Inline test row operator requires elaboration",
+      "fix_hint": "TST002 rejects operators requiring elaboration in inline rows."
     }
   ]
 }

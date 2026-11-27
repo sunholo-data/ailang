@@ -72,9 +72,6 @@ const (
 	// MOD002 indicates multiple module declarations in single file
 	MOD002 = "MOD002"
 
-	// MOD003 indicates unsupported re-export attempt
-	MOD003 = "MOD003"
-
 	// MOD004 indicates duplicate export in module
 	MOD004 = "MOD004"
 
@@ -115,6 +112,10 @@ const (
 	// The import used to win silently; now a compile error naming both sites
 	// (#1467). MOD014 is the module-less-file error raised inline by the pipeline.
 	MOD015 = "MOD015"
+
+	// MOD016 indicates a re-export cycle: `export import` lines whose chain of
+	// re-exported names returns to a name already on it (M-PKG-PARALLEL-AGENTS C1).
+	MOD016 = "MOD016"
 
 	// ============================================================================
 	// Extern Errors (EXT###)
@@ -321,7 +322,6 @@ var ErrorRegistry = map[string]ErrorInfo{
 	// Module errors
 	MOD001: {MOD001, "module", "structure", "Module name/path mismatch"},
 	MOD002: {MOD002, "module", "structure", "Multiple modules per file"},
-	MOD003: {MOD003, "module", "feature", "Re-export not supported"},
 	MOD004: {MOD004, "module", "namespace", "Duplicate export"},
 	MOD005: {MOD005, "module", "syntax", "Invalid module path"},
 	MOD010: {MOD010, "module", "validation", "Module/path mismatch"},
@@ -331,6 +331,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
 	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
 	MOD015: {MOD015, "module", "namespace", "Imported name collides with a module-level definition or another import"},
+	MOD016: {MOD016, "module", "namespace", "Re-export cycle (export import chain returns to itself)"},
 
 	// Extern errors
 	EXT004: {EXT004, "elaborate", "removed", "extern func is not supported (the Go emitter that implemented it was removed)"},

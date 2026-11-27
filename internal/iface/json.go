@@ -73,6 +73,9 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			return nil, err
 		}
 	}
+	// A facade renders its re-exports as if it declared them
+	// (M-PKG-PARALLEL-AGENTS C1), so a moved module keeps its signature lines.
+	i = i.withReexports()
 	result := InterfaceJSON{
 		Module: i.Module,
 		Schema: i.Schema,
