@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 60 | 2026-11-27 | cross-vendor queue review and red dev documentation links [ADMIN] |
 | 58 | 2026-11-26 | green dev and queue verdicts parked on the evaluator lane [ADMIN] |
 | 57 | 2026-11-25 | cross-vendor queue review and two reproducible dev CI failures [ADMIN] |
 | 56 | 2026-11-25 | independent review, execution holds and evaluator fallback [ADMIN] |
