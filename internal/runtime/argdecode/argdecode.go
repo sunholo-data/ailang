@@ -179,21 +179,17 @@ func (d decoder) value(raw interface{}, expectedType types.Type) (eval.Value, er
 
 func parseExactJSONInt(n json.Number) (int, bool) {
 	s := string(n)
-	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
-		if strconv.IntSize == 32 && (i < math.MinInt32 || i > math.MaxInt32) {
-			return 0, false
-		}
-		return int(i), true
+	if idx, err := strconv.Atoi(s); err == nil {
+		return idx, true
 	}
 	r, ok := new(big.Rat).SetString(s)
 	if !ok || !r.IsInt() || !r.Num().IsInt64() {
 		return 0, false
 	}
-	i := r.Num().Int64()
-	if strconv.IntSize == 32 && (i < math.MinInt32 || i > math.MaxInt32) {
-		return 0, false
+	if idx, err := strconv.Atoi(r.Num().String()); err == nil {
+		return idx, true
 	}
-	return int(i), true
+	return 0, false
 }
 
 func parseExactFloatInt(f float64) (int, bool) {

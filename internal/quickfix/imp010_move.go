@@ -53,7 +53,7 @@ func computeIMP010MoveEdits(file string, lines []string, msg string) []TextEdit 
 			EndLine:   fromIdx + 1,
 			EndCol:    len(origLine) + 1,
 			NewText:   newLine,
-			Title:     fmt.Sprintf("Move '%s' from %s to %s", sym, fromMod, targetMod),
+			Title:     fmt.Sprintf("Move %s from %s to %s", sym, fromMod, targetMod),
 		}}
 	}
 
@@ -68,7 +68,7 @@ func computeIMP010MoveEdits(file string, lines []string, msg string) []TextEdit 
 				EndLine:   fromIdx + 2,
 				EndCol:    1,
 				NewText:   "",
-				Title:     fmt.Sprintf("Remove mis-imported '%s' from %s", sym, fromMod),
+				Title:     fmt.Sprintf("Remove mis-imported %s from %s", sym, fromMod),
 			})
 		} else {
 			edits = append(edits, TextEdit{
@@ -78,7 +78,7 @@ func computeIMP010MoveEdits(file string, lines []string, msg string) []TextEdit 
 				EndLine:   fromIdx + 1,
 				EndCol:    len(lines[fromIdx]) + 1,
 				NewText:   "",
-				Title:     fmt.Sprintf("Remove mis-imported '%s' from %s", sym, fromMod),
+				Title:     fmt.Sprintf("Remove mis-imported %s from %s", sym, fromMod),
 			})
 		}
 	} else {
@@ -91,7 +91,7 @@ func computeIMP010MoveEdits(file string, lines []string, msg string) []TextEdit 
 			EndLine:   fromIdx + 1,
 			EndCol:    len(origLine) + 1,
 			NewText:   newLine,
-			Title:     fmt.Sprintf("Remove '%s' from %s import", sym, fromMod),
+			Title:     fmt.Sprintf("Remove %s from %s import", sym, fromMod),
 		})
 	}
 
@@ -104,7 +104,7 @@ func computeIMP010MoveEdits(file string, lines []string, msg string) []TextEdit 
 				EndLine:   targetLineIdx + 1,
 				EndCol:    targetCloseIdx + 1,
 				NewText:   ", " + movedItem,
-				Title:     fmt.Sprintf("Add '%s' to import %s", sym, targetMod),
+				Title:     fmt.Sprintf("Add %s to import %s", sym, targetMod),
 			})
 		}
 		return edits

@@ -284,12 +284,12 @@ func bindJsonADT(v any, path string) (eval.Value, error) {
 	case string:
 		return mk("JString", &eval.StringValue{Value: val}), nil
 	case json.Number:
+		if idx, err := strconv.Atoi(string(val)); err == nil {
+			return mk("JInt", &eval.IntValue{Value: idx}), nil
+		}
 		isInt, i, f, err := eval.JSONNumber(val)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)
-		}
-		if isInt && (strconv.IntSize == 64 || (i >= math.MinInt32 && i <= math.MaxInt32)) {
-			return mk("JInt", &eval.IntValue{Value: int(i)}), nil
 		}
 		if isInt {
 			return mk("JNumber", &eval.FloatValue{Value: float64(i)}), nil

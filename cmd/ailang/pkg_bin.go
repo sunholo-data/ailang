@@ -39,13 +39,9 @@ func installingAilangBinary() (string, error) {
 	return exe, nil
 }
 
-// installLocalBins is `ailang install --path <dir>`: the developer loop. The
+// installLocalBinsWithGrant is `ailang install --path <dir>`: the developer loop. The
 // checkout itself is the program root, so the developer's lock is used when
 // present and generated otherwise.
-func installLocalBins(dir, binDirFlag string) error {
-	return installLocalBinsWithGrant(dir, binDirFlag, false)
-}
-
 func installLocalBinsWithGrant(dir, binDirFlag string, grantNewCaps bool) error {
 	pkgDir, err := filepath.Abs(dir)
 	if err != nil {
@@ -61,13 +57,9 @@ func installLocalBinsWithGrant(dir, binDirFlag string, grantNewCaps bool) error 
 	return installBinsWithGrant(pkgDir, binDirFlag, grantNewCaps)
 }
 
-// installBins writes a shim for every [bin] entry of the package at pkgDir.
+// installBinsWithGrant writes a shim for every [bin] entry of the package at pkgDir.
 // A package without [bin] is a no-op, so registry installs of libraries are
 // unchanged.
-func installBins(pkgDir, binDirFlag string) error {
-	return installBinsWithGrant(pkgDir, binDirFlag, false)
-}
-
 func installBinsWithGrant(pkgDir, binDirFlag string, grantNewCaps bool) error {
 	manifest, err := pkg.LoadManifest(pkgDir)
 	if err != nil {

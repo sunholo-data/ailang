@@ -272,7 +272,7 @@ export func main() -> () ! {IO, FS} {
 	}
 
 	// 3. Explicit --quiet suppresses the auto-granted capabilities line.
-	rc, stdout, stderr = captureRunStreams(t, func() int {
+	rc, _, stderr = captureRunStreams(t, func() int {
 		return Run(context.Background(), Options{
 			Filename:      iofs,
 			Entry:         "main",
