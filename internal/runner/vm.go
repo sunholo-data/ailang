@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/bytecode"
@@ -165,7 +166,7 @@ func CompileBytecodeFromResult(res pipeline.Result, pkgName string) (*bytecode.B
 // Returns (false, err) when the bytecode path could not be used at all
 // (compile failure for the entry, missing prototype, unsupported arity).
 // Runtime VM errors that occur after dispatch starts are returned as
-// (false, err) too — the caller decides strict vs. fallback.
+// (true, err) so the caller never replays side effects on the evaluator (#506).
 func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, params ModuleExecParams, entry string, args []eval.Value) (bool, error) {
 	if params.PipelineResult == nil {
 		return false, fmt.Errorf("internal: bytecodeMode set but pipelineResult is nil")
@@ -278,14 +279,16 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return true, nil
 	}
 
-	attemptsBefore := effCtx.EffectAttempts()
 	result, err := machine.Run(proto, bcArgs)
 	if err != nil {
-		// Native effects, or evaluator-only callees reached through the
-		// bridge, may have consumed input or emitted output before failure.
-		// Report an attempted execution so non-strict mode cannot replay it.
-		attempted := machine.EffectCalls > 0 || effCtx.EffectAttempts() != attemptsBefore
-		return attempted, fmt.Errorf("vm: %w", err)
+		// PARITY-B4 (#506): Once VM dispatch starts (`machine.Run`), any non-nil
+		// error is a runtime trap (RT001, stack overflow, RT_EQ_001, etc.). Never
+		// fall back and replay side effects on the evaluator, and avoid doubling
+		// the "vm: " prefix already formatted by VMError / ErrStackOverflow.
+		if strings.HasPrefix(err.Error(), "vm: ") {
+			return true, err
+		}
+		return true, fmt.Errorf("vm: %w", err)
 	}
 	printVMResult(result, params)
 	return true, nil

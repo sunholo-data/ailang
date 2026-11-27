@@ -71,7 +71,11 @@ import (
 // requires/ensures), which feed the v2 signature set. A v13 entry decodes with
 // none, so a warm publish would class a contract change as unchanged; v13 (and
 // older) entries must miss.
-const cacheKeyVersion = "v14"
+// v14 -> v15
+// (SOUND-1): types.TRecord gained TypeModule (carried by the CoreTI DAG codec,
+// gob, and iface JSON) and InstanceEnv.eqRecordNames is keyed by NominalKey.
+// v14 entries decoded TRecord with empty TypeModule and must miss.
+const cacheKeyVersion = "v15"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

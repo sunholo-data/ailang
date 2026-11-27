@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"mime/multipart"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/embed"
@@ -36,11 +37,14 @@ func bindCallArgs(exp ExportInfo, args []any) ([]any, error) {
 }
 
 func bindArg(s ParamSchema, v any, path string) (eval.Value, error) {
-	if v == nil {
-		return &eval.UnitValue{}, nil
-	}
 	if ev, ok := v.(eval.Value); ok {
 		return ev, nil
+	}
+	if s.Kind == "json" {
+		return bindJsonADT(v, path)
+	}
+	if v == nil {
+		return &eval.UnitValue{}, nil
 	}
 	invalid := func() (eval.Value, error) { return nil, argumentTypeError(s, v, path) }
 	switch s.Kind {
@@ -245,11 +249,113 @@ func formTextValue(kind, text string) any {
 		if b, err := strconv.ParseBool(text); err == nil {
 			return b
 		}
-	case "record", "list", "array":
+	case "record", "list", "array", "json":
 		var v any
 		if err := json.Unmarshal([]byte(text), &v); err == nil {
 			return v
 		}
 	}
 	return text
+}
+
+// bindJsonADT converts a decoded Go JSON value into a canonical std/json.Json
+// TaggedValue (JNull, JBool, JInt, JNumber, JString, JArray, JObject) (#2399).
+func bindJsonADT(v any, path string) (eval.Value, error) {
+	mk := func(ctor string, fields ...eval.Value) *eval.TaggedValue {
+		if fields == nil {
+			fields = []eval.Value{}
+		}
+		return &eval.TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   ctor,
+			Fields:     fields,
+		}
+	}
+	if v == nil {
+		return mk("JNull"), nil
+	}
+	if ev, ok := v.(eval.Value); ok {
+		return ev, nil
+	}
+	switch val := v.(type) {
+	case bool:
+		return mk("JBool", &eval.BoolValue{Value: val}), nil
+	case string:
+		return mk("JString", &eval.StringValue{Value: val}), nil
+	case json.Number:
+		isInt, i, f, err := eval.JSONNumber(val)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		if isInt && (strconv.IntSize == 64 || (i >= math.MinInt32 && i <= math.MaxInt32)) {
+			return mk("JInt", &eval.IntValue{Value: int(i)}), nil
+		}
+		if isInt {
+			return mk("JNumber", &eval.FloatValue{Value: float64(i)}), nil
+		}
+		return mk("JNumber", &eval.FloatValue{Value: f}), nil
+	case map[string]any:
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		pairs := make([]eval.Value, len(keys))
+		for i, k := range keys {
+			fv, err := bindJsonADT(val[k], path+"."+k)
+			if err != nil {
+				return nil, err
+			}
+			pairs[i] = &eval.RecordValue{
+				Fields: map[string]eval.Value{
+					"key":   &eval.StringValue{Value: k},
+					"value": fv,
+				},
+			}
+		}
+		return mk("JObject", &eval.ListValue{Elements: pairs}), nil
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i := rv.Int()
+		if strconv.IntSize == 64 || (i >= math.MinInt32 && i <= math.MaxInt32) {
+			return mk("JInt", &eval.IntValue{Value: int(i)}), nil
+		}
+		return mk("JNumber", &eval.FloatValue{Value: float64(i)}), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		u := rv.Uint()
+		limit := uint64(^uint(0) >> 1)
+		if u <= limit {
+			return mk("JInt", &eval.IntValue{Value: int(u)}), nil
+		}
+		return mk("JNumber", &eval.FloatValue{Value: float64(u)}), nil
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			return nil, fmt.Errorf("%s: non-finite float %v cannot be represented as Json", path, f)
+		}
+		// json.Unmarshal decodes JSON integer literals as float64; preserve exact
+		// integral values within [-2^53, 2^53] (excluding -0.0) as JInt.
+		if !(f == 0 && math.Signbit(f)) && math.Trunc(f) == f && f >= -9007199254740992 && f <= 9007199254740992 {
+			i := int64(f)
+			if strconv.IntSize == 64 || (i >= math.MinInt32 && i <= math.MaxInt32) {
+				return mk("JInt", &eval.IntValue{Value: int(i)}), nil
+			}
+		}
+		return mk("JNumber", &eval.FloatValue{Value: f}), nil
+	case reflect.Slice, reflect.Array:
+		elems := make([]eval.Value, rv.Len())
+		for i := range elems {
+			ev, err := bindJsonADT(rv.Index(i).Interface(), fmt.Sprintf("%s[%d]", path, i))
+			if err != nil {
+				return nil, err
+			}
+			elems[i] = ev
+		}
+		return mk("JArray", &eval.ListValue{Elements: elems}), nil
+	}
+	return nil, argumentTypeError(ParamSchema{Kind: "Json"}, v, path)
 }
