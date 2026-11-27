@@ -136,10 +136,18 @@ func gitSubcommand(args []string) string {
 func gitNeedsNetwork(args []string) bool { return gitNetworkSubcommands[gitSubcommand(args)] }
 func gitReadOnly(args []string) bool     { return gitReadOnlySubcommands[gitSubcommand(args)] }
 
-// gitCommand builds the hardened invocation: ext:: transports disabled and
-// no credential prompt. Callers put `--` before any positional URL.
+// gitHardening is prepended to every package git invocation:
+//   - ext:: transports disabled (no command execution via a URL);
+//   - line endings checked out byte-for-byte as committed. A user's
+//     core.autocrlf / core.eol would otherwise rewrite .ail files on checkout,
+//     so the same tag would hash differently per machine, and git
+//     content_hash drift is fatal at check (#1720 D4).
+var gitHardening = []string{"-c", "protocol.ext.allow=never", "-c", "core.autocrlf=false", "-c", "core.eol=lf"}
+
+// gitCommand builds the hardened invocation, with no credential prompt.
+// Callers put `--` before any positional URL.
 func gitCommand(dir string, args ...string) *exec.Cmd {
-	full := append([]string{"-c", "protocol.ext.allow=never"}, args...)
+	full := append(append([]string{}, gitHardening...), args...)
 	cmd := exec.Command("git", full...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")

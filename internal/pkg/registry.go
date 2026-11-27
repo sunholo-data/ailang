@@ -227,7 +227,9 @@ func CachedPackagePath(name, version string) (string, error) {
 	if len(parts) != 2 {
 		return "", fmt.Errorf("invalid package name: %s", name)
 	}
-	return fmt.Sprintf("%s/%s/%s/%s", cacheDir, parts[0], parts[1], version), nil
+	// filepath.Join throughout: cacheDir is native (UserDir), so a "/"-joined
+	// tail would give mixed separators on Windows.
+	return filepath.Join(cacheDir, parts[0], parts[1], version), nil
 }
 
 // ResolveLatestVersion looks up the latest version of a package from the registry index.
