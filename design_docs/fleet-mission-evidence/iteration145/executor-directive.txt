@@ -1,0 +1,28 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 145 in this worktree (repo sunholo-data/ailang, branch fleet/i145-idle-fp-nightly-rig, base origin/dev 9b35c44d0).
+
+Implement the plan at `design_docs/fleet-mission-evidence/iteration145/plan.md` VERBATIM. Read it in full first, then read `tools/launchd/lib/idle-fingerprint.sh` and `tools/launchd/test_mission_idle_fingerprint.sh` in full.
+
+Files you may change (nothing else):
+1. `tools/launchd/lib/idle-fingerprint.sh` — plan "Helper edits" (the nightly-rig issues read, the per-issue comments read, and the hash line gaining `"$tmp/nightly"`). Also update the helper's header/comment where it lists the fingerprint inputs, if it does.
+2. `tools/launchd/test_mission_idle_fingerprint.sh` — plan "Fixture and mutations": the two stub arms, `reset_stub` fixtures, the legacy-bytes arm (c), arms (a)/(b), the failed-read arms (d), and the two mutants `nightly-omit` and `nightly-all-comments` with their `expected_fail` messages.
+3. `.claude/skills/mission-control/resources/gate-5-retro.md` and `.agents/skills/mission-control/resources/gate-5-retro.md` — the one-phrase input-list update on line 28 named in the plan's consumer audit (`red checks on the branch tip}` → `red checks on the branch tip, open nightly-rig issues and their failure reports}`). Change nothing else in those files.
+4. `changelogs/unreleased/2026-11-27-idle-fingerprint-nightly-rig.md` — plan "Changelog fragment".
+
+Rules:
+- NO git write operations at all (no add, commit, stash, checkout, reset, restore). The controller commits.
+- Bash 3.2 + BSD tools. No new environment variables in the helper (the test-only `STUB_NIGHTLY_FAIL` stub switch is fine). Nothing may write to `$HOME/.ailang/state` or anywhere outside this worktree and the test's own temp fixture.
+- If something in the plan cannot work as written (a sed address that does not match the real line, a stub argv that differs from what the helper really passes to `gh`, an assertion placed where its fixture is not yet set, a mutant that dies at a different FAIL than planned), make the minimal correct adaptation that preserves the plan's intent and REPORT the deviation explicitly. In particular: verify that the stub's case patterns match the EXACT argv the helper passes (the existing check-runs arm shows the style; note `gh api --paginate URL` vs `gh api URL --paginate` ordering).
+
+Gates — run each and report the command, rc and the key output lines (all were green at base: plain rc 0 with three PASS lines; --mutations rc 0 with 21 KILLED; shellcheck rc 0; make check-changelog rc 0):
+1. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+2. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh --mutations` — expect rc 0 and 23 KILLED. Quote the two new KILLED lines verbatim.
+3. Sole-killer check: in a scratch COPY of the helper (under the test's own mechanism or `$TMPDIR`, never by editing tracked files back and forth), remove ONLY the prefix filter, and separately ONLY the `"$tmp/nightly"` hash input, and confirm the plain test then FAILs with the planned message each time. Report how you did it.
+4. `shellcheck -s bash tools/launchd/lib/idle-fingerprint.sh tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+5. `make check-changelog` — expect rc 0.
+Capture each exit status without a pipe (`cmd > file 2>&1; echo rc=$?`). If a gate fails on a sandbox permission or socket denial, label it UNINFORMATIVE UNDER SANDBOX rather than pass/fail. A gate you find red for a reason unrelated to your change is a finding to report, not something to work around.
+
+If you start any background command, poll its output file inside a bounded `date +%s` loop; a Monitor is not a wait, and nothing will re-invoke you, so never end your turn announcing that you are waiting.
+
+Final message: list the files changed (with +/- line counts from `git diff --stat`), every gate's rc, the two new KILLED lines, the sole-killer results, and any deviation from the plan.

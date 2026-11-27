@@ -149,9 +149,42 @@ jq -rs 'if length>0 and all(.[]; type=="object" and (.total_count|type)=="number
       | "red \(.name):\(.conclusion)"
     else error("not check-runs objects") end' \
   "$tmp/checks.json" >"$tmp/red" 2>"$tmp/err" || die "check-runs unparseable: $(tail -1 "$tmp/err")"
+
+# The rig can post red on an older SHA. The open incident follows the branch.
+gh api --paginate "repos/$repo/issues?state=open&labels=nightly-rig&per_page=100" \
+  >"$tmp/nightly-issues.json" 2>"$tmp/err" || die "nightly-rig issues read failed: $(tail -1 "$tmp/err")"
+jq -rs '
+  def whole: type=="number" and . == floor;
+  if length==0 or any(.[]; type!="array") then error("expected issue pages") else add end
+  | if any(.[]; type!="object") then error("expected issue objects") else .[] end
+  | select(has("pull_request") | not)
+  | if (.number | whole and .>0) and (.comments | whole and .>=0)
+      and has("body") and (.body==null or (.body|type)=="string")
+    then [.number, .comments, ((.body // "") | startswith("The nightly "))] | @tsv
+    else error("invalid nightly issue fields") end' \
+  "$tmp/nightly-issues.json" >"$tmp/nightly-issues" 2>"$tmp/err" \
+  || die "nightly-rig issues unparseable: $(tail -1 "$tmp/err")"
+
+while IFS=$'\t' read -r issue comment_count opening_report; do
+  gh api --paginate "repos/$repo/issues/$issue/comments?per_page=100" \
+    >"$tmp/nightly-comments.json" 2>"$tmp/err" || die "nightly-rig #$issue comments read failed: $(tail -1 "$tmp/err")"
+  jq -rs --arg issue "$issue" --argjson expected "$comment_count" --argjson opened "$opening_report" '
+    if length==0 or any(.[]; type!="array") then error("expected comment pages") else add end
+    | if any(.[]; type!="object" or (.id|type)!="number" or (.id|.<=0 or .!=floor) or (.body|type)!="string")
+      then error("invalid nightly comment fields") else . end
+    | if length!=$expected or (map(.id)|unique|length)!=$expected
+      then error("incomplete or changed comment list") else . end
+    | map(select(.body | startswith("The nightly ")))
+    | if $opened or length>0 then
+        "nightly issue:\($issue)", (.[] | "nightly comment:\($issue):\(.id)")
+      else error("no report starts with The nightly ") end' \
+    "$tmp/nightly-comments.json" 2>"$tmp/err" \
+    || die "nightly-rig #$issue comments invalid: $(tail -1 "$tmp/err")"
+done <"$tmp/nightly-issues" >"$tmp/nightly" || die 'cannot stage nightly-rig rows'
+
 n_ledger=$(grep -c . "$tmp/ledger"); n_open=$(grep -c ':OPEN$' "$tmp/ledger")
 n_dir=$(grep -c . "$tmp/directives"); n_red=$(grep -c . "$tmp/red")
-hash=$(LC_ALL=C sort "$tmp/head" "$tmp/ledger" "$tmp/directives" "$tmp/inbox" "$tmp/red" | shasum -a 256 | awk '{print $1}') || die 'hash failed'
+hash=$(LC_ALL=C sort "$tmp/head" "$tmp/ledger" "$tmp/directives" "$tmp/inbox" "$tmp/red" "$tmp/nightly" | shasum -a 256 | awk '{print $1}') || die 'hash failed'
 printf '%s' "$hash" | grep -Eq '^[0-9a-f]{64}$' || die 'hash failed'
 line="$hash head=${head_sha:0:7} ledger=$n_ledger open=$n_open directives=$n_dir inbox=$n_in red=$n_red"
 if [ "$mode" = snapshot ]; then

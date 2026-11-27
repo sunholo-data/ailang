@@ -25,7 +25,7 @@ It PROMOTES the snapshot the driver took before you started (keyed by `MISSION_F
 never recomputes, so a ruling that lands while you run still wakes the next fire.
 rc≠0: say so in the report; do not retry or hand-write the fingerprint file.
 The next fire exits before any probe while {head outside record paths, ledger statuses,
-allowlisted directives, unread mission inbox, red checks on the branch tip} stays unchanged;
+allowlisted directives, unread mission inbox, red checks on the branch tip, open nightly-rig issues and their failure reports} stays unchanged;
 a record older than 24 h forces a full fire. A charter edit that flips no ledger row is NOT an
 input: an attended change of direction should flip or add a ledger row. Ticket:
 `driver:idle-fire-writes-full-block-report`.
