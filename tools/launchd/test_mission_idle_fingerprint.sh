@@ -25,7 +25,7 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
+    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale nightly-omit nightly-all-comments; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
       expected_fail=''
       mutation_target=helper
@@ -71,6 +71,14 @@ case "${1:-}" in
         record-as-snapshot) sed 's/1:--record) mode=record ;;/1:--record) mode=snapshot ;;/' "$HELPER" >"$TMP/helper" ;;
         snapshot-keeps-stale) mutation_target=driver; awk '/^  rm -f "\$STATE_DIR\/mission-\$\{MISSION_NAME\}-idle-fingerprint.pending"$/ && !done {done=1; next} {print}' "$DRIVER" >"$TMP/driver" ;;
         pending) sed 's/\["failure", "timed_out", "cancelled", "action_required", "startup_failure"\]/["failure", "timed_out", "cancelled", "action_required", "startup_failure", null]/' "$HELPER" >"$TMP/helper" ;;
+        nightly-omit)
+          sed '/^hash=/s/ "\$tmp\/nightly"//' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly failure comment did not move hash'
+          ;;
+        nightly-all-comments)
+          sed '/map(select(\.body | startswith("The nightly ")))/d' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly triage comment moved hash'
+          ;;
       esac
       if [ "$mutation_target" = helper ]; then
         if cmp -s "$HELPER" "$TMP/helper"; then fail "mutant $mutant sed did not apply"; fi
@@ -254,6 +262,12 @@ cat >"$BIN/gh" <<'STUB'
 case "$*" in
   'api --paginate repos/example/world/issues/99/comments?per_page=100') cat "$STUB_DIR/comments";;
   'api repos/example/world/commits/'*'/check-runs --paginate') echo "$2" >"$STUB_DIR/checks_path"; cat "$STUB_DIR/checks";;
+  'api --paginate repos/example/world/issues?state=open&labels=nightly-rig&per_page=100')
+    [ "${STUB_NIGHTLY_FAIL:-}" != issues ] || { echo 'HTTP 502' >&2; exit 1; }
+    cat "$STUB_DIR/nightly-issues";;
+  'api --paginate repos/example/world/issues/392/comments?per_page=100')
+    [ "${STUB_NIGHTLY_FAIL:-}" != comments ] || { echo 'HTTP 502' >&2; exit 1; }
+    cat "$STUB_DIR/nightly-comments";;
   *) echo "unexpected gh $*" >&2; exit 9;;
 esac
 STUB
@@ -275,6 +289,7 @@ export AILANG_STORAGE_MESSAGING=local; unset AILANG_MESSAGES_PROJECT
 reset_stub() {
   echo '[]' >"$S/comments"; echo '[]' >"$S/mail"
   echo '{"total_count":0,"check_runs":[]}' >"$S/checks"
+  echo '[]' >"$S/nightly-issues"; echo '[]' >"$S/nightly-comments"
   echo 99 >"$STATE_DIR/mission-world-gh-issue"
 }
 fp() { /bin/bash "$HELPER" "$@" 2>"$TMP/herr"; }
@@ -288,7 +303,49 @@ reset_stub
 base=$(fp) || fail "good helper: $(cat "$TMP/herr")"
 printf '%s\n' "$base" | grep -Eq '^[0-9a-f]{64} head=[0-9a-f]{7} ledger=1 open=1 directives=0 inbox=0 red=0$' || fail "format: $base"
 h0=${base%% *}
+legacy_head=$("$REAL_GIT" -C "$MISSION_WORKDIR" rev-parse HEAD) || fail 'legacy head read'
+legacy_hash=$(printf 'head %s\nledger D-WORLD-1:OPEN\n' "$legacy_head" | LC_ALL=C sort | shasum -a 256 | awk '{print $1}') || fail 'legacy hash read'
+[ "$h0" = "$legacy_hash" ] || fail 'empty nightly issues changed the legacy hash'
 [ ! -f "$STATE_DIR/mission-world-idle-fingerprint" ] || fail 'bare run wrote record'
+
+nightly_issue() {
+  printf '[{"number":392,"comments":%s,"body":"%s"}]\n' "$1" "$2" >"$S/nightly-issues"
+}
+opening='The nightly make test (rig/full) failed on main at 78f390c0.'
+nightly_issue 0 "$opening"
+nightly_open=$(hash) || fail "new nightly issue read: $(cat "$TMP/herr")"
+jq -nc '[range(100) | {id:(.+1),body:"Earlier triage",user:{login:"sunholo-voight-kampff"}}]' >"$S/nightly-page1" || fail 'nightly first page fixture'
+report='{"id":7210499888,"body":"The nightly make test (rig/full) failed on main at 468ceb97.","user":{"login":"sunholo-voight-kampff"}}'
+triage='{"id":7211245483,"body":"Triage from mission iteration 123.","user":{"login":"sunholo-voight-kampff"}}'
+nightly_issue 101 "$opening"
+{ cat "$S/nightly-page1"; printf '[%s]\n' "$report"; } >"$S/nightly-comments"
+nightly_red=$(hash) || fail "nightly failure read: $(cat "$TMP/herr")"
+[ "$nightly_red" != "$nightly_open" ] || fail 'nightly failure comment did not move hash'
+nightly_issue 102 "$opening"
+{ cat "$S/nightly-page1"; printf '[%s,%s]\n' "$report" "$triage"; } >"$S/nightly-comments"
+nightly_triage=$(hash) || fail "nightly triage read: $(cat "$TMP/herr")"
+[ "$nightly_triage" = "$nightly_red" ] || fail 'nightly triage comment moved hash'
+[ "$nightly_open" != "$h0" ] || fail 'new nightly issue did not move hash'
+reset_stub
+nightly_closed=$(hash) || fail 'closed nightly issue read'
+[ "$nightly_closed" = "$h0" ] && [ "$nightly_closed" != "$nightly_red" ] || fail 'closing nightly issue did not restore legacy hash'
+
+reset_stub; STUB_NIGHTLY_FAIL=issues bad
+for broken in 'not json' '{}' ''; do
+  reset_stub; printf '%s' "$broken" >"$S/nightly-issues"; bad
+done
+reset_stub; echo '[{"comments":0,"body":null}]' >"$S/nightly-issues"; bad
+reset_stub; nightly_issue 1 "$opening"; STUB_NIGHTLY_FAIL=comments bad
+for broken in 'not json' '{}' ''; do
+  reset_stub; nightly_issue 1 "$opening"; printf '%s' "$broken" >"$S/nightly-comments"; bad
+done
+reset_stub; nightly_issue 1 "$opening"; echo '[{"id":1}]' >"$S/nightly-comments"; bad
+reset_stub; nightly_issue 101 "$opening"; cp "$S/nightly-page1" "$S/nightly-comments"; bad
+grep -Fq 'incomplete or changed comment list' "$TMP/herr" || fail "nightly comment total diagnostic: $(cat "$TMP/herr")"
+reset_stub; nightly_issue 0 'Changed producer format'; bad
+grep -Fq 'no report starts with The nightly' "$TMP/herr" || fail "nightly report format diagnostic: $(cat "$TMP/herr")"
+reset_stub
+
 # Exercise the record exclusions using commits in a real origin.
 echo log >"$MISSION_WORKDIR/design_docs/world-mission-log.md"; commit
 [ "$(hash)" = "$h0" ] || fail 'record-only design doc commit moved hash'
