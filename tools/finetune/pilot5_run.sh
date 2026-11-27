@@ -162,7 +162,8 @@ c.pop("?",0)
 if any(k!=want for k in c): print("PROMPT-VERSION MISMATCH: arm is void"); sys.exit(3)
 EOP
   [ "${PIPESTATUS[0]}" = 0 ] || die "agent $NAME: prompt-version guard failed"
-  echo "agent $NAME dropped: $(python3 -I tools/finetune/trace_dropped.py "$out_dir.trace.jsonl")" | tee -a "$LOG"
+  echo "agent $NAME dropped (>=500t): $(python3 -I tools/finetune/trace_dropped.py "$out_dir.trace.jsonl")" | tee -a "$LOG"
+  echo "agent $NAME dropped (>=25t): $(python3 -I tools/finetune/trace_dropped.py --min-tokens 25 "$out_dir.trace.jsonl")" | tee -a "$LOG"
 }
 
 # One lock for the whole run; the rotation filler is asked to step aside at its next checkpoint.

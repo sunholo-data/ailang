@@ -1,0 +1,21 @@
+-- examples/runnable/reexport_facade/main.ail
+--
+-- Imports Shape only through the facade, and matches values built by the
+-- facade's constructors against the same constructors: they are the
+-- definitions in reexport_facade/shapes, not copies.
+--
+--   ailang run --caps IO --entry main examples/runnable/reexport_facade/main.ail
+module examples/runnable/reexport_facade/main
+import std/io (println)
+import examples/runnable/reexport_facade/api (Shape, Box, Rect, area, double)
+
+pure func describe(s: Shape) -> string = match s {
+  Box(n) => "square ${show(n)}",
+  Rect(w, h) => "rect ${show(w)}x${show(h)}"
+}
+
+export func main() -> () ! {IO} {
+  println(describe(Box(4)))
+  println(show(area(Rect(2, 5))))
+  println(show(area(Box(double(3)))))
+}

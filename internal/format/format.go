@@ -15,6 +15,7 @@ package format
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -347,6 +348,9 @@ func (p *printer) file(f *ast.File) error {
 
 // importDecl emits a canonical import line, preserving symbol order and aliases.
 func (p *printer) importDecl(imp *ast.ImportDecl) {
+	if imp.Reexport {
+		p.w.write("export ")
+	}
 	p.w.write("import ")
 	if imp.ModuleAlias != "" {
 		p.w.write(imp.Path + " as " + imp.ModuleAlias)
@@ -370,6 +374,9 @@ func (p *printer) importDecl(imp *ast.ImportDecl) {
 			p.w.write(part)
 		}
 		p.w.write(")")
+	}
+	if imp.MovedTo != "" {
+		p.w.write(" @deprecated(" + strconv.Quote(imp.MovedTo) + ")")
 	}
 }
 

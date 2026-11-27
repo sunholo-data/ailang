@@ -54,6 +54,24 @@ except ModuleNotFoundError as _e:
 
 PROMPT_FILES = {"none": "ft-none.md", "slim": "ft-slim-v1.md"}
 ARM_WEIGHTS = (("none", 35), ("slim", 50), ("compact", 15))
+SOLUTION_TEMPLATE = (
+    "module benchmark/solution\n"
+    "// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n"
+    "// TODO: Add your solution code below\n\n"
+)
+
+
+def _fake_ws(rnd: random.Random, bid: str) -> str:
+    safe_bid = re.sub(r"[^\w]+", "_", bid or "repair")
+    a = "".join(rnd.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(2))
+    b = "".join(rnd.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(30))
+    pid = rnd.randint(1000, 99999)
+    ts = f"2026{rnd.randint(1, 12):02d}{rnd.randint(1, 28):02d}_{rnd.randint(0, 235959):06d}"
+    return (
+        f"/var/folders/{a}/{b}/T/ailang_eval/"
+        f"{safe_bid}_pi-gemma4-12b-ft_{ts}_{pid}_t1_{rnd.randint(10**8, 10**9)}/"
+        f"{safe_bid}_ailang_pi_{pid}"
+    )
 
 
 def _percentile(sorted_vals: list[int], pct: float) -> int:
@@ -255,6 +273,7 @@ def build_mix(a: argparse.Namespace) -> dict:
     rnd = random.Random(a.seed)
 
     ntok = None
+    verified_single_thought = False
     if a.tokenizer and a.max_tokens:
         from pathlib import Path
         from mlx_lm.utils import load_tokenizer
@@ -273,9 +292,20 @@ def build_mix(a: argparse.Namespace) -> dict:
     # items: list of (split_key, kind_label, is_single_turn, sample, tok_len_or_none, word_counts)
     accepted = []
 
-    def _length_ok(sample: dict, kind_label: str) -> tuple[bool, int | None]:
+    def _length_ok(sample: dict, kind_label: str, is_single: bool = False) -> tuple[bool, int | None]:
+        nonlocal verified_single_thought
         if ntok is not None:
-            tlen = ntok(sample)
+            if is_single and not verified_single_thought:
+                toks = _render(_tok, sample["messages"], sample.get("tools"))
+                if callable(getattr(_tok, "decode", None)):
+                    if "<|channel>thought\n" not in _tok.decode(toks):
+                        raise ValueError(
+                            "rendered single-turn sample missing '<|channel>thought\\n'; check tokenizer chat_template"
+                        )
+                verified_single_thought = True
+                tlen = len(toks)
+            else:
+                tlen = ntok(sample)
             if tlen > a.max_tokens:
                 rep[f"over_max_tokens:{kind_label}"] += 1
                 return False, None
@@ -325,12 +355,40 @@ def build_mix(a: argparse.Namespace) -> dict:
                 if not ok_r:
                     rep[f"short_reasoning:{kind}"] += 1
                     continue
-                ok_l, tlen = _length_ok(sample, kind)
+                ok_l, tlen = _length_ok(sample, kind, is_single=True)
                 if not ok_l:
                     continue
                 accepted.append((skey, f"{kind}-{pk}", True, sample, tlen, wcounts))
 
-    # ---- 2. Single-turn compiler error -> fix repairs (--repairs)
+    eps = []
+    bench_task_templates: dict[str, str] = {}
+    if a.episodes:
+        eps = _read_jsonl(a.episodes)
+        for e in eps:
+            _check_not_heldout(
+                held,
+                "--episodes",
+                benchmark=e.get("benchmark"),
+                group=e.get("group"),
+                rec_id=e.get("id"),
+            )
+            ebid = str(e.get("benchmark") or "").strip()
+            etp = e.get("task_prompt") or ""
+            ews = build_mix2.ws_of(etp) if etp else None
+            if ebid and ews and ebid not in bench_task_templates:
+                bench_task_templates[ebid] = etp.replace(ews, "/__WS__")
+
+    head = tail = tools = None
+    arms = None
+    if a.episodes or (a.repairs and a.agent_repair_frac > 0.0):
+        head, tail, tools = build_mix2.lean_format(a.lean_format)
+        with open(os.path.expanduser(a.arm_slim), encoding="utf-8") as f:
+            slim_prefix = json.load(f)["prefix"]
+        with open(os.path.expanduser(a.arm_none), encoding="utf-8") as f:
+            none_prefix = json.load(f)["prefix"]
+        arms = [("slim", slim_prefix), ("none", none_prefix)]
+
+    # ---- 2. Compiler error -> fix repairs (--repairs: single-turn + optional lean-pi tool repairs)
     if a.repairs:
         repair_recs = _read_jsonl(a.repairs)
         for r in repair_recs:
@@ -356,42 +414,120 @@ def build_mix(a: argparse.Namespace) -> dict:
             if len(reasoning.split()) < a.min_single_reasoning_words:
                 rep["short_reasoning:repair"] += 1
                 continue
+            bid = str(r.get("benchmark") or "").strip()
             fallback_id = str(r.get("hash") or r.get("id") or hashlib.sha256(code.encode()).hexdigest()[:16])
-            skey = _canonical_split_key(r.get("benchmark"), r.get("group"), fallback_id)
-            pk = rnd.choice(["slim", "none"])
-            user = f"{prompts[pk]}\n\nFix this AILANG module so ailang check passes:\n\n{error}\n\n{code}"
-            sample = {
-                "messages": [
-                    {"role": "user", "content": user},
-                    {"role": "assistant", "content": fixed, "reasoning": reasoning},
+            skey = _canonical_split_key(bid or None, r.get("group"), fallback_id)
+
+            use_agent_repair = (
+                a.agent_repair_frac > 0.0
+                and rnd.random() < a.agent_repair_frac
+                and (not a.max_write_chars or len(fixed) <= a.max_write_chars)
+            )
+            if use_agent_repair:
+                ws = _fake_ws(rnd, bid or "repair")
+                path = f"{ws}/benchmark/solution.ail"
+                tpl = bench_task_templates.get(
+                    bid,
+                    "Write your complete solution to: /__WS__/benchmark/solution.ail\n\n"
+                    "Ensure `ailang check benchmark/solution.ail` passes cleanly.",
+                )
+                task_prompt = tpl.replace("/__WS__", ws)
+                arm_name, arm_prefix = rnd.choice(arms)
+                msgs = [
+                    {"role": "developer", "content": head + build_mix2.CWD_LINE + "/private" + ws + tail},
+                    {"role": "user", "content": arm_prefix + task_prompt},
+                    {
+                        "role": "assistant",
+                        "weight": 0,
+                        "content": "",
+                        "reasoning": "Read the template file at the given path first.",
+                        "tool_calls": [
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {"name": "read", "arguments": {"path": path}},
+                            }
+                        ],
+                    },
+                    {"role": "tool", "tool_call_id": "call_1", "name": "read", "content": SOLUTION_TEMPLATE},
+                    {
+                        "role": "assistant",
+                        "weight": 0,
+                        "content": "",
+                        "reasoning": "Write the initial implementation to benchmark/solution.ail.",
+                        "tool_calls": [
+                            {
+                                "id": "call_2",
+                                "type": "function",
+                                "function": {"name": "write", "arguments": {"path": path, "content": code}},
+                            }
+                        ],
+                    },
+                    {"role": "tool", "tool_call_id": "call_2", "name": "write", "content": f"Successfully wrote to {path}"},
+                    {
+                        "role": "assistant",
+                        "weight": 0,
+                        "content": "",
+                        "reasoning": "Run `ailang check` first; the compiler names what is wrong.",
+                        "tool_calls": [
+                            {
+                                "id": "call_3",
+                                "type": "function",
+                                "function": {
+                                    "name": "bash",
+                                    "arguments": {"command": "ailang check benchmark/solution.ail"},
+                                },
+                            }
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "tool_call_id": "call_3",
+                        "name": "bash",
+                        "content": f"{error}\n\nCommand exited with code 1",
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "",
+                        "reasoning": reasoning,
+                        "tool_calls": [
+                            {
+                                "id": "call_4",
+                                "type": "function",
+                                "function": {"name": "write", "arguments": {"path": path, "content": fixed}},
+                            }
+                        ],
+                    },
                 ]
-            }
-            ok_r, wcounts = _assistant_reasoning_words(sample, a.min_single_reasoning_words)
-            if not ok_r:
-                rep["short_reasoning:repair"] += 1
-                continue
-            ok_l, tlen = _length_ok(sample, "repair")
-            if not ok_l:
-                continue
-            accepted.append((skey, f"repair-{pk}", True, sample, tlen, wcounts))
+                sample = {"messages": msgs, "tools": tools}
+                ok_r, wcounts = _assistant_reasoning_words(sample, a.min_single_reasoning_words)
+                if not ok_r:
+                    rep["short_reasoning:repair"] += 1
+                    continue
+                ok_l, tlen = _length_ok(sample, "ep-repair-direct")
+                if not ok_l:
+                    continue
+                accepted.append((skey, f"ep-repair-direct-{arm_name}", False, sample, tlen, wcounts))
+            else:
+                pk = rnd.choice(["slim", "none"])
+                user = f"{prompts[pk]}\n\nFix this AILANG module so ailang check passes:\n\n{error}\n\n{code}"
+                sample = {
+                    "messages": [
+                        {"role": "user", "content": user},
+                        {"role": "assistant", "content": fixed, "reasoning": reasoning},
+                    ]
+                }
+                ok_r, wcounts = _assistant_reasoning_words(sample, a.min_single_reasoning_words)
+                if not ok_r:
+                    rep["short_reasoning:repair"] += 1
+                    continue
+                ok_l, tlen = _length_ok(sample, "repair", is_single=True)
+                if not ok_l:
+                    continue
+                accepted.append((skey, f"repair-{pk}", True, sample, tlen, wcounts))
 
     # ---- 3. Multi-turn lean-pi episodes (--episodes)
     if a.episodes:
-        eps = _read_jsonl(a.episodes)
-        for e in eps:
-            _check_not_heldout(
-                held,
-                "--episodes",
-                benchmark=e.get("benchmark"),
-                group=e.get("group"),
-                rec_id=e.get("id"),
-            )
-        head, tail, tools = build_mix2.lean_format(a.lean_format)
-        with open(os.path.expanduser(a.arm_slim), encoding="utf-8") as f:
-            slim_prefix = json.load(f)["prefix"]
-        with open(os.path.expanduser(a.arm_none), encoding="utf-8") as f:
-            none_prefix = json.load(f)["prefix"]
-        arms = [("slim", slim_prefix), ("none", none_prefix)]
         rnd.shuffle(eps)
         per = collections.Counter()
         ep_kept = 0
@@ -523,6 +659,12 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--single", default="", help="reason5.py --mode single output JSONL")
     ap.add_argument("--episodes", default="", help="optional reason5.py --mode episodes output JSONL")
     ap.add_argument("--repairs", default="", help="optional single-turn compiler error -> fix JSONL")
+    ap.add_argument(
+        "--agent-repair-frac",
+        type=float,
+        default=0.0,
+        help="fraction of --repairs rendered as lean-pi check->write(fixed) tool trajectories (0.0-1.0)",
+    )
     ap.add_argument("--prompts", default="", help="directory containing ft-none.md, ft-slim-v1.md, [ft-compact-v1.md]")
     ap.add_argument("--out", required=True, help="output directory for train.jsonl, valid.jsonl, mix_report.json")
     ap.add_argument("--example-repeat", type=int, default=2)

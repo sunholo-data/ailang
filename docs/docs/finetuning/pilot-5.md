@@ -1,15 +1,15 @@
 ---
 sidebar_position: 10
 title: Pilot-5 (teach the language first)
-description: The fifth AILANG fine-tune — single-turn language SFT on verified repository and training-benchmark programs, scored against a fast single-shot language gate before agent evals.
-reviewed: 2026-11-25
-reviewBy: 2027-02-25
+description: The fifth AILANG fine-tune — single-turn language SFT + joint agent episodes on verified repository, benchmark, and repair code, uncovering and fixing Gemma 4's Jinja thought-stripping guard.
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 tier: internal
 ---
 
 # Pilot-5: teach the language first
 
-**Status: active ([D-FT-19](./decisions.md), approved 2026-11-16). Stage 0 baseline and Stage 2 Runs a, b, b2 and c are complete.** Run c reaches **44% slim-prompt compile** on the held-out benchmarks (matching the untrained model with the full prompt), but **17% pass** against the **39%** single-shot gate because code-only targets trained out test-time reasoning (~430 tokens vs 3,000–6,000). Next: restore thinking traces and scale the Stage 1 mix.
+**Status: active ([D-FT-19](./decisions.md), approved 2026-11-16). Stage 0 baseline and Stage 2 Runs a, b, b2, c and d are logged; Run e (`mix-pilot5e`) is in preparation.** Run c matched the full-prompt base model on slim-prompt compilation (**44%** vs **44%**) with code-only targets (`17%` pass). Run d added 253-word `reasoning` traces + 435 agent episodes, uncovering a hidden `and message.get('tool_calls')` guard in Gemma 4's HuggingFace `chat_template` that silently stripped `reasoning` from all non-tool turns; [train2.py](https://github.com/sunholo-data/ailang/blob/dev/tools/finetune/train2.py) now patches that template guard and verifies `<|channel>thought` in the decoded unmasked tokens of every sample for Run e.
 
 ## Why a new plan
 
@@ -174,20 +174,22 @@ Money cost is zero: descriptions use the Claude subscription and training runs o
 costs are subscription quota for 3,000 to 4,000 description requests and the rig's GPU for about
 three days, during which other local evals wait.
 
-## Stage 2 summary so far (as of 2026-11-25)
+## Stage 2 summary so far (as of 2026-11-26)
 
 | Arm / Run | Training data & rank | Repo in-dist compile (108, none / slim) | Held-out bench compile (72, none / slim / full) | Held-out bench pass (72, none / slim / full) | Tasks solved (/24) | Median output |
 |---|---|---|---|---|---|---|
-| **Untrained 12B** (Stage 0 baseline) | none | 0% / 12.5% *(40 sampled)* | 4% / 15% / **44%** | 0% / 3% / **39% (gate)** | 0 / — / **14** | 3,000–6,000 tok (with thinking) |
-| **Run a** | 1,504 short repo programs, rank 32 | **34% / 39%** | 8% / 11% / 20% | 0% / 6% / 0% | — | 300–400 tok (no thinking) |
+| **Untrained 12B** (Stage 0 baseline) | none | 0% / 12.5% *(40 sampled)* | 4% / 15% / **44%** | 0% / 3% / **39% (gate)** | 0 / — / **14** | 5,000–7,600 tok (with thinking) |
+| **Run a** | 1,504 short repo programs, rank 32 | **34% / 39%** | 8% / 11% / 20% | 0% / 6% / 0% | 0 / 2 / 0 | 300–400 tok (no thinking) |
 | **Run b** | same as a, rank 128 (`scale=10`) | — | — | — | — | diverged at iter 160 (`mlx-lm` unnormalized `scale`) |
 | **Run b2** | same as a, rank 128 (`scale=2.5`) | — | — | — | — | diverged at iter 880–980; val loss no better than rank 32 |
-| **Run c** | 1,504 repo + 491 training-bench passes (2,004), rank 32 | **49% / 42%** | 25% / **44%** / 31% | **11% / 17% / 18%** | **4 / 5 / 6** | ~430 tok (no thinking) |
+| **Run c** | 1,504 repo + 491 training-bench passes (2,004), rank 32, 2 ep | **49% / 42%** | 25% / **44%** / 31% | **11% / 17% / 18%** | **4 / 5 / 6** | ~430 tok (no thinking) |
+| **Run d** | 2,148 single-turn + 435 `pi` episodes (2,583), rank 32, 1.5 ep *(Jinja stripped single-turn `reasoning`)* | **43% / 35%** | 16% / 25% / 22% | 0% / 11% / 12% | 0 / 4 / 3 | 396–438 tok *(single-turn thoughts dropped by Jinja; agent 0/4 early-stopped)* |
+| **Run e** *(running)* | 2,186 single + 833 compiler repairs (`55%` in lean-`pi` tool format) + ~680 `pi` episodes, rank 32, 1.5 ep, **patched `train2.py` (`100%` `<\|channel>thought` + `<\|tool_call>` verified in tokens)** | *running* | *queued* | *queued* | *queued* | ~350–700 thinking + code |
 
-**Diagnostic reading of Run c:**
-- **Syntax and type transfer now works.** Adding 491 `module benchmark/solution` stdin/stdout examples lifted slim-prompt benchmark compilation from **15% (untrained)** and **11% (Run a)** to **44%**, matching the untrained model with the full 26k teaching prompt (**44%**).
-- **Empty-thought training broke algorithmic accuracy.** When untrained 12B + full prompt compiles a benchmark, **28 of 32 pass (88%)** because it spends 3,000–6,000 thinking tokens designing the algorithm first. When Run c + slim compiles, only **12 of 32 pass (38%, 5 distinct tasks)**: `build_mix5.py` omitted `reasoning` while `train2.py` rendered with `enable_thinking=True`, actively training an empty `<|channel>thought\n<channel|>` span so the model writes code cold in ~430 tokens.
-- **Data coverage is still Stage 2 scale.** Mix c holds 2,004 examples (already showing mild second-epoch overfit: val loss 0.47 → 0.51). None of the planned function-split long modules (4k–6k), `examples/` (560), single-turn compiler repairs (2k), or stdlib reference cards (1k) are included yet.
+**Diagnostic reading of Runs c, d and e:**
+- **Syntax and type transfer works (Run c):** Adding 491 `module benchmark/solution` stdin/stdout examples lifted slim-prompt benchmark compilation from **15% (untrained)** and **11% (Run a)** to **44%**, matching the untrained model with the full 26k teaching prompt (**44%**), while conditional `pass | compile` fell from **88% (`28/32`)** to **38% (`12/32`)** with 0 thinking tokens.
+- **Hidden chat-template bug & short dropped tool calls caught in Run d ([Field note 18](./field-notes.md#18-decode-the-unmasked-token-ids-chat-templates-can-silently-strip-your-targets), [Field note 20](./field-notes.md#20-short-dropped-tool-calls-end-agent-loops-silently-dont-only-look-above-500-tokens)):** Run d completed all three single-shot arms (`0% / 11% / 12%` pass; note the `compact` prompt slice prevented Run a's `0%` full-prompt collapse) and entered `STAGE agent`, where we stopped early at `0/4` (`config_file_parser`, `prompt_injection`, `stream_lcg_topk`, `contract_bst_validate`) after two root-cause findings: (1) Gemma 4's Jinja `and message.get('tool_calls')` guard stripped `reasoning` from all `2,148` single-turn samples (`83%` of `mix-pilot5d`), and (2) training 83% of steps with `tools=None` raised short malformed tool-call drops (`--min-tokens 25`) to `3.51%` per turn (`4/114`), prematurely terminating all 4 agent runs.
+- **Fix for Run e (`train2.py` + `mix-pilot5e` v2):** `train2.ensure_thinking_chat_template` patches Gemma 4's Jinja guard in memory and asserts `<|channel>thought\n...\n<channel|>` in the decoded unmasked target tokens of every `weight != 0` turn; `build_mix5d.py` adds 833 Neon-reasoned compiler-error → fix pairs (`IMP010`, `PAR017`, `PAR018`, `MOD010`, `undefined variable`, `type unification`), rendering 55% as lean-`pi` `check → thought → write(fixed)` tool calls (`--agent-repair-frac 0.55`) alongside `--agent-cap 700` episodes to reinforce exact `<|tool_call>` formatting.
 
 ## Log
 
@@ -220,3 +222,6 @@ three days, during which other local evals wait.
 | 2026-11-24 | Mix c built, run c started | Mix c adds 491 passing solutions to the 75 training benchmarks, at most 8 per task and from different models where possible, each re-checked with the pinned compiler (6 failed and were dropped). 2,004 training examples in all. Run c: rank 32, 2 epochs, then the narrower test and the single-shot test |
 | 2026-11-25 | Run c trained; narrower test improved | 4,008 iterations in 15 h 22 min, no divergence. Validation loss was lowest at iteration 1,500 (0.47) and rose to about 0.51 by the end while training loss fell to 0.25, so the second pass over the data overfitted slightly. On the 108 held-back repository tasks run c compiles 49% with no prompt and 42% with the slim prompt (run a: 34% and 39%). The single-shot test on the held-out benchmarks started at 04:17 UTC and was paused after 2 of 72 samples when another job on the rig asked for the GPU; it resumes when that job releases it |
 | 2026-11-25 | **Run c single-shot test: transfer, but short of the gate** | Pass rate on the 24 held-out tasks, 3 trials each: no prompt 8/72 (11%), slim prompt 12/72 (17%), full prompt 13/72 (18%). Compile rate 25%, 44% and 31%. Run a scored 0%, 6% and 0% on the same arms, so adding 491 benchmark-style examples is what moved the result. The language gate is 39% (untrained model with the full prompt) and is not met. Passes come from 4, 5 and 6 tasks, against 14 for the untrained model with the full prompt. The fine-tune answers in about 430 tokens with no thinking; the untrained model thinks for 3,000 to 6,000 tokens first |
+| 2026-11-25 | Mix d built with batched Neon reasoning + joint `pi` episodes; Run d started | `tools/finetune/reason5.py` generated validated 100–450 word `gemini-4-neon-medium` planning scratchpads for 2,186 single-turn items (`desc` + `eval` + `examples/runnable`, 99.0% yield) and 721 `pi` episodes. `build_mix5d.py` built `mix-pilot5d`: 2,583 train / 141 valid samples (`6.51M` tokens, single-turn `reasoning` p50 = 253 words across `none` / `slim` / `compact` prompts + 435 lean-`pi` episodes). Run d trained 1.5 epochs (`3,874` iterations, rank 32, auto-pruning intermediate checkpoints); validation loss fell `1.408 → 0.466` (iter 3300), `0.499` at iter 3600 |
+| 2026-11-26 | **Run d single-shot test & Jinja thought-stripping discovery** | In-distribution repo compile: 42.6% (`none`) and 35.2% (`slim`). On the held-out single-shot test, `none` scored 0/50 pass (16% compile, 396 median tokens) and `slim` scored 8/72 (11% pass, 25% compile, **423 median tokens**). Inspecting Gemma 4's HuggingFace `chat_template` explained why output stayed at ~423 tokens: line 244 (`if thinking_text and loop.index0 > ns_turn.last_user_idx and message.get('tool_calls')`) silently strips `message['reasoning']` whenever `tool_calls` is absent — deleting thoughts from all 2,148 single-turn examples while keeping them only on the 435 `tool_calls` episodes |
+| 2026-11-26 | **`train2.py` template patch verified; Run d early-stopped at 0/4 agent; Run e launched** | Run d finished single-shot (`full` arm: 9/72 = 12% pass, 22% compile) and started `STAGE agent`, where all 4 completed benchmarks (`config_file_parser`, `prompt_injection`, `stream_lcg_topk`, `contract_bst_validate`) failed early on short dropped tool calls (`4/114` = `3.51%` at `--min-tokens 25`, [Field note 20](./field-notes.md#20-short-dropped-tool-calls-end-agent-loops-silently-dont-only-look-above-500-tokens)). Stopped Run d early, removed `gemma4-12b-ailang-p5d`, rebuilt `mix-pilot5e` v2 with 833 Neon-reasoned compiler repairs (`55%` rendered as lean-`pi` `check → thought → write(fixed)` tool calls + `--agent-cap 700`), verified `100%` `<\|channel>thought` and `<\|tool_call>` presence in unmasked target tokens, and launched Run e |

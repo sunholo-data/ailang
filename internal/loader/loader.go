@@ -71,6 +71,7 @@ type LoadedModule struct {
 	Core          *core.Program            // Core representation (after elaboration)
 	Iface         *iface.Iface             // Module interface (after type checking)
 	CoreTI        interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
+	Reexports     map[string]Reexport      // `export import` names (loader_reexport.go)
 }
 
 // NewModuleLoader creates a new module loader
@@ -369,6 +370,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		Types:         types,
 		Constructors:  constructors,
 		Core:          nil, // Will be populated by runtime
+		Reexports:     buildReexports(file),
 	}
 	ml.cache[canonicalID] = loaded
 	ml.recordIdentity(canonicalID, fullPath)
@@ -582,7 +584,9 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 			return nil, err
 		}
 	}
-
+	if err := resolveReexports(modules); err != nil {
+		return nil, err
+	}
 	return modules, nil
 }
 

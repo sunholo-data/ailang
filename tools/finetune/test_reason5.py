@@ -564,6 +564,322 @@ class TestEpisodesMode(unittest.TestCase):
             self.assertEqual(out_eps[0]["steps"][1]["thought"], "Model mistake.")
 
 
+class TestRepairsMode(unittest.TestCase):
+    def test_repair_error_kind_extraction(self):
+        cases = [
+            ("Error [IMP010]: symbol put not exported by std/json", "IMP010"),
+            ("MOD010: module header does not match path", "MOD010"),
+            ("PAR017: unexpected ';' in expression body", "PAR017"),
+            ("PAR018: let rec is not supported", "PAR018"),
+            ("PAR_UNEXPECTED_EOF: unexpected end of file", "PAR_UNEXPECTED_EOF"),
+            ("TC_UNIFY_MISMATCH: expected int, got string", "TC_UNIFY_MISMATCH"),
+            ("Error: `++` is for lists only, not string", "`++`"),
+            ("Error: undefined variable: foo", "undefined variable"),
+            ("type unification error: int vs bool", "type unification"),
+            ("effect checking failed: missing IO", "effect checking"),
+            ("PARSER failed somewhere", "other"),
+            ("completely unknown error", "other"),
+        ]
+        for err, want in cases:
+            self.assertEqual(reason5.repair_error_kind(err), want, err)
+
+    def test_validate_reasoning_allows_std_in_broken_or_fixed(self):
+        broken = "module benchmark/solution\nimport std/json (put)\nexport func main() -> int = 1\n"
+        fixed = "module benchmark/solution\nimport std/string (length)\nexport func main() -> int = length(\"a\")\n"
+        # std/json appears only in broken; std/string appears only in fixed
+        txt = make_valid_reasoning(
+            90,
+            extra="IMP010 says symbol put is not in std/json, so I will remove std/json put and import std/string instead.",
+        )
+        ok, why = reason5.validate_reasoning(txt, broken, extra_code=fixed)
+        self.assertTrue(ok, why)
+
+        # Hallucinated std/http appears in neither broken nor fixed -> rejected
+        bad_txt = make_valid_reasoning(90, extra="I should import std/http instead.")
+        ok2, why2 = reason5.validate_reasoning(bad_txt, broken, extra_code=fixed)
+        self.assertFalse(ok2)
+        self.assertEqual(why2, "hallucinated_import")
+
+    def test_build_batch_prompt_repairs_mode(self):
+        prompt = reason5.build_batch_prompt(
+            [
+                {
+                    "id": "r1",
+                    "error": "PAR017: unexpected ';'",
+                    "code": "module m\nexport func main() -> int = { 1; }",
+                    "fixed": "module m\nexport func main() -> int = 1",
+                }
+            ],
+            "repairs",
+        )
+        self.assertIn("60 to 250 word", prompt)
+        self.assertIn("Compiler error:\nPAR017: unexpected ';'", prompt)
+        self.assertIn("Broken AILANG module:", prompt)
+        self.assertIn("Target fixed AILANG module", prompt)
+
+    def test_repairs_filters_balances_resumes_and_feeds_build_mix5d(self):
+        import build_mix5d  # noqa: E402
+
+        with tempfile.TemporaryDirectory() as td:
+            stale_path = os.path.join(td, "stale_pairs.jsonl")
+            onp_path = os.path.join(td, "onpolicy_pairs_v2.jsonl")
+            out_path = os.path.join(td, "repairs_reasoned.jsonl")
+
+            # stale_pairs.jsonl:
+            # - heldout (merge_sort_v2) -> skipped
+            # - ok: False -> skipped
+            # - broken == fixed -> skipped
+            # - empty error -> skipped
+            # - 4 `++` repairs for fizzbuzz (will be capped at 2 by --repair-per-kind 2)
+            # - 1 `PAR017` repair for fizzbuzz (distinct kind -> kept!)
+            # - 1 `IMP010` repair for fizzbuzz where std/json is in `old` (broken) and removed in `fixed`
+            stale_rows = [
+                {
+                    "ok": True,
+                    "benchmark": "merge_sort_v2",
+                    "old": "module benchmark/solution\nexport func main() -> int = 1",
+                    "error": "PAR017: ';'",
+                    "fixed": "module benchmark/solution\nexport func main() -> int = 2",
+                },
+                {
+                    "ok": False,
+                    "benchmark": "fizzbuzz",
+                    "old": "bad",
+                    "error": "PAR017: ';'",
+                    "fixed": "good",
+                },
+                {
+                    "ok": True,
+                    "benchmark": "fizzbuzz",
+                    "old": "same",
+                    "error": "PAR017: ';'",
+                    "fixed": "same",
+                },
+                {
+                    "ok": True,
+                    "benchmark": "fizzbuzz",
+                    "old": "broken",
+                    "error": "   ",
+                    "fixed": "fixed",
+                },
+            ]
+            for i in range(4):
+                stale_rows.append(
+                    {
+                        "ok": True,
+                        "benchmark": "fizzbuzz",
+                        "old": f'module benchmark/solution\nexport func main() -> string = "a" ++ "{i}"',
+                        "error": "Error: `++` is for lists only",
+                        "fixed": f'module benchmark/solution\nexport func main() -> string = "a{i}"',
+                    }
+                )
+            par17_broken = "module benchmark/solution\nexport func main() -> int = { 1; }"
+            par17_fixed = "module benchmark/solution\nexport func main() -> int = 1"
+            stale_rows.append(
+                {
+                    "ok": True,
+                    "benchmark": "fizzbuzz",
+                    "old": par17_broken,
+                    "error": "PAR017: unexpected ';' in expression body",
+                    "fixed": par17_fixed,
+                }
+            )
+            imp10_broken = "module benchmark/solution\nimport std/json (put)\nexport func main() -> int = 1"
+            imp10_fixed = "module benchmark/solution\nexport func main() -> int = 1"
+            stale_rows.append(
+                {
+                    "ok": True,
+                    "benchmark": "fizzbuzz",
+                    "old": imp10_broken,
+                    "error": "Error [IMP010]: symbol put is not exported by std/json",
+                    "fixed": imp10_fixed,
+                }
+            )
+            with open(stale_path, "w", encoding="utf-8") as f:
+                for r in stale_rows:
+                    f.write(json.dumps(r) + "\n")
+
+            # onpolicy_pairs_v2.jsonl:
+            # - uses `code` instead of `old`, omits `ok` (still valid!)
+            # - 1 duplicate of stale_rows PAR017 -> deduped
+            # - 1 `PAR018` for fizzbuzz
+            # - 1 `MOD010` for second_bench (ensures leakage-free split has >=2 groups)
+            # - 1 failing --verify-compile for second_bench (`++`) so it must not waste a cap slot
+            # - 1 retired heldout (group: bench:run_length_encode) -> skipped
+            onp_rows = [
+                {
+                    "benchmark": "fizzbuzz",
+                    "code": par17_broken,
+                    "error": "PAR017: unexpected ';' in expression body",
+                    "fixed": par17_fixed,
+                },
+                {
+                    "benchmark": "fizzbuzz",
+                    "code": "module benchmark/solution\nlet rec f = \\x. x\nexport func main() -> int = 1",
+                    "error": "PAR018: let rec is not supported",
+                    "fixed": "module benchmark/solution\npure func f(x: int) -> int = x\nexport func main() -> int = f(1)",
+                },
+                {
+                    "benchmark": "second_bench",
+                    "code": "module wrong/name\nexport func main() -> int = 1",
+                    "error": "MOD010: module header must match path",
+                    "fixed": "module benchmark/solution\nexport func main() -> int = 1",
+                },
+                {
+                    "benchmark": "second_bench",
+                    "code": 'module benchmark/solution\nexport func main() -> string = "x" ++ "y"',
+                    "error": "Error: `++` is for lists only",
+                    "fixed": "BROKEN_FIXED_CODE",
+                },
+                {
+                    "benchmark": "second_bench",
+                    "code": 'module benchmark/solution\nexport func main() -> string = "c" ++ "d"',
+                    "error": "Error: `++` is for lists only",
+                    "fixed": 'module benchmark/solution\nexport func main() -> string = "cd"',
+                },
+                {
+                    "group": "bench:run_length_encode",
+                    "code": "a",
+                    "error": "PAR017: ';'",
+                    "fixed": "b",
+                },
+            ]
+            with open(onp_path, "w", encoding="utf-8") as f:
+                for r in onp_rows:
+                    f.write(json.dumps(r) + "\n")
+
+            imp10_id = reason5.compute_repair_id("fizzbuzz", imp10_broken, imp10_fixed)
+            # Seed out_path with an INVALID reasoning row for imp10_id so resume must retry it
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "id": imp10_id,
+                            "hash": imp10_id,
+                            "benchmark": "fizzbuzz",
+                            "group": "bench:fizzbuzz",
+                            "split": "train",
+                            "kind": "repair",
+                            "code": imp10_broken,
+                            "error": "Error [IMP010]: symbol put is not exported by std/json",
+                            "fixed": imp10_fixed,
+                            "reasoning": "too short",
+                        }
+                    )
+                    + "\n"
+                )
+
+            modes_seen = []
+
+            def fake_backend(backend, model, items, mode):
+                modes_seen.append(mode)
+                out = {}
+                for it in items:
+                    if it["id"] == imp10_id:
+                        # Mentions std/json which is ONLY in `code` (broken), NOT in `fixed`
+                        out[it["id"]] = make_valid_reasoning(
+                            95,
+                            extra="Compiler error IMP010 says symbol put is not exported by std/json, so I will remove the std/json import.",
+                        )
+                    else:
+                        out[it["id"]] = make_valid_reasoning(95)
+                return out
+
+            def fake_verify(code):
+                return ("BROKEN_FIXED_CODE" not in code, "compile err")
+
+            with mock.patch.object(reason5, "verify_compile", side_effect=fake_verify), \
+                    mock.patch.object(reason5, "call_backend", side_effect=fake_backend):
+                rc = reason5.main(
+                    [
+                        "--mode",
+                        "repairs",
+                        "--in",
+                        f"{stale_path},{onp_path}",
+                        "--out",
+                        out_path,
+                        "--repair-per-kind",
+                        "2",
+                        "--verify-compile",
+                        "--batch-size",
+                        "4",
+                        "--workers",
+                        "1",
+                        "--seed",
+                        "11",
+                    ]
+                )
+            self.assertEqual(rc, 0)
+            self.assertTrue(all(m == "repairs" for m in modes_seen))
+
+            # Expected newly written:
+            # fizzbuzz: 2 `++` (capped from 4) + 1 PAR017 + 1 IMP010 + 1 PAR018 = 5
+            # second_bench: 1 MOD010 + 1 `++` (BROKEN_FIXED_CODE skipped by verify_compile) = 2
+            # Total newly written = 7 (+ 1 seeded invalid row in file = 8 lines)
+            with open(out_path, encoding="utf-8") as f:
+                all_rows = [json.loads(ln) for ln in f]
+            self.assertEqual(len(all_rows), 8)
+            valid_rows = [r for r in all_rows if len(r["reasoning"].split()) >= 50]
+            self.assertEqual(len(valid_rows), 7)
+
+            for r in valid_rows:
+                self.assertEqual(r["id"], r["hash"])
+                self.assertEqual(r["group"], "bench:" + r["benchmark"])
+                self.assertEqual(r["split"], "train")
+                self.assertEqual(r["kind"], "repair")
+                self.assertTrue(r["code"] and r["error"] and r["fixed"])
+                self.assertNotEqual(r["code"], r["fixed"])
+
+            # Clean out the seeded invalid row (simulating fresh clean output) and test resume = 0 backend calls
+            clean_path = os.path.join(td, "repairs_clean.jsonl")
+            with open(clean_path, "w", encoding="utf-8") as f:
+                for r in valid_rows:
+                    f.write(json.dumps(r) + "\n")
+
+            modes_seen.clear()
+            with mock.patch.object(reason5, "verify_compile", side_effect=fake_verify), \
+                    mock.patch.object(reason5, "call_backend", side_effect=fake_backend):
+                reason5.main(
+                    [
+                        "--mode",
+                        "repairs",
+                        "--in",
+                        f"{stale_path},{onp_path}",
+                        "--out",
+                        clean_path,
+                        "--repair-per-kind",
+                        "2",
+                        "--verify-compile",
+                        "--workers",
+                        "1",
+                        "--seed",
+                        "11",
+                    ]
+                )
+            self.assertEqual(modes_seen, [])
+            with open(clean_path, encoding="utf-8") as f:
+                self.assertEqual(len(f.readlines()), 7)
+
+            # Verify full compatibility with build_mix5d.py --repairs
+            pdir = os.path.join(td, "prompts")
+            os.makedirs(pdir, exist_ok=True)
+            with open(os.path.join(pdir, "ft-none.md"), "w", encoding="utf-8") as f:
+                f.write("You are writing AILANG.")
+            with open(os.path.join(pdir, "ft-slim-v1.md"), "w", encoding="utf-8") as f:
+                f.write("# TOP TRAPS")
+            with open(os.path.join(pdir, "ft-compact-v1.md"), "w", encoding="utf-8") as f:
+                f.write("## Compact Ref")
+
+            mix_dir = os.path.join(td, "mix_out")
+            mix_args = build_mix5d.parse_args(
+                ["--repairs", clean_path, "--prompts", pdir, "--out", mix_dir, "--seed", "5"]
+            )
+            report = build_mix5d.build_mix(mix_args)
+            self.assertEqual(report["total_samples"]["train"] + report["total_samples"]["valid"], 7)
+            self.assertGreaterEqual(report["reasoning_words"]["single_turn"]["min"], 50)
+            self.assertTrue(any(":repair-" in k for k in report["samples"]))
+
+
 class TestIsolatedModeCLI(unittest.TestCase):
     def test_invalid_backslash_escape_and_extra_data(self):
         raw = '{"items": [{"id": "a1", "reasoning": "use lambda \\x. x + 1 and \\n newline"}]}\ntrailing line'

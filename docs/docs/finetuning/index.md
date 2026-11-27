@@ -2,8 +2,8 @@
 sidebar_position: 1
 title: Fine-tuning AILANG models
 description: Research log for training small, local AILANG-expert models — what we measured, what we decided, and what we publish.
-reviewed: 2026-11-25
-reviewBy: 2027-02-25
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 tier: internal
 ---
 
@@ -39,22 +39,31 @@ tokens on passes), **but habits cannot substitute for knowing the language**: an
 12B given the same 2.4 KB slim prompt matched our best habit fine-tune (`9–10/23` vs `10/23`,
 [D-FT-18](./decisions.md)), while the full teaching prompt lifted the untrained model to `16/23`.
 [Pilot-5](./pilot-5.md) ([D-FT-19](./decisions.md)) therefore reverses the order: **teach the
-language first** from verified repository and benchmark programs (measured on a fast single-shot
-gate), while preserving the model's test-time reasoning, and layer agent habits back in only once
-the language gate passes. See [Training data](./data.md).
+language first** from verified repository, benchmark and repair programs, while preserving the
+model's `<|channel>thought` reasoning, and train lean-`pi` agent episodes jointly in a single stage.
+See [Training data](./data.md).
+
+### What "workable at 12B" means (Core vs Stretch)
+
+Even with the full 26k-token teaching prompt, untrained Gemma 4 12B passes **12 of 12 (`100%`) Core**
+benchmarks in agent mode, and **5 of 12 (`42%`) Stretch** competitive-programming puzzles
+([Pilot-1](./pilot-1.md)). The realistic job of a 12B release fine-tune is **routine engineering at
+short context (~3k tokens, where 4-stream batching scales ~2.7×)** — module edits, inline `tests`,
+CLI/package maintenance, and `ailang check`-guided refactors — while escalating hard algorithmic
+design to larger models.
 
 ## Status
 
 | Stage | State |
 |---|---|
 | [Baseline](./baseline.md) (size ladder, speed, parallelism) | done 2026-11-05; target picked: **Gemma 4 12B** |
-| [Training data](./data.md) (corpus, rules, mix) | 63 stdlib/core examples landed (95% stdlib coverage); Pilot 1–4 habit/repair mixes + Pilot-5 near-deduped repo descriptions (1,753) and verified benchmark solutions (491) built; Stage 1 expansion next |
+| [Training data](./data.md) (corpus, rules, mix) | 63 stdlib/core examples landed (95% stdlib coverage); Pilot 1–4 habit/repair mixes + Pilot-5 near-deduped repo descriptions (1,753), verified benchmark solutions (491), and `gemini-4-neon` reasoning traces (`2,907` + ~`500` compiler repairs) built |
 | [Pilot-1](./pilot-1.md) (12B LoRA) | negative, causes found (session gate, thinking format, context) |
 | [Pilot-2](./pilot-2.md) (served format, habit episodes) | agent protocol fixed (0 protocol misses), 3× fewer tokens, but 4/24 against base's 6/13 |
 | [Pilot-3](./pilot-3.md) (its own mistakes, repaired) | **10/24** with the slim prompt (pilot-2: 4/24); 6 newly pass, none newly fail. Left behind: dropped runaway writes, long loops |
 | [Pilot-4](./pilot-4.md) (second round, short writes, loop-breaking) | **5/23**, below pilot-3. Two diagnostic arms: the untrained model with the slim prompt scores 9/23 (10/23 with a working output limit), level with the best fine-tune (10/23); base with the full prompt scores 16/23 |
 | On-policy repair line | **stopped 2026-11-16** ([D-FT-18](./decisions.md)): three rounds of training added nothing measurable over the slim prompt alone. Fixed `max_tokens` enforcement on local rig models |
-| [Pilot-5](./pilot-5.md) (teach the language first) | **running** ([D-FT-19](./decisions.md)). Single-shot baseline: untrained 12B passes 0% (no prompt), 3% (slim) and **39%** (full prompt, 44% compile). Run a (1,504 repo programs) learned repo modules (34%/39% compile vs 0%/12.5% untrained) but did not transfer to benchmark tasks (0%/6% pass). Runs b & b2 (rank 128) diverged. Run c (+491 benchmark solutions, 2,004 total) reaches **44% slim-prompt compile** (matching full-prompt base!), yet passes **11% / 17% / 18%** (no / slim / full) vs the 39% gate because code-only targets suppressed reasoning (~430 tokens vs 3k–6k). Next: restore thinking in the examples and scale Stage 1 data |
+| [Pilot-5](./pilot-5.md) (teach the language first) | **running** ([D-FT-19](./decisions.md)). Single-shot baseline: untrained 12B passes 0% (no prompt), 3% (slim) and **39%** (full prompt, 44% compile). Run c (2,004 examples, no thinking) matched **44% slim compile** (`17%` pass). Run d completed single-shot (`0% / 11% / 12%`) and early-stopped agent gate (`0/4`), uncovering both Gemma 4's Jinja non-tool thought stripping ([Field note 18](./field-notes.md#18-decode-the-unmasked-token-ids-chat-templates-can-silently-strip-your-targets)) and short `<\|tool_call>` parser drops below 500 tokens ([Field note 20](./field-notes.md#20-short-dropped-tool-calls-end-agent-loops-silently-dont-only-look-above-500-tokens)). **Run e** (`mix-pilot5e` v2: `100%` `<\|channel>thought` + `<\|tool_call>` token-verified, 833 compiler repairs across single-turn and lean-`pi` formats) is now training |
 | Published fine-tunes | per release, from an artifact bucket linked here ([D-FT-2](./decisions.md)) |
 
 ## Failed paths, and when to walk them again
@@ -84,7 +93,8 @@ judgement, not a measurement.
 | Give a fine-tune the full teaching prompt as a fallback | Worse than no training, twice: 1 of 23 in pilot-3, and 0% against 39% in pilot-5 run a | [Pilot-4](./pilot-4.md), [Pilot-5](./pilot-5.md) | The full prompt is part of the training examples, which needs a trainer that can take 27,000-token sequences |
 | Retry a dropped response in the agent harness | Not built. Five of six dropped runs were the model repeating itself, which a retry would not fix | [Pilot-4](./pilot-4.md) | Dropped responses are common in a model that otherwise writes correct programs |
 | Raise LoRA rank from 32 to 128 on 12B (pilot-5 runs b and b2) | Diverged twice: at step 160 (unscaled `scale=10`) and at steps 880–980 even with `scale=2.5` (`scale × rank = 320`), with no validation-loss advantage over rank 32 before breaking | [Pilot-5](./pilot-5.md) | Lower learning rate (`≤1e-5`) or QDoRA / gradient clipping if rank 32 saturates on the full 10k+ dataset |
-| Train code-only targets under `enable_thinking=True` with no `reasoning` field (pilot-5 runs a and c) | Reached 44% slim-prompt compile rate (matching full-prompt base), but trained an empty `<\|channel>thought\n<channel\|>` span that suppressed test-time reasoning (~430 tokens vs 3k–6k) and dropped pass-given-compile from 88% to 38% | [Pilot-5](./pilot-5.md) | Never for multi-step algorithmic tasks; always populate `reasoning` or mask the empty thought prefix |
+| Train code-only targets under `enable_thinking=True` with no `reasoning` field (pilot-5 runs a and c) | Reached 44% slim-prompt compile rate (matching full-prompt base), but trained an empty `<\|channel>thought\n<channel\|>` span that suppressed test-time reasoning (~430 tokens vs 3k–6k) and dropped pass-given-compile from 88% to 38% | [Pilot-5](./pilot-5.md) | Never for multi-step algorithmic tasks; always populate `reasoning` |
+| Trust `tokenizer.apply_chat_template` to keep `message['reasoning']` on non-tool turns (pilot-5 run d) | Gemma 4's HuggingFace Jinja template guards `<\|channel>thought` with `and message.get('tool_calls')`, silently stripping `reasoning` from all 2,148 single-turn items and episode final replies (output stayed at ~423 tokens) | [Field notes](./field-notes.md#18-decode-the-unmasked-token-ids-chat-templates-can-silently-strip-your-targets), [Pilot-5](./pilot-5.md) | Never without decoding the unmasked target token IDs; `train2.py` now patches the template and asserts `<\|channel>thought` on every reasoned turn |
 | A larger base model on the rig | Not trained. A 27B model takes 49 GB and the rig loads one model at a time, so it cannot run parallel agents | [Why](#why), above | The 12B cannot hold the language at any adapter size, or the rig can run several models at once |
 
 Two habits keep an old path from being walked again by accident. The untrained model is measured

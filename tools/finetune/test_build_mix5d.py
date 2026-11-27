@@ -362,6 +362,58 @@ class TestBuildMix5d(unittest.TestCase):
         self.assertEqual(rep_tok["dropped"]["over_max_tokens:repo"], 1)
         self.assertEqual(rep_tok["total_samples"]["train"] + rep_tok["total_samples"]["valid"], 1)
 
+    def test_agent_repair_frac_renders_lean_pi_tool_repairs(self):
+        pdir = _make_prompts(os.path.join(self.td.name, "prompts"))
+        fmt, slim, none = _make_lean_fixtures(os.path.join(self.td.name, "traces_ar"))
+        repair_rows = [
+            {
+                "benchmark": f"b{i}",
+                "code": f"module benchmark/solution\nexport func main() = bad{i}",
+                "error": "Error: undefined variable: bad",
+                "fixed": f"module benchmark/solution\nexport func main() -> int = {i}",
+                "reasoning": _words(55, "diag"),
+            }
+            for i in range(12)
+        ]
+        ep_rows = [_episode(f"b{i}", kind="solve") for i in range(6)]
+        rp = _write_jsonl(os.path.join(self.td.name, "repairs_ar.jsonl"), repair_rows)
+        ep = _write_jsonl(os.path.join(self.td.name, "eps_ar.jsonl"), ep_rows)
+        out_dir = os.path.join(self.td.name, "out_ar")
+
+        args = build_mix5d.parse_args(
+            [
+                "--repairs", rp,
+                "--episodes", ep,
+                "--prompts", pdir,
+                "--lean-format", fmt,
+                "--arm-slim", slim,
+                "--arm-none", none,
+                "--agent-repair-frac", "1.0",
+                "--out", out_dir,
+                "--seed", "9",
+            ]
+        )
+        report = build_mix5d.build_mix(args)
+        sample_keys = set(report["samples"].keys())
+        self.assertTrue(any("ep-repair-direct-" in k for k in sample_keys))
+        self.assertFalse(any(":repair-" in k for k in sample_keys))
+
+        direct_found = 0
+        for fn in ("train.jsonl", "valid.jsonl"):
+            with open(os.path.join(out_dir, fn), encoding="utf-8") as f:
+                for ln in f:
+                    d = json.loads(ln)
+                    self.assertIn("tools", d)
+                    msgs = d["messages"]
+                    if len(msgs) == 9 and msgs[-1].get("tool_calls", [{}])[0].get("function", {}).get("name") == "write":
+                        direct_found += 1
+                        # Broken code and check steps must be weight=0; only final write(fixed) has loss
+                        weighted = [m for m in msgs if m.get("role") == "assistant" and m.get("weight", 1) != 0]
+                        self.assertEqual(len(weighted), 1)
+                        self.assertEqual(len(weighted[0]["reasoning"].split()), 55)
+                        self.assertIn("export func main() -> int =", weighted[0]["tool_calls"][0]["function"]["arguments"]["content"])
+        self.assertEqual(direct_found, 12)
+
 
 if __name__ == "__main__":
     unittest.main()

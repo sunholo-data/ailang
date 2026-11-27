@@ -49,6 +49,43 @@ Run with:
 ailang run --caps IO,FS --entry main examples/math.ail
 ```
 
+### Re-exports (`export import`)
+
+Imports are not transitive. A module can opt in for names it chooses with
+`export import`, which makes it a **facade**: the listed names become its
+exports, and they keep the original's identity. A constructor imported through
+the facade *is* the original's, so values built on either side match the
+other's patterns.
+
+```ailang parse
+module shapes/api
+export import shapes/core (Shape, Circle, Square, area)
+export import shapes/old_names (perimeter as edgeLength)
+```
+
+```ailang parse
+module main
+import std/io (println)
+import shapes/api (Shape, Circle, area)    -- the same as importing from shapes/core
+
+export func main() -> () ! {IO} = println(show(area(Circle(2.0))))
+```
+
+- An `export import` line sits in the import header with the other imports,
+  and must list its names (`export import M` or `export import M as A` is
+  `PAR_REEXPORT_FORM`). Names may be renamed with `as`.
+- Re-exporting a name the source module does not export is `IMP010`. A chain
+  of facades that returns to itself is `MOD016`.
+- A facade's interface shows its re-exports exactly as the source declares
+  them: type, constructors, effects and contracts. A re-exported type brings
+  its constructors, as importing a type does.
+- A trailing `@deprecated("new/module/path")` marks the line as moved. Every
+  name imported through it warns `TC_DEPRECATED_001` with the fix
+  `import X from new/module/path`. This applies to types and constructors as
+  well as functions.
+- Through a module alias (`import shapes/api as A`), re-exported functions
+  and types are reachable as `A.area` and `A.Shape`.
+
 ### Module-Level Bindings
 
 Besides functions, a module can declare top-level `let` bindings — constants shared
@@ -174,30 +211,43 @@ Run tests with:
 ailang test examples/factorial.ail
 ```
 
-## Lambda Expressions
+## Lambda Expressions, Destructuring & Pipes
+
+Irrefutable tuple and record patterns work in `let` bindings and lambda parameters, and the left-associative pipe operator (`|>`) passes a value to a unary function (`x |> f` desugars to `f(x)`):
 
 ```ailang
-func lambdaExamples() -> (int, int, int) {
+module docs/pipes_and_destructuring
+
+import std/list (map, filter, foldl)
+
+export func pipelineDemo() -> (int, int, string) {
   -- Basic curried lambda
   let add = \x. \y. x + y;
-  let add5 = add(5);
-  let r1 = add5(3);  -- 8
+  let r1 = add(5)(3);  -- 8
 
-  -- Higher-order functions
-  let compose = \f. \g. \x. f(g(x));
-  let double = \x. x * 2;
-  let inc = \x. x + 1;
-  let doubleThenInc = compose(inc)(double);
-  let r2 = doubleThenInc(5);  -- 11
+  -- Tuple and record destructuring in let bindings and lambdas
+  let pair = (10, 20);
+  let (left, right) = pair;
+  let cfg = {host: "localhost", port: 8080};
+  let {host, port: p} = cfg;
+  let sumPair = \(a, b). a + b;
+  let formatHost = \{host, port}. "${host}:${show(port)}";
 
-  -- Closures capture environment
-  let makeAdder = \x. \y. x + y;
-  let add10 = makeAdder(10);
-  let r3 = add10(5);  -- 15
+  -- Left-associative pipe operator (|>)
+  let r2 = [1, 2, 3, 4]
+    |> (\xs. filter(\x. x % 2 == 0, xs))
+    |> (\xs. map(\x. x * 10, xs))
+    |> (\xs. foldl(\acc x. acc + x, left + right + sumPair((1, p - 8080)), xs));
 
-  (r1, r2, r3)
+  (r1, r2, formatHost(cfg))
 }
 ```
+
+### Typed Holes & Quick Fixes
+
+During development, place an anonymous hole (`_?`) or named hole (`?goal`) anywhere an expression is expected. `ailang check` reports diagnostic `TC_HOLE` with the inferred expected type and the types of in-scope local bindings (`ailang check --json` emits structured machine-readable diagnostics and quick-fix edits; `ailang check --fix` applies safe mechanical syntax repairs directly).
+
+Full runnable examples: `examples/runnable/destructuring.ail`, `examples/runnable/pipe_operator.ail`, and `examples/snippets/typed_holes.ail`.
 
 ## Pattern Matching
 

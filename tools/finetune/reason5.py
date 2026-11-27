@@ -12,6 +12,9 @@ Modes:
   episodes  Enrich `episodes_thought.jsonl` by replacing the initial substantive `write`
             (or `build`) step's template thought with a genuine planning `thought`, while
             preserving tactical thoughts on `read`/`check`/`run`/lookup steps.
+  repairs   Enrich verified compiler-error -> fix pairs (`stale_pairs.jsonl`,
+            `onpolicy_pairs_v2.jsonl`, etc.) with concise 60-250 word diagnostic `reasoning`
+            for `build_mix5d.py --repairs`.
 
 Held-out safety gate: any record whose `benchmark` matches `extract_lang.load_heldout()`
 (including `_vN` variants) is refused immediately and never sent to any backend or output.
@@ -120,6 +123,10 @@ BANNED_SYNTAX_RE = re.compile(
 STD_MOD_RE = re.compile(r"\b(std/[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)?)\b")
 MOD_RE = re.compile(r"^\s*module\s+([\w/.\-]+)", re.M)
 EXPORT_SIG_RE = re.compile(r"^\s*(export\s+(?:pure\s+)?(?:func|type)\s+[^\n={]+)", re.M)
+REPAIR_ERROR_KIND_RE = re.compile(
+    r"\b(IMP\d+|MOD\d+|PAR(?:\d+|_[A-Z0-9_]+)|TC_[A-Z0-9_]+)\b"
+    r"|(`\+\+`|undefined variable|type unification|effect checking)"
+)
 
 
 def _bench_base(name: str) -> str:
@@ -150,7 +157,7 @@ def _record_is_heldout(rec: dict, heldout: set[str]) -> bool:
     return False
 
 
-def validate_reasoning(text: str, code: str) -> tuple[bool, str]:
+def validate_reasoning(text: str, code: str, extra_code: str = "") -> tuple[bool, str]:
     """Validate word count, formatting hygiene, AILANG constraints, and code grounding."""
     if not isinstance(text, str) or not text.strip():
         return False, "empty"
@@ -167,10 +174,11 @@ def validate_reasoning(text: str, code: str) -> tuple[bool, str]:
         return False, "meta_leakage"
     if BANNED_SYNTAX_RE.search(text):
         return False, "banned_syntax"
-    if code:
+    combined_code = "\n".join(p for p in (code, extra_code) if p)
+    if combined_code:
         for mod in STD_MOD_RE.findall(text):
-            if mod not in code:
-                if mod == "std/io" and ("println" in code or "print" in code):
+            if mod not in combined_code:
+                if mod == "std/io" and ("println" in combined_code or "print" in combined_code):
                     continue
                 return False, "hallucinated_import"
     return True, ""
@@ -220,6 +228,17 @@ def synthesize_example_task(code: str, relpath: str) -> str:
 
 def compute_single_id(rec: dict) -> str:
     return str(rec.get("hash") or hashlib.sha256(rec["code"].encode("utf-8")).hexdigest()[:16])
+
+
+def compute_repair_id(benchmark: str, broken: str, fixed: str) -> str:
+    return hashlib.sha256(f"{benchmark}:{broken}:{fixed}".encode("utf-8")).hexdigest()[:16]
+
+
+def repair_error_kind(error: str) -> str:
+    m = REPAIR_ERROR_KIND_RE.search(error or "")
+    if not m:
+        return "other"
+    return m.group(1) or m.group(2)
 
 
 def find_first_substantive_write(ep: dict) -> tuple[int | None, str]:
@@ -275,8 +294,36 @@ Return ONLY a strict JSON object of the form:
 {"items": [{"id": "<item id>", "reasoning": "<scratchpad>"}]}
 Include one entry for every item id below."""
 
+REPAIR_BATCH_INSTRUCTIONS = """You are generating concise diagnostic reasoning scratchpads (`reasoning`) for an AILANG compiler-repair training dataset.
+For EACH item below, write a 60 to 250 word first-person diagnostic scratchpad as an AILANG developer reading the compiler error on their broken module and planning the minimal fix BEFORE outputting the corrected module.
+
+Requirements for each `reasoning`:
+1. Quote or identify the specific compiler error code or message (e.g., `IMP010`, `PAR017`, `PAR018`, `MOD010`, `++`, undefined variable, type mismatch) and pinpoint the line or construct causing it.
+2. State the AILANG language or stdlib rule that was violated (e.g., `++` is for lists only rather than strings, `let rec` is disallowed in AILANG, `;` is invalid inside expression bodies, `module` header must match the module path, or a symbol is not exported by that `std/...` module).
+3. Explain the minimal change needed to make `ailang check` pass while preserving the program's behaviour identically.
+4. Write in first person ("The compiler reports...", "To fix this without changing behavior, I will...") as genuine pre-fix diagnosis.
+5. Do NOT include markdown code fences (```) or paste multi-line code blocks.
+6. Do NOT use meta-phrases such as "given program", "provided code", "provided program", "provided solution", "solution above", or "looking at the code".
+7. ONLY mention `std/...` modules that actually appear in the broken or fixed AILANG module.
+8. Length: strictly 60 to 250 words.
+
+Return ONLY a strict JSON object of the form:
+{"items": [{"id": "<item id>", "reasoning": "<scratchpad>"}]}
+Include one entry for every item id below."""
+
 
 def build_batch_prompt(items: list[dict], mode: str) -> str:
+    if mode == "repairs":
+        sections = [REPAIR_BATCH_INSTRUCTIONS]
+        for it in items:
+            sections.append(
+                f"=== ITEM {it['id']} ===\n"
+                f"Compiler error:\n{it['error'].strip()}\n\n"
+                f"Broken AILANG module:\n{it['code'].strip()}\n\n"
+                f"Target fixed AILANG module (reference only — diagnose the error and plan this minimal fix as if about to write it):\n{it['fixed'].strip()}"
+            )
+        return "\n\n".join(sections)
+
     sections = [BATCH_INSTRUCTIONS]
     for it in items:
         note = ""
@@ -431,7 +478,13 @@ def _chunks(seq: list, size: int, max_chars: int = 55000):
     cur_chars = 0
     limit = max(1, size)
     for item in seq:
-        est = len(str(item.get("task", ""))) + len(str(item.get("code", ""))) + 200
+        est = (
+            len(str(item.get("task", "")))
+            + len(str(item.get("code", "")))
+            + len(str(item.get("error", "")))
+            + len(str(item.get("fixed", "")))
+            + 200
+        )
         if cur and (len(cur) >= limit or cur_chars + est > max_chars):
             yield cur
             cur = []
@@ -459,7 +512,11 @@ def _load_done_ids(out_path: str, id_field: str, require_valid_reasoning: bool =
             if not val:
                 continue
             if require_valid_reasoning:
-                ok, _ = validate_reasoning(d.get("reasoning", ""), d.get("code", ""))
+                ok, _ = validate_reasoning(
+                    d.get("reasoning", ""),
+                    d.get("code", ""),
+                    extra_code=d.get("fixed", ""),
+                )
                 if not ok:
                     continue
             done.add(str(val))
@@ -751,15 +808,153 @@ def run_episodes(args, heldout: set[str], rnd: random.Random) -> dict:
     return {"mode": "episodes", "todo": len(todo_jobs), "stats": dict(stats), "reject_reasons": dict(rejects)}
 
 
+def load_repair_items(args, heldout: set[str], rnd: random.Random) -> tuple[list[dict], collections.Counter]:
+    stats: collections.Counter = collections.Counter()
+    candidates: list[dict] = []
+    seen_ids: set[str] = set()
+
+    in_paths = [os.path.expanduser(p.strip()) for p in args.in_path.split(",") if p.strip()]
+    if not in_paths:
+        raise ValueError("--in must specify at least one JSONL path")
+
+    for in_path in in_paths:
+        with open(in_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                r = json.loads(line)
+                if "ok" in r and not r["ok"]:
+                    stats["not_ok_skipped"] += 1
+                    continue
+                if _record_is_heldout(r, heldout):
+                    stats["heldout_skipped"] += 1
+                    continue
+                broken = r.get("old") or r.get("code") or ""
+                error = r.get("error") or ""
+                fixed = r.get("fixed") or ""
+                if (
+                    not isinstance(broken, str)
+                    or not isinstance(error, str)
+                    or not isinstance(fixed, str)
+                    or not broken.strip()
+                    or not error.strip()
+                    or not fixed.strip()
+                    or broken == fixed
+                ):
+                    stats["incomplete_skipped"] += 1
+                    continue
+                benchmark = str(r.get("benchmark") or "").strip()
+                if not benchmark:
+                    grp = str(r.get("group") or "")
+                    if grp.startswith("bench:"):
+                        benchmark = grp[len("bench:") :].strip()
+                rid = compute_repair_id(benchmark, broken, fixed)
+                if rid in seen_ids:
+                    stats["dedup_skipped"] += 1
+                    continue
+                seen_ids.add(rid)
+                candidates.append(
+                    {
+                        "id": rid,
+                        "benchmark": benchmark,
+                        "error_kind": repair_error_kind(error),
+                        "code": broken,
+                        "error": error,
+                        "fixed": fixed,
+                    }
+                )
+
+    done_ids = _load_done_ids(os.path.expanduser(args.out), "id", require_valid_reasoning=True)
+    already_done = [c for c in candidates if c["id"] in done_ids]
+    pending = [c for c in candidates if c["id"] not in done_ids]
+    rnd.shuffle(pending)
+
+    per: collections.Counter = collections.Counter()
+    todo: list[dict] = []
+    cap = args.repair_per_kind
+    for c in already_done + pending:
+        cap_key = (c["benchmark"], c["error_kind"])
+        if c["id"] in done_ids:
+            if cap <= 0 or per[cap_key] < cap:
+                per[cap_key] += 1
+            stats["resumed_skipped"] += 1
+            continue
+        if cap > 0 and per[cap_key] >= cap:
+            stats["capped_skipped"] += 1
+            continue
+        if args.verify_compile and not verify_compile(c["fixed"])[0]:
+            stats["repair_fails_pinned_check"] += 1
+            continue
+        per[cap_key] += 1
+        todo.append(c)
+
+    rnd.shuffle(todo)
+    if args.limit > 0:
+        todo = todo[: args.limit]
+    return todo, stats
+
+
+def run_repairs(args, heldout: set[str], rnd: random.Random) -> dict:
+    todo, stats = load_repair_items(args, heldout, rnd)
+    out_path = os.path.expanduser(args.out)
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    batches = list(_chunks(todo, args.batch_size))
+    rejects: collections.Counter = collections.Counter()
+
+    def process_batch(batch: list[dict]):
+        res = call_backend(args.backend, args.model, batch, "repairs")
+        return batch, res
+
+    with cf.ThreadPoolExecutor(max_workers=args.workers) as ex, open(out_path, "a", encoding="utf-8") as out_f:
+        futures = [ex.submit(process_batch, b) for b in batches]
+        for fut in cf.as_completed(futures):
+            try:
+                batch, res = fut.result()
+            except Exception as exc:  # noqa: BLE001
+                stats["batch_errors"] += 1
+                print(f"[reason5] batch error: {exc}", file=sys.stderr)
+                continue
+            stats["batches_ok"] += 1
+            for rec in batch:
+                reasoning = res.get(rec["id"], "")
+                if not reasoning:
+                    stats["missing_in_response"] += 1
+                    continue
+                ok, why = validate_reasoning(reasoning, rec["code"], extra_code=rec["fixed"])
+                if not ok:
+                    stats["rejected"] += 1
+                    rejects[why] += 1
+                    continue
+                out_rec = {
+                    "id": rec["id"],
+                    "hash": rec["id"],
+                    "benchmark": rec["benchmark"],
+                    "group": "bench:" + rec["benchmark"],
+                    "split": "train",
+                    "kind": "repair",
+                    "code": rec["code"],
+                    "error": rec["error"],
+                    "fixed": rec["fixed"],
+                    "reasoning": reasoning,
+                }
+                out_f.write(json.dumps(out_rec) + "\n")
+                out_f.flush()
+                stats["written"] += 1
+
+    return {"mode": "repairs", "todo": len(todo), "stats": dict(stats), "reject_reasons": dict(rejects)}
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Generate batched AILANG planning reasoning traces.")
-    ap.add_argument("--mode", choices=["single", "episodes"], required=True)
+    ap.add_argument("--mode", choices=["single", "episodes", "repairs"], required=True)
     ap.add_argument("--in", dest="in_path", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--eval", default="")
     ap.add_argument("--eval-cap", type=int, default=8)
     ap.add_argument("--examples-dir", default="")
     ap.add_argument("--include-valid", action="store_true")
+    ap.add_argument("--repair-per-kind", type=int, default=10)
     ap.add_argument("--verify-compile", action="store_true")
     ap.add_argument("--backend", choices=["agy", "claude-cli"], default="agy")
     ap.add_argument("--model", default="gemini-4-neon-medium")
@@ -777,8 +972,10 @@ def main(argv=None) -> int:
     rnd = random.Random(args.seed)
     if args.mode == "single":
         summary = run_single(args, heldout, rnd)
-    else:
+    elif args.mode == "episodes":
         summary = run_episodes(args, heldout, rnd)
+    else:
+        summary = run_repairs(args, heldout, rnd)
     print(json.dumps(summary))
     return 0
 

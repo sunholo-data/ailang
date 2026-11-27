@@ -2,8 +2,8 @@
 sidebar_position: 2
 title: Field notes (what fine-tuning is like day to day)
 description: Lessons from running AILANG fine-tunes, each drawn from something that actually happened - where the time goes, why the score lies, and the habits that kept the work honest.
-reviewed: 2026-11-25
-reviewBy: 2027-02-25
+reviewed: 2026-11-26
+reviewBy: 2027-02-26
 tier: internal
 ---
 
@@ -190,4 +190,67 @@ and sat at loss 7 for six hours. We fixed `scale × rank = 320` and added an aut
 stop guard — which rightly killed Run b2 at iteration 980, after which **nothing ran for five and a
 half days** because the watcher process had been reaped under memory pressure. A guard that stops a
 run cleanly still needs an alert when no human is looking.
+
+## 18. Decode the unmasked token IDs: chat templates can silently strip your targets
+
+To fix note 16, Pilot-5 Run d generated 2,907 planning scratchpads (median 253 words) and added a
+mix-time gate requiring at least 50 words of `reasoning` on every single-turn sample. Every JSONL row
+had a rich thought — yet after 22 hours of GPU training, Run d still answered single-shot benchmarks
+in ~423 tokens with zero thinking ([pilot-5](./pilot-5.md)).
+
+Decoding the exact token IDs produced by `tokenizer.apply_chat_template(..., enable_thinking=True)`
+showed why. Gemma 4's stock HuggingFace Jinja template is written to prune thoughts from past turns
+at inference time, and guards the thought block with:
+
+```text
+if thinking_text and loop.index0 > ns_turn.last_user_idx and message.get('tool_calls')
+```
+
+Whenever an assistant turn has no `tool_calls` — every single-turn program, every single-turn
+repair, and every agent episode's final reply — Jinja silently threw `message['reasoning']` away
+(and `strip_thinking()` removed `<|channel>...<channel|>` from `content` too). Checking the input
+JSON proved only what we *sent* to the template, not what reached the loss function. `train2.py` now
+patches that template guard in memory and decodes the unmasked target slice (`mask == 1`) of every
+training turn, raising an error if `<|channel>thought\n...\n<channel|>` is missing.
+
+## 19. Aim a small model at its real tier (Core vs Stretch), and watch thought style
+
+A headline pass rate across mixed tiers hides what a 12B model is actually good at. Even with the
+full 26k-token teaching prompt, untrained Gemma 4 12B passes **12 of 12 (`100%`) Core** benchmarks in
+agent mode, and **5 of 12 (`42%`) Stretch** competitive-programming puzzles ([pilot-1](./pilot-1.md)).
+Fine-tuning 12B is therefore not about turning it into a frontier puzzle solver on Stretch; it is
+about removing the 26k prompt tax (which collapses 4-stream batching from `2.77×` to `1.26×`) so
+parallel $0 local workers can handle routine `Core`-grade engineering — module edits, inline `tests`,
+compiler-guided refactors, and CLI/package maintenance — while escalating hard algorithmic design.
+
+Thought *shape* matters too. Teacher-distilled plans (`200–450` words) are clean and 6× shorter than
+the base model's rambling `3,000–6,000`-token scratchpads, which helps speed and routine tasks. If
+harder multi-branch tasks turn out to need trial-and-error self-correction inside `<|channel>thought`
+rather than a neat forward plan, the next lever is rejection-sampled self-thinking (STaR): sample the
+fine-tune several times on training tasks, keep only runs that pass `ailang run`, and train on the
+model's own winning `<|channel>thought` traces.
+
+## 20. Short dropped tool calls end agent loops silently (don't only look above 500 tokens)
+
+Our dropped-call detector (`tools/finetune/trace_dropped.py`, note 13) defaulted to `--min-tokens 500`
+because Pilot-3's failures were runaway `write` calls. On Pilot-5 Run d's early agent gate, that
+threshold reported only 1 dropped call in 111 turns (`0.9%`), yet all 4 completed benchmarks had
+exited early with broken code still on disk.
+
+Inspecting the raw SSE chunks showed `completion_tokens` of `52`, `114`, `154`, and `907` on the
+final turn of those 4 runs, with `content: ""`, `tool_calls: []`, and `finish_reason: "stop"`. Short
+malformed `bash`, `read`, and `edit` calls were being dropped by Ollama's tool parser just like long
+`write` calls — and a single empty `stop` turn makes `pi` treat the task as finished. Re-scoring at
+`--min-tokens 25` showed the real damage across runs:
+
+- **Untrained 12B (`A`):** `2/397` (`0.50%` per turn) → **2 of 24** runs ended on a drop.
+- **Pilot-4 (`A2cap`):** `6/546` (`1.10%` per turn) → **6 of 24 (`25%`)** runs ended on a drop.
+- **Pilot-5 Run d:** `4/114` (`3.51%` per turn, after training 83% of steps with `tools=None`) →
+  **4 of 4 (`100%`)** finished runs ended on a drop.
+
+Even a `3.5%` per-turn parser drop rate kills `1 - 0.965^25 ≈ 59%` of 25-turn episodes. Run e
+logs both `>=500` and `>=25` token drops, raises `--agent-cap` to 700, and renders 55% of compiler
+repairs as lean-`pi` `check → thought → write(fixed)` tool calls (`--agent-repair-frac 0.55`) so
+tool-call formatting stays sharp alongside single-turn language training.
+
 

@@ -261,6 +261,10 @@ Error TC_DEPRECATED_002 at lib.ail:6:1: @deprecated("headOR") on head_or names n
 
 **`PAR_DEPRECATED_ARG` / `PAR_EXPERIMENTAL_ARG` — malformed annotation (parse error).** `@deprecated` takes the replacement's name and an optional note, as one or two non-empty string literals: `@deprecated("headOr")`, `@deprecated("contains", "arguments swap")`. `@experimental` takes no arguments; `@experimental("x")` is `PAR_EXPERIMENTAL_ARG: @experimental takes no arguments`.
 
+**`PAR_REEXPORT_FORM` / `PAR_REEXPORT_ANNOTATION` — malformed `export import` (parse error).** A re-export lists its names: `export import lib/color (Color, Red)`. `export import lib/color` and `export import lib/color as C` are `PAR_REEXPORT_FORM`. The only annotation a re-export line takes is a trailing `@deprecated("new/module/path")`; any other is `PAR_REEXPORT_ANNOTATION`. An `export import` after the first declaration is `PAR_IMPORT_PLACEMENT`, like any import.
+
+**`MOD016` — re-export cycle (error; listed in `error_codes.json`).** A chain of `export import` lines returned to a name already on it, for example `lib/a.X -> lib/b.X -> lib/a.X`. Re-export each name from the module that defines it.
+
 These codes are inline diagnostic codes, like `TC_MATCH_005`; they are not entries of the generated `error_codes.json` registry, which covers the `PREFIX###` codes in `internal/errors/codes.go`.
 
 ## Individual error code pages

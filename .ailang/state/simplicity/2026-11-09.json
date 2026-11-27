@@ -1,6 +1,6 @@
 {
   "date": "2026-11-09",
-  "commit": "eedcd9972",
+  "commit": "51f6636ae",
   "metrics": {
     "closure_internal_packages": {
       "value": 52,
@@ -47,7 +47,7 @@
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 367911,
+      "value": 367924,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
@@ -152,7 +152,7 @@
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 30431,
+      "value": 30432,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
@@ -176,7 +176,7 @@
       "how": "markdown files under design_docs/planned"
     },
     "test_core_seconds": {
-      "value": null,
+      "value": 44,
       "gate": 15,
       "dir": "le",
       "how": "wall time of make test-core"
