@@ -2,10 +2,10 @@
 
 > AILANG is a deterministic, purely functional, effect-typed programming language designed as a safe execution substrate for AI-generated code. Side effects are explicit in function signatures (`! {IO, FS, Net}`), contracts are Z3-verifiable (`requires`/`ensures`), execution is reproducible, and runs emit structured traces.
 
-- **Full single-file reference + active teaching prompt (v0.16.20):** https://ailang.sunholo.com/llms-full.txt
+- **Full single-file reference + active teaching prompt (v0.16.21):** https://ailang.sunholo.com/llms-full.txt
 - **Hosted MCP server (version-pinned docs, stdlib, examples, benchmarks):** https://mcp.ailang.sunholo.com/mcp/
-- **Local CLI canonical syntax:** `ailang prompt` (active: `v0.16.20`)
-- **Last updated:** 2026-11-27T13:37:58Z
+- **Local CLI canonical syntax:** `ailang prompt` (active: `v0.16.21`)
+- **Last updated:** 2026-11-27T16:18:26Z
 
 ## Agent Task Routing Table
 
@@ -49,7 +49,7 @@
 
 ## For AI Agents
 
-- [Current Teaching Prompt (v0.16.20)](https://ailang.sunholo.com/docs/prompts/current): Verbatim canonical prompt used in evals
+- [Current Teaching Prompt (v0.16.21)](https://ailang.sunholo.com/docs/prompts/current): Verbatim canonical prompt used in evals
 - [Agent Integration](https://ailang.sunholo.com/docs/guides/agent-integration): Pre-flight checklist for coding agents
 - [Hosted Docs MCP](https://ailang.sunholo.com/docs/guides/agent-mcp): Connect `https://mcp.ailang.sunholo.com/mcp/`
 - [Claude Code Integration](https://ailang.sunholo.com/docs/guides/claude-code-integration): Plugin skills, hooks, and local MCP
@@ -80,4 +80,4 @@
 
 ## Optional
 
-- [Full Single-File Corpus (llms-full.txt)](https://ailang.sunholo.com/llms-full.txt): Complete README, guides, normative reference, and verbatim active teaching prompt (v0.16.20)
+- [Full Single-File Corpus (llms-full.txt)](https://ailang.sunholo.com/llms-full.txt): Complete README, guides, normative reference, and verbatim active teaching prompt (v0.16.21)

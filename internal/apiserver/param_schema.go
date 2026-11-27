@@ -23,6 +23,8 @@ func schemaFromAST(t ast.Type, aliases map[string]*ast.RecordType, depth int) Pa
 		switch v.Name {
 		case "int", "float", "bool", "string", "unit":
 			return ParamSchema{Kind: v.Name}
+		case "Json", "std/json.Json":
+			return ParamSchema{Kind: "json"}
 		}
 		if r := aliases[v.Name]; r != nil {
 			return schemaFromAST(r, aliases, depth+1)

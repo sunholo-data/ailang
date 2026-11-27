@@ -36,8 +36,16 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 		// CoreTypeInfo is finalized.
 		if t1.TypeName == "" && t2Rec.TypeName != "" {
 			t1.TypeName = t2Rec.TypeName
+			t1.TypeModule = t2Rec.TypeModule
 		} else if t2Rec.TypeName == "" && t1.TypeName != "" {
 			t2Rec.TypeName = t1.TypeName
+			t2Rec.TypeModule = t1.TypeModule
+		} else if t1.TypeName == t2Rec.TypeName {
+			if t1.TypeModule == "" && t2Rec.TypeModule != "" {
+				t1.TypeModule = t2Rec.TypeModule
+			} else if t2Rec.TypeModule == "" && t1.TypeModule != "" {
+				t2Rec.TypeModule = t1.TypeModule
+			}
 		}
 	}
 	if isRecordType(t2) {
@@ -364,6 +372,11 @@ func recordFieldMismatchError(expectedFields, actualFields map[string]Type) erro
 	if len(missingFields) > 0 {
 		msg.WriteString(fmt.Sprintf("\n  Hint: this record is missing required field(s): %s\n", strings.Join(missingFields, ", ")))
 		msg.WriteString(fmt.Sprintf("        AILANG records are closed — add the field(s) to the literal, e.g. %s: <value>", missingFields[0]))
+		if len(actual) > 0 {
+			msg.WriteString(fmt.Sprintf("\n        (or if destructuring a record parameter in a pattern, use an open pattern: {%s, ...})", strings.Join(actual, ", ")))
+		} else {
+			msg.WriteString("\n        (or if destructuring a record parameter in a pattern, use an open pattern: {...})")
+		}
 	}
 
 	// Suggest open record syntax only when the ONLY problem is extra fields —

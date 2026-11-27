@@ -1288,10 +1288,44 @@
         "production",
         "latest"
       ],
-      "notes": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators"
+      "notes": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators",
+      "frozen": {
+        "at": "2026-11-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.21": {
+      "file": "prompts/v0.16.21.md",
+      "hash": "b9efaa064a7084f25ed91f36cdb3fe540e81e9c2cf0efa3977cc8311aa830a5a",
+      "description": "Teaching prompt fixing the 6 audited v0.16.20 contradictions (library-module Option/Result imports, no deprecated stdlib names, braced match / no `= {` with `;`, canonical `\\acc x.` lambdas, std/xml wrappers + `ailang pkg` spellings + sunholo/gcp_auth), and adding ! {IO @limit=N} effect budgets, `import ./sibling`, multi-arg inline tests, the `_` pipe placeholder, std/result mapResult/collect and std/math minInt/maxInt/clampInt",
+      "created": "2026-11-27",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Teaching prompt fixing the 6 audited v0.16.20 contradictions (library-module Option/Result imports, no deprecated stdlib names, braced match / no `= {` with `;`, canonical `\\acc x.` lambdas, std/xml wrappers + `ailang pkg` spellings + sunholo/gcp_auth), and adding ! {IO @limit=N} effect budgets, `import ./sibling`, multi-arg inline tests, the `_` pipe placeholder, std/result mapResult/collect and std/math minInt/maxInt/clampInt"
+    },
+    "v0.16.21-compact": {
+      "file": "prompts/v0.16.21-compact.md",
+      "hash": "9535640469ae3d01c27d873dc4e1f6341e6b8c84f16189b4b6921da7e569f8d4",
+      "description": "Token-efficient (~3.4 KB) accurate v0.64+ syntax sheet for ailang prompt --compact: effects and @limit budgets, ADTs/records, braced match, let-? propagation, pipe `_` placeholder, requires/ensures, inline tests, stdlib discovery (ailang docs, ailang check --fix)",
+      "created": "2026-11-27",
+      "tags": [
+        "production",
+        "compact"
+      ],
+      "notes": "Token-efficient (~3.4 KB) accurate v0.64+ syntax sheet for ailang prompt --compact: effects and @limit budgets, ADTs/records, braced match, let-? propagation, pipe `_` placeholder, requires/ensures, inline tests, stdlib discovery (ailang docs, ailang check --fix). Replaces the stale v0.7.4-compact as the default --compact target. For the full reference: ailang prompt",
+      "frozen": {
+        "at": "2026-11-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     }
   },
-  "active": "v0.16.20",
+  "active": "v0.16.21",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

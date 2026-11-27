@@ -329,6 +329,7 @@ func newUnitParam(pos ast.Pos) *ast.Param {
 
 func (p *Parser) parseFunctionBody() ast.Expr {
 	startPos := p.curPos()
+	defer p.enterBlockContext()()
 	p.nextToken() // move past LBRACE
 
 	// Empty body: {}
@@ -341,7 +342,7 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 
 	// Parse first expression
 	var exprs []ast.Expr
-	expr := p.parseExpression(LOWEST)
+	expr := p.parseBlockStatement()
 	if expr != nil {
 		exprs = append(exprs, expr)
 	}
@@ -365,7 +366,7 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 			p.nextToken()
 		}
 
-		expr = p.parseExpression(LOWEST)
+		expr = p.parseBlockStatement()
 		if expr != nil {
 			exprs = append(exprs, expr)
 		}
@@ -381,6 +382,33 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 		Exprs: exprs,
 		Pos:   startPos,
 	}
+}
+
+// parseBlockStatement parses a single statement inside a `{ ... }` block,
+// intercepting JS/Python `const x = ...` (PAR014) and bare `x = ...` (PAR015)
+// so block diagnostics suggest `;` / newline bindings instead of `let ... in`.
+func (p *Parser) parseBlockStatement() ast.Expr {
+	pos := p.curPos()
+	if p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "const" && p.peekTokenIs(lexer.IDENT) {
+		varName := p.peekToken.Literal
+		p.errors = append(p.errors, p.constKeywordError(varName))
+		p.nextToken() // move onto varName
+		if p.peekTokenIs(lexer.ASSIGN) {
+			p.nextToken() // move onto '='
+			p.nextToken() // move onto RHS
+			_ = p.parseExpression(LOWEST)
+		}
+		return &ast.Error{Pos: pos}
+	}
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.ASSIGN) {
+		varName := p.curToken.Literal
+		p.errors = append(p.errors, p.bareAssignmentError(varName))
+		p.nextToken() // move onto '='
+		p.nextToken() // move onto RHS
+		_ = p.parseExpression(LOWEST)
+		return &ast.Error{Pos: pos}
+	}
+	return p.parseExpression(LOWEST)
 }
 
 // peekStartsNewlineBlockStatement reports whether the peek token begins a new block
@@ -454,7 +482,7 @@ func (p *Parser) peekIsDelimiterStatementStart() bool {
 // `-` is infix, and the others have no measured need.
 func (p *Parser) peekIsLiteralStatementStart() bool {
 	switch p.peekToken.Type {
-	case lexer.STRING, lexer.STRING_PART, lexer.INT, lexer.FLOAT, lexer.TRUE, lexer.FALSE:
+	case lexer.STRING, lexer.STRING_PART, lexer.INT, lexer.FLOAT, lexer.TRUE, lexer.FALSE, lexer.QUESTION:
 		return true
 	default:
 		return false

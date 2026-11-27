@@ -4,6 +4,11 @@ package argdecode
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
+	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -39,11 +44,25 @@ type AliasLookup func(con *types.TCon) (types.Type, bool)
 // lookup, `func main(a: Args)` failed with "unsupported type constructor: Args"
 // while the same record written inline decoded (stapledons_godot, 2026-10-01).
 func DecodeJSONWithAliases(jsonStr string, expectedType types.Type, aliases AliasLookup) (eval.Value, error) {
-	var raw interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+	raw, err := unmarshalWithNumbers(jsonStr)
+	if err != nil {
+		return nil, err
 	}
 	return decoder{aliases: aliases}.value(raw, expectedType)
+}
+
+func unmarshalWithNumbers(jsonStr string) (interface{}, error) {
+	dec := json.NewDecoder(strings.NewReader(jsonStr))
+	dec.UseNumber()
+	var raw interface{}
+	if err := dec.Decode(&raw); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	var extra interface{}
+	if err := dec.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("invalid JSON: trailing data after JSON value")
+	}
+	return raw, nil
 }
 
 type decoder struct {
@@ -129,8 +148,16 @@ func (d decoder) value(raw interface{}, expectedType types.Type) (eval.Value, er
 		switch v := raw.(type) {
 		case nil:
 			return &eval.UnitValue{}, nil
+		case json.Number:
+			if n, ok := parseExactJSONInt(v); ok {
+				return &eval.IntValue{Value: n}, nil
+			}
+			return decodeFloat(v)
 		case float64:
-			return &eval.IntValue{Value: int(v)}, nil
+			if n, ok := parseExactFloatInt(v); ok {
+				return &eval.IntValue{Value: n}, nil
+			}
+			return &eval.FloatValue{Value: v}, nil
 		case string:
 			return &eval.StringValue{Value: v}, nil
 		case bool:
@@ -150,10 +177,51 @@ func (d decoder) value(raw interface{}, expectedType types.Type) (eval.Value, er
 	}
 }
 
+func parseExactJSONInt(n json.Number) (int, bool) {
+	s := string(n)
+	if idx, err := strconv.Atoi(s); err == nil {
+		return idx, true
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok || !r.IsInt() || !r.Num().IsInt64() {
+		return 0, false
+	}
+	if idx, err := strconv.Atoi(r.Num().String()); err == nil {
+		return idx, true
+	}
+	return 0, false
+}
+
+func parseExactFloatInt(f float64) (int, bool) {
+	limit := math.Ldexp(1, strconv.IntSize-1)
+	if math.IsNaN(f) || math.IsInf(f, 0) || math.Trunc(f) != f || f < -limit || f >= limit {
+		return 0, false
+	}
+	return int(f), true
+}
+
 func decodeInt(raw interface{}) (eval.Value, error) {
 	switch v := raw.(type) {
+	case json.Number:
+		n, ok := parseExactJSONInt(v)
+		if !ok {
+			return nil, &DecodeError{
+				Expected: "int",
+				Got:      string(v),
+				Reason:   "expected exact integer within int range (got fractional or out-of-range JSON number)",
+			}
+		}
+		return &eval.IntValue{Value: n}, nil
 	case float64:
-		return &eval.IntValue{Value: int(v)}, nil
+		n, ok := parseExactFloatInt(v)
+		if !ok {
+			return nil, &DecodeError{
+				Expected: "int",
+				Got:      fmt.Sprintf("%v", v),
+				Reason:   "expected exact integer within int range (got fractional, non-finite, or out-of-range float)",
+			}
+		}
+		return &eval.IntValue{Value: n}, nil
 	default:
 		return nil, &DecodeError{
 			Expected: "int",
@@ -165,7 +233,24 @@ func decodeInt(raw interface{}) (eval.Value, error) {
 
 func decodeFloat(raw interface{}) (eval.Value, error) {
 	switch v := raw.(type) {
+	case json.Number:
+		f, err := v.Float64()
+		if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+			return nil, &DecodeError{
+				Expected: "float",
+				Got:      string(v),
+				Reason:   "JSON number out of float64 range",
+			}
+		}
+		return &eval.FloatValue{Value: f}, nil
 	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return nil, &DecodeError{
+				Expected: "float",
+				Got:      fmt.Sprintf("%v", v),
+				Reason:   "expected finite JSON number for float type",
+			}
+		}
 		return &eval.FloatValue{Value: v}, nil
 	default:
 		return nil, &DecodeError{
@@ -273,9 +358,9 @@ func (d decoder) record(raw interface{}, fieldTypes map[string]types.Type) (eval
 // parameter receiving 5 (not 5.0) fails at application, matching the existing
 // scalar heuristic in the WASM bridge.
 func DecodeJSONUntyped(jsonStr string) (eval.Value, error) {
-	var raw interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+	raw, err := unmarshalWithNumbers(jsonStr)
+	if err != nil {
+		return nil, err
 	}
 	return decodeUntyped(raw)
 }
@@ -286,9 +371,20 @@ func decodeUntyped(raw interface{}) (eval.Value, error) {
 		return &eval.UnitValue{}, nil
 	case bool:
 		return &eval.BoolValue{Value: v}, nil
+	case json.Number:
+		s := string(v)
+		if !strings.ContainsAny(s, ".eE") {
+			if n, ok := parseExactJSONInt(v); ok {
+				return &eval.IntValue{Value: n}, nil
+			}
+		}
+		if n, ok := parseExactJSONInt(v); ok {
+			return &eval.IntValue{Value: n}, nil
+		}
+		return decodeFloat(v)
 	case float64:
-		if v == float64(int(v)) {
-			return &eval.IntValue{Value: int(v)}, nil
+		if n, ok := parseExactFloatInt(v); ok {
+			return &eval.IntValue{Value: n}, nil
 		}
 		return &eval.FloatValue{Value: v}, nil
 	case string:

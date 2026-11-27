@@ -183,9 +183,10 @@ func (t *TTuple) Substitute(subs map[string]Type) Type {
 
 // TRecord represents a record type with row polymorphism
 type TRecord struct {
-	Fields   map[string]Type
-	Row      Type   // Row variable for extensibility
-	TypeName string // M-CROSS-MODULE: Nominal type name (e.g., "ArrivalState") when unified with TCon
+	Fields     map[string]Type
+	Row        Type   // Row variable for extensibility
+	TypeName   string // M-CROSS-MODULE: Nominal type name (e.g., "ArrivalState") when unified with TCon
+	TypeModule string // SOUND-1: Defining module of TypeName (e.g., "std/regex", "pkg/a")
 
 	groundMemo uint32 // #1787: cached isGroundType answer; see ground.go
 }
@@ -269,8 +270,8 @@ func (t *TRecord) Substitute(subs map[string]Type) Type {
 		row = t.Row.Substitute(subs)
 	}
 
-	// M-CROSS-MODULE: Preserve TypeName through substitution
-	return &TRecord{Fields: fields, Row: row, TypeName: t.TypeName}
+	// M-CROSS-MODULE / SOUND-1: Preserve (TypeModule, TypeName) through substitution
+	return &TRecord{Fields: fields, Row: row, TypeName: t.TypeName, TypeModule: t.TypeModule}
 }
 
 // TRecordOpen marks an open record for subsumption (field access)

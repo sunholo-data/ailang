@@ -32,12 +32,13 @@ type Options struct {
 	ProgramArgs []string
 
 	// Status output
-	Trace       bool
-	Seed        int
-	VirtualTime bool
-	JSONOutput  bool
-	Compact     bool
-	Quiet       bool
+	Trace         bool
+	Seed          int
+	VirtualTime   bool
+	JSONOutput    bool
+	Compact       bool
+	Quiet         bool
+	ExplicitQuiet bool // true only when caller explicitly passed --quiet
 
 	// Compile
 	BinopShim           bool
@@ -272,19 +273,26 @@ func Run(ctx context.Context, opts Options) int {
 	// Entrypoint resolution and execution
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
-		if caps == "auto" {
-			autoCaps := ResolveAutoCaps(result.Interface, entry)
-			caps = strings.Join(autoCaps, ",")
+		resolvedCaps, usedAuto, capErr := ExpandCapsFlag(result.Interface, entry, caps)
+		if capErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), capErr)
+			return 1
+		}
+		if usedAuto {
+			caps = resolvedCaps
 			opts.Caps = caps
-			// Progress, not program output: an installed [bin] shim runs
-			// --quiet --caps auto on every invocation and its stderr must
-			// stay the program's (M-PKG-BIN-ENTRYPOINTS).
-			if !opts.Quiet {
-				if len(autoCaps) == 0 {
+			if !opts.ExplicitQuiet {
+				if caps == "" {
 					fmt.Fprintln(os.Stderr, "auto-granted capabilities: none")
 				} else {
 					fmt.Fprintf(os.Stderr, "auto-granted capabilities: %s\n", caps)
 				}
+			}
+		}
+		if opts.Env.WriteEnvSnapshot == "" {
+			if preflightErr := CheckMissingEntryCaps(result.Interface, entry, caps); preflightErr != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), preflightErr)
+				return 1
 			}
 		}
 

@@ -281,6 +281,9 @@ func (w *StrictFallbackWarning) String() string {
 // Code returns the stable diagnostic code (used by the package-mode gate).
 func (w *StrictFallbackWarning) Code() string { return "STRICT_FALLBACK_001" }
 
+// WarningFile names the warning's own source file for multi-module/package checks.
+func (w *StrictFallbackWarning) WarningFile() string { return w.Location.File }
+
 // DetectStrictFallbacks walks an elaborated Core program and returns
 // STRICT_FALLBACK_001 warnings for empty/default `Ok(...)` values in
 // Result-returning functions. It reads the surface `file` for the return-type
@@ -407,8 +410,13 @@ func walkStrictFallback(fnName string, e core.CoreExpr, env map[string]core.Core
 		walkStrictFallback(fnName, n.Else, env, out)
 	case *core.Match:
 		walkStrictFallback(fnName, n.Scrutinee, env, out)
+		hasNonEmptyListSibling := matchHasNonEmptyListPatternArm(n.Arms)
 		for _, arm := range n.Arms {
 			walkStrictFallback(fnName, arm.Guard, env, out)
+			if hasNonEmptyListSibling && arm.Guard == nil && isEmptyListPattern(arm.Pattern) {
+				walkExemptEmptyListArmBody(fnName, arm.Body, env, out)
+				continue
+			}
 			walkStrictFallback(fnName, arm.Body, env, out)
 		}
 	case *core.BinOp:
@@ -445,6 +453,62 @@ func walkStrictFallback(fnName string, e core.CoreExpr, env map[string]core.Core
 		}
 	default:
 		// Atomic leaves (Var, VarGlobal, Lit): nothing to recurse into.
+	}
+}
+
+// isEmptyListPattern reports whether p is the empty list pattern `[]`.
+func isEmptyListPattern(p core.CorePattern) bool {
+	lp, ok := p.(*core.ListPattern)
+	return ok && len(lp.Elements) == 0 && lp.Tail == nil
+}
+
+// matchHasNonEmptyListPatternArm reports whether any arm destructures a
+// non-empty list (`x :: rest`, `[x]`, `[x, ...rest]`).
+func matchHasNonEmptyListPatternArm(arms []core.MatchArm) bool {
+	for _, arm := range arms {
+		if lp, ok := arm.Pattern.(*core.ListPattern); ok && (len(lp.Elements) > 0 || lp.Tail != nil) {
+			return true
+		}
+	}
+	return false
+}
+
+// walkExemptEmptyListArmBody walks the body of a structural recursion base-case
+// arm `[] => Ok([])` (paired with a non-empty list pattern sibling), exempting
+// ONLY a tail `Ok([])` expression while still checking intermediate bindings
+// and any other empty `Ok(...)` forms (`Ok("")`, `Err(_) => Ok([])`, etc.).
+func walkExemptEmptyListArmBody(fnName string, e core.CoreExpr, env map[string]core.CoreExpr, out *[]elaborate.Warning) {
+	if e == nil {
+		return
+	}
+	switch n := e.(type) {
+	case *core.Let:
+		walkStrictFallback(fnName, n.Value, env, out)
+		child := cloneEnv(env)
+		child[n.Name] = n.Value
+		walkExemptEmptyListArmBody(fnName, n.Body, child, out)
+	case *core.LetRec:
+		child := cloneEnv(env)
+		for _, b := range n.Bindings {
+			child[b.Name] = b.Value
+		}
+		for _, b := range n.Bindings {
+			walkStrictFallback(fnName, b.Value, child, out)
+		}
+		walkExemptEmptyListArmBody(fnName, n.Body, child, out)
+	case *core.App:
+		if vg, ok := n.Func.(*core.VarGlobal); ok && isResultOkFactory(vg.Ref) && len(n.Args) == 1 {
+			if isEmptyList(resolveAtomic(n.Args[0], env, maxResolveDepth)) {
+				walkStrictFallback(fnName, n.Func, env, out)
+				for _, a := range n.Args {
+					walkStrictFallback(fnName, a, env, out)
+				}
+				return
+			}
+		}
+		walkStrictFallback(fnName, e, env, out)
+	default:
+		walkStrictFallback(fnName, e, env, out)
 	}
 }
 

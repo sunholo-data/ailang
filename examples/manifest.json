@@ -4508,9 +4508,18 @@
       "path": "runnable/pipe_operator.ail",
       "status": "working",
       "tags": ["pipe", "operators", "higher-order", "lists", "functional"],
-      "description": "Left-associative pipe operator (|>) chaining named unary functions and inline lambda stages",
+      "description": "Left-associative pipe operator (|>) chaining named unary functions, inline lambda stages, curried calls and the `_` multi-arg placeholder",
       "modules": ["std/list"],
-      "expected": {"stdout": "5 |> double |> addOne = 11\npositive doubled sum = 16\n", "exit_code": 0}
+      "expected": {"stdout": "5 |> double |> addOne = 11\npositive doubled sum = 16\n5 |> makeAdder(1) = 6\nplaceholder pipeline sum = 16\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/v1_dx_showcase.ail",
+      "status": "working",
+      "tags": ["showcase", "contracts", "effects", "budgets", "pipe", "result", "inline-tests"],
+      "description": "v1.0.0-rc.1 DX showcase: requires/ensures contracts, inline multi-arg tests, the `_` pipe placeholder, std/result.mapResult, and an `@limit` IO budget on a separate evaluator entry",
+      "modules": ["std/list", "std/option", "std/result", "std/string"],
+      "run_flags": ["--caps", "IO", "--entry", "main"],
+      "expected": {"stdout": "addBounded(2, 3) = 5\npositive doubled = [2, 6, 8]\ngood: ok [1, 2, 3]\nbad: error not an int: x\n", "exit_code": 0}
     },
     {
       "path": "runnable/list_combinators.ail",
@@ -4547,11 +4556,11 @@
     }
   ],
   "statistics": {
-    "total": 342,
-    "working": 334,
+    "total": 343,
+    "working": 335,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9766081871345029,
+    "coverage": 0.9766763848396501,
     "experimental": 0
   },
   "milestones": {

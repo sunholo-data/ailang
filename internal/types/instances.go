@@ -25,10 +25,13 @@ type ClassInstance struct {
 type InstanceEnv struct {
 	instances map[string]*ClassInstance // Key: "ClassName:NormalizedType"
 	defaults  map[string]Type           // Default types for ambiguous literals
-	// eqRecordNames: bare names of nominal types with an Eq instance. A record
-	// value carries only its declared name (TRecord.TypeName), not its module,
-	// so the record path of Eq synthesis is still keyed by name.
+	// eqRecordNames: NominalKey(module, name) of nominal types with an Eq
+	// instance (SOUND-1). A record alias's TRecord carries (TypeModule, TypeName),
+	// preventing cross-module bare-name collisions from hijacking Eq.
 	eqRecordNames map[string]bool
+	// eqRecordBareNames: bare names registered in eqRecordNames, consulted ONLY
+	// when a unit test constructs a TRecord with TypeModule == "".
+	eqRecordBareNames map[string]bool
 	// typeDeclSites: NominalKey -> "file:line" of the type's declaration, for
 	// the missing-Eq diagnostic only (instances_eq_hint.go).
 	typeDeclSites map[string]typeDeclSite
@@ -52,8 +55,10 @@ func (env *InstanceEnv) Add(inst *ClassInstance) error {
 	if c, ok := inst.TypeHead.(*TCon); ok && inst.ClassName == "Eq" {
 		if env.eqRecordNames == nil {
 			env.eqRecordNames = make(map[string]bool)
+			env.eqRecordBareNames = make(map[string]bool)
 		}
-		env.eqRecordNames[c.Name] = true
+		env.eqRecordNames[NominalKey(c.Module, c.Name)] = true
+		env.eqRecordBareNames[c.Name] = true
 	}
 	return nil
 }
@@ -156,7 +161,12 @@ func eqInstanceHint(typ Type, ts string) string {
 	switch t := typ.(type) {
 	case *TFunc2:
 		return prefix + " Functions have no ==: compare the values they produce instead."
-	case *TRecord, *TRecordOpen:
+	case *TRecord:
+		if t.TypeName != "" {
+			return prefix + fmt.Sprintf(" Record type %s was not declared with `deriving (Eq)`: add `deriving (Eq)` to `type %s = {...}` (when all fields support ==), or compare specific fields, e.g. a.id == b.id.", t.TypeName, t.TypeName)
+		}
+		return prefix + " Anonymous records have no ==: declare a named record type with `deriving (Eq)`, e.g. `type Point = {x: int, y: int} deriving (Eq)`, or compare the fields you care about, e.g. a.id == b.id."
+	case *TRecordOpen:
 		return prefix + " Anonymous records have no ==: declare a named record type with `deriving (Eq)`, e.g. `type Point = {x: int, y: int} deriving (Eq)`, or compare the fields you care about, e.g. a.id == b.id."
 	case *TApp:
 		if c, ok := t.Constructor.(*TCon); ok && (IsNominal(c, "std/option", "Option") || IsNominal(c, "std/result", "Result")) {

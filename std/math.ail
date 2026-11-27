@@ -143,3 +143,27 @@ export pure func bitwiseOr(a: int, b: int) -> int = ~(~a & ~b)
 --   shiftRightLogical(x, 64)  == 0      -- every bit shifted out
 -- A negative shift amount is a runtime error (RT_SHIFT), as for << and >>.
 export pure func shiftRightLogical(x: int, n: int) -> int = shiftRightLogical_Int(x, n)
+
+-- ============================================================================
+-- Integer Comparison and Clamping
+-- ============================================================================
+
+-- minInt: Return the smaller of two integers
+export pure func minInt(a: int, b: int) -> int
+tests [((3, 5), 3), ((5, 3), 3), ((-2, 4), -2), ((0, 0), 0)] {
+  if a <= b then a else b
+}
+
+-- maxInt: Return the larger of two integers
+export pure func maxInt(a: int, b: int) -> int
+tests [((3, 5), 5), ((5, 3), 5), ((-2, 4), 4), ((0, 0), 0)] {
+  if a >= b then a else b
+}
+
+-- clampInt: Clamp x to the inclusive range [lo, hi]
+export pure func clampInt(x: int, lo: int, hi: int) -> int
+requires { lo <= hi }
+ensures { result >= lo, result <= hi }
+tests [((5, 0, 10), 5), ((-3, 0, 10), 0), ((15, 0, 10), 10), ((7, 7, 7), 7)] {
+  if x < lo then lo else if x > hi then hi else x
+}

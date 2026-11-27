@@ -250,11 +250,15 @@ func (e *Elaborator) RegisterTypeAlias(name string, target types.Type) {
 	if e.typeAliases == nil {
 		e.typeAliases = make(map[string]types.Type)
 	}
-	// M-TYPENAME-NESTED-PROPAGATION: If target is a TRecord, set its TypeName
-	// This ensures that when the alias is expanded during unification, the
-	// TRecord carries the nominal type identity for codegen
-	if rec, ok := target.(*types.TRecord); ok && rec.TypeName == "" {
-		rec.TypeName = name
+	// M-TYPENAME-NESTED-PROPAGATION / SOUND-1: If target is a TRecord, set its
+	// (TypeModule, TypeName) so nominal identity is preserved through unification.
+	if rec, ok := target.(*types.TRecord); ok {
+		if rec.TypeName == "" {
+			rec.TypeName = name
+		}
+		if rec.TypeModule == "" {
+			rec.TypeModule = e.ModuleID()
+		}
 	}
 	e.typeAliases[name] = target
 }

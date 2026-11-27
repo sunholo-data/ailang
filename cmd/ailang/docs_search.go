@@ -30,6 +30,7 @@ func docsSearchCommand(args []string) {
 	jsonFlag := searchFlags.Bool("json", false, "Output results as JSON")
 	helpFlag := searchFlags.Bool("help", false, "Show help for docs search")
 	noGitHubFlag := searchFlags.Bool("no-github", false, "Disable GitHub fallback when local docs are unavailable")
+	stdlibFlag := searchFlags.Bool("stdlib", false, "Search embedded standard library modules and exports")
 
 	// Timeout flag for neural search
 	timeoutFlag := searchFlags.Duration("timeout", 60*time.Second, "Overall timeout for neural search (default: 60s)")
@@ -67,6 +68,21 @@ func docsSearchCommand(args []string) {
 	}
 
 	query := searchFlags.Arg(0)
+
+	// Explicit --stdlib searches the embedded std/*.ail corpus offline.
+	if *stdlibFlag {
+		results, stats, err := searchEmbeddedStdlib(query, *limitFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if *jsonFlag {
+			printJSONResults(results, stats)
+		} else {
+			printStdlibSearchResults(query, results, stats)
+		}
+		return
+	}
 
 	// Determine docs path
 	var docsPath string
@@ -144,11 +160,26 @@ func docsSearchCommand(args []string) {
 		}
 		gh, ghErr := githubsearch.NewBackend(ctx)
 		if ghErr != nil {
+			// Offline stdlib fallback triggers ONLY when unconfined, no explicit
+			// --path was given, GitHub search was not disabled, and the GitHub
+			// backend returned a non-confinement error. If no stdlib entry matches
+			// (e.g. a design-doc query), preserve the GitHub auth error verbatim.
+			if *pathFlag == "" && !pkg.Confined() && !pkg.IsConfinedError(ghErr) && !config.NoGitHubSearch() && !*noGitHubFlag {
+				if results, stats, fbErr := searchEmbeddedStdlib(query, *limitFlag); fbErr == nil && len(results) > 0 && results[0].Score >= stdlibFallbackMinScore {
+					if *jsonFlag {
+						printJSONResults(results, stats)
+					} else {
+						fmt.Fprintln(os.Stderr, "Note: no local docs found and GitHub fallback unavailable; showing embedded stdlib matches (use --stdlib to query stdlib directly).")
+						printStdlibSearchResults(query, results, stats)
+					}
+					return
+				}
+			}
 			fmt.Fprintf(os.Stderr, "%s: no local docs found, and GitHub fallback unavailable: %v\n", red("Error"), ghErr)
 			if pkg.IsConfinedError(ghErr) {
 				fmt.Fprintln(os.Stderr, "\nHint: "+githubsearch.ConfinementRemedy)
 			} else {
-				fmt.Fprintln(os.Stderr, "\nHint: Use --path, or set GITHUB_TOKEN / run `gh auth login`")
+				fmt.Fprintln(os.Stderr, "\nHint: Use --path, --stdlib (embedded stdlib), or set GITHUB_TOKEN / run `gh auth login`")
 			}
 			os.Exit(1)
 		}
@@ -309,6 +340,7 @@ func printDocsSearchHelp() {
 	fmt.Println("  --timeout <dur>      Overall timeout for neural search (default: 60s)")
 	fmt.Println("  --limit <n>          Maximum results to return (default: 10)")
 	fmt.Println("  --json               Output results as JSON")
+	fmt.Println("  --stdlib             Search embedded standard library modules and exports (offline)")
 	fmt.Println("  --no-github          Disable authenticated GitHub fallback")
 	fmt.Println("  --rebuild            Force rebuild of all embeddings (ignore cache)")
 	fmt.Println("  --help               Show this help message")

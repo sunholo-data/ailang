@@ -301,6 +301,7 @@ func runExample(filename string) reporttypes.ExampleResult {
 		{name: "Trace", imports: []string{"import std/trace"}},
 		{name: "SharedMem", imports: []string{"import std/sharedmem"}},
 		{name: "DOM", imports: []string{"import std/dom"}},
+		{name: "Declassify"},
 	}
 
 	for _, spec := range capSpecs {

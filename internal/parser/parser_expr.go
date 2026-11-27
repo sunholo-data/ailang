@@ -137,13 +137,17 @@ func (p *Parser) parseLetExpression() ast.Expr {
 
 	// Detect `let rec name = ...` (ML/Haskell style) — AILANG uses `letrec name = ...`
 	if let.Name == "rec" && p.peekTokenIs(lexer.IDENT) {
+		useHint := fmt.Sprintf("Use: letrec %s = ... in ...", p.peekToken.Literal)
+		if p.inBlockContext() {
+			useHint = fmt.Sprintf("Use: letrec %s = ...; ... (or newline-separated inside { ... } blocks)", p.peekToken.Literal)
+		}
 		p.errors = append(p.errors, NewSuggestionError(
 			"PAR018",
 			p.curPos(),
 			p.curToken,
 			"'let rec' is not valid AILANG syntax (ML/Haskell pattern detected)",
 			[]string{
-				fmt.Sprintf("Use: letrec %s = ... in ...", p.peekToken.Literal),
+				useHint,
 				"AILANG uses 'letrec' (one word) for recursive bindings",
 			},
 			"https://ailang.sunholo.com/docs/reference/language-syntax",
@@ -411,8 +415,9 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	}
 
 	// Parse expressions separated by semicolons (block expression)
+	defer p.enterBlockContext()()
 	exprs := []ast.Expr{}
-	exprs = append(exprs, p.parseExpression(LOWEST))
+	exprs = append(exprs, p.parseBlockStatement())
 
 	// Keep parsing while statements are separated by `;` OR (R2) by a newline
 	// before a statement-starter (peekStartsNewlineBlockStatement, parser_func.go).
@@ -427,7 +432,7 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		} else {
 			p.nextToken() // R2: newline separator — advance onto the next statement
 		}
-		exprs = append(exprs, p.parseExpression(LOWEST))
+		exprs = append(exprs, p.parseBlockStatement())
 	}
 
 	// M-AILANG-ERROR-QUALITY (PAR020): if the next token instead begins a new

@@ -128,7 +128,7 @@ func renameSchemeVars(t Type, m map[string]string) Type {
 			}
 			return cp
 		case *TRecord:
-			cp := &TRecord{TypeName: typ.TypeName}
+			cp := &TRecord{TypeName: typ.TypeName, TypeModule: typ.TypeModule}
 			memo[t] = cp
 			if typ.Fields != nil {
 				cp.Fields = make(map[string]Type, len(typ.Fields))

@@ -2,13 +2,13 @@
 sidebar_position: 5
 title: Known Limitations
 description: Live-verified capability & cliff matrix, workarounds, and design constraints in AILANG
-reviewed: 2026-11-26
+reviewed: 2026-11-27
 reviewBy: 2027-05-26
 ---
 
 # AILANG Known Limitations
 
-**Live-verified at AILANG `v0.64.1` (`2026-11-26`).** Every entry below reflects measured compiler, verifier, or runtime behavior rather than historical speculation. See [Design Documents](/docs/design-docs) for implemented features and [Stability Promise](/docs/reference/stability) for tier guarantees.
+**Live-verified at AILANG `v0.64.1` (`2026-11-26`); rows tagged `rc.1` track the `v0.64.2 / v1.0.0-rc.1` changes (`2026-11-27`).** Every entry below reflects measured compiler, verifier, or runtime behavior rather than historical speculation. See [Design Documents](/docs/design-docs) for implemented features and [Stability Promise](/docs/reference/stability) for tier guarantees.
 
 ## Capability & Cliff Matrix
 
@@ -24,6 +24,10 @@ reviewBy: 2027-05-26
 | **No ad-hoc user typeclasses** | Built-in classes (`Num`, `Eq`, `Ord`, `Show`, `Fractional`) and `deriving (Eq, Json)` work; user `class`/`instance` definitions, explicit constraints (`Num a => ...`), and higher-kinded type params (`m[int]`, `PAR_TYPE_PARAM_APPLIED`) are unsupported. | Pass explicit record-of-functions dictionaries or use ADTs. |
 | **Type size & WASM checker budgets** | `check` rejects types >`65,536` nodes / `1,000` depth (`TC_TYPE_SIZE_001`) or excessive alias expansion work (`TC_TYPE_WORK_001`). Browser WASM adds a `2 s` wall-clock type-check budget (`ailangSetTypeCheckBudget` adjusts; CLI unaffected). | Extract helper functions or nominal ADTs for huge record/match chains; flatten nested matches. |
 | **Syntax & stdlib constraints** | Multi-statement `if`/`else` branches require `{ ... }`; `let x = expr?` works on `let` bindings along a `Result`/`Option` return spine (`PAR_TRY_LET_ONLY` elsewhere); no Y-combinator/infinite types (`TC004`); no typed quasiquotes or CSP channels; `std/regex` uses RE2 (no backreferences/lookaround); `std/json` integers outside int64 decode as `JNumber(float)`; `std/terminal` native keys are macOS/Linux only. | Wrap multi-statement `else` in `{ ... }`; use `"${expr}"` interpolation; keep >53-bit JSON IDs as strings. |
+| **WASM / REPL pipeline parity (`#2410`, `rc.1`)** | `ModuleRegistry.LoadModule` (browser playground, REPL) used to skip effect validation, match exhaustiveness and contract type-checking, so a `pure func` calling `println` or a non-exhaustive `match` loaded there while `ailang check` rejected it. In `v1.0.0-rc.1` it runs the same checks (`TC_MATCH_002`, effect-row validation, contracts, derived `Eq`). | On `v0.64.1` or older playgrounds, re-check snippets with `ailang check` before trusting them. |
+| **Z3 `requires` and uncontracted callers (`#2404`)** | `ailang verify` proves each `ensures` assuming that function's own `requires`; it does not prove that a caller *without* contracts satisfies a callee's `requires` (the call is an unchecked boundary, reported as `helpers_not_checked` for opaque helpers). | Put `requires`/`ensures` on callers too, or run `ailang run --verify-contracts` (evaluator only) to check the boundary at runtime. |
+| **Nominal record `Eq` (`rc.1`)** | `==` on a record type needs that type's own `deriving (Eq)`; an imported type with the same bare name no longer lends its `Eq` (`SOUND-1`), so a record holding a function field is rejected at check time (`No instance for Eq`) instead of crashing at runtime. | Add `deriving (Eq)` when every field supports `Eq`; compare the relevant fields otherwise. |
+| **Pipe `_` placeholder (`rc.1`)** | `x \|> f` still feeds a unary `f` and `5 \|> makeAdder(1)` still calls the curried result; `xs \|> filter(p, _)` puts the left side at one explicit `_` argument. Two or more `_` in one stage fail with `TC_PIPE_001`; `_?` stays a typed hole. | Wrap extra uses in a lambda: `xs \|> (\ys. zipWith(f, ys, ys))`. |
 | **Policy confinement residuals (`--policy`)** | Confined execution covers mediated effects (`IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`). CPU/RAM limits require containers/cgroups; HTTP proxies (`E_NET_PROXY_REFUSED`) and loopback/metadata are refused in restricted mode; `std/ai` HTTP bypasses `Net` pinning (spend capped by `[budgets] AI`); Windows/WASM lack restricted process teardown. | Run untrusted workers in a container/cgroup (`AILANG_EVAL_MAX_RSS`), use `trusted_host` for local Ollama, and set `fs_deny_write` on supply-chain files. |
 
 ## Minimal Verified Workarounds

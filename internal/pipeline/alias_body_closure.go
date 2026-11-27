@@ -43,10 +43,17 @@ func (c *aliasBodyCloser) alias(key string) types.Type {
 	before := c.cycles
 	t := c.walk(c.aliases[key])
 	delete(c.active, key)
-	if r, ok := t.(*types.TRecord); ok && r.TypeName == "" {
-		copy := *r
-		copy.TypeName = name
-		t = &copy
+	if r, ok := t.(*types.TRecord); ok {
+		if r.TypeName == "" {
+			copy := *r
+			copy.TypeName = name
+			copy.TypeModule = module
+			t = &copy
+		} else if r.TypeName == name && r.TypeModule == "" && module != "" {
+			copy := *r
+			copy.TypeModule = module
+			t = &copy
+		}
 	}
 	if before == c.cycles {
 		c.memo[key] = t
@@ -109,7 +116,7 @@ func (c *aliasBodyCloser) walk(t types.Type) types.Type {
 	case *types.TTuple:
 		return &types.TTuple{Elements: c.slice(t.Elements)}
 	case *types.TRecord:
-		return &types.TRecord{Fields: c.fields(t.Fields), Row: c.walk(t.Row), TypeName: t.TypeName}
+		return &types.TRecord{Fields: c.fields(t.Fields), Row: c.walk(t.Row), TypeName: t.TypeName, TypeModule: t.TypeModule}
 	case *types.TRecordOpen:
 		return &types.TRecordOpen{Fields: c.fields(t.Fields), Row: c.walk(t.Row)}
 	case *types.TApp:

@@ -213,9 +213,10 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 
 	case *core.App:
 		return &core.App{
-			CoreNode: e.CoreNode,
-			Func:     l.lowerExpr(e.Func),
-			Args:     l.lowerExprs(e.Args),
+			CoreNode:    e.CoreNode,
+			Func:        l.lowerExpr(e.Func),
+			Args:        l.lowerExprs(e.Args),
+			TraceRedact: e.TraceRedact,
 		}
 
 	case *core.If:
@@ -320,35 +321,14 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 		}
 		return l.lowerIntrinsic(intrinsic)
 
-	case *core.Record:
-		fields := make(map[string]core.CoreExpr)
-		for k, v := range e.Fields {
-			fields[k] = l.lowerExpr(v)
-		}
-		return &core.Record{
-			CoreNode: e.CoreNode,
-			Fields:   fields,
-		}
-
-	case *core.RecordAccess:
-		return &core.RecordAccess{
-			CoreNode: e.CoreNode,
-			Record:   l.lowerExpr(e.Record),
-			Field:    e.Field,
-		}
-
-	case *core.List:
-		return &core.List{
-			CoreNode: e.CoreNode,
-			Elements: l.lowerExprs(e.Elements),
-		}
-
-	// Atomic expressions and dictionary operations - pass through
-	case *core.Var, *core.VarGlobal, *core.Lit, *core.DictRef, *core.DictAbs, *core.DictApp:
+	// Atomic leaf expressions - pass through
+	case *core.Var, *core.VarGlobal, *core.Lit, *core.DictRef:
 		return expr
 
 	default:
-		// Unknown type - pass through
+		if out, ok := l.lowerCompositeOrDict(expr); ok {
+			return out
+		}
 		return expr
 	}
 }

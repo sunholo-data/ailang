@@ -3,10 +3,84 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
 )
+
+var (
+	blockContextMu     sync.Mutex
+	blockContextDepths = map[*Parser]int{}
+)
+
+func (p *Parser) enterBlockContext() func() {
+	blockContextMu.Lock()
+	blockContextDepths[p]++
+	blockContextMu.Unlock()
+	return func() {
+		blockContextMu.Lock()
+		if blockContextDepths[p] <= 1 {
+			delete(blockContextDepths, p)
+		} else {
+			blockContextDepths[p]--
+		}
+		blockContextMu.Unlock()
+	}
+}
+
+func (p *Parser) inBlockContext() bool {
+	blockContextMu.Lock()
+	depth := blockContextDepths[p]
+	blockContextMu.Unlock()
+	return depth > 0
+}
+
+func (p *Parser) constKeywordError(varName string) *ParserError {
+	if varName == "" {
+		varName = "name"
+	}
+	useHint := fmt.Sprintf("Use: let %s = value in ...", varName)
+	if p.inBlockContext() {
+		useHint = fmt.Sprintf("Use: let %s = value; ... (or newline-separated inside { ... } blocks)", varName)
+	}
+	return NewSuggestionError(
+		"PAR014",
+		p.curPos(),
+		p.curToken,
+		"'const' keyword doesn't exist in AILANG (JavaScript/TypeScript pattern detected)",
+		[]string{
+			useHint,
+			"Note: All bindings in AILANG are immutable by default",
+		},
+		"https://ailang.sunholo.com/docs/reference/language-syntax",
+	)
+}
+
+func (p *Parser) bareAssignmentError(varName string) *ParserError {
+	useHint := "Use: let name = value in ..."
+	if varName != "" {
+		useHint = fmt.Sprintf("Use: let %s = ... in", varName)
+	}
+	if p.inBlockContext() {
+		target := varName
+		if target == "" {
+			target = "name"
+		}
+		useHint = fmt.Sprintf("Use: let %s = value; ... (or newline-separated inside { ... } blocks)", target)
+	}
+	return NewSuggestionError(
+		"PAR015",
+		p.curPos(),
+		p.curToken,
+		"bare assignment not supported (missing 'let' keyword)",
+		[]string{
+			useHint,
+			"AILANG requires 'let' keyword for bindings",
+		},
+		"https://ailang.sunholo.com/docs/reference/language-syntax",
+	)
+}
 
 // ParserError represents a structured parser error with fix suggestions
 type ParserError struct {
@@ -117,49 +191,33 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 
 	// Detect "const" keyword (JavaScript/TypeScript pattern)
 	if t == lexer.IDENT && p.curToken.Literal == "const" {
-		err := NewSuggestionError(
-			"PAR014",
-			p.curPos(),
-			p.curToken,
-			"'const' keyword doesn't exist in AILANG (JavaScript/TypeScript pattern detected)",
-			[]string{
-				"Use: let name = value in ...",
-				"Note: All bindings in AILANG are immutable by default",
-			},
-			"https://ailang.sunholo.com/docs/reference/language-syntax",
-		)
-		p.errors = append(p.errors, err)
+		p.errors = append(p.errors, p.constKeywordError(""))
 		return
 	}
 
 	// Detect bare assignment (Python pattern): IDENT followed by ASSIGN
 	if t == lexer.ASSIGN {
-		// Look back at previous token to see if it was IDENT
-		// This indicates pattern: identifier = value (without 'let')
-		err := NewSuggestionError(
-			"PAR015",
-			p.curPos(),
-			p.curToken,
-			"bare assignment not supported (missing 'let' keyword)",
-			[]string{
-				"Use: let name = value in ...",
-				"AILANG requires 'let' keyword for bindings",
-			},
-			"https://ailang.sunholo.com/docs/reference/language-syntax",
-		)
-		p.errors = append(p.errors, err)
+		p.errors = append(p.errors, p.bareAssignmentError(""))
 		return
 	}
 
-	// Detect `;` outside block context — typical confusion: LLM writes
-	// `pure func f() = let x = a; rest` (semicolon after `=`). AILANG only
-	// allows `;` inside `{ ... }` block bodies; expression-body functions
-	// chain with `let .. in ..`. The parser at this point doesn't have full
-	// context, but `;` is NEVER valid as the start of an expression, so the
-	// hint is always safe.
-	// M-AILANG-ERROR-QUALITY 2026-05-24 (iter 5): canonical_convergence
-	// benchmark caused this 3 times in Iter 1 baseline.
+	// Detect `;` in unexpected expression start position.
 	if t == lexer.SEMICOLON {
+		if p.inBlockContext() {
+			err := NewSuggestionError(
+				"PAR017",
+				p.curPos(),
+				p.curToken,
+				"unexpected ';' where an expression was expected inside `{ ... }` block",
+				[]string{
+					"Provide a value expression before `;`, e.g. `{ let x = 1; x + 1 }`",
+					"Statements inside `{ ... }` blocks are separated by `;` or newlines",
+				},
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
+			)
+			p.errors = append(p.errors, err)
+			return
+		}
 		err := NewSuggestionError(
 			"PAR017",
 			p.curPos(),
