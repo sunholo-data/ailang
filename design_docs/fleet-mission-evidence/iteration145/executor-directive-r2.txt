@@ -1,0 +1,30 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 145, round 2, in this worktree (repo sunholo-data/ailang, branch fleet/i145-idle-fp-nightly-rig, HEAD d1c8d568b). Round 1 (your earlier run) added the nightly-rig input to `tools/launchd/lib/idle-fingerprint.sh` and its tests; read `git show d1c8d568b` first, then `tools/launchd/test_mission_idle_fingerprint.sh` in full.
+
+An independent judge passed round 1 (82/100) but found that four mutants of the helper SURVIVE the test. Harden the TEST ONLY so each is killed. Do not change the helper, except that if you find a genuine helper bug while doing this, STOP and report it instead of fixing it.
+
+Surviving mutants (each is a one-line sed of the helper; reproduce each first and confirm it survives at HEAD):
+1. `widen`: `startswith("The nightly ")` → `startswith("The ")` in the comment filter. Kill it with a loop/triage comment whose body starts with "The " but not "The nightly " (e.g. `The fix for the last red night is in #490.`) added alongside the existing triage comment in the arm that asserts `nightly triage comment moved hash`, or a new arm with its own distinct FAIL message.
+2. `narrow`: `startswith("The nightly ")` → `startswith("The nightly make test")`. The real producer (`tools/rig_nightly.sh` in stapledons-godot) writes `The nightly make golden (rig/golden) failed on main at <sha>.` as well as `The nightly make test (rig/full) failed …`. Kill it with an arm where a NEW `make golden` failure comment must move the hash (distinct FAIL message, e.g. `FAIL nightly golden failure comment did not move hash`).
+3. `nopr`: delete the `select(has("pull_request") | not)` line. Kill it with an arm where the issues response also contains a pull-request-shaped row (an object with a `pull_request` key, e.g. number 393, labelled the same) whose presence must NOT change the hash and must NOT trigger a comments read for 393 (the stub's unknown-argv branch already rejects unexpected calls; check how it reports and pick the FAIL message accordingly).
+4. `nouniq`: drop the `(map(.id)|unique|length)!=$expected` clause (keep `length!=$expected`). Kill it with a comments response that has the right LENGTH but a duplicated id; it must make the read fail (use the existing `bad` helper and require the `incomplete or changed comment list` diagnostic on stderr).
+
+For each, add the mutant to the `--mutations` list with its exact `expected_fail` message, following the existing style (one `case` arm, a `sed` into "$TMP/helper"). Verify each sed actually changes the helper (the existing loop may already check that a mutant differs from the original; if not, check it yourself and report).
+
+Files you may change: ONLY `tools/launchd/test_mission_idle_fingerprint.sh`. Do not edit the changelog, the helper, or any other file.
+
+Rules:
+- NO git write operations (no add, commit, stash, checkout, reset, restore). The controller commits.
+- Bash 3.2 + BSD tools. Nothing may write outside this worktree and the test's own temp fixture; never touch `$HOME/.ailang/state`.
+- Do mutation reproductions on scratch copies under `$TMPDIR` via `IDLE_TEST_HELPER=<copy>`, never by editing tracked files back and forth.
+
+Gates (green at HEAD: plain rc 0 three PASS lines; --mutations rc 0, 23 KILLED; shellcheck rc 0):
+1. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+2. `/bin/bash tools/launchd/test_mission_idle_fingerprint.sh --mutations` — expect rc 0 and 27 KILLED; quote the four new KILLED lines verbatim.
+3. `shellcheck -s bash tools/launchd/test_mission_idle_fingerprint.sh` — expect rc 0.
+Capture exit status without a pipe (`cmd > file 2>&1; echo rc=$?`). Label any sandbox permission/socket failure UNINFORMATIVE UNDER SANDBOX. A gate red for an unrelated reason is a finding to report.
+
+If you start any background command, poll its output file inside a bounded `date +%s` loop; a Monitor is not a wait and nothing will re-invoke you, so never end your turn announcing that you are waiting.
+
+Final message: `git diff --stat`, each gate's rc, the four new KILLED lines, confirmation that each of the four mutants SURVIVED at d1c8d568b before your change, and any deviation.

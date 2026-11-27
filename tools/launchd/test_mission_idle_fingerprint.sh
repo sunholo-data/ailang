@@ -25,7 +25,7 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale nightly-omit nightly-all-comments; do
+    for mutant in excludes exclude-root-verification exclude-dd-verification exclude-dd-broad exclude-record-eval exclude-evaluations-broad exclude-record-eval-no-suffix exclude-record-eval-any-mission exclude-record-eval-any-verdict exclude-record-any-dir wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale nightly-omit nightly-all-comments widen narrow nopr nouniq; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
       expected_fail=''
       mutation_target=helper
@@ -78,6 +78,22 @@ case "${1:-}" in
         nightly-all-comments)
           sed '/map(select(\.body | startswith("The nightly ")))/d' "$HELPER" >"$TMP/helper"
           expected_fail='FAIL nightly triage comment moved hash'
+          ;;
+        widen)
+          sed '/map(select(\.body | startswith/s/startswith("The nightly ")/startswith("The ")/' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly triage comment moved hash'
+          ;;
+        narrow)
+          sed '/map(select(\.body | startswith/s/startswith("The nightly ")/startswith("The nightly make test")/' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly golden failure comment did not move hash'
+          ;;
+        nopr)
+          sed '/select(has("pull_request") | not)/d' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly pull request triggered a comments read'
+          ;;
+        nouniq)
+          sed 's/ or (map(\.id)|unique|length)!=$expected//' "$HELPER" >"$TMP/helper"
+          expected_fail='FAIL nightly duplicate comment id was accepted'
           ;;
       esac
       if [ "$mutation_target" = helper ]; then
@@ -296,7 +312,7 @@ fp() { /bin/bash "$HELPER" "$@" 2>"$TMP/herr"; }
 hash() { fp | cut -d' ' -f1; }
 bad() {
   out=$(fp "$@"); rc=$?
-  [ "$rc" -ne 0 ] && [ -z "$out" ] || fail "failed read accepted rc=$rc: $out"
+  [ "$rc" -ne 0 ] && [ -z "$out" ] || fail "${BAD_READ_FAIL:-failed read accepted rc=$rc: $out}"
   [ -s "$TMP/herr" ] || fail 'no failure diagnostic'
 }
 reset_stub
@@ -317,14 +333,30 @@ nightly_open=$(hash) || fail "new nightly issue read: $(cat "$TMP/herr")"
 jq -nc '[range(100) | {id:(.+1),body:"Earlier triage",user:{login:"sunholo-voight-kampff"}}]' >"$S/nightly-page1" || fail 'nightly first page fixture'
 report='{"id":7210499888,"body":"The nightly make test (rig/full) failed on main at 468ceb97.","user":{"login":"sunholo-voight-kampff"}}'
 triage='{"id":7211245483,"body":"Triage from mission iteration 123.","user":{"login":"sunholo-voight-kampff"}}'
+fix_note='{"id":7211245484,"body":"The fix for the last red night is in #490.","user":{"login":"sunholo-voight-kampff"}}'
+golden='{"id":7211245485,"body":"The nightly make golden (rig/golden) failed on main at e0e0a697.","user":{"login":"sunholo-voight-kampff"}}'
 nightly_issue 101 "$opening"
 { cat "$S/nightly-page1"; printf '[%s]\n' "$report"; } >"$S/nightly-comments"
 nightly_red=$(hash) || fail "nightly failure read: $(cat "$TMP/herr")"
 [ "$nightly_red" != "$nightly_open" ] || fail 'nightly failure comment did not move hash'
-nightly_issue 102 "$opening"
-{ cat "$S/nightly-page1"; printf '[%s,%s]\n' "$report" "$triage"; } >"$S/nightly-comments"
+nightly_issue 103 "$opening"
+{ cat "$S/nightly-page1"; printf '[%s,%s,%s]\n' "$report" "$triage" "$fix_note"; } >"$S/nightly-comments"
 nightly_triage=$(hash) || fail "nightly triage read: $(cat "$TMP/herr")"
 [ "$nightly_triage" = "$nightly_red" ] || fail 'nightly triage comment moved hash'
+nightly_issue 104 "$opening"
+{ cat "$S/nightly-page1"; printf '[%s,%s,%s,%s]\n' "$report" "$triage" "$fix_note" "$golden"; } >"$S/nightly-comments"
+nightly_golden=$(hash) || fail "nightly golden failure read: $(cat "$TMP/herr")"
+[ "$nightly_golden" != "$nightly_triage" ] || fail 'nightly golden failure comment did not move hash'
+
+jq -c '. + [{number:393,comments:0,body:null,pull_request:{},labels:[{name:"nightly-rig"}]}]' \
+  "$S/nightly-issues" >"$S/nightly-with-pr" || fail 'nightly pull request fixture'
+mv "$S/nightly-with-pr" "$S/nightly-issues" || fail 'stage nightly pull request fixture'
+nightly_with_pr=$(hash); rc=$?
+if grep -Fq 'unexpected gh api --paginate repos/example/world/issues/393/comments?per_page=100' "$TMP/herr"; then
+  fail 'nightly pull request triggered a comments read'
+fi
+[ "$rc" -eq 0 ] || fail "nightly issue with pull request read: $(cat "$TMP/herr")"
+[ "$nightly_with_pr" = "$nightly_golden" ] || fail 'nightly pull request moved hash'
 [ "$nightly_open" != "$h0" ] || fail 'new nightly issue did not move hash'
 reset_stub
 nightly_closed=$(hash) || fail 'closed nightly issue read'
@@ -342,6 +374,10 @@ done
 reset_stub; nightly_issue 1 "$opening"; echo '[{"id":1}]' >"$S/nightly-comments"; bad
 reset_stub; nightly_issue 101 "$opening"; cp "$S/nightly-page1" "$S/nightly-comments"; bad
 grep -Fq 'incomplete or changed comment list' "$TMP/herr" || fail "nightly comment total diagnostic: $(cat "$TMP/herr")"
+reset_stub; nightly_issue 2 "$opening"
+printf '[%s,%s]\n' "$report" "$report" >"$S/nightly-comments"
+BAD_READ_FAIL='nightly duplicate comment id was accepted' bad
+grep -Fq 'incomplete or changed comment list' "$TMP/herr" || fail "nightly duplicate comment id diagnostic: $(cat "$TMP/herr")"
 reset_stub; nightly_issue 0 'Changed producer format'; bad
 grep -Fq 'no report starts with The nightly' "$TMP/herr" || fail "nightly report format diagnostic: $(cat "$TMP/herr")"
 reset_stub
