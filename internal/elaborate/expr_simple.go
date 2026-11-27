@@ -5,6 +5,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -51,6 +52,15 @@ func (e *Elaborator) normalizeLiteral(lit *ast.Literal) (core.CoreExpr, error) {
 // function — a pre-existing effect-row defect that top-level `func`s share.
 // Top-level `func`s keep seeding (M-FIX-FLOAT-OP relies on it).
 func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param, ret ast.Type, literal bool) {
+	// Keep lam.Params ("_") intact for zero-arg unit injection in eval.CallFunction,
+	// while rejecting any unconsumed bare '_' expression (*core.Var{Name: "_"})
+	// inside the elaborated body (valid `|>` `_` placeholders were already
+	// rewritten to `$pipe_arg_<id>` in normalizePipe).
+	if e.typeAnnotationErr == nil && lam != nil {
+		if wildPos, found := findBareWildcardVar(lam.Body); found {
+			e.typeAnnotationErr = fmt.Errorf("wildcard '_' cannot be used as an expression at %s (use '_' in patterns or as a direct call argument on the right-hand side of '|>')", wildPos)
+		}
+	}
 	paramTypes := make([]types.Type, len(params))
 	hasAnnotations := false
 	for i, param := range params {
@@ -226,24 +236,14 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		return e.normalizeShortCircuit(binop)
 	}
 
-	// Pipe operator `x |> f` desugars to LHS-first Let + App (M-PIPE-OPERATOR):
-	// normalizeToAtomic(Left) runs before normalizeToAtomic(Right), pinning
-	// left-to-right evaluation order for effectful stages.
+	// Pipe operator `x |> f` desugars to LHS-first Let + App (M-PIPE-OPERATOR).
+	// D2=a (M-V1-RC1-READINESS-AND-DX-SWARM): when the RHS is a FuncCall with
+	// direct `_` placeholder argument(s):
+	//   - k == 0: unchanged unary/curried App(elaborate(rhs), [elaborate(lhs)])
+	//   - k == 1: Let($pipe_arg_<id>, elaborate(lhs), elaborate(f(..., $pipe_arg_<id>, ...)))
+	//   - k > 1:  structured error TC_PIPE_001
 	if binop.Op == "|>" {
-		left, leftBinds, err := e.normalizeToAtomic(binop.Left)
-		if err != nil {
-			return nil, err
-		}
-		right, rightBinds, err := e.normalizeToAtomic(binop.Right)
-		if err != nil {
-			return nil, err
-		}
-		app := &core.App{
-			CoreNode: e.makeNode(binop.Position()),
-			Func:     right,
-			Args:     []core.CoreExpr{left},
-		}
-		return e.wrapWithBindings(app, append(leftBinds, rightBinds...)), nil
+		return e.normalizePipe(binop)
 	}
 
 	// Normalize operands to atomic values
@@ -312,6 +312,211 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 
 	// Wrap with let bindings from normalization
 	return e.wrapWithBindings(result, append(leftBinds, rightBinds...)), nil
+}
+
+// isPipePlaceholder reports whether expr is a bare `_` identifier argument
+// (`_?` parses as *ast.Hole and nested lambdas/calls are distinct AST nodes).
+func isPipePlaceholder(expr ast.Expr) bool {
+	ident, ok := expr.(*ast.Identifier)
+	return ok && ident.Name == "_" && !ident.ResolveAsBuiltin
+}
+
+// normalizePipe elaborates `lhs |> rhs`, supporting a single explicit `_`
+// direct call-argument placeholder on a FuncCall RHS (`D2=a`).
+func (e *Elaborator) normalizePipe(binop *ast.BinaryOp) (core.CoreExpr, error) {
+	if call, ok := binop.Right.(*ast.FuncCall); ok {
+		placeholderIdx := -1
+		placeholderCount := 0
+		var dupPos ast.Pos
+		for i, arg := range call.Args {
+			if isPipePlaceholder(arg) {
+				placeholderCount++
+				if placeholderCount == 1 {
+					placeholderIdx = i
+				} else if placeholderCount == 2 {
+					dupPos = arg.Position()
+				}
+			}
+		}
+		if placeholderCount > 1 {
+			if dupPos.Line == 0 {
+				dupPos = call.Position()
+			}
+			return nil, errors.WrapReport(&errors.Report{
+				Schema:  "ailang.error/v1",
+				Code:    "TC_PIPE_001",
+				Phase:   "elaborate",
+				Message: "pipe stage has multiple '_' placeholders; use a lambda (\\x. ...) instead",
+				Span:    &ast.Span{Start: dupPos, End: dupPos},
+				Fix: &errors.Fix{
+					Suggestion: "Bind the piped value once with a lambda, e.g. x |> (\\v. f(v, v))",
+					Confidence: 0.95,
+				},
+			})
+		}
+		if placeholderCount == 1 {
+			e.freshVarNum++
+			pipeTmp := fmt.Sprintf("$pipe_arg_%d", e.freshVarNum)
+			elabLHS, err := e.normalize(binop.Left)
+			if err != nil {
+				return nil, err
+			}
+			rewrittenArgs := make([]ast.Expr, len(call.Args))
+			copy(rewrittenArgs, call.Args)
+			rewrittenArgs[placeholderIdx] = &ast.Identifier{
+				Name: pipeTmp,
+				Pos:  call.Args[placeholderIdx].Position(),
+			}
+			rewrittenCall := &ast.FuncCall{
+				Func: call.Func,
+				Args: rewrittenArgs,
+				Pos:  call.Pos,
+			}
+			e.pushScope(pipeTmp)
+			elabCall, err := e.normalizeFuncCall(rewrittenCall)
+			e.popScope()
+			if err != nil {
+				return nil, err
+			}
+			return &core.Let{
+				CoreNode: e.makeNode(binop.Position()),
+				Name:     pipeTmp,
+				Value:    elabLHS,
+				Body:     elabCall,
+			}, nil
+		}
+	}
+
+	// k == 0 (unary function, lambda, or curried call such as `5 |> makeAdder(1)`):
+	// normalizeToAtomic(Left) runs before normalizeToAtomic(Right), pinning
+	// left-to-right evaluation order for effectful stages.
+	left, leftBinds, err := e.normalizeToAtomic(binop.Left)
+	if err != nil {
+		return nil, err
+	}
+	right, rightBinds, err := e.normalizeToAtomic(binop.Right)
+	if err != nil {
+		return nil, err
+	}
+	app := &core.App{
+		CoreNode: e.makeNode(binop.Position()),
+		Func:     right,
+		Args:     []core.CoreExpr{left},
+	}
+	return e.wrapWithBindings(app, append(leftBinds, rightBinds...)), nil
+}
+
+// findBareWildcardVar reports whether expr contains an unconsumed *core.Var{Name: "_"}.
+func findBareWildcardVar(expr core.CoreExpr) (ast.Pos, bool) {
+	if expr == nil {
+		return ast.Pos{}, false
+	}
+	switch n := expr.(type) {
+	case *core.Var:
+		if n.Name == "_" {
+			return n.OriginalSpan(), true
+		}
+	case *core.Lambda:
+		return findBareWildcardVar(n.Body)
+	case *core.Let:
+		if p, ok := findBareWildcardVar(n.Value); ok {
+			return p, true
+		}
+		return findBareWildcardVar(n.Body)
+	case *core.LetRec:
+		for _, b := range n.Bindings {
+			if p, ok := findBareWildcardVar(b.Value); ok {
+				return p, true
+			}
+		}
+		return findBareWildcardVar(n.Body)
+	case *core.App:
+		if p, ok := findBareWildcardVar(n.Func); ok {
+			return p, true
+		}
+		for _, a := range n.Args {
+			if p, ok := findBareWildcardVar(a); ok {
+				return p, true
+			}
+		}
+	case *core.If:
+		if p, ok := findBareWildcardVar(n.Cond); ok {
+			return p, true
+		}
+		if p, ok := findBareWildcardVar(n.Then); ok {
+			return p, true
+		}
+		return findBareWildcardVar(n.Else)
+	case *core.Match:
+		if p, ok := findBareWildcardVar(n.Scrutinee); ok {
+			return p, true
+		}
+		for _, arm := range n.Arms {
+			if p, ok := findBareWildcardVar(arm.Guard); ok {
+				return p, true
+			}
+			if p, ok := findBareWildcardVar(arm.Body); ok {
+				return p, true
+			}
+		}
+	case *core.Intrinsic:
+		for _, a := range n.Args {
+			if p, ok := findBareWildcardVar(a); ok {
+				return p, true
+			}
+		}
+	case *core.BinOp:
+		if p, ok := findBareWildcardVar(n.Left); ok {
+			return p, true
+		}
+		return findBareWildcardVar(n.Right)
+	case *core.UnOp:
+		return findBareWildcardVar(n.Operand)
+	case *core.Record:
+		for _, v := range n.Fields {
+			if p, ok := findBareWildcardVar(v); ok {
+				return p, true
+			}
+		}
+	case *core.RecordAccess:
+		return findBareWildcardVar(n.Record)
+	case *core.RecordUpdate:
+		if p, ok := findBareWildcardVar(n.Base); ok {
+			return p, true
+		}
+		for _, v := range n.Updates {
+			if p, ok := findBareWildcardVar(v); ok {
+				return p, true
+			}
+		}
+	case *core.List:
+		for _, el := range n.Elements {
+			if p, ok := findBareWildcardVar(el); ok {
+				return p, true
+			}
+		}
+	case *core.Array:
+		for _, el := range n.Elements {
+			if p, ok := findBareWildcardVar(el); ok {
+				return p, true
+			}
+		}
+	case *core.Tuple:
+		for _, el := range n.Elements {
+			if p, ok := findBareWildcardVar(el); ok {
+				return p, true
+			}
+		}
+	case *core.Forall:
+		if p, ok := findBareWildcardVar(n.Lo); ok {
+			return p, true
+		}
+		if p, ok := findBareWildcardVar(n.Hi); ok {
+			return p, true
+		}
+		return findBareWildcardVar(n.Body)
+	}
+	return ast.Pos{}, false
 }
 
 // normalizeShortCircuit desugars `a && b` and `a || b` into core.If so that

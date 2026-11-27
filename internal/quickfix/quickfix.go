@@ -111,6 +111,9 @@ func ComputeEdits(diag Diagnostic, fallbackFile, src string) []TextEdit {
 				return []TextEdit{edit}
 			}
 		}
+		if edits := computeIMP010MoveEdits(file, lines, diag.Message); len(edits) > 0 {
+			return edits
+		}
 
 	case "TC_MATCH_002":
 		if edit, ok := insertMissingMatchArmsEdit(file, src, diag.Line, diag.Column, diag.Message); ok {

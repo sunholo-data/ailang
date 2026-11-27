@@ -577,35 +577,12 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		// Otherwise continue with normal IDENT handling
 		// Detect JavaScript/Python patterns that AIs commonly generate
 		if p.curToken.Literal == "const" {
-			// JavaScript const keyword
-			err := NewSuggestionError(
-				"PAR014",
-				p.curPos(),
-				p.curToken,
-				"'const' keyword doesn't exist in AILANG (JavaScript/TypeScript pattern detected)",
-				[]string{
-					"Use: let name = value in ...",
-					"Note: All bindings in AILANG are immutable by default",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			)
-			p.errors = append(p.errors, err)
+			p.errors = append(p.errors, p.constKeywordError(""))
 			return nil
 		}
 		// Check for bare assignment (Python-style: x = y without let)
 		if p.peekTokenIs(lexer.ASSIGN) {
-			err := NewSuggestionError(
-				"PAR015",
-				p.curPos(),
-				p.curToken,
-				"bare assignment not supported (missing 'let' keyword)",
-				[]string{
-					fmt.Sprintf("Use: let %s = ... in", p.curToken.Literal),
-					"AILANG requires 'let' keyword for bindings",
-				},
-				"https://ailang.sunholo.com/docs/reference/language-syntax",
-			)
-			p.errors = append(p.errors, err)
+			p.errors = append(p.errors, p.bareAssignmentError(p.curToken.Literal))
 			return nil
 		}
 		// Otherwise treat as expression
