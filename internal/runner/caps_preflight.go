@@ -123,10 +123,11 @@ func CheckMissingEntryCaps(moduleIface *iface.Iface, entry, caps string) error {
 		entryName = "main"
 	}
 	return fmt.Errorf(
-		"E_CAPS_MISSING: entrypoint %q declares {%s}; granted {%s}; missing %s. Re-run with --caps %s",
+		"E_CAPS_MISSING: entrypoint %q declares {%s}; granted {%s}; missing %s (requires capability %s). Re-run with --caps %s",
 		entryName,
 		strings.Join(required, ", "),
 		grantedDisplay,
+		strings.Join(missing, ", "),
 		strings.Join(missing, ", "),
 		strings.Join(needed, ","),
 	)

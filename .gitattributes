@@ -11,8 +11,11 @@ internal/ai/ollama/testdata/wire/*.json text eol=lf
 internal/builtins/testdata/ollama_embed_wire.json text eol=lf
 internal/messaging/testdata/ollama_embedder_wire.json text eol=lf
 
-# Force LF for prompt files (prevents hash mismatches on Windows)
+# Force LF for prompt files and registries (prevents hash/mirror mismatches on Windows)
 prompts/*.md text eol=lf
+prompts/*.json text eol=lf
+cmd/ailang/prompts/*.md text eol=lf
+cmd/ailang/prompts/*.json text eol=lf
 
 # Force LF for shell scripts
 *.sh text eol=lf

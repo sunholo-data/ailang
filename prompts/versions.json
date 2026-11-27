@@ -1288,7 +1288,13 @@
         "production",
         "latest"
       ],
-      "notes": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators"
+      "notes": "Document deriving (Json), let-bound ? error/option propagation, ailang inspect, ailang check --fix Phase 2 (! {Effects} stamping + string ++), std/string & std/fs scripting helpers, lambda/record destructuring, pipe operator (|>), typed holes, unbraced multi-statement arms/branches, and std/list + std/map combinators",
+      "frozen": {
+        "at": "2026-11-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.21": {
       "file": "prompts/v0.16.21.md",
@@ -1310,7 +1316,13 @@
         "production",
         "compact"
       ],
-      "notes": "Token-efficient (~3.4 KB) accurate v0.64+ syntax sheet for ailang prompt --compact: effects and @limit budgets, ADTs/records, braced match, let-? propagation, pipe `_` placeholder, requires/ensures, inline tests, stdlib discovery (ailang docs, ailang check --fix). Replaces the stale v0.7.4-compact as the default --compact target. For the full reference: ailang prompt"
+      "notes": "Token-efficient (~3.4 KB) accurate v0.64+ syntax sheet for ailang prompt --compact: effects and @limit budgets, ADTs/records, braced match, let-? propagation, pipe `_` placeholder, requires/ensures, inline tests, stdlib discovery (ailang docs, ailang check --fix). Replaces the stale v0.7.4-compact as the default --compact target. For the full reference: ailang prompt",
+      "frozen": {
+        "at": "2026-11-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     }
   },
   "active": "v0.16.21",
