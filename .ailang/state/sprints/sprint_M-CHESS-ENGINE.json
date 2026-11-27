@@ -1,0 +1,144 @@
+{
+  "sprint_id": "M-CHESS-ENGINE",
+  "status": "not_started",
+  "created": "2026-11-27T08:31:25Z",
+  "design_doc": "design_docs/planned/v0_64_2/m-chess-engine.md",
+  "sprint_plan": "design_docs/planned/v0_64_2/sprint-plan-m-chess-engine.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "chess, fen and bitboard returned no candidates. Board and FEN are engine-specific."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "chess and bitboard returned no candidates. Attack generation uses stdlib bit operations and arrays."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "chess and bitboard returned no candidates. Legal move handling shares the board representation."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "chess and perft returned no candidates. The runner uses the engine legal move generator and published fixtures."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "chess, negamax and minimax returned no candidates. Search is specialized to the pure chess position."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "chess and uci returned no candidates. CLI uses the existing std IO interface."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 193,
+    "estimated_total_loc": 1930,
+    "estimated_days": 10
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Position and FEN",
+      "estimated_loc": 530,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TST-CHESS-01 Exhaustively round-trip all 64 squares and exercise empty and high-bit boards. Run ailang verify for bounded coordinate and index contracts and record any inconclusive result with its diagnostic.",
+        "TST-CHESS-02 Round-trip startpos and canonical Kiwipete plus a FEN with non-default counters and an en-passant field. Reject malformed ranks, side, rights, square and counters with explicit errors."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Attacks and pseudo-legal moves",
+      "estimated_loc": 290,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "TST-CHESS-03 Fixtures cover pawn, knight, king and slider attacks, file wrap, blocked rays and signed high-bit occupancy. Ordinary candidates exclude friendly squares and king captures."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Legal moves and position transitions",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "TST-CHESS-04 Fixtures cover pinned moves, castling through check, rights changes, en-passant discovered check, and quiet and capture promotions. Piece counts change only as implied by the move. Applying a legal move preserves the original immutable position."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Perft fixture runner",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "TST-CHESS-05 Fast regression counts are startpos depths 1\u20133 = 20, 400, 8902. Kiwipete depths 1\u20132 = 48, 2039. Positions 3, 4 and 5 depths 1\u20132 = 14/264, 6/264 and 44/1486 respectively.",
+        "TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Deterministic search",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "TST-CHESS-07 Fixed-depth fixtures cover a forced mate, stalemate, checked quiescence and stable ties. Every returned move belongs to the root legal list and every PV ply replays legally. Repeated runs return identical move, score and PV."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "CLI and showcase evidence",
+      "estimated_loc": 290,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "TST-CHESS-08 Compare stdout byte-for-byte across two evaluator runs and two strict VM runs using one fixture. Cover valid commands, malformed FEN retaining the last valid position, invalid depth, unknown command, quit and EOF. Use count-only output for perft and keep timing outside replay stdout. Test quit and EOF in separate fixtures so both paths execute.",
+        "TST-CHESS-09 Record startpos depths 3 and 4 for evaluator and strict VM in the README and the design implementation record. Include commit, machine, CLI version, commands, counts, elapsed seconds and nodes/sec. If depth four exceeds 30 minutes, schedule and record the completed manual run outside CI. The exact count remains required."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
