@@ -109,4 +109,4 @@ Symptom → cause → fix table for the common issues seen during the M-EVAL-LOC
 2. Check Ollama status: `curl -s http://localhost:11434/api/ps`
 3. Check chain state: `ailang chains list --since 1h`
 4. Run setup checker: `.claude/skills/local-ollama-eval/scripts/verify_setup.sh`
-5. Read [docs/docs/guides/evaluation/local-ollama.md](../../../../docs/docs/guides/evaluation/local-ollama.md) — the canonical user-facing guide
+5. Read [docs/internal/runbooks/local-ollama.md](../../../../docs/internal/runbooks/local-ollama.md) — the canonical rig runbook
