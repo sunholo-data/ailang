@@ -9,6 +9,16 @@ unsound encoding, and every flip is listed in the PR.
 **Ruling**: Mark, 2026-10-26: fix the P0s now. Truncating Int `/` and `%` is the required sound choice (F1). The freeze
 items for M1–M4 (`encoder_gap`, ai-check exit codes, pre-flight shape) are **not** ruled and are out of scope.
 
+## Status: complete (2026-10-26)
+
+- [x] M0a: truncating Int `/` and `%` (981a7aee9)
+- [x] M0b: per-call-site contract callee results (5410d0b2f)
+- [x] Mutation: each fix reverted from a scratch copy fails its tests
+- [x] Flip audit: examples/ + std/ have 0 flips; ailang-packages has 1 ERROR→VERIFIED (`discord.validEmbed`, which
+  had a callee parameter left free) and 0 VERIFIED→not
+- [x] Gates: `make test-changed`, `make lint`, `make verify-examples`, `make check-changelog`,
+  `make check-file-sizes`
+
 ## Scope
 
 | In | Out (later milestones or other docs) |

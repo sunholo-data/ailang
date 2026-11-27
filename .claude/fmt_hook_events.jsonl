@@ -43,3 +43,8 @@
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_8db0g6w2","detail":""}
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_9pd8327a","detail":""}
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_6zo5f2ex","detail":""}
+{"status":"formatted","file":"/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/27c71478-cb16-4193-9307-8693a60a4afd/scratchpad/m0/divrt.ail","exit_code":0,"id":"toolu_01Ker9YFE79dXZC1UNmxnbJQ","detail":""}
+{"status":"formatted","file":"/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/27c71478-cb16-4193-9307-8693a60a4afd/scratchpad/m0/divzero.ail","exit_code":0,"id":"toolu_01WLomEhES12hzDePhHR8PBZ","detail":""}
+{"status":"formatted","file":"/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/27c71478-cb16-4193-9307-8693a60a4afd/scratchpad/m0/divrt.ail","exit_code":0,"id":"toolu_01CFjS1Zo9mQhi8R1gCE4faB","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/agent-a0a6132d7dab1e170/cmd/ailang/testdata/verify_preflight/int_divmod.ail","exit_code":0,"id":"toolu_01Ebq5cLeweLuHozb8wksTBP","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/agent-a0a6132d7dab1e170/cmd/ailang/testdata/verify_preflight/call_site_collapse.ail","exit_code":0,"id":"toolu_0175am5UP5PrZ1oz7zNmJXmp","detail":""}

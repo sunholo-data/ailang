@@ -4,7 +4,7 @@
   "design_doc": "design_docs/planned/m-smt-well-sorted-preflight.md",
   "github_issues": [1960, 1961],
   "created": "2026-10-26",
-  "status": "in_progress",
+  "status": "completed",
   "registry_reuse": [
     {"milestone": "M0a", "package": null, "action": "none", "reason": "internal SMT encoder change"},
     {"milestone": "M0b", "package": null, "action": "none", "reason": "internal SMT encoder change"}
@@ -27,10 +27,10 @@
         "No emitter in internal/smt produces bare SMT div/mod for Int",
         "Mutation: reverting the encoding makes the new tests fail"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "981a7aee9. One applyBinaryOp/encodeTruncDivMod helper. A Z3 sign-table test covers all 8 emitter shapes. e2e: parity and halfDown give a counterexample at x = -1. Four true controls VERIFY; halfTowardZero flips from VIOLATION to VERIFIED. Both mutations (all-Euclidean, and mod_Int only) fail the tests."
     },
     {
       "id": "M0b_PER_CALL_SITE_CONTRACT_CALLEE",
@@ -45,10 +45,10 @@
         "Counterexample model lists no junk lines for UF definitions",
         "Mutation: reverting to a shared constant makes the new tests fail"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "5410d0b2f. <f>__spec uninterpreted function plus a requires => ensures quantified axiom with the call term as its pattern. parseModel skips non-nullary define-funs. e2e: gap gives a counterexample at a = 0 and atLeastUnguarded at a = -1; selfGap, sumBoth and atLeast VERIFY. Five mutations each fail a test: collapsed call sites, unguarded ensures, an unencodable requires keeping the ensures, parseModel printing junk, and the full pre-fix revert."
     }
   ]
 }
