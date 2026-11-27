@@ -78,3 +78,33 @@ export pure func unwrap[a, e](r: Result[a, e]) -> a {
     Err(_) => unreachable("unwrap called on Err")
   }
 }
+
+pure func mapResultAcc[a, b, e](f: a -> Result[b, e], xs: [a], acc: [b]) -> Result[[b], e] {
+  match xs {
+    [] => Ok(_list_reverse(acc)),
+    [x, ...rest] => match f(x) {
+      Ok(y) => mapResultAcc(f, rest, y :: acc),
+      Err(err) => Err(err)
+    }
+  }
+}
+
+-- Apply a fallible function to each element of xs, preserving order and
+-- short-circuiting on the first Err.
+export pure func mapResult[a, b, e](f: a -> Result[b, e], xs: [a]) -> Result[[b], e] =
+  mapResultAcc(f, xs, [])
+
+pure func collectAcc[a, e](rs: [Result[a, e]], acc: [a]) -> Result[[a], e] {
+  match rs {
+    [] => Ok(_list_reverse(acc)),
+    [r, ...rest] => match r {
+      Ok(x) => collectAcc(rest, x :: acc),
+      Err(err) => Err(err)
+    }
+  }
+}
+
+-- Collect a list of Results into a Result of a list, preserving order and
+-- short-circuiting on the first Err.
+export pure func collect[a, e](rs: [Result[a, e]]) -> Result[[a], e] =
+  collectAcc(rs, [])

@@ -11,17 +11,26 @@ import (
 )
 
 // ResolveAutoCaps returns the effect labels on the entry function's declared
-// effect row, sorted — what `--caps auto` grants.
+// effect row, sorted — what `--caps auto` grants. Process is excluded because
+// it grants arbitrary host command execution; callers must opt in explicitly.
 func ResolveAutoCaps(moduleIface *iface.Iface, entry string) []string {
-	if moduleIface == nil {
-		return []string{}
+	declared := EntryDeclaredEffects(moduleIface, entry)
+	caps := make([]string, 0, len(declared))
+	for _, name := range declared {
+		if name == "Process" {
+			continue
+		}
+		caps = append(caps, name)
 	}
-	item, ok := moduleIface.GetExport(entry)
-	if !ok || item == nil || item.Type == nil {
-		return []string{}
-	}
-	funcType, ok := item.Type.Type.(*types.TFunc2)
-	if !ok || funcType == nil || funcType.EffectRow == nil {
+	return caps
+}
+
+// EntryDeclaredEffects returns all concrete effect labels declared on the
+// resolved entrypoint function's effect row, sorted. Returns empty when the
+// entrypoint cannot be resolved or is pure.
+func EntryDeclaredEffects(moduleIface *iface.Iface, entry string) []string {
+	funcType := resolveEntryFuncType(moduleIface, entry)
+	if funcType == nil || funcType.EffectRow == nil {
 		return []string{}
 	}
 
@@ -31,6 +40,52 @@ func ResolveAutoCaps(moduleIface *iface.Iface, entry string) []string {
 	}
 	sort.Strings(caps)
 	return caps
+}
+
+// EntryDeclaresEffect reports whether the resolved entrypoint declares effectName.
+func EntryDeclaresEffect(moduleIface *iface.Iface, entry, effectName string) bool {
+	for _, name := range EntryDeclaredEffects(moduleIface, entry) {
+		if name == effectName {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveEntryFuncType mirrors ExecuteModuleEntrypoint's entrypoint resolution
+// so auto-caps and pre-flight checks inspect the exact function that will run.
+func resolveEntryFuncType(moduleIface *iface.Iface, entry string) *types.TFunc2 {
+	if moduleIface == nil {
+		return nil
+	}
+	if item, ok := moduleIface.GetExport(entry); ok && item != nil && item.Type != nil {
+		if ft, isFn := item.Type.Type.(*types.TFunc2); isFn {
+			return ft
+		}
+		return nil
+	}
+	if entry != "main" {
+		return nil
+	}
+	var zeroArg []string
+	for name, exp := range moduleIface.Exports {
+		if exp != nil && exp.Type != nil {
+			if ft, isFn := exp.Type.Type.(*types.TFunc2); isFn && len(ft.Params) == 0 {
+				zeroArg = append(zeroArg, name)
+			}
+		}
+	}
+	if len(zeroArg) == 1 {
+		return moduleIface.Exports[zeroArg[0]].Type.Type.(*types.TFunc2)
+	}
+	if len(zeroArg) > 1 {
+		for _, name := range zeroArg {
+			if name == "test" {
+				return moduleIface.Exports[name].Type.Type.(*types.TFunc2)
+			}
+		}
+	}
+	return nil
 }
 
 // CapsList is the comma-separated list of capabilities `--caps` accepts, in the

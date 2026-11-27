@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"hash/fnv"
 
-	"github.com/sunholo-data/ailang/third_party/goopus/opus"
+	"github.com/sunholo-data/ailang/internal/third_party/goopus/opus"
 )
 
 const (

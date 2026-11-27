@@ -15,14 +15,15 @@ func pkgInstallCommand(args []string) error {
 	pathFlag := flagSet.String("path", "", "Install the [bin] commands of a local package directory instead of a registry package (the developer loop)")
 	binDirFlag := flagSet.String("bin-dir", "", "Where [bin] shims are written (default: ~/.ailang/bin)")
 	noBinFlag := flagSet.Bool("no-bin", false, "Library only: do not write [bin] shims")
+	grantNewCapsFlag := flagSet.Bool("grant-new-caps", false, "Allow reinstalling a [bin] command whose pinned capabilities widened")
 
 	if err := flagSet.Parse(args); err != nil {
 		return err
 	}
 
 	if *helpFlag || (flagSet.NArg() < 1 && *pathFlag == "") {
-		fmt.Println("Usage: ailang install <vendor/name[@version]> [--bin-dir DIR] [--no-bin]")
-		fmt.Println("       ailang install --path <package-dir> [--bin-dir DIR]")
+		fmt.Println("Usage: ailang install <vendor/name[@version]> [--bin-dir DIR] [--no-bin] [--grant-new-caps]")
+		fmt.Println("       ailang install --path <package-dir> [--bin-dir DIR] [--grant-new-caps]")
 		fmt.Println()
 		fmt.Println("Download a package from the registry, verify its hash, and add it to ailang.toml.")
 		fmt.Println("A package that declares [bin] in its ailang.toml also gets each command shimmed")
@@ -42,7 +43,7 @@ func pkgInstallCommand(args []string) error {
 		if flagSet.NArg() > 0 {
 			return fmt.Errorf("--path installs a local package; drop the vendor/name argument")
 		}
-		return installLocalBins(*pathFlag, *binDirFlag)
+		return installLocalBinsWithGrant(*pathFlag, *binDirFlag, *grantNewCapsFlag)
 	}
 
 	spec := flagSet.Arg(0)
@@ -139,7 +140,7 @@ func pkgInstallCommand(args []string) error {
 	// M-PKG-BIN-ENTRYPOINTS: a package that declares [bin] becomes a program
 	// root in the cache (lock beside its manifest) and each command a shim.
 	if !*noBinFlag {
-		if err := installBins(cachePath, *binDirFlag); err != nil {
+		if err := installBinsWithGrant(cachePath, *binDirFlag, *grantNewCapsFlag); err != nil {
 			return err
 		}
 	}

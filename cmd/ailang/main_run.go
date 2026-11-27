@@ -10,6 +10,11 @@ import (
 	rpprof "runtime/pprof"
 )
 
+// runExplicitQuiet records whether the caller explicitly passed --quiet on
+// `ailang run` (as distinct from --quiet's default true). Read by main_run_exec.go
+// so --caps auto discloses grants to stderr unless --quiet was explicit.
+var runExplicitQuiet bool
+
 func runCommand() {
 	if err := bootstrapRunLifetime(); err != nil {
 		fmt.Fprintf(os.Stderr, "runtime lifetime: %v\n", err)
@@ -154,9 +159,17 @@ func runCommand() {
 		}
 		exitRunLifetime(2)
 	}
+	explicitQuiet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "quiet" {
+			explicitQuiet = true
+		}
+	})
 	if *verboseFlag {
 		*quietFlag = false
+		explicitQuiet = false
 	}
+	runExplicitQuiet = explicitQuiet && *quietFlag
 	if *chdirFlag != "" {
 		if err := os.Chdir(*chdirFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: --chdir %s: %v\n", *chdirFlag, err)

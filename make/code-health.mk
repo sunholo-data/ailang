@@ -164,7 +164,7 @@ check-no-zero-arg-workarounds: ## Forbid surface-local zero-arg unit-injection w
 check-file-sizes: ## Check for files >800 lines (CI gate)
 	@echo "Checking for files >800 lines..."
 	@FOUND=0; \
-	for file in $$(find internal cmd -name "*.go"); do \
+	for file in $$(find internal cmd -name "*.go" -not -path "internal/third_party/*"); do \
 		SIZE=$$(wc -l < "$$file"); \
 		if [ $$SIZE -gt 800 ]; then \
 			echo "$(RED)$(CROSS) $$file: $$SIZE lines (exceeds 800)$(RESET)"; \

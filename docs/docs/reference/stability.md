@@ -20,6 +20,14 @@ reviewBy: 2027-05-26
 
 Additive changes (new modules, functions, optional flags, manifest keys, or MCP tools) may land in any minor. Items are drafted **Stable** when documented, exercised by `examples/`/evals/packages, and free of P0 defects.
 
+### Go packages
+
+AILANG is a Go module so the binary can be built with `go install`. Its importable Go packages (`serveapi/...`, `std`, `examples`) are **Internal**. They are not covered by the 1.x promise and may change in any release, whatever Go's semantic-import-versioning convention suggests for a v1 tag. If you import them, pin an exact version.
+
+### What ships in the binary
+
+The `ailang` binary also contains the Internal tier: the coordinator, mission loops, eval harness, dashboards and the fleet tooling we use to build AILANG. It ships in the same binary today for convenience. During 1.x we intend to move it behind a separate Go module or binary. That is not a breaking change. Internal surface carries no promise, and every Stable and Experimental command, stdlib module and package format stays in `ailang`. If you depend on an Internal command, expect it to move.
+
 ## At a glance
 
 | Area | Stable | Experimental | Internal | Source of truth |
@@ -260,7 +268,7 @@ The 1.x promise covers manifest and lockfile **format and resolution semantics**
 | Flat resolution | One version per package name; conflicts fail `ailang lock` explicitly |
 | **Authority: effect ceiling** `[effects].max` | Compilation fails if package code declares or references an effect outside `max` (`max = []` = pure) |
 | **Authority: ghost effects** | `Debug` is exempt from `[effects].max` and erased by `--release` |
-| **Authority: run-time grant** | Capabilities come only from `run --caps` or `[bin].caps` (`auto` = entry's declared effects) |
+| **Authority: run-time grant** | Capabilities come only from `run --caps` or `[bin].caps`. `--caps auto` grants the entry's declared effects (never `Process`) and discloses them to `stderr` unless `--quiet` is explicit; `[bin].caps` defaults to `auto`, resolved once at install, printed, and pinned in the shim (widening requires `--grant-new-caps`). `run` refuses missing capabilities pre-flight (`E_CAPS_MISSING`) before executing user code. |
 | Manifest `[stability].level` | `experimental` / `stable` / `frozen` package-declared maturity |
 | Lockfile `ailang.lock` | `schema: "ailang.lock/v1"` JSON recording hashes, effects, exports, and portable relative locators; `ailang lock --check` verifies drift |
 | Dual hash model | `content_hash` tracks source bytes; `interface_hash` tracks exports/effects to prevent internal-refactor cascades |
