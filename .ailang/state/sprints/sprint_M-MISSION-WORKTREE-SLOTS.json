@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-WORKTREE-SLOTS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-28T15:37:47Z",
   "design_doc": "design_docs/planned/v0_64_2/m-mission-worktree-slots.md",
   "sprint_plan": "design_docs/planned/v0_64_2/sprint-plan-m-mission-worktree-slots.md",
@@ -49,10 +49,10 @@
         "`/bin/bash -n` clean; runs under `/bin/bash` 3.2 (no `declare -A`, `${v,,}`, GNU `timeout`, relative `find -newermt`)",
         "`make test-launchd-drivers` green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T16:17:36Z",
+      "completed": "2026-11-28T16:17:36Z",
+      "notes": "acquire/held/release-fire in tools/launchd/lib/mission-slot.sh (sourced by mission-worktree.sh; add launcher extracted to launch_writer, behaviour-identical: existing 194-case suite passes unmodified). Ownership guarded by a per-mission mkdir mutex (stronger than the design's rename-only steal; rename used only to take over a dead mutex). MISSION_SLOT_ROOT override added (refused under /tmp, sweep PROTECT, ~/dev/sunholo-data). New suite 32/32; five mutants (never-held, root-always-ok, release-any-fire, unreadable-birth-dead, no-mutex) all killed. make test-launchd-drivers rc 0. Test-writing trap found: bash 3.2 runs an inherited EXIT trap in a killed background job once set -m was on."
     },
     {
       "id": "M2_RESET_SALVAGE",

@@ -7,6 +7,14 @@
 #     failures include failed:writer_died and failed:owner_never_published
 #   Bare pending expires after MISSION_WORKTREE_OWNER_GRACE seconds (default 60).
 #
+#   Reusable slots (M-MISSION-WORKTREE-SLOTS; tools/launchd/lib/mission-slot.sh):
+#   mission-worktree.sh acquire MISSION ROLE SHA [BRANCH]  prints "pending PATH" | busy | failed:*
+#     then poll `wait PATH` exactly as for add. Owner = the fire ($MISSION_FIRE_ID's driver).
+#   mission-worktree.sh held FIRE_ID ROLE      prints the slot path(s) this fire holds for ROLE
+#   mission-worktree.sh release-fire FIRE_ID   drops this fire's locks (the driver's EXIT trap)
+#   Slot root: $MISSION_SLOT_ROOT (default ~/.ailang-slots); refused under /tmp, sweep-protected
+#   prefixes or ~/dev/sunholo-data (checkout-audit deletes idle trees there).
+#
 # A full checkout can outlive the controller's shell tool. Detach the writer and register
 # its identity before returning; wait recovers abandoned pending state after writer death.
 # /tmp trees are refused because their location breaks tests (gate-3-route.md).
@@ -104,50 +112,9 @@ rendezvous() {
   while [ ! -f "$1" ] && [ "$SECONDS" -lt "$end" ]; do sleep .1; done
   [ -f "$1" ]
 }
-case "${1:-}" in
-  _checkout)
-    REPO=$2; BRANCH=$3; SHA=$4; WT=$5; SF=$6; TOKEN=$7
-    register "$SF.child"
-    rendezvous "$SF.go" || exit 1
-    git -C "$REPO" worktree add -q -b "$BRANCH" "$WT" "$SHA" >/dev/null 2>&1
-    exit $?
-    ;;
-  _writer)
-    REPO=$2; BRANCH=$3; SHA=$4; WT=$5; SF=$6; TOKEN=$7; LIMIT=$8
-    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
-    register "$SF.started" && rendezvous "$SF.owner" && owner && [ "$PID" = "$$" ] || {
-      fail_pending owner_never_published; exit 1;
-    }
-    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
-    set -m
-    /bin/bash "$0" _checkout "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" & p=$!
-    set +m
-    rendezvous "$SF.child" || { fail_pending writer_died; exit 1; }
-    : > "$SF.go"
-    s=0; reason=""
-    while kill -0 "$p" 2>/dev/null; do
-      if [ "$s" -ge "$LIMIT" ]; then reason="timeout_${LIMIT}s"; break; fi
-      sleep 1; s=$((s+1))
-    done
-    if [ -n "$reason" ]; then
-      if ! quiesce; then echo 'mission-worktree: cannot verify checkout group for timeout cleanup' >&2; exit 1; fi
-      wait "$p" 2>/dev/null || :
-    else
-      wait "$p"; rc=$?
-      [ "$rc" -eq 0 ] || reason="worktree_add_rc_$rc"
-    fi
-    if [ -z "$reason" ]; then
-      n=$(git -C "$WT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-      [ "$n" = 0 ] || reason="not_clean_after_add ($n entries)"
-    fi
-    if [ -n "$reason" ]; then cleanup; echo "failed:$reason" > "$SF"; else echo ready > "$SF"; fi
-    ;;
-  add)
-    BRANCH="${2:-}"; SHA="${3:-}"; WT="${4:-}"
-    [ -n "$BRANCH" ] && [ -n "$SHA" ] && [ -n "$WT" ] || { echo 'usage: mission-worktree.sh add BRANCH SHA PATH' >&2; exit 2; }
-    case "$WT" in /tmp/*|/private/tmp/*) echo "failed:path_under_tmp ($WT) — use a sibling of the repo" >&2; exit 1;; esac
-    [ ! -e "$WT" ] || { echo "failed:path_exists ($WT)" >&2; exit 1; }
-    REPO=$(git rev-parse --show-toplevel 2>/dev/null) || { echo failed:not_in_a_repo >&2; exit 1; }
+# Start the detached, bounded writer for $WT and publish its owner record (used by add and by
+# slot acquire). Args: MODE (add|slot) SLOT_BRANCH. Reads REPO BRANCH SHA WT.
+launch_writer() {
     SF=$(status_file "$WT"); echo pending > "$SF"
     TOKEN=$(mktemp "$STATE/launch.XXXXXX") || exit 1
     rm -f "$TOKEN"
@@ -156,11 +123,11 @@ case "${1:-}" in
     set +m
     if perl -MPOSIX -e 'POSIX::setsid() >= 0 or die "setsid: $!"' </dev/null >/dev/null 2>&1; then
       nohup perl -MPOSIX -e 'POSIX::setsid() >= 0 or die "setsid: $!"; exec @ARGV; die "exec: $!"' \
-        /bin/bash "$0" _writer "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" "$LIMIT" </dev/null >/dev/null 2>&1 & PID=$!
+        /bin/bash "$0" _writer "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" "$LIMIT" "$1" "$2" </dev/null >/dev/null 2>&1 & PID=$!
     else
       echo 'mission-worktree: Perl POSIX::setsid unavailable; using bash set -m' >&2
       set -m
-      nohup /bin/bash "$0" _writer "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" "$LIMIT" </dev/null >/dev/null 2>&1 & PID=$!
+      nohup /bin/bash "$0" _writer "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" "$LIMIT" "$1" "$2" </dev/null >/dev/null 2>&1 & PID=$!
       set +m
     fi
     # A failed launcher still gets an owner record; wait can prove its PID absent.
@@ -177,6 +144,63 @@ case "${1:-}" in
     fi
     printf '%s\n%s\n%s\n%s\n%s\n%s\n' "$PID" "$BIRTH" "$TOKEN" "$REPO" "$BRANCH" "$PGID" > "$SF.owner.tmp.$$"
     mv "$SF.owner.tmp.$$" "$SF.owner" || exit 1
+}
+
+SLOT_LIB="$(cd "$(dirname "$0")" && pwd)/lib/mission-slot.sh"
+# shellcheck source=lib/mission-slot.sh
+[ -f "$SLOT_LIB" ] && . "$SLOT_LIB"
+
+case "${1:-}" in
+  _checkout)
+    REPO=$2; BRANCH=$3; SHA=$4; WT=$5; SF=$6; TOKEN=$7; MODE=${8:-add}; SLOT_BR=${9:-}
+    register "$SF.child"
+    rendezvous "$SF.go" || exit 1
+    if [ "$MODE" = slot ]; then slot_checkout "$REPO" "$SHA" "$WT" "$SLOT_BR"; exit $?; fi
+    git -C "$REPO" worktree add -q -b "$BRANCH" "$WT" "$SHA" >/dev/null 2>&1
+    exit $?
+    ;;
+  _writer)
+    REPO=$2; BRANCH=$3; SHA=$4; WT=$5; SF=$6; TOKEN=$7; LIMIT=$8; MODE=${9:-add}; SLOT_BR=${10:-}
+    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
+    register "$SF.started" && rendezvous "$SF.owner" && owner && [ "$PID" = "$$" ] || {
+      fail_pending owner_never_published; exit 1;
+    }
+    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
+    set -m
+    /bin/bash "$0" _checkout "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" "$MODE" "$SLOT_BR" & p=$!
+    set +m
+    rendezvous "$SF.child" || { fail_pending writer_died; exit 1; }
+    : > "$SF.go"
+    s=0; reason=""
+    while kill -0 "$p" 2>/dev/null; do
+      if [ "$s" -ge "$LIMIT" ]; then reason="timeout_${LIMIT}s"; break; fi
+      sleep 1; s=$((s+1))
+    done
+    if [ -n "$reason" ]; then
+      if ! quiesce; then echo 'mission-worktree: cannot verify checkout group for timeout cleanup' >&2; exit 1; fi
+      wait "$p" 2>/dev/null || :
+    else
+      wait "$p"; rc=$?
+      [ "$rc" -eq 0 ] || { if [ "$MODE" = slot ]; then reason="slot_checkout_rc_$rc"; else reason="worktree_add_rc_$rc"; fi; }
+    fi
+    if [ -z "$reason" ]; then
+      n=$(git -C "$WT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$MODE" = slot ]; then
+        [ "$n" = 0 ] || reason="not_clean_after_reset ($n entries)"
+        [ -n "$reason" ] || [ "$(git -C "$WT" rev-parse HEAD 2>/dev/null)" = "$SHA" ] || reason="head_not_at_sha"
+      else
+        [ "$n" = 0 ] || reason="not_clean_after_add ($n entries)"
+      fi
+    fi
+    if [ -n "$reason" ]; then cleanup; echo "failed:$reason" > "$SF"; else echo ready > "$SF"; fi
+    ;;
+  add)
+    BRANCH="${2:-}"; SHA="${3:-}"; WT="${4:-}"
+    [ -n "$BRANCH" ] && [ -n "$SHA" ] && [ -n "$WT" ] || { echo 'usage: mission-worktree.sh add BRANCH SHA PATH' >&2; exit 2; }
+    case "$WT" in /tmp/*|/private/tmp/*) echo "failed:path_under_tmp ($WT) — use a sibling of the repo" >&2; exit 1;; esac
+    [ ! -e "$WT" ] || { echo "failed:path_exists ($WT)" >&2; exit 1; }
+    REPO=$(git rev-parse --show-toplevel 2>/dev/null) || { echo failed:not_in_a_repo >&2; exit 1; }
+    launch_writer add ""
     echo "$WT"
     ;;
   wait)
@@ -209,5 +233,8 @@ case "${1:-}" in
       sleep 1; s=$((s+1))
     done
     ;;
-  *) sed -n '2,8p' "$0" >&2; exit 2;;
+  acquire) shift; slot_acquire "$@"; exit $? ;;
+  held) shift; slot_held "$@"; exit $? ;;
+  release-fire) shift; slot_release_fire "$@"; exit $? ;;
+  *) sed -n '2,17p' "$0" >&2; exit 2;;
 esac

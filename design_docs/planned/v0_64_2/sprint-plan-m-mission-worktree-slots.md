@@ -65,7 +65,7 @@ buffer.
 
 ## Proposed Milestones
 
-### M1: Slot ownership: `acquire` / `held` / `release-fire`
+### M1: Slot ownership: `acquire` / `held` / `release-fire` ✅ (2026-11-28)
 
 **Goal:** Fire-owned, lock-held slots with safe stealing and location guards. First creation goes
 through the existing bounded writer. No reset logic yet: an existing slot is reused only if clean
@@ -98,11 +98,11 @@ nothing calls `acquire` until M4.
    `release-fire FIRE_ID` removes only locks whose `fire_id` matches.
 
 **Acceptance criteria:**
-- [ ] TST-SLOT-01, TST-SLOT-04, TST-SLOT-05, TST-SLOT-09, TST-SLOT-12, TST-SLOT-13, TST-SLOT-14 pass in `tools/launchd/test_mission_slots.sh` (each test carries its ID in a comment, so `check_acceptance_criteria.sh` can find it)
-- [ ] TST-SLOT-04 uses the real topology: acquire in shell A, which exits; driver stand-in D alive; **no cwd inside**; shell B in another process group (`set -m`) acquires
-- [ ] TST-SLOT-11: `tools/launchd/test_mission_worktree.sh` passes **unmodified** (`git diff --exit-code` on it)
-- [ ] `/bin/bash -n` clean; runs under `/bin/bash` 3.2 (no `declare -A`, `${v,,}`, GNU `timeout`, relative `find -newermt`)
-- [ ] `make test-launchd-drivers` green
+- [x] TST-SLOT-01, TST-SLOT-04, TST-SLOT-05, TST-SLOT-09, TST-SLOT-12, TST-SLOT-13, TST-SLOT-14 pass in `tools/launchd/test_mission_slots.sh` (each test carries its ID in a comment, so `check_acceptance_criteria.sh` can find it)
+- [x] TST-SLOT-04 uses the real topology: acquire in shell A, which exits; driver stand-in D alive; **no cwd inside**; shell B in another process group (`set -m`) acquires
+- [x] TST-SLOT-11: `tools/launchd/test_mission_worktree.sh` passes **unmodified** (`git diff --exit-code` on it)
+- [x] `/bin/bash -n` clean; runs under `/bin/bash` 3.2 (no `declare -A`, `${v,,}`, GNU `timeout`, relative `find -newermt`)
+- [x] `make test-launchd-drivers` green
 
 **Risks:**
 - PID reuse on a long-uptime rig. Mitigation: birth-time match, as `identity()` already does.
