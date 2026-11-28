@@ -2,8 +2,8 @@
   "sprint_id": "M-V1-RC1-READINESS-AND-DX-SWARM",
   "status": "completed",
   "created": "2026-11-27T14:30:00Z",
-  "design_doc": "design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md",
-  "sprint_plan": "design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md",
+  "design_doc": "design_docs/implemented/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md",
+  "sprint_plan": "design_docs/implemented/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md",
   "github_issues": [
     506,
     2323,

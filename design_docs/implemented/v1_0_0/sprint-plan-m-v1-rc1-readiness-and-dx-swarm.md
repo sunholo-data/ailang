@@ -3,11 +3,11 @@
 ## Placement and Human-Decision Rules
 
 - **Artifact paths**:
-  - Design Doc: `design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md`
-  - Sprint Plan: `design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md`
+  - Design Doc: `design_docs/implemented/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md`
+  - Sprint Plan: `design_docs/implemented/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md`
   - Sprint JSON: `.ailang/state/sprints/sprint_M-V1-RC1-READINESS-AND-DX-SWARM.json`
 - **Rulings vs. Human-Decision Gates**:
-  - High-impact decisions `D1..D4` are pre-ruled with their `(Recommended)` defaults in `design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md` (§High-Impact Decisions & §Design Freeze): **`D1=a`** (full M4+M5 capability hygiene: `--caps auto` stderr disclosure unless explicit `--quiet`, `Process` excluded from `auto`, `[bin]` shim capability pinning + `--grant-new-caps`, and `E_CAPS_MISSING` pre-flight), **`D2=a`** (single explicit `_` direct call-argument placeholder on RHS of `|>`), **`D3=a`** (`v0.16.21` + `v0.16.21-compact` + semver compact sort while keeping frozen `v0.16.20.md` and `v0.7.4-compact.md` untouched), and **`D4=a`** (`std/result.{mapResult,collect}` + `std/math.{minInt,maxInt,clampInt}`).
+  - High-impact decisions `D1..D4` are pre-ruled with their `(Recommended)` defaults in `design_docs/implemented/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md` (§High-Impact Decisions & §Design Freeze): **`D1=a`** (full M4+M5 capability hygiene: `--caps auto` stderr disclosure unless explicit `--quiet`, `Process` excluded from `auto`, `[bin]` shim capability pinning + `--grant-new-caps`, and `E_CAPS_MISSING` pre-flight), **`D2=a`** (single explicit `_` direct call-argument placeholder on RHS of `|>`), **`D3=a`** (`v0.16.21` + `v0.16.21-compact` + semver compact sort while keeping frozen `v0.16.20.md` and `v0.7.4-compact.md` untouched), and **`D4=a`** (`std/result.{mapResult,collect}` + `std/math.{minInt,maxInt,clampInt}`).
   - No decision remains OPEN under the default rulings. If a human reviewer unchecks or re-opens any `D1..D4` checkbox in `m-v1-rc1-readiness-and-dx-swarm.md` §Design Freeze before execution, **STOP: commit current work, report `BLOCKED: unratified Design Freeze decision in m-v1-rc1-readiness-and-dx-swarm.md`, and end the run**.
 
 ---

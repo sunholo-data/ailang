@@ -1,6 +1,6 @@
 # M-V1-RC1-READINESS-AND-DX-SWARM: v1.0.0-rc.1 Compiler Soundness, Engine Parity, AI Ergonomics & Public Surface Hygiene
 
-**Status**: Planned
+**Status**: Implemented in v1.0.0-rc.1 (`2e583399d`, PR #2486; prior status: Planned)
 **Target**: v0.64.2 / v1.0.0-rc.1
 **Priority**: P0 (v1.0.0-rc.1 Release Gate)
 **Estimated**: 4 days (~1,920 LOC implementation + tests across 5 parallel author slices + integration + verification)
