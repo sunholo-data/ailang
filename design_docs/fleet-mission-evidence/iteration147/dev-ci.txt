@@ -1,0 +1,25 @@
+dev HEAD 2e583399dddee657bb936d01490e7da43a669124 (read 2026-11-28T00:17:56Z)
+required contexts: test,lint,build,docs-gate,checks
+checks=22
+  Create Release Bundle: success
+  deploy: success
+  docs-gate: success
+  SonarCloud Code Analysis: failure
+  launchd drivers (bash 3.2): success
+  test-windows: success
+  float determinism (arm64): success
+  build: success
+  govulncheck (vuln gate): success
+  docs-build: success
+  ailang-core-dev (ailang-multivac-deploy): success
+  checks: success
+  test: success
+  lint: success
+  dependency-submission: success
+  changes: success
+  docs: success
+  Build ubuntu-latest: success
+  docs-changes: success
+  Build macos-latest: success
+  Build macos-latest: success
+  Build windows-latest: success

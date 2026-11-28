@@ -1,0 +1,8 @@
+# ticket diff i146 -> i147 (signature,slots_lost,last_seen; jq -S)
+96,100d95
+<   },
+<   {
+<     "last_seen": "2026-11-27T05:21:13.535116Z",
+<     "signature": "idle-fingerprint:blind-to-nightly-rig-red",
+<     "slots_lost": 1
+rows: i146=20 i147=19
