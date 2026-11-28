@@ -39,17 +39,26 @@ export func latestVersion() -> string ! {Env, FS} = match readUnscopedJson("vers
 pure func isDigits(s: string) -> bool =
   length(s) > 0 && foldChars(\ok c. ok && charCode(c) >= 48 && charCode(c) <= 57, true, s)
 
--- X.Y.Z with digits only.
+pure func isPrereleaseChar(c: string) -> bool =
+  let n = charCode(c) in
+  n >= 48 && n <= 57 || n >= 65 && n <= 90 || n >= 97 && n <= 122 || n == 45 || n == 46
+
+-- X.Y.Z with digits only, optionally followed by a prerelease tag such as
+-- -rc.1 (letters, digits, "." and "-"). Release tags are v1.0.0-rc.1 and the
+-- like, so a prerelease server's own version must count as a release.
 export pure func isSemver(v: string) -> bool =
-  let parts = split(v, ".") in
-  listLength(parts) == 3 && listLength(filter(\p. isDigits(p), parts)) == 3
+  let dash = find(v, "-") in
+  let core = if dash < 0 then v else substring(v, 0, dash) in
+  let pre = if dash < 0 then "" else substring(v, dash + 1, length(v)) in
+  let parts = split(core, ".") in
+  listLength(parts) == 3 && listLength(filter(\p. isDigits(p), parts)) == 3 && (dash < 0 || length(pre) > 0 && foldChars(\ok c. ok && isPrereleaseChar(c), true, pre))
 
 -- The release a version-scoped call reads: "" and "latest" mean this server's
 -- own version; a leading "v" is accepted.
 export func releaseVersion(forVersion: string) -> Result[string, string] ! {Env, FS} =
   let asked = trim(forVersion) in
   let v = if asked == "" || asked == "latest" then latestVersion() else if startsWith(asked, "v") then substring(asked, 1, length(asked)) else asked in
-  if isSemver(v) then Ok(v) else Err("unknown version '${forVersion}': pass X.Y.Z (for example 0.60.4) or leave it empty for the latest")
+  if isSemver(v) then Ok(v) else Err("unknown version '${forVersion}': pass X.Y.Z or X.Y.Z-rc.N (for example 0.60.4) or leave it empty for the latest")
 
 pure func safeChar(c: string) -> bool =
   let n = charCode(c) in
