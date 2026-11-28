@@ -43,12 +43,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
-## STATUS 2026-11-21 — ITERATION 52: cross-vendor queue review and aged card holds [ADMIN]
+## STATUS 2026-11-27 — ITERATION 61: cross-vendor queue review and Sprint 4 execution hold [ADMIN]
 
-## STATUS 2026-11-20 — ITERATION 51: historical digest recovered, two PR findings recorded [ADMIN]
+## STATUS 2026-11-27 — ITERATION 60: cross-vendor queue review and red dev documentation links [ADMIN]
 
-## STATUS 2026-11-20 — ITERATION 50: 16 independent reviews, one fix confirmed, nine issue labels, fixture soak held [ADMIN]
-
+## STATUS 2026-11-26 — ITERATION 58: green dev and queue verdicts parked on the evaluator lane [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -223,6 +222,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | D-TRIAGE-80 | RESOLVED | #2145/PR2147/task-c06dd4e2: A (rec. by triage), retire the redundant original chain attended because all six prompt corrections landed at f20e6dea2; then issue2145 becomes eligible for a separately judged T2-safe close. B retain only justified residual guidance and remove root scratch fixtures, keeping issue closure held. Retirement final; no answer HOLD, no rejection/PR-close by triage.  **ANSWERED — A — as recommended, exactly the A option stated in the question.** (Mark Edmondson, attended 2026-11-09, recorded directly in this ledger.)| Iteration32 OpenAI verifier / MiniMax judge CONCUR; prompts/v0.16.12.md and PR2147; https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6699114256  **Attended ruling 2026-11-09** — recorded in-session under the ATTENDED LEDGER EDITS contract, not via the bookkeeping issue. Provenance is the ATTENDED SESSION, not the commit author: this script stamps a fixed attended identity for EVERY caller (ATT_NAME/ATT_EMAIL are defaults, not derived from the invoker), and nothing in scripts/mission_decisions.sh or the mission-control skill reads the commit author of a ledger resolution (verified 2026-09-04, positive-controlled). The control is the charter rule that the UNATTENDED loop may not resolve a row on its own behalf. Mark, attended 2026-11-09: 'yep do all recommendations' (replying to the attended summary of all 44 OPEN rows after #2170 landed)|
 | D-TRIAGE-81 | RESOLVED | May the loop merge its own record PR? ANSWERED — YES, narrowly: a `triage/*-record` PR whose diff touches only `design_docs/triage-mission*.md`, whose ledger validates, and whose required checks are green on the head now, squash-merged with `--match-head-commit`. No other PR and no card approval or rejection; everything else stays Level 1. (Mark, attended 2026-11-09: "that it can merge its own PRs is fine".) | 8 stacked draft record PRs (#2114 … #2170), 2026-11-04..09, kept D50–D80 off dev, which showed 15 OPEN while digests said 44; #2170 merged attended as c3b30f1f9, the 7 older drafts closed as superseded. |
 | D-TRIAGE-82 | OPEN | Persistent-store overlap (#1862 task-7f6a2223 and #2097 task-d57f6f2f). A (recommended) designate the later #2097 design as the sole candidate for future execution and hold the older conflicted implementation as reference (reversible). B ask the owner for a reconciled residual implementation scope before either proceeds (adds a scope review). No answer = HOLD. Either option keeps execution separately gated. | PR #1862 head 6c473243634b989a05e7ddd22b4554f8c4caf8a8 overlaps design_docs/planned/v0_57_1/m-persistent-semantic-store.md. OpenRouter MiniMax concurs that scope must be reconciled. https://github.com/sunholo-data/ailang/issues/2069#issuecomment-7019310174 |
+| D-TRIAGE-83 | OPEN | A (recommended): explicitly authorize the current Sprint 4 path-dependency pkg move plan via task-787cea7d / PR #2485 for operator dispatch to sprint-executor (final). B: hold the card and defer Phase 4 (reversible). No answer = HOLD. | PR #2485 head cb40bad1f26d5225a90a4a0c3d792f2bb0f148c0, issue #2484 planner-only request, and design freeze in design_docs/planned/v0_63_0/m-pkg-parallel-agents.md. OpenAI GPT-6 Luna and independent MiniMax M3 concurred. Iteration 61 at https://github.com/sunholo-data/ailang/issues/2453. |
 <!-- decision-ledger:end -->
 
 ## Queue
@@ -232,7 +232,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed, held and stale queue items. Iteration 52 independently reviewed the aged cards and existing holds. Carry the six dispatch prerequisites forward, keep PR #2430 held for the ten-leg macOS soak and reaping-host evidence, and surface the attended D-TRIAGE-82 record in PR #2429 until it reaches dev.
+4. [NEXT] Refresh changed, held and stale groups. Iteration 61 carries the aged execution holds, PR #2430 soak and reaping-host evidence, and D-TRIAGE-82 publication through PR #2429. PR #2485 awaits explicit Sprint 4 execution authorization.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified. Iteration26 recurrence inbox_1793741284696_503247dd: direct send refused rc1; existing normal/one new-decision urgent controlplane fallback and user summary exact-peek verified.
@@ -253,6 +253,14 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 14. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage iteration34 recurrence inbox_1794100588296_d09dbdc0: direct normal rc1; prescribed controlplane and user summaries exact-peek verified, unread. No force or harness/config/registry/IAM repair.
 
 15. [HARNESS] [RESOLVED receipt iteration49] ticket:ci:motoko-probe-refusing-live-path-unexpected-success. Fleet #2385 at b1942b7f9b8fbd53c41d1c712b27397b90626d3a is an ancestor of reviewed dev. The empty-read test guards both lanes. MiniMax concurred. Receipt inbox_1794899510520_d8631754 remains unread until this record lands.
+
+16. [HARNESS] [FIX PRESENT; RECEIPT HELD] ticket:push:scope-guard:rebased-record-inherited-sibling-paths — Fleet #2456 at 18acb95b76f7a9823f484b434ee7bbe80fb6b39b is on reviewed dev. The current launchd job passed the scope guard suite. Independent judgment requires this triage record on dev before acknowledging inbox_1795502066464_287e18d1.
+
+17. [HARNESS] [NONBLOCKING] ticket:ci:verify-gap-map-workflow-wiring — The verify target is absent from CI wiring. Fleet intake to establish the intended owner and use. Filed as inbox_1795536383328_18e495d5 in iteration 55.
+
+18. [HARNESS] [NONBLOCKING] ticket:ci:agy-pin-test-home-isolation — The agy pin fixture is flagged by the HOME isolation guard. The same source line fails on the parent. Filed as inbox_1795536384085_b8bbb402 in iteration 55.
+
+19. [HARNESS] [NONBLOCKING] ticket:ci:modelreg-qwen-slug-pricing-mismatch — Two entries configure differing rates for one slug. Fleet intake to reconcile their recorded values. Filed as inbox_1795536384793_800fec2c in iteration 55.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.

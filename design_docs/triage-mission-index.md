@@ -12,6 +12,14 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 61 | 2026-11-27 | cross-vendor queue review and Sprint 4 execution hold [ADMIN] |
+| 60 | 2026-11-27 | cross-vendor queue review and red dev documentation links [ADMIN] |
+| 58 | 2026-11-26 | green dev and queue verdicts parked on the evaluator lane [ADMIN] |
+| 57 | 2026-11-25 | cross-vendor queue review and two reproducible dev CI failures [ADMIN] |
+| 56 | 2026-11-25 | independent review, execution holds and evaluator fallback [ADMIN] |
+| 55 | 2026-11-24 | cross-vendor reviews, aged holds and new dev CI routes [HARNESS] [ADMIN] |
+| 54 | 2026-11-24 | cross-vendor queue review and new dev vulnerability-gate failure [ADMIN] |
+| 53 | 2026-11-23 | new red dev routed; one real issue verified, judged and labelled [ADMIN] |
 | 52 | 2026-11-21 | cross-vendor review and seven aged green cards held [ADMIN] |
 | 51 | 2026-11-20 | prior digest recovered, two PR findings recorded [ADMIN] |
 | 50 | 2026-11-20 | 16 independent reviews, one fix confirmed, nine issue labels, fixture soak held [ADMIN] |
