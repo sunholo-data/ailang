@@ -1,12 +1,14 @@
 package agy
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func realKeychainState(t *testing.T) string {
@@ -14,6 +16,21 @@ func realKeychainState(t *testing.T) string {
 	a, _ := exec.Command("/usr/bin/security", "list-keychains", "-d", "user").CombinedOutput()
 	b, _ := exec.Command("/usr/bin/security", "default-keychain", "-d", "user").CombinedOutput()
 	return string(a) + string(b)
+}
+
+// showKeychainInfoBounded runs `security show-keychain-info` the way securityRun does,
+// but killed after 20s; a timeout returns context.DeadlineExceeded.
+func showKeychainInfoBounded(home, kc string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/usr/bin/security", "show-keychain-info", kc)
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + home}
+	cmd.WaitDelay = 2 * time.Second
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return out, context.DeadlineExceeded
+	}
+	return out, err
 }
 
 // Against the real `security` tool: the route HOME gets its own locked default keychain,
@@ -36,8 +53,13 @@ func TestEnsureLockedKeychain_Darwin(t *testing.T) {
 	if out, _ := securityRun(home, "default-keychain", "-d", "user"); !strings.Contains(string(out), kc) {
 		t.Fatalf("default keychain under the route HOME = %q, want %s", out, kc)
 	}
-	// Locked: reading its settings is refused without a dialog (exit 36).
-	if out, err := securityRun(home, "show-keychain-info", kc); err == nil {
+	// Locked: reading its settings is refused without a dialog (exit 36). Outside a
+	// login session (a CI runner) `security` instead waits for the keychain password
+	// on the terminal, which hung macOS CI for the full 15m test timeout, so this probe
+	// is bounded and that case skips: there is no dialog to prevent there anyway.
+	if out, err := showKeychainInfoBounded(home, kc); errors.Is(err, context.DeadlineExceeded) {
+		t.Skipf("show-keychain-info waited for a password (no login session); locked check needs one: %s", out)
+	} else if err == nil {
 		t.Fatalf("keychain is unlocked (show-keychain-info succeeded: %s); agy would write to it", out)
 	} else if ee := (*exec.ExitError)(nil); !errors.As(err, &ee) || ee.ExitCode() != 36 {
 		t.Fatalf("show-keychain-info: want exit 36 (locked), got %v: %s", err, out)
