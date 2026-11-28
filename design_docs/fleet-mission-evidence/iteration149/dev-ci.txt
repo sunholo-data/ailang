@@ -40,3 +40,17 @@ checks=16
 checks=20
 ## required contexts (branch protection)
 test, lint, build, docs-gate, checks
+
+## PR #2492 head 1a2e74058 (merge-ref CI), poll log
+14:38:22Z sha=1a2e74058 total=22 pending_all=4 test=completed/failure lint=completed/success build=completed/success docs-gate=completed/success checks=completed/success
+VERDICT RED for 1a2e74058bd893fb1cce49bc7ca6dd0c0bf560b2: test=completed/failure lint=completed/success build=completed/success docs-gate=completed/success checks=completed/success
+DONE
+## 58f045ba6 full check set, re-read 2026-11-28T14:40:22Z
+checks=32
+  NOT-GREEN ailang-core-release (ailang-multivac-deploy): completed/failure
+  NOT-GREEN test: completed/failure
+  NOT-GREEN Build macos-latest: completed/failure
+  NOT-GREEN Build macos-latest: completed/failure
+  NOT-GREEN Build ubuntu-latest: completed/failure
+  NOT-GREEN CI gate (required checks green on the tagged SHA): completed/failure
+## failing test in every failing test/Build leg: TestDocsTools_EveryToolSucceeds (docs_tools_smoke_test.go:156, examples_list/example_get forVersion "" -> unknown version '')
