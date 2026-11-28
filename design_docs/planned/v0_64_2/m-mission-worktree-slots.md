@@ -192,6 +192,11 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
         - a byte copy of the worktree's `index` file;
         - a tar of untracked files.
 
+        **Restore** (proven by TST-SLOT-03): in a tree at the INFO `head`,
+        `git apply --index staged.patch && git apply unstaged.patch && tar -xf untracked.tar`
+        (`--index`, not `--cached`: the unstaged diff is relative to the staged content). The index
+        copy is taken before any git command runs, because even `git status` can rewrite it.
+
         It logs one line. Then `git checkout --detach --force <SHA>` → `git clean -ffdx` → if a
         BRANCH was given, `git switch -c <BRANCH>`. A name that already exists is a refusal,
         never `-C`: an existing branch can hold unpushed commits.

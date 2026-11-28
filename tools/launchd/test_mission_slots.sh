@@ -168,10 +168,67 @@ for i in $(seq 1 $rounds); do
 done
 [ "$good" = "$rounds" ] && ok "$rounds/$rounds rounds: exactly one winner of exec-1, distinct slots, owner recorded"
 
-echo "== M1 boundary: a slot at another SHA is not reset yet (M2), and its lock is released"
+mtime() { perl -e '@s = stat shift or exit; print $s[9]' "$1" 2>/dev/null; }
+release() { (cd "$R" && bash "$MW" release-fire "$1") >/dev/null; }
+SV="$HOME/.ailang/state/slots"
+
+echo "== TST-SLOT-02: reset to a newer SHA rewrites only the changed files"
 start_driver; F9=$FIRE
-o=$(acq "$F9" exec "$SHA2")
-case "$o" in failed:reset_not_implemented*) ok "refused until M2: $o" ;; "pending "*) ok "reset available (M2 landed): $o" ;; *) bad "boundary" "$o" ;; esac
+o=$(acq_ready "$F9" exec "$SHA1"); [ "$o" = "$ROOT/exec-1" ] || bad "exec-1 at SHA1" "$o"
+release "$F9"
+a_before=$(mtime "$ROOT/exec-1/a"); sleep 1.2
+o=$(acq_ready "$F9" exec "$SHA2")
+[ "$o" = "$ROOT/exec-1" ] && ok "same slot reused at SHA2" || bad "reuse" "$o"
+[ "$(git -C "$ROOT/exec-1" rev-parse HEAD)" = "$SHA2" ] && [ -f "$ROOT/exec-1/b" ] && ok "HEAD = SHA2, new file present" || bad "HEAD" "$(git -C "$ROOT/exec-1" rev-parse HEAD)"
+[ "$(mtime "$ROOT/exec-1/a")" = "$a_before" ] && ok "unchanged file a not rewritten (incremental checkout)" || bad "a rewritten" "$a_before -> $(mtime "$ROOT/exec-1/a")"
+[ -z "$(git -C "$ROOT/exec-1" status --porcelain)" ] && ok "clean" || bad "clean" "$(git -C "$ROOT/exec-1" status --porcelain)"
+[ ! -d "$SV/repo_m_exec-1" ] && ok "clean slot: no salvage written" || bad "salvage for a clean slot" "$(ls "$SV/repo_m_exec-1")"
+release "$F9"
+
+echo "== TST-SLOT-03: a dirty slot is salvaged (staged, unstaged, index, untracked) and then reset"
+W="$ROOT/exec-1"
+git -C "$W" checkout -q --detach "$SHA1"
+echo b2 > "$W/c-unstaged"; git -C "$W" add c-unstaged; git -C "$W" -c user.name=t -c user.email=t@t commit -qm local-detached
+echo B > "$W/a"; git -C "$W" add a; echo a > "$W/a"   # stage B, restore the file to HEAD's content
+echo b3 > "$W/c-unstaged"                              # unstaged change on a tracked file
+echo U > "$W/untracked.txt"
+OLD=$(git -C "$W" rev-parse HEAD)
+[ -n "$(git -C "$W" diff HEAD -- a)" ] && bad "fixture" "git diff HEAD sees a" || ok "fixture: the staged B is invisible to git diff HEAD"
+GD=$(git -C "$W" rev-parse --path-format=absolute --git-dir); cp "$GD/index" "$T/index.before"
+o=$(acq_ready "$F9" exec "$SHA2")
+[ "$o" = "$W" ] && ok "reset to SHA2" || bad "reset" "$o"
+[ -z "$(git -C "$W" status --porcelain)" ] && [ "$(git -C "$W" rev-parse HEAD)" = "$SHA2" ] && ok "clean at SHA2" || bad "after reset" "$(git -C "$W" status --porcelain)"
+d=$(find "$SV/repo_m_exec-1" -mindepth 1 -maxdepth 1 -name 'salvage-*' -type d | head -1)
+[ -n "$d" ] && ok "salvage dir written" || bad "salvage" "none"
+cmp -s "$d/index" "$T/index.before" && ok "index copy is byte-identical" || bad "index copy" "differs"
+ref=$(sed -n 's/^ref=//p' "$d/INFO")
+[ -n "$ref" ] && [ "$(git -C "$R" rev-parse "$ref" 2>/dev/null)" = "$OLD" ] && ok "unreachable detached commit pinned at $ref" || bad "pin" "ref=$ref"
+# Restore into a fresh tree at the old HEAD and compare with what was there.
+git -C "$R" worktree add -q --detach "$T/restore" "$OLD"
+(cd "$T/restore" && git apply --index "$d/staged.patch" && git apply "$d/unstaged.patch" && tar -xf "$d/untracked.tar")
+[ "$(git -C "$T/restore" show :a)" = B ] && ok "staged B restored into the index" || bad "staged B" "$(git -C "$T/restore" show :a 2>&1)"
+[ "$(cat "$T/restore/a")" = a ] && [ "$(cat "$T/restore/c-unstaged")" = b3 ] && [ "$(cat "$T/restore/untracked.txt")" = U ] \
+  && ok "working file, unstaged change and untracked file restored" || bad "restore" "$(ls "$T/restore")"
+git -C "$R" worktree remove --force "$T/restore"
+release "$F9"
+
+echo "== slot on a branch from an earlier fire: reset onto a new branch keeps the old one"
+o=$(acq_ready "$F9" record "$SHA2" rec/b2)
+[ "$(git -C "$ROOT/record-1" branch --show-current)" = rec/b2 ] && [ "$(git -C "$ROOT/record-1" rev-parse HEAD)" = "$SHA2" ] && ok "record-1 on rec/b2 at SHA2" || bad "record-1" "$o"
+[ "$(g rev-parse rec/b1)" = "$SHA1" ] && ok "rec/b1 untouched" || bad "rec/b1" "$(g rev-parse rec/b1)"
+release "$F9"
+
+echo "== TST-SLOT-08: a reset that does not prove clean deletes the slot"
+# Inject AFTER clean: a git shim that leaves a stray file once `clean` has run (a hook would be
+# undone by the clean itself).
+mkdir -p "$T/gitbin"
+printf '#!/bin/bash\n%s "$@"; rc=$?\ncase " $* " in *" clean "*) echo junk > "$2/stray.txt";; esac\nexit $rc\n' "$(command -v git)" > "$T/gitbin/git"; chmod +x "$T/gitbin/git"
+o=$(cd "$R" && PATH="$T/gitbin:$PATH" MISSION_FIRE_ID="$F9" bash "$MW" acquire m exec "$SHA1" 2>/dev/null); p=${o#pending }; r=$(waitfor "$p")
+case "$r" in failed:not_clean_after_reset*) ok "failed:not_clean_after_reset" ;; *) bad "unclean reset" "$r" ;; esac
+[ ! -e "$ROOT/exec-1" ] && ok "slot dir removed" || bad "slot left" "$(ls "$ROOT/exec-1" | head -3)"
+release "$F9"   # the fire still holds the lock of its failed slot; the next fire reclaims it
+o=$(acq_ready "$F9" exec "$SHA1"); [ "$o" = "$ROOT/exec-1" ] && ok "next acquire recreates it" || bad "recreate" "$o"
+release "$F9"
 
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" = 0 ]

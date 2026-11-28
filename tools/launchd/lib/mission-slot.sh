@@ -153,12 +153,55 @@ slot_fire_owner() { # sets SLOT_DRIVER_PID / SLOT_DRIVER_BIRTH from MISSION_FIRE
   [ -n "$SLOT_DRIVER_BIRTH" ] || { echo "failed:fire_owner_not_running (pid $SLOT_DRIVER_PID)"; return 1; }
 }
 
-# _checkout body for a slot: create detached at SHA, or (M1) reuse only an identical clean tree.
+slot_id() { # slot path -> <repo>_<mission>_<role>-<n>
+  local root; root=$(slot_phys "$(slot_root)")
+  printf '%s\n' "${1#"$root"/}" | tr '/' '_'
+}
+
+# D1 salvage-then-reset: keep everything a reset could lose. Staged and unstaged changes are kept
+# as SEPARATE diffs (a change staged and then reverted in the file is invisible to `git diff HEAD`),
+# plus a byte copy of the index, a tar of untracked files, and a ref pinning a detached HEAD that
+# no branch or remote contains. Prints the salvage dir, or nothing when there was nothing to keep.
+slot_salvage() {
+  local wt=$1 head br gd dirty pin="" d id ts snap
+  # Copy the index BEFORE any git command: even a read can refresh and rewrite it.
+  gd=$(git -C "$wt" rev-parse --path-format=absolute --git-dir) || return 1
+  snap="$gd/index.salvage.$$"; rm -f "$snap"
+  [ ! -f "$gd/index" ] || cp "$gd/index" "$snap" || return 1
+  head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || { rm -f "$snap"; return 1; }
+  br=$(git -C "$wt" branch --show-current 2>/dev/null)
+  dirty=$(git --no-optional-locks -C "$wt" status --porcelain 2>/dev/null | head -1)
+  if [ -z "$br" ] && [ -z "$(git -C "$wt" for-each-ref --contains "$head" --count=1 refs/heads refs/remotes 2>/dev/null)" ]; then
+    pin=1
+  fi
+  [ -n "$dirty" ] || [ -n "$pin" ] || { rm -f "$snap"; return 0; }
+  id=$(slot_id "$wt"); ts=$(date +%Y%m%dT%H%M%S)-$$
+  d="$HOME/.ailang/state/slots/$id/salvage-$ts"
+  mkdir -p "$d" || return 1
+  printf 'path=%s\nhead=%s\nbranch=%s\n' "$wt" "$head" "${br:-detached}" > "$d/INFO"
+  [ ! -f "$snap" ] || mv "$snap" "$d/index" || return 1
+  git --no-optional-locks -C "$wt" diff --binary --cached > "$d/staged.patch" || return 1
+  git --no-optional-locks -C "$wt" diff --binary > "$d/unstaged.patch" || return 1
+  (cd "$wt" && git ls-files -o --exclude-standard -z | tar --null -T - -cf "$d/untracked.tar") || return 1
+  if [ -n "$pin" ]; then
+    git -C "$wt" update-ref "refs/salvage/slots/$id/$ts" "$head" || return 1
+    printf 'ref=refs/salvage/slots/%s/%s\n' "$id" "$ts" >> "$d/INFO"
+  fi
+  printf '%s\n' "$d"
+}
+
+slot_log() { mkdir -p "$HOME/.ailang/state/slots" && printf '[%s] %s\n' "$(date '+%F %T')" "$*" >> "$HOME/.ailang/state/slots/slots.log"; }
+
+# _checkout body for a slot (runs inside the bounded writer): create detached at SHA, or salvage
+# then reset an existing slot in place. The writer then proves HEAD = SHA and an empty status.
 slot_checkout() {
-  local repo=$1 sha=$2 wt=$3 br=$4
+  local repo=$1 sha=$2 wt=$3 br=$4 sv old
   if [ -e "$wt/.git" ]; then
-    [ "$(git -C "$wt" rev-parse HEAD 2>/dev/null)" = "$sha" ] || return 3
-    [ -z "$(git -C "$wt" status --porcelain 2>/dev/null)" ] || return 3
+    old=$(git -C "$wt" rev-parse HEAD 2>/dev/null)
+    sv=$(slot_salvage "$wt") || return 3          # never reset what could not be saved
+    git -C "$wt" checkout --quiet --detach --force "$sha" >/dev/null 2>&1 || return 6
+    git -C "$wt" clean -ffdxq >/dev/null 2>&1 || return 7
+    slot_log "reset $wt ${old:-?} -> $sha salvage=${sv:-none}"
   else
     mkdir -p "$(dirname "$wt")" || return 4
     git -C "$repo" worktree add -q --detach "$wt" "$sha" >/dev/null 2>&1 || return $?
@@ -171,7 +214,7 @@ slot_checkout() {
 SLOT_NO_BRANCH="..slot-no-branch"
 
 slot_acquire() { # MISSION ROLE SHA [BRANCH]
-  local mission=${1:-} role=${2:-} sha=${3:-} br=${4:-} root base cur
+  local mission=${1:-} role=${2:-} sha=${3:-} br=${4:-} root base
   [ -n "$mission" ] && [ -n "$role" ] && [ -n "$sha" ] || { echo 'usage: mission-worktree.sh acquire MISSION ROLE SHA [BRANCH]' >&2; return 2; }
   case "$mission" in *[!A-Za-z0-9_-]*) echo "failed:bad_mission ($mission)"; return 1 ;; esac
   case "$role" in *[!a-z]*) echo "failed:bad_role ($role)"; return 1 ;; esac
@@ -190,12 +233,6 @@ slot_acquire() { # MISSION ROLE SHA [BRANCH]
   WT=$(slot_take "$base" "$role") || { echo busy; return 1; }
   if [ -e "$WT" ] && [ ! -e "$WT/.git" ]; then
     rm -rf "${WT:?}.lock"; echo "failed:slot_occupied_not_worktree ($WT)"; return 1
-  fi
-  if [ -e "$WT/.git" ]; then
-    cur=$(git -C "$WT" rev-parse HEAD 2>/dev/null)
-    if [ "$cur" != "$sha" ] || [ -n "$(git -C "$WT" status --porcelain 2>/dev/null)" ]; then
-      rm -rf "${WT:?}.lock"; echo "failed:reset_not_implemented ($WT)"; return 1
-    fi
   fi
   # Both are read by launch_writer in mission-worktree.sh.
   # shellcheck disable=SC2034

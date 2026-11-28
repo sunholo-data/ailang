@@ -68,10 +68,10 @@
         "M1 tests still pass; `make test-launchd-drivers` green",
         "Mutation check (memory: mutate your own tests): replace `--cached` salvage with `git diff HEAD` → TST-SLOT-03 fails; skip the porcelain proof → TST-SLOT-08 fails. Do it via a scratchpad copy, never `git checkout <file>`"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T16:27:33Z",
+      "completed": "2026-11-28T16:27:33Z",
+      "notes": "slot_checkout resets in place inside the bounded writer: salvage (staged + unstaged diffs separately, index copied BEFORE any git command, untracked tar via tar --null -T -, refs/salvage/slots/<id>/<ts> for an unreachable detached HEAD) then checkout --detach --force + clean -ffdx; writer proves HEAD=SHA + empty status else failed:not_clean_after_reset and removes the slot. Suite 49/49; mutants diff_head, no_proof, no_pin, no_salvage all killed. Findings: restore needs git apply --index (not --cached); a post-checkout hook cannot inject dirt (clean undoes it) so TST-SLOT-08 injects after clean via a git shim; a failed slot stays locked by its fire (next acquire in that fire gets <role>-2), by design."
     },
     {
       "id": "M3_DRIVER_SWEEP",

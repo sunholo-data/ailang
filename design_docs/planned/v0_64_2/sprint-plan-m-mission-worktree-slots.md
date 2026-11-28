@@ -108,7 +108,7 @@ nothing calls `acquire` until M4.
 - PID reuse on a long-uptime rig. Mitigation: birth-time match, as `identity()` already does.
 - `lsof` is slow under load. Mitigation: bound it with the sweep's `bounded 30` pattern; timeout = held.
 
-### M2: Reset + salvage + cleanliness proof
+### M2: Reset + salvage + cleanliness proof ✅ (2026-11-28)
 
 **Goal:** Reuse an existing slot at a new SHA: salvage dirt, reset in place, prove it clean. This
 is the Go-cache and checkout win.
@@ -130,11 +130,11 @@ is the Go-cache and checkout win.
    salvage=<dir|none>`).
 
 **Acceptance criteria:**
-- [ ] TST-SLOT-02, TST-SLOT-03, TST-SLOT-07, TST-SLOT-08 pass
-- [ ] TST-SLOT-03 includes the "stage B, restore A in the working file" case and restores the index byte-identically from the salvage
-- [ ] TST-SLOT-02 asserts only ≈K files' mtimes changed for a K-file SHA delta (use `perl stat`, not GNU `stat`)
-- [ ] M1 tests still pass; `make test-launchd-drivers` green
-- [ ] Mutation check (memory: mutate your own tests): replace `--cached` salvage with `git diff HEAD` → TST-SLOT-03 fails; skip the porcelain proof → TST-SLOT-08 fails. Do it via a scratchpad copy, never `git checkout <file>`
+- [x] TST-SLOT-02, TST-SLOT-03, TST-SLOT-07, TST-SLOT-08 pass
+- [x] TST-SLOT-03 includes the "stage B, restore A in the working file" case and restores the index byte-identically from the salvage
+- [x] TST-SLOT-02 asserts only ≈K files' mtimes changed for a K-file SHA delta (use `perl stat`, not GNU `stat`)
+- [x] M1 tests still pass; `make test-launchd-drivers` green
+- [x] Mutation check (memory: mutate your own tests): replace `--cached` salvage with `git diff HEAD` → TST-SLOT-03 fails; skip the porcelain proof → TST-SLOT-08 fails. Do it via a scratchpad copy, never `git checkout <file>`
 
 **Risks:**
 - `git clean -ffdx` deletes ignored build outputs (e.g. `bin/ailang`). Intended: they rebuild from a warm cache. If a mission measures it as slow, add `-e` excludes per mission (Deferred Decision).
