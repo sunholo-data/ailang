@@ -1,0 +1,4 @@
+# iteration 148 vs 147 open-ticket diff (signature, slots_lost, last_seen)
+147 rows:       19  148 rows:       19
+IDENTICAL (diff rc=0)
+newest last_seen: 2026-11-24T16:06:24.793781Z
