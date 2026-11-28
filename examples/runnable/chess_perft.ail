@@ -1,0 +1,5 @@
+module examples/runnable/chess_perft
+import examples/chess/perft (startCount)
+import std/result (Result)
+
+export func main() -> Result[int, string] ! {} = startCount(3)

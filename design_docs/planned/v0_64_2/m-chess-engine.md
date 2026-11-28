@@ -72,7 +72,7 @@ fixed depth from a CLI.
 **Success Metrics:**
 1. perft(startpos, 1..3) exact (20 / 400 / 8,902); perft(startpos, 4) = 197,281 passes (CI gates at 3;
    4 is a recorded timing run, V-timed).
-2. Standard battery: Kiwipete perft(1)=48, perft(2)=2,039; Position 3 perft(1)=14, perft(2)=264;
+2. Standard battery: Kiwipete perft(1)=48, perft(2)=2,039; Position 3 perft(1)=14, perft(2)=191;
    Position 4 perft(1)=6; Position 5 perft(1)=44 (all exact).
 3. Every move the engine reports is a member of its own legal-move list (property holds by
    construction; asserted in tests).
@@ -359,6 +359,65 @@ irrelevant for temp probes). Transcripts summarized per row.
 | V11 | `--strict-bytecode` flag exists and the probes run under it; silent fallback is the failure mode it prevents | `ailang run --help` (flags) + M-VM-COVERAGE doc; probes ran under `--bytecode` | **Confirmed** — strict run is a phase gate |
 | V12 | `ailang prompt` operator/cost-model claims used in this doc (no `\|` operator; `>>` arithmetic; Cost Model table; `readLineOpt` semantics) are live in the installed binary | `ailang prompt` output, cross-checked against probe behavior | **Confirmed** — no divergence found between prompt claims and live checks |
 
+## Implementation record
+
+The sprint implementation is in [examples/chess](../../../examples/chess/README.md). Search calculates original positional weights from compact piece-square formulas and uses published material values.
+It uses immutable bitboards and cached leaper and ray tables stored in a value
+built once per root operation. Passing this value explicitly lets the inline
+test harness run the same functions as the CLI. Perft counts the last ply
+without allocating child positions for candidates that cannot expose their king.
+Board bit loops clear a known set bit with XOR, which also handles the signed
+high bit without subtracting from the minimum signed integer.
+
+All five pure modules passed their inline fixtures (65 passed, 0 failed).
+Six automatically generated coordinate-contract checks had too few in-range
+samples. The exhaustive test covers all 64 squares, and Z3 separately verified
+`coordToSq`, `fileOf` and `rankOf`. The `popcount` verification reported
+`unsupported_encoding` for `bitwiseXor_Int`. The Position 3 depth-two fixture
+uses the published count of 191. Position 4 uses 264. [Perft Results](https://www.chessprogramming.org/Perft_Results)
+
+Two evaluator and two strict VM runs of each stdin fixture produced identical
+stdout. The quit fixture checks error recovery, legal replies in promotion and
+en-passant positions, and ignores the input after `quit`. The EOF fixture
+executes its final command without a trailing newline before exiting.
+
+Measured on 2026-11-28 in a Linux x86-64 container on an Intel Xeon 2.00 GHz
+host. The perft source is commit `78afd8dbf5e12c3573c22536bce2afb8499959b8`.
+The checkout-built CLI reports `AILANG dev`, commit
+`3185145fed277dfc9e3c8fb185d71c66ad901e50`. Runs used `GOMAXPROCS=2`,
+overlapped with other verification, and include CLI startup and module loading.
+
+```bash
+for depth in 3 4; do
+  time -p env GOMAXPROCS=2 ailang run --entry startCount --args-json "$depth" examples/chess/perft.ail
+  time -p env GOMAXPROCS=2 ailang run --strict-bytecode --entry startCount --args-json "$depth" examples/chess/perft.ail
+done
+```
+
+| Runtime | Depth | Leaves | Wall seconds | Leaves/sec |
+| --- | ---: | ---: | ---: | ---: |
+| Evaluator | 3 | 8,902 | 10.98 | 811 |
+| Evaluator | 4 | 197,281 | 143.70 | 1,373 |
+| Strict bytecode VM | 3 | 8,902 | 3.40 | 2,618 |
+| Strict bytecode VM | 4 | 197,281 | 16.81 | 11,736 |
+
+The pinned depth-three runnable returned `Ok(8902)` on both runtimes.
+`make verify-examples` passed (355 passed, 12 skipped), as did the manifest,
+file-size, changelog and AILANG formatting checks. A strict VM spot check
+also returned 97,862 leaves for Kiwipete at depth three.
+
+The unchanged Go baseline hit a cold CLI build timeout, process-cleanup
+failures with orphan zombies under the container's PID 1, and a ten-minute
+timeout in `TestMatchBudgetAndCatchAll`. The final `make test-changed`
+attempts found no changed Go packages. Running the affected process tests
+with a temporary orphan-process reaper passed, but a full retry still
+reported a timing failure in `TestClockSleep_RealDelay` and a killed
+`internal/pipeline` test process. The standard `make lint` gate could
+not run because `golangci-lint` was unavailable. The manifest regeneration
+helper failed because the checkout lacks its `github.com/buger/jsonparser`
+dependency. The validator passed with zero manifest drift after updating
+the two new entries and their derived statistics.
+
 ## Future Work
 
 - **Transposition tables** once m-persistent-collections Phase 2/3 ships (persistent Map/Array) — this engine's search becomes the motivating benchmark for it.
@@ -369,4 +428,4 @@ irrelevant for temp probes). Transcripts summarized per row.
 ---
 
 **Document created**: 2026-11-27
-**Last updated**: 2026-11-27
+**Last updated**: 2026-11-28

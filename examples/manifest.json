@@ -259,6 +259,40 @@
       ]
     },
     {
+      "path": "runnable/chess_perft.ail",
+      "status": "working",
+      "tags": [
+        "chess",
+        "search",
+        "bitwise"
+      ],
+      "description": "Count the 8,902 legal three-ply paths from the standard chess starting position.",
+      "modules": [
+        "std/result"
+      ],
+      "expected": {
+        "stdout": "Ok(8902)"
+      }
+    },
+    {
+      "path": "chess/cli.ail",
+      "status": "working",
+      "tags": [
+        "chess",
+        "search",
+        "bitwise",
+        "io"
+      ],
+      "description": "Fixed-depth chess search, legal move generation, and perft from an interactive FEN position.",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/result",
+        "std/string"
+      ]
+    },
+    {
       "path": "tests/named_helper_purity.ail",
       "status": "working",
       "tags": [
@@ -4556,11 +4590,11 @@
     }
   ],
   "statistics": {
-    "total": 343,
-    "working": 335,
+    "total": 345,
+    "working": 337,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9766763848396501,
+    "coverage": 0.9768115942028985,
     "experimental": 0
   },
   "milestones": {

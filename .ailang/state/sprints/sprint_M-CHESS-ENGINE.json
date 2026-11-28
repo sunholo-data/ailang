@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CHESS-ENGINE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-27T08:31:25Z",
   "design_doc": "design_docs/planned/v0_64_2/m-chess-engine.md",
   "sprint_plan": "design_docs/planned/v0_64_2/sprint-plan-m-chess-engine.md",
@@ -135,10 +135,10 @@
         "TST-CHESS-08 Compare stdout byte-for-byte across two evaluator runs and two strict VM runs using one fixture. Cover valid commands, malformed FEN retaining the last valid position, invalid depth, unknown command, quit and EOF. Use count-only output for perft and keep timing outside replay stdout. Test quit and EOF in separate fixtures so both paths execute.",
         "TST-CHESS-09 Record startpos depths 3 and 4 for evaluator and strict VM in the README and the design implementation record. Include commit, machine, CLI version, commands, counts, elapsed seconds and nodes/sec. If depth four exceeds 30 minutes, schedule and record the completed manual run outside CI. The exact count remains required."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T14:02:00Z",
+      "completed": "2026-11-28T14:16:15Z",
+      "notes": "Both fixtures matched across two runs on each backend. Timings, contract coverage, language-tool friction and repository gate outcomes are recorded in the design implementation record."
     }
   ]
 }

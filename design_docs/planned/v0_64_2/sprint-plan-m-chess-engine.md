@@ -60,8 +60,8 @@ Day 5. Add `search.ail` (275 implementation, 75 tests). Implement negamax with a
 
 Day 6, with days 7–10 reserved for corrections, parity and timing. Add `cli.ail`, `README.md`, a deterministic stdin fixture and an unreleased changelog fragment beginning with `### ` (250 implementation and docs, 40 tests). Thread position through `readLineOpt`; handle `position <fen>`, `show`, `moves`, `go <depth>`, `perft <depth>`, `quit` and EOF. Document the fixed-depth engine's practical limits. Registry decision `none` based on chess and uci searches and existing std IO.
 
-- [ ] TST-CHESS-08 Compare stdout byte-for-byte across two evaluator runs and two strict VM runs using one fixture. Cover valid commands, malformed FEN retaining the last valid position, invalid depth, unknown command, quit and EOF. Use count-only output for perft and keep timing outside replay stdout. Test quit and EOF in separate fixtures so both paths execute.
-- [ ] TST-CHESS-09 Record startpos depths 3 and 4 for evaluator and strict VM in the README and the design implementation record. Include commit, machine, CLI version, commands, counts, elapsed seconds and nodes/sec. If depth four exceeds 30 minutes, schedule and record the completed manual run outside CI. The exact count remains required.
+- [x] TST-CHESS-08 Compare stdout byte-for-byte across two evaluator runs and two strict VM runs using one fixture. Cover valid commands, malformed FEN retaining the last valid position, invalid depth, unknown command, quit and EOF. Use count-only output for perft and keep timing outside replay stdout. Test quit and EOF in separate fixtures so both paths execute.
+- [x] TST-CHESS-09 Record startpos depths 3 and 4 for evaluator and strict VM in the README and the design implementation record. Include commit, machine, CLI version, commands, counts, elapsed seconds and nodes/sec. If depth four exceeds 30 minutes, schedule and record the completed manual run outside CI. The exact count remains required.
 
 ## Showcase module checklist
 

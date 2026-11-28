@@ -1,0 +1,15 @@
+show
+perft 1
+position bad fen
+perft 2
+go xyz
+perft -1
+unknown
+position 1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1
+moves
+go 2
+position 4k3/8/8/5pP1/8/8/8/4K3 w - f6 0 1
+moves
+go 2
+quit
+perft 0

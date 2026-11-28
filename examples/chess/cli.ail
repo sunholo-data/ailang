@@ -1,0 +1,77 @@
+module examples/chess/cli
+import examples/chess/board (Position, display)
+import examples/chess/fen (parseFen, startFen)
+import examples/chess/movegen (legalMoves, moveName)
+import examples/chess/perft (perft)
+import examples/chess/search (search)
+import std/io (readLineOpt, println)
+import std/option (Some, None)
+import std/result (Ok, Err)
+import std/string (words, join, stringToInt, intToStr)
+import std/list (map)
+
+func reportSearch(p: Position, depth: int) -> () ! {IO} = {
+  let result = search(p, depth)
+  let best = match result.bestMove {
+    Some(m) => moveName(m),
+    None => "-"
+  }
+  let pv = join(" ", map(moveName, result.pv))
+  let suffix = if pv == "" then "" else " ${pv}"
+  println("bestmove ${best} score ${intToStr(result.score)} pv${suffix}")
+}
+
+func runDepth(p: Position, command: string, text: string) -> () ! {IO} = {
+  let minimum = if command == "perft" then 0 else 1
+  let maximum = if command == "perft" then 4 else 3
+  match stringToInt(text) {
+    Some(n) => if n < minimum || n > maximum then println("error: ${command} depth must be ${intToStr(minimum)}-${intToStr(maximum)}") else if command == "perft" then println(intToStr(perft(p, n))) else reportSearch(p, n),
+    None => println("error: depth must be an integer")
+  }
+}
+
+func dispatch(p: Position, tokens: [string]) -> () ! {IO} = match tokens {
+  [] => loop(p),
+  ["quit"] => (),
+  ["show"] => {
+    println(display(p))
+    println(if p.white then "white to move" else "black to move")
+    loop(p)
+  },
+  ["moves"] => {
+    println(join(" ", map(moveName, legalMoves(p))))
+    loop(p)
+  },
+  "position" :: fields => match parseFen(join(" ", fields)) {
+    Ok(next) => {
+      println("ok")
+      loop(next)
+    },
+    Err(msg) => {
+      println("error: ${msg}")
+      loop(p)
+    }
+  },
+  ["go", depth] => {
+    runDepth(p, "go", depth)
+    loop(p)
+  },
+  ["perft", depth] => {
+    runDepth(p, "perft", depth)
+    loop(p)
+  },
+  _ => {
+    println("error: expected position <fen>, show, moves, go <depth>, perft <depth>, or quit")
+    loop(p)
+  }
+}
+
+func loop(p: Position) -> () ! {IO} = match readLineOpt() {
+  None => (),
+  Some(line) => dispatch(p, words(line))
+}
+
+export func main() -> () ! {IO} = match parseFen(startFen()) {
+  Ok(p) => loop(p),
+  Err(msg) => println("error: invalid built-in start position: ${msg}")
+}
