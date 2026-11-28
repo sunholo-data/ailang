@@ -35,13 +35,13 @@ Day 1. Implement `examples/chess/board.ail` and `fen.ail` (410 implementation, 1
 
 Day 2. Start `movegen.ail` (220 implementation, 70 tests). Use cached leaper tables, edge-masked rays and stable traversal. Iterate occupied bits without allocating a 64-square range per node. Registry decision `none` based on chess and bitboard searches.
 
-- [ ] TST-CHESS-03 Fixtures cover pawn, knight, king and slider attacks, file wrap, blocked rays and signed high-bit occupancy. Ordinary candidates exclude friendly squares and king captures.
+- [x] TST-CHESS-03 Fixtures cover pawn, knight, king and slider attacks, file wrap, blocked rays and signed high-bit occupancy. Ordinary candidates exclude friendly squares and king captures.
 
 ### M3: Legal moves and position transitions (~300 LOC)
 
 Day 3. Complete `movegen.ail` (205 implementation, 95 tests). Apply captures, all four promotion choices and special moves before filtering by king safety. Handle current, transit and destination attacks for castling. Update rights on king or rook moves and corner-rook captures, update en passant and counters, and flip the turn. Registry decision `none` based on chess and bitboard searches.
 
-- [ ] TST-CHESS-04 Fixtures cover pinned moves, castling through check, rights changes, en-passant discovered check, and quiet and capture promotions. Piece counts change only as implied by the move. Applying a legal move preserves the original immutable position.
+- [x] TST-CHESS-04 Fixtures cover pinned moves, castling through check, rights changes, en-passant discovered check, and quiet and capture promotions. Piece counts change only as implied by the move. Applying a legal move preserves the original immutable position.
 
 ### M4: Perft fixture runner (~170 LOC)
 

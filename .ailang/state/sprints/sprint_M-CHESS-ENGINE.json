@@ -73,10 +73,10 @@
       "acceptance_criteria": [
         "TST-CHESS-03 Fixtures cover pawn, knight, king and slider attacks, file wrap, blocked rays and signed high-bit occupancy. Ordinary candidates exclude friendly squares and king captures."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T13:58:00Z",
+      "completed": "2026-11-28T14:07:21Z",
+      "notes": "Attack fixtures passed. Cached leaper and ray arrays are built once per operation and threaded through traversal. M2 and M3 share movegen.ail."
     },
     {
       "id": "M3",
@@ -88,10 +88,10 @@
       "acceptance_criteria": [
         "TST-CHESS-04 Fixtures cover pinned moves, castling through check, rights changes, en-passant discovered check, and quiet and capture promotions. Piece counts change only as implied by the move. Applying a legal move preserves the original immutable position."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T13:58:00Z",
+      "completed": "2026-11-28T14:07:21Z",
+      "notes": "Legality and transition fixtures passed, including pin, castling safety, en-passant discovered check and promotions. Perft bulk counting agrees with materialized legal children in the special-move fixtures."
     },
     {
       "id": "M4",
