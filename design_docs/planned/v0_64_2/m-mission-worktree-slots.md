@@ -22,7 +22,7 @@ infrastructure, so most axioms are untouched; it is scored for the gates anyway.
 | A3: Effect Legibility | +1 | Salvage-then-reset logs every destructive step with what was saved; today trees pile up silently |
 | A4: Explicit Authority | 0 | No new authority; the sweep's protection becomes *narrower* (exact pins, not a prefix) |
 | A5: Bounded Verification | 0 | n/a |
-| A6: Safe Concurrency | +1 | Per-slot locks with identity-checked owners replace "unique path = no collision by luck" |
+| A6: Safe Concurrency | +1 | Per-slot locks owned by the fire's driver (PID + birth), released only by the driver's EXIT trap, replace "unique path = no collision by luck" (TST-SLOT-04/05/12) |
 | A7: Machines First | 0 | Unattended loops are the beneficiary; no human-convenience trade |
 | A8: Minimal Syntax | 0 | No language change |
 | A9: Cost Visibility | +1 | Mission GOCACHE size recorded per iteration with a threshold notice |
@@ -148,12 +148,28 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 
 1. **`mission-worktree.sh acquire / release`** (extends the existing helper; it already has
    identity-checked owner records, process-group isolation and a bounded background writer).
+   - **Who owns a slot (revised after quorum round 1).** The owner is **the fire, not a
+     process that touches the slot**. The `acquire` call, the Bash tool call that ran it and the
+     sub-agent working in the tree are all short-lived or in other process groups, and between
+     tool calls no process may have its cwd in the tree. A lock keyed on any of them would read
+     "owner dead" while a live role is still using the slot. The process that does live exactly
+     as long as the iteration is the **driver**: `mission-control.sh` computes
+     `MISSION_FIRE_ID="${MISSION_NAME}-$(date +%s)-$$"` (L2431, exported), launches the
+     controller in the background and `wait`s on it (L2689, L2725), and keeps its own PID across
+     controller retries. So the lock records `fire_id`, the driver PID parsed from it, that PID's
+     birth time (`ps -o lstart`, as `birth()` already does) and the role.
+     `acquire` **refuses** without `MISSION_FIRE_ID` (`failed:no_fire_owner`); there is no
+     fallback owner.
    - `acquire MISSION ROLE SHA [BRANCH]` → prints a slot path, or `busy` / `failed:<why>`.
-     1. Pick the first free `<role>-<n>` under the slot root. A slot is free when its lock is
-        absent, or its owner is proven dead by the existing `identity()` check (inconclusive
-        means held), **and** no process has its cwd inside (the sweep's `lsof` rule).
-     2. Take the lock: atomic `mkdir <slot>.lock` holding pid, birth and token, as `register()`
-        already writes.
+     1. Pick the first free `<role>-<n>` under the slot root. A slot is free only when its lock
+        is absent, or its recorded driver is **proven dead**: the PID is gone, or alive with a
+        different birth time. Inconclusive means held, as in `identity()`. A slot held by a live
+        fire is never reclaimed, **including by the same fire**: a second acquire for the same
+        role gets `<role>-2`. Independently, a slot with any process cwd inside (the sweep's
+        `lsof` rule) is busy. That is a second guard against orphans like a stray `go test`, not
+        the ownership test.
+     2. Take the lock: atomic `mkdir <slot>.lock`, then write `owner` (`fire_id`, driver PID,
+        birth, role) via tmp + `mv`, as `register()` does.
      3. If the slot does not exist: one-time `worktree add` through the existing bounded writer
         (unchanged path, including the half-built-tree protections).
      4. If it exists: **dirty-check first** (D1). On dirt, salvage `git diff --binary HEAD`, a
@@ -165,14 +181,20 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
      5. **Prove it.** `git rev-parse HEAD` must equal SHA and `git status --porcelain` must be
         empty. Otherwise `failed:not_clean_after_reset`, the slot is deleted (the next acquire
         recreates it), and the caller parks, exactly as with `add` today.
-   - `release PATH` → drops the lock. The tree stays in place (that is the point). A slot whose
-     owner died without releasing is reclaimed by step 1.
+   - `release-fire FIRE_ID` → drops every lock whose `fire_id` matches. The trees stay in place
+     (that is the point). **Only the driver calls it**, from its own `EXIT` trap. The driver is
+     one persistent bash process, so the trap fires when the fire ends, not when a tool call
+     returns. A recipe never releases.
+   - A driver killed with `SIGKILL` runs no trap; its locks are reclaimed by step 1's
+     dead-driver proof on the next acquire, with salvage.
    - `add` / `wait` keep working, so missions not yet migrated are unaffected.
 
 2. **Gate wiring.** `gate-3-route.md` (sprint, planner, judge, evaluator), `gate-4-record.md`
    (record) and `ref-drift.md` replace `WT="$(cd .. && pwd)/.wt-…"` + `mission-worktree.sh add`
-   with `WT=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH")`, plus a `release` on
-   every exit path. The "measure `origin/dev` immediately before, use the full SHA" rule
+   with `WT=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH")`. The recipe writes
+   `WT` into the iteration's state file so later tool calls and sub-agents re-read the path
+   instead of re-acquiring. **No `trap` in any recipe**: release is the driver's job
+   (Component 1). The "measure `origin/dev` immediately before, use the full SHA" rule
    (gate-3 L653–694) is unchanged: `acquire` takes that SHA.
 
 3. **Pin registry + sweep.** `pin-root.sh` writes `~/.ailang/state/driver-pins/<mission>`
@@ -195,12 +217,13 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 - [ ] `acquire` / `release` in `tools/launchd/mission-worktree.sh` reusing `identity()`,
       `register()` and the bounded writer
 - [ ] Salvage-then-reset (D1), the cleanliness proof, `busy` / `failed:*` outputs
-- [ ] Tests TST-SLOT-01..05, 07, 08 in `tools/launchd/test_mission_worktree.sh` (bash 3.2, rig
+- [ ] Tests TST-SLOT-01..05, 07, 08, 12, 13 in `tools/launchd/test_mission_worktree.sh` (bash 3.2, rig
       `find` is bfs, BSD tools)
 
 **Phase 2: gate wiring + GOCACHE** (~0.5–1 day)
 - [ ] gate-3 / gate-4 / ref-drift recipes call `acquire` / `release`. The skill text keeps the
       half-built-tree rules, now scoped to "first creation of a slot".
+- [ ] `mission-control.sh`: `release-fire` EXIT trap next to `MISSION_FIRE_ID` (L2431)
 - [ ] `mission-control.sh`: mission `GOCACHE` export and size alarm (if D3 = yes)
 - [ ] TST-SLOT-06 measured on the rig
 
@@ -216,7 +239,7 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 - `tools/launchd/mission-worktree.sh` - `acquire` / `release`, salvage, cleanliness proof (~+120 LOC; the file is ~200 now)
 - `tools/launchd/test_mission_worktree.sh` - TST-SLOT-01..08 (~+150 LOC)
 - `tools/launchd/lib/pin-root.sh` - write the pin registry entry (~+10 LOC)
-- `tools/launchd/mission-control.sh` - mission `GOCACHE` export + size line in the record (~+20 LOC)
+- `tools/launchd/mission-control.sh` - mission `GOCACHE` export + size line in the record, `release-fire` EXIT trap (~+25 LOC)
 - `scripts/worktree_sweep.sh` - exact-pin + slot-root protection, `--repo` (~+30 LOC)
 - `scripts/test_worktree_sweep.sh` - TST-SLOT-09/10 (~+40 LOC)
 - `scripts/hooks/git_health.sh` - drop the prefix override, sweep every registered clone (~+15 LOC)
@@ -250,16 +273,23 @@ until out=$(bash "$MW" wait "$WT" 45); [ "$out" != pending ]; do :; done
 
 **After:**
 ```bash
+# one Bash tool call; owner = this fire's driver (MISSION_FIRE_ID), not this shell
 WT=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH") || { echo "PARK slot: $WT"; exit 1; }
-trap 'bash "$MW" release "$WT"' EXIT
+echo "exec_wt=$WT" >> "$ITER_STATE"      # later calls and sub-agents read the path from here
 # same path every iteration → ~1% of files rewritten, Go cache hits for unchanged packages
+```
+
+**Driver (`mission-control.sh`, once, near L2431):**
+```bash
+trap 'bash "$MC_DRIVER_ROOT/tools/launchd/mission-worktree.sh" release-fire "$MISSION_FIRE_ID"' EXIT
 ```
 
 ## Success Criteria
 
 - [ ] Acquire on an existing slot moves HEAD to the exact SHA with an empty `status --porcelain`, without a full checkout (TST-SLOT-01, 02)
 - [ ] A dirty slot is salvaged to state, then reset; the salvage restores byte-identically (TST-SLOT-03)
-- [ ] A held slot is never reset; a dead owner's slot is reclaimed; an inconclusive owner counts as held (TST-SLOT-04, 05)
+- [ ] A slot held by a live fire is never reset, even with no process inside and the acquiring shell gone; a dead driver's slot is reclaimed with salvage; an unreadable birth counts as held (TST-SLOT-04, 05)
+- [ ] The driver's EXIT trap releases exactly its own fire's locks; acquire without a fire owner refuses (TST-SLOT-12, 13)
 - [ ] An existing branch name is refused, never force-moved (TST-SLOT-07)
 - [ ] A reset that does not prove clean deletes the slot and reports `failed:not_clean_after_reset` (TST-SLOT-08)
 - [ ] Second build on an unchanged SHA in the same slot writes ≈0 cache bytes (TST-SLOT-06, rig measurement)
@@ -274,8 +304,10 @@ trap 'bash "$MW" release "$WT"' EXIT
 | TST-SLOT-01 | integration | Given no slot, when `acquire m exec SHA` runs, then a worktree is created at `<root>/<repo>/m/exec-1` with HEAD=SHA and empty porcelain |
 | TST-SLOT-02 | integration | Given slot exec-1 at SHA1 and SHA2 differing in K files, when `acquire … SHA2` runs, then HEAD=SHA2, porcelain is empty, and only ≈K files' mtimes changed |
 | TST-SLOT-03 | integration | Given exec-1 with a modified tracked file + an untracked file, when acquired, then `salvage-<ts>/` holds a patch + tar that restore both byte-identically, and the slot is clean at SHA |
-| TST-SLOT-04 | integration | Given exec-1 locked by a live process, when acquire runs, then it returns exec-2 (or `busy` when all are held) and exec-1 is untouched (sha of a tracked file unchanged) |
-| TST-SLOT-05 | integration | Given exec-1 locked by a pid that has exited (birth mismatch), when acquire runs, then exec-1 is reclaimed; with an inconclusive identity it is treated as held |
+| TST-SLOT-04 | integration | *(real topology)* Given a stand-in driver D (a long-lived process whose PID is in `MISSION_FIRE_ID`) and exec-1 acquired by a **separate shell A that has exited**, with **no process cwd inside exec-1**, when a shell B in another process group runs acquire, then B gets exec-2 (or `busy`) and exec-1 is untouched (sha of a tracked file + an untracked marker unchanged) |
+| TST-SLOT-05 | integration | Given the TST-SLOT-04 setup, when D is killed (no trap runs), then the next acquire reclaims exec-1 with salvage; when D's PID is reused by a process with a different birth, reclaimed; when birth cannot be read, held |
+| TST-SLOT-12 | integration | Given D holding exec-1 and record-1, when D exits normally through its `EXIT` trap, then `release-fire` drops both locks, the trees stay, and a lock owned by another fire is untouched |
+| TST-SLOT-13 | integration | Given `MISSION_FIRE_ID` unset, when acquire runs, then it fails `failed:no_fire_owner` and creates no lock or tree |
 | TST-SLOT-06 | e2e (rig) | Given exec-1 built once at SHA, when `release` + `acquire … SHA` + `go build ./...` run again, then the cache gains ≈0 bytes (`du -sk` before/after; control: a fresh path gains ≥1 GB) |
 | TST-SLOT-07 | integration | Given branch B exists, when `acquire … SHA B` runs, then it fails `failed:branch_exists` and B's ref is unchanged |
 | TST-SLOT-08 | integration | Given a reset that leaves porcelain non-empty (injected), when acquire finishes, then the slot dir is gone and the output is `failed:not_clean_after_reset` |
@@ -315,7 +347,17 @@ GNU `timeout`), and real `git` only in temp repos.
 ## Quorum
 
 Triggers fired: **1** (design-freeze items D1–D4) and **2** (overrides the shared sweep
-protection rule). Run `ailang design-quorum` before planning.
+protection rule).
+
+**Round 1 (2026-11-28): BLOCKED 3/3.** `oc-kimi-k3`, `codex:gpt-6.2-astra` and
+`gemini-4-carbon` all raised the same objection, and it was correct: the lock owner was the
+short-lived `acquire` process, and the example's recipe-level `trap … EXIT` would have released
+the slot when the tool call returned. With no cwd inside between tool calls, a concurrent acquire
+would have reset a live role's tree. **Fixed:** the owner is the fire's driver (V11), release is
+`release-fire` from the driver's own `EXIT` trap, recipes never release, and TST-SLOT-04/05/12/13
+model the real acquire-in-shell-A / use-in-session-B topology. Artifact:
+`.ailang/state/mission-quorum/m-mission-worktree-slots-2026-11-28T14-41-18Z.json`.
+Round 2 pending.
 
 ## Related Documents
 
@@ -342,6 +384,9 @@ No related doc scored ≥ 0.45; there is no duplicate.
 | V8 | No existing slot/reuse verb in mission-worktree.sh | `grep -n -E 'acquire\|release\|reuse' tools/launchd/mission-worktree.sh` | no verbs beyond `add`, `wait`, internal `_writer` / `_checkout` (the two "release" hits are comments about the writer handshake) |
 | V9 | Daily churn is ~1% of files | `git diff --name-only $(git rev-list -1 --before='24 hours ago' origin/dev) origin/dev \| wc -l` | 337 / 31,441; world 107 / 7,496 |
 | V10 | Mission overlap guard is per mission, not per role | `mission-control.sh` L2690 pidfile | per-mission only, so per-slot locks are needed |
+| V11 | The driver outlives the controller and every role, and keeps its PID across retries | `mission-control.sh` L2431 (`MISSION_FIRE_ID=…-$$`, exported), L2672–2689 (controller backgrounded with `&`), L2725 (`wait "$CONTROLLER_PID"`) | confirmed; `exec` happens only inside the `( … ) &` child subshell |
+| V12 | Recipes run as separate, ephemeral Bash tool calls | quorum round 1 (all three reviewers); gate-3 L733 already requires `run_in_background` + polling because one call cannot span the work | confirmed: a recipe-level `trap … EXIT` would release immediately |
+| V13 | `mission-control.sh` has no existing `trap` the new `EXIT` trap would replace | `grep -c -E "trap " tools/launchd/mission-control.sh` | 0 (the only hit for `trap\b` is a prose comment at L776); a sourced lib that sets one later must chain, not replace |
 
 ---
 
