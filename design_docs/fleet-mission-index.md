@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 149 | 2026-11-28 | pick NONE: 19 open tickets, byte-identical to iteration 148's set (independent sonnet judge NONE 90%); no directive, no ledger flip, no new ticket ... |
+| 148 | 2026-11-28 | pick NONE: 19 open tickets, byte-identical to iteration 147's set (independent sonnet judge NONE 88%); no directive, no ledger flip, no new ticket ... |
 | 147 | 2026-11-28 | pick NONE: 19 open tickets, the set iteration 146 left minus the one it resolved (independent sonnet judge NONE 90%); no directive, no ledger flip,... |
 | 146 | 2026-11-27 | `idle-fingerprint:blind-to-nightly-rig-red` LANDED + RESOLVED: #2481 → `7b67c35b4` after its test was hardened against the i145 judge's two survivi... |
 | 145 | 2026-11-27 | `idle-fingerprint:blind-to-nightly-rig-red` BUILT + JUDGED (independent sonnet judge PASS 82 → 88): #2481 makes the idle fingerprint see a red nigh... |

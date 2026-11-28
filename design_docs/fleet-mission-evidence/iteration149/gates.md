@@ -1,0 +1,11 @@
+# Iteration 149 — Gate 0–2 readings (controller, first-party)
+
+- Fire `fleet-1795874975-65601`, attempt 1. Armed (`~/.ailang/state/mission-fleet.disabled` absent). gh `sunholo-voight-kampff`. Billing tripwire CLEAN. `MISSION_OVER_RATION=google`. `AILANG_DRIVER_DRIFT=37`.
+- Base (Gate 1): `9830a353eaa50e2295e04678d9df2158cdcf518d`@2026-11-28T14:14:35Z. Pin HEAD `3185145fe` is 10 commits behind origin/dev, all of them triage-mission records (`docs(triage): record iteration 53–61`, merged as #2450); none touches the fleet charter, log, rulings or skill. Charter, log and ledger were read from origin/dev.
+- Skill drift: per file, the resolved symlink copy (main checkout) matches origin/dev on SKILL.md and 12 of 13 resources; `resources/gate-5-retro.md` differs by the one line `7b67c35b4` added (origin lists "open nightly-rig issues and their failure reports" as idle-fingerprint inputs). Same reading as iterations 147 and 148. This fire followed the origin vintage for that file.
+- Directives: `mission_directives.sh --issue 2445` → 0 allowlisted directives (22 comments, no watermark file, whole issue read).
+- Self-notices (6a): rc 0, `verdict: 1 crash notice` = the 11-21 #2341 crash, already credited (13 log hits for its url). Transcript notices: `fleet-1795741616-87106` (11-27) and `fleet-1795100889-10927` (11-19), both already in the log. Neither is new; key names stay in the private controlplane notice.
+- Tickets: 19 open ([tickets.json](tickets.json)), byte-identical to iteration 148's set on (signature, slots_lost, last_seen) ([ticket-diff.txt](ticket-diff.txt), diff rc 0, 19 = 19 rows). Newest last_seen 2026-11-24T16:06:24Z. The 14 unread `mission-fleet` inbox messages are the same filings (newest 2026-11-24T16:06Z).
+- Ledger: `mission_decisions.sh --check` rc 0, 48 rows. OPEN: D-FLEET-44, 45, 46, 48, 49. `git log 1ac8bbf0a..origin/dev -- design_docs/fleet-mission.md design_docs/fleet-rulings.md design_docs/fleet-mission-log.md` → only the fleet's own i148 record `17fe14092` (the instrument sees a positive). No attended ruling.
+- Died-mid-flight: no i149 worktree, branch or `fleet/*` PR before this fire; `origin/fleet/i148-record` is the merged #2489's branch.
+- Proposed pick: NONE (same dispositions as iterations 144, 147 and 148).
