@@ -104,10 +104,10 @@
         "TST-CHESS-05 Fast regression counts are startpos depths 1\u20133 = 20, 400, 8902. Kiwipete depths 1\u20132 = 48, 2039. Positions 3, 4 and 5 depths 1\u20132 = 14/191, 6/264 and 44/1486 respectively.",
         "TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T13:59:00Z",
+      "completed": "2026-11-28T14:07:22Z",
+      "notes": "Published perft counts passed. Corrected Position 3 depth two to 191. Strict VM returned 197281 at startpos depth four."
     },
     {
       "id": "M5",

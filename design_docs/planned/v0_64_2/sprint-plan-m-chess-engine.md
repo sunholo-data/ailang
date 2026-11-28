@@ -47,8 +47,8 @@ Day 3. Complete `movegen.ail` (205 implementation, 95 tests). Apply captures, al
 
 Day 4. Add `perft.ail` (100 implementation, 70 tests). Count legal leaves with depth zero equal to one. Use canonical FENs and a root-move breakdown to isolate mismatches. Start the depth-four evidence run before search work. Registry decision `none` based on chess and perft searches. [Canonical perft fixtures](https://www.chessprogramming.org/Perft_Results)
 
-- [ ] TST-CHESS-05 Fast regression counts are startpos depths 1–3 = 20, 400, 8902. Kiwipete depths 1–2 = 48, 2039. Positions 3, 4 and 5 depths 1–2 = 14/191, 6/264 and 44/1486 respectively.
-- [ ] TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance.
+- [x] TST-CHESS-05 Fast regression counts are startpos depths 1–3 = 20, 400, 8902. Kiwipete depths 1–2 = 48, 2039. Positions 3, 4 and 5 depths 1–2 = 14/191, 6/264 and 44/1486 respectively.
+- [x] TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance.
 
 ### M5: Deterministic search (~350 LOC)
 
