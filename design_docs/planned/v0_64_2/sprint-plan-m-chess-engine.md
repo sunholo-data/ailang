@@ -54,7 +54,7 @@ Day 4. Add `perft.ail` (100 implementation, 70 tests). Count legal leaves with d
 
 Day 5. Add `search.ail` (275 implementation, 75 tests). Implement negamax with alpha-beta, material and cited PST values, stable MVV-LVA, and bounded quiescence. Handle mate and stalemate before static scoring. In check, search legal evasions within the quiescence budget and disallow stand-pat. Represent a terminal root without a best move. Registry decision `none` based on chess, negamax and minimax searches.
 
-- [ ] TST-CHESS-07 Fixed-depth fixtures cover a forced mate, stalemate, checked quiescence and stable ties. Every returned move belongs to the root legal list and every PV ply replays legally. Repeated runs return identical move, score and PV.
+- [x] TST-CHESS-07 Fixed-depth fixtures cover a forced mate, stalemate, checked quiescence and stable ties. Every returned move belongs to the root legal list and every PV ply replays legally. Repeated runs return identical move, score and PV.
 
 ### M6: CLI and showcase evidence (~290 LOC)
 

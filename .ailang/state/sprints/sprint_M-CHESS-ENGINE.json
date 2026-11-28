@@ -119,10 +119,10 @@
       "acceptance_criteria": [
         "TST-CHESS-07 Fixed-depth fixtures cover a forced mate, stalemate, checked quiescence and stable ties. Every returned move belongs to the root legal list and every PV ply replays legally. Repeated runs return identical move, score and PV."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T14:01:00Z",
+      "completed": "2026-11-28T14:07:22Z",
+      "notes": "Search fixtures passed for mate, stalemate, legal PV replay, check evasions at the quiescence horizon and stable ordering."
     },
     {
       "id": "M6",

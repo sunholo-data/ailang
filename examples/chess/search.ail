@@ -1,0 +1,172 @@
+module examples/chess/search
+import examples/chess/board (Position, colorOffset, pieces, bit, bitScan, fileOf, rankOf)
+import examples/chess/movegen (Move, Child, AttackTables, attackTables, legalChildrenWith, inCheckWith, moveName, movingPiece, capturedPiece, promotionPiece)
+import examples/chess/fen (parseFen)
+import std/option (Option, Some, None)
+import std/result (Ok, Err)
+import std/list (filter, map)
+
+export type SearchResult = { bestMove: Option[Move], score: int, pv: [Move] }
+
+type Line = { score: int, pv: [Move] }
+
+func kind(piece: int) -> int ! {} = if piece > 6 then piece - 6 else piece
+
+-- Material values from Tomasz Michniewski's Simplified Evaluation Function.
+func value(piece: int) -> int ! {} = match kind(piece) {
+  1 => 100,
+  2 => 320,
+  3 => 330,
+  4 => 500,
+  5 => 900,
+  6 => 20000,
+  _ => 0
+}
+
+func absInt(n: int) -> int ! {} = if n < 0 then -n else n
+
+-- Compact piece-square tables expressed as formulas. Ranks are relative to
+-- the piece's side. Centralization, pawn advance, and king shelter follow
+-- the qualitative piece-square guidance in the Simplified Evaluation Function.
+func positional(piece: int, sq: int, white: bool) -> int ! {} = {
+  let file = fileOf(sq)
+  let rank = if white then rankOf(sq) else 7 - rankOf(sq)
+  let central = 14 - absInt(2 * file - 7) - absInt(2 * rank - 7)
+  match piece {
+    1 => 5 * rank + central,
+    2 => 4 * central - 24,
+    3 => 2 * central - 12,
+    4 => if rank == 6 then 15 else 0,
+    5 => central - 6,
+    _ => 10 - 3 * rank - 2 * central
+  }
+}
+
+func scoreBits(bits: int, piece: int, white: bool, total: int) -> int ! {} = if bits == 0 then total else {
+  let sq = bitScan(bits)
+  scoreBits(bits ^ bit(sq), piece, white, total + value(piece) + positional(piece, sq, white))
+}
+
+func scoreSide(p: Position, piece: int, white: bool, total: int) -> int ! {} =
+  if piece == 7 then total else scoreSide(p, piece + 1, white, scoreBits(pieces(p, colorOffset(white) + piece), piece, white, total))
+
+func evaluate(p: Position) -> int ! {} = scoreSide(p, 1, p.white, 0) - scoreSide(p, 1, !p.white, 0)
+
+func priority(m: Move) -> int ! {} = {
+  let victim = capturedPiece(m)
+  let promo = promotionPiece(m)
+  (if victim == 0 then 0 else 32 * value(victim) - kind(movingPiece(m))) + value(promo)
+}
+
+type Ranked = { child: Child, priority: int }
+
+func insert(child: Ranked, ordered: [Ranked]) -> [Ranked] ! {} = match ordered {
+  [] => [child],
+  head :: rest => if child.priority > head.priority then child :: ordered else head :: insert(child, rest)
+}
+
+func orderAll(children: [Child], acc: [Ranked]) -> [Ranked] ! {} = match children {
+  [] => acc,
+  child :: rest => orderAll(rest, insert({ child: child, priority: priority(child.move) }, acc))
+}
+
+func tactical(child: Child) -> bool ! {} = capturedPiece(child.move) != 0 || promotionPiece(child.move) != 0
+
+func terminal(checked: bool, ply: int) -> Line ! {} = { score: if checked then ply - 100000 else 0, pv: [] }
+
+-- At the checked quiescence horizon, score one last legal evasion. Check
+-- for terminal positions before static evaluation, including after that move.
+func horizon(tables: AttackTables, p: Position, ply: int) -> Line ! {} = match legalChildrenWith(tables, p) {
+  [] => terminal(inCheckWith(tables, p, p.white), ply),
+  _ => { score: evaluate(p), pv: [] }
+}
+
+func visit(tables: AttackTables, moves: [Ranked], depth: int, budget: int, ply: int, alpha: int, beta: int, best: Line) -> Line ! {} =
+  match moves {
+    [] => best,
+    ranked :: rest => {
+      let child = ranked.child
+      let reply = if depth == 0 && budget == 0 then horizon(tables, child.pos, ply + 1) else node(tables, child.pos, if depth > 0 then depth - 1 else 0, if depth > 0 then budget else budget - 1, ply + 1, 0 - beta, 0 - alpha)
+      let score = 0 - reply.score
+      let improved = if score > best.score then { score: score, pv: child.move :: reply.pv } else best
+      if score >= beta then improved else visit(tables, rest, depth, budget, ply, if score > alpha then score else alpha, beta, improved)
+    }
+  }
+
+func node(tables: AttackTables, p: Position, depth: int, budget: int, ply: int, alpha: int, beta: int) -> Line ! {} = {
+  let children = legalChildrenWith(tables, p)
+  let checked = inCheckWith(tables, p, p.white)
+  match children {
+    [] => terminal(checked, ply),
+    _ => if depth > 0 || checked then visit(tables, orderAll(children, []), depth, budget, ply, alpha, beta, { score: -110000, pv: [] }) else {
+      let stand = { score: evaluate(p), pv: [] }
+      if budget == 0 || stand.score >= beta then stand else visit(tables, orderAll(filter(tactical, children), []), depth, budget, ply, if stand.score > alpha then stand.score else alpha, beta, stand)
+    }
+  }
+}
+
+export func search(p: Position, depth: int) -> SearchResult ! {} = {
+  let line = node(attackTables(), p, if depth < 1 then 1 else depth, 2, 0, -110000, 110000);
+  { bestMove: match line.pv {
+    [] => None,
+    m :: _ => Some(m)
+  }, score: line.score, pv: line.pv }
+}
+
+func replay(tables: AttackTables, p: Position, pv: [Move]) -> bool ! {} = match pv {
+  [] => true,
+  m :: rest => match filter(\child. child.move == m, legalChildrenWith(tables, p)) {
+    [child] => replay(tables, child.pos, rest),
+    _ => false
+  }
+}
+
+func searchFixture(fen: string, depth: int) -> (string, int, bool) ! {}
+  tests [
+    (("7k/8/5KQ1/8/8/8/8/8 w - - 0 1", 2), ("g6g7", 99999, true)),
+    (("7k/6Q1/5K2/8/8/8/8/8 b - - 0 1", 2), ("-", -100000, true)),
+    (("7k/5K2/6Q1/8/8/8/8/8 b - - 0 1", 2), ("-", 0, true))
+  ] {
+  match parseFen(fen) {
+    Err(_) => ("invalid fixture", 0, false),
+    Ok(p) => {
+      let result = search(p, depth)
+      let again = search(p, depth)
+      let name = match result.bestMove {
+        None => "-",
+        Some(m) => moveName(m)
+      };
+      (name, result.score, replay(attackTables(), p, result.pv) && result.score == again.score && map(moveName, result.pv) == map(moveName, again.pv))
+    }
+  }
+}
+
+func checkedHorizon(fen: string) -> bool ! {}
+  tests [
+    ("4r1k1/8/8/8/8/8/8/4K3 w - - 0 1", true)
+  ] {
+  match parseFen(fen) {
+    Err(_) => false,
+    Ok(p) => {
+      let tables = attackTables()
+      let line = node(tables, p, 0, 0, 0, -110000, 110000)
+      match line.pv {
+        [m] => capturedPiece(m) == 0 && replay(tables, p, line.pv),
+        _ => false
+      }
+    }
+  }
+}
+
+func stableQuietOrdering(fen: string) -> bool ! {}
+  tests [
+    ("4k3/8/8/8/8/8/8/4K3 w - - 0 1", true)
+  ] {
+  match parseFen(fen) {
+    Err(_) => false,
+    Ok(p) => {
+      let cs = legalChildrenWith(attackTables(), p)
+      map(\r. moveName(r.child.move), orderAll(cs, [])) == map(\c. moveName(c.move), cs)
+    }
+  }
+}
