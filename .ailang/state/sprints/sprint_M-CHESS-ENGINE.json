@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CHESS-ENGINE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-27T08:31:25Z",
   "design_doc": "design_docs/planned/v0_64_2/m-chess-engine.md",
   "sprint_plan": "design_docs/planned/v0_64_2/sprint-plan-m-chess-engine.md",
@@ -58,10 +58,10 @@
         "TST-CHESS-01 Exhaustively round-trip all 64 squares and exercise empty and high-bit boards. Run ailang verify for bounded coordinate and index contracts and record any inconclusive result with its diagnostic.",
         "TST-CHESS-02 Round-trip startpos and canonical Kiwipete plus a FEN with non-default counters and an en-passant field. Reject malformed ranks, side, rights, square and counters with explicit errors."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-28T13:57:00Z",
+      "completed": "2026-11-28T14:07:20Z",
+      "notes": "Board round trips through all 64 squares. FEN fixtures passed. Z3 verified coordToSq, fileOf and rankOf and skipped popcount (unsupported_encoding for bitwiseXor_Int)."
     },
     {
       "id": "M2",
@@ -101,7 +101,7 @@
         "M3"
       ],
       "acceptance_criteria": [
-        "TST-CHESS-05 Fast regression counts are startpos depths 1\u20133 = 20, 400, 8902. Kiwipete depths 1\u20132 = 48, 2039. Positions 3, 4 and 5 depths 1\u20132 = 14/264, 6/264 and 44/1486 respectively.",
+        "TST-CHESS-05 Fast regression counts are startpos depths 1\u20133 = 20, 400, 8902. Kiwipete depths 1\u20132 = 48, 2039. Positions 3, 4 and 5 depths 1\u20132 = 14/191, 6/264 and 44/1486 respectively.",
         "TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance."
       ],
       "passes": null,

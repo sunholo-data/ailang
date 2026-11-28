@@ -1,0 +1,127 @@
+module examples/chess/board
+import std/math (shiftRightLogical)
+import std/string (charAt, charCode, intToStr, length)
+
+-- Squares run from a1 (0) to h8 (63). Piece codes 1–6 are white, 7–12 black.
+-- Castling rights KQkq occupy bits 0–3. An absent en-passant square is -1.
+export type Position = { wp: int, wn: int, wb: int, wr: int, wq: int, wk: int, bp: int, bn: int, bb: int, br: int, bq: int, bk: int, white: bool, rights: int, ep: int, halfmove: int, fullmove: int }
+
+export func emptyPosition() -> Position ! {} =
+  { wp: 0, wn: 0, wb: 0, wr: 0, wq: 0, wk: 0, bp: 0, bn: 0, bb: 0, br: 0, bq: 0, bk: 0, white: true, rights: 0, ep: -1, halfmove: 0, fullmove: 1 }
+
+export func pieces(p: Position, piece: int) -> int ! {} = match piece {
+  1 => p.wp,
+  2 => p.wn,
+  3 => p.wb,
+  4 => p.wr,
+  5 => p.wq,
+  6 => p.wk,
+  7 => p.bp,
+  8 => p.bn,
+  9 => p.bb,
+  10 => p.br,
+  11 => p.bq,
+  12 => p.bk,
+  _ => 0
+}
+
+export func withPieces(p: Position, piece: int, mask: int) -> Position ! {} = match piece {
+  1 => { p | wp: mask },
+  2 => { p | wn: mask },
+  3 => { p | wb: mask },
+  4 => { p | wr: mask },
+  5 => { p | wq: mask },
+  6 => { p | wk: mask },
+  7 => { p | bp: mask },
+  8 => { p | bn: mask },
+  9 => { p | bb: mask },
+  10 => { p | br: mask },
+  11 => { p | bq: mask },
+  12 => { p | bk: mask },
+  _ => p
+}
+
+export func colorOffset(white: bool) -> int ! {} = if white then 0 else 6
+
+export func occupancy(p: Position, white: bool) -> int ! {} =
+  if white then p.wp ^ p.wn ^ p.wb ^ p.wr ^ p.wq ^ p.wk else p.bp ^ p.bn ^ p.bb ^ p.br ^ p.bq ^ p.bk
+
+export func bit(sq: int) -> int ! {} = 1 << sq
+
+export func coordToSq(file: int, rank: int) -> int ! {}
+requires { file >= 0 && file < 8 && rank >= 0 && rank < 8 }
+ensures { result >= 0 && result < 64 }
+  tests [
+    ((0, 0), 0),
+    ((7, 7), 63)
+  ] {
+  rank * 8 + file
+}
+
+export func fileOf(sq: int) -> int ! {}
+requires { sq >= 0 && sq < 64 }
+ensures { result >= 0 && result < 8 } {
+  sq % 8
+}
+
+export func rankOf(sq: int) -> int ! {}
+requires { sq >= 0 && sq < 64 }
+ensures { result >= 0 && result < 8 } {
+  sq / 8
+}
+
+export func sqToName(sq: int) -> string ! {} = "${charAt("abcdefgh", fileOf(sq))}${intToStr(rankOf(sq) + 1)}"
+
+export func nameToSq(name: string) -> int ! {} = if length(name) != 2 then -1 else {
+  let file = charCode(charAt(name, 0)) - 97
+  let rank = charCode(charAt(name, 1)) - 49
+  if file >= 0 && file < 8 && rank >= 0 && rank < 8 then coordToSq(file, rank) else -1
+}
+
+func scan(bits: int, offset: int, width: int) -> int ! {} =
+  if width == 0 then offset else if (bits & (1 << width) - 1) == 0 then scan(shiftRightLogical(bits, width), offset + width, width / 2) else scan(bits, offset, width / 2)
+
+export func bitScan(bits: int) -> int ! {}
+  tests [
+    (0, -1),
+    (1, 0),
+    (0x8000000000000000, 63),
+    (0x8000000000000080, 7)
+  ] {
+  if bits == 0 then -1 else scan(bits, 0, 32)
+}
+
+export func popcount(bits: int) -> int ! {}
+ensures { result >= 0 && result <= 64 }
+  tests [
+    (0, 0),
+    (0x8000000000000000, 1),
+    (-1, 64)
+  ] {
+  if bits == 0 then 0 else 1 + popcount(bits ^ bit(bitScan(bits)))
+}
+
+func findPiece(p: Position, mask: int, piece: int, last: int) -> int ! {} =
+  if piece > last then 0 else if (pieces(p, piece) & mask) != 0 then piece else findPiece(p, mask, piece + 1, last)
+
+export func pieceAt(p: Position, sq: int) -> int ! {} = {
+  let mask = bit(sq)
+  if (occupancy(p, true) & mask) != 0 then findPiece(p, mask, 1, 6) else if (occupancy(p, false) & mask) != 0 then findPiece(p, mask, 7, 12) else 0
+}
+
+export func pieceName(piece: int) -> string ! {} = charAt(".PNBRQKpnbrqk", piece)
+
+func displayRank(p: Position, rank: int, file: int) -> string ! {} =
+  if file == 8 then "" else " ${pieceName(pieceAt(p, coordToSq(file, rank)))}${displayRank(p, rank, file + 1)}"
+
+func displayRanks(p: Position, rank: int) -> string ! {} =
+  if rank < 0 then "   a b c d e f g h" else "${intToStr(rank + 1)} ${displayRank(p, rank, 0)}\n${displayRanks(p, rank - 1)}"
+
+export func display(p: Position) -> string ! {} = displayRanks(p, 7)
+
+func squareRoundTrips(sq: int) -> bool ! {}
+  tests [
+    (0, true)
+  ] {
+  if sq == 64 then true else coordToSq(fileOf(sq), rankOf(sq)) == sq && nameToSq(sqToName(sq)) == sq && bitScan(bit(sq)) == sq && squareRoundTrips(sq + 1)
+}

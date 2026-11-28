@@ -12,6 +12,8 @@ AILANG prompt version loaded: v0.16.20. This is the installed CLI's active teach
 
 The approved representation uses twelve bitboards in an immutable record with classical rays. Search uses a fixed depth and deterministic tie-breaking. The only runtime capability is IO in the CLI. Persistent collections are future optimization context. NNUE, Elo targets, timed search, SMP, transposition tables, GUI and the optional UCI and seeded-randomness stretches are outside this sprint estimate. There are no open human-decision gates.
 
+Executor prompt version loaded: v0.16.21 on the checkout CLI. Initial board probes used the installed v0.16.20 prompt and CLI while the checkout build ran. All final chess gates used the checkout build.
+
 ## Registry reuse
 
 Ran `ailang pkg search` separately for `chess`, `fen`, `bitboard`, `perft`, `negamax`, `minimax` and `uci`. Every search returned zero candidates. Each milestone records `none`. The implementation can use the existing standard library for bit operations, arrays and IO.
@@ -26,8 +28,8 @@ M1 → M2 → M3 → M4 → M5 → M6 is the implementation order. Run the long 
 
 Day 1. Implement `examples/chess/board.ail` and `fen.ail` (410 implementation, 120 tests). Define square mapping, immutable position metadata and ASCII display. Preserve the FEN fullmove number alongside the design's halfmove clock so valid six-field input round-trips. Validate syntax and structural invariants through Result. Exercise the high bit and logical right shift. Registry decision `none` based on chess, fen and bitboard searches.
 
-- [ ] TST-CHESS-01 Exhaustively round-trip all 64 squares and exercise empty and high-bit boards. Run ailang verify for bounded coordinate and index contracts and record any inconclusive result with its diagnostic.
-- [ ] TST-CHESS-02 Round-trip startpos and canonical Kiwipete plus a FEN with non-default counters and an en-passant field. Reject malformed ranks, side, rights, square and counters with explicit errors.
+- [x] TST-CHESS-01 Exhaustively round-trip all 64 squares and exercise empty and high-bit boards. Run ailang verify for bounded coordinate and index contracts and record any inconclusive result with its diagnostic.
+- [x] TST-CHESS-02 Round-trip startpos and canonical Kiwipete plus a FEN with non-default counters and an en-passant field. Reject malformed ranks, side, rights, square and counters with explicit errors.
 
 ### M2: Attacks and pseudo-legal moves (~290 LOC)
 
@@ -45,7 +47,7 @@ Day 3. Complete `movegen.ail` (205 implementation, 95 tests). Apply captures, al
 
 Day 4. Add `perft.ail` (100 implementation, 70 tests). Count legal leaves with depth zero equal to one. Use canonical FENs and a root-move breakdown to isolate mismatches. Start the depth-four evidence run before search work. Registry decision `none` based on chess and perft searches. [Canonical perft fixtures](https://www.chessprogramming.org/Perft_Results)
 
-- [ ] TST-CHESS-05 Fast regression counts are startpos depths 1–3 = 20, 400, 8902. Kiwipete depths 1–2 = 48, 2039. Positions 3, 4 and 5 depths 1–2 = 14/264, 6/264 and 44/1486 respectively.
+- [ ] TST-CHESS-05 Fast regression counts are startpos depths 1–3 = 20, 400, 8902. Kiwipete depths 1–2 = 48, 2039. Positions 3, 4 and 5 depths 1–2 = 14/191, 6/264 and 44/1486 respectively.
 - [ ] TST-CHESS-06 A recorded strict-VM startpos depth-four run returns 197281. Run it outside the fast test gate. A mismatch blocks movegen acceptance.
 
 ### M5: Deterministic search (~350 LOC)
