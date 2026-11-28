@@ -1,0 +1,21 @@
+dev 1ac8bbf0a8f911f35110ac1815c67bd578d9325b check-runs (read 2026-11-28T07:11:46Z)
+checks=18
+  Create Release Bundle: completed/success
+  SonarCloud Code Analysis: completed/failure
+  build: completed/success
+  test-windows: completed/success
+  govulncheck (vuln gate): completed/success
+  float determinism (arm64): completed/success
+  launchd drivers (bash 3.2): completed/success
+  ailang-core-dev (ailang-multivac-deploy): completed/success
+  Build macos-latest: completed/success
+  Build macos-latest: completed/success
+  Build ubuntu-latest: completed/success
+  Build windows-latest: completed/success
+  docs: completed/success
+  test: completed/success
+  dependency-submission: completed/success
+  changes: completed/success
+  checks: completed/success
+  lint: completed/success
+  note: docs-gate is a path-filtered job in docusaurus-deploy.yml; absent on 66c9a86aa and 1ac8bbf0a (fleet docs records outside its paths), success on 2e583399d (last commit in its paths). 4/5 required contexts report here, all success; the 5th is not-applicable by path filter, not missing.
