@@ -1235,3 +1235,53 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
   - No role was unspawnable and no fallback was used.
 - Driver routing note verbatim: (empty).
 - Cost: metered $0 (codex and Anthropic subscriptions only).
+
+## 147 — 2026-11-28 — pick NONE: 19 open tickets, the set iteration 146 left minus the one it resolved (independent sonnet judge NONE 90%); no directive, no ledger flip, no new ticket since 11-24; dev `2e583399d` required checks all green [ADMIN]
+
+**Pick**: NONE. Iteration 146's **Next** was to land its record and otherwise pick NONE unless a ruling (D-FLEET-44/45/46) or a new in-scope ticket arrived. The record landed as #2487 → `66c9a86aa`, #2478 and #2482 are closed, and neither trigger fired.
+- [Tickets](fleet-mission-evidence/iteration147/tickets.json): 19 open. The [diff](fleet-mission-evidence/iteration147/ticket-diff.txt) against iteration 146's set (signature, slots_lost, last_seen) differs only by the resolved `idle-fingerprint:blind-to-nightly-rig-red`, 20 → 19 rows. The newest last_seen is 2026-11-24T16:06:24Z.
+- Ledger: `mission_decisions.sh --check` rc 0, 47 rows. OPEN rows D-FLEET-44, 45, 46, 48. The only charter commit since `7b67c35b4` is the fleet's own record `66c9a86aa`; there was no attended ruling.
+- Directives: 0 allowlisted on #2445 (20 comments, no watermark file, whole issue read).
+
+**Preflight / observe** ([gates](fleet-mission-evidence/iteration147/gates.md)):
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google`.
+- Self-notices rc 0 with `verdict: 1 crash notice`: the 11-21 #2341 crash, already credited (13 log hits for its `url=`). Two transcript notices, `fleet-1795741616-87106` and `fleet-1795100889-10927`; neither is new. Key names are in the private controlplane notice only.
+- Skill drift: the pin copy (SKILL.md and 13 resources) matches origin/dev, per file. The resolved symlink copy differs on `resources/gate-5-retro.md` only. The main checkout it resolves to is 27 commits behind and 1 ahead of origin and lacks `7b67c35b4`; the skill dir has no uncommitted edit. This fire followed the origin vintage.
+- Died-mid-flight: no i147 worktree, branch or `fleet/*` PR before this fire. The main checkout's dirty files are attended product and docs work.
+- Dev at `2e583399d` ([dev CI](fleet-mission-evidence/iteration147/dev-ci.txt)): 22 check-runs. All 5 required contexts (`test`, `lint`, `build`, `docs-gate`, `checks`) are green, and `test-windows` is green again. The only not-green is `SonarCloud Code Analysis`, which is not required and is V1-owned.
+
+**Did**:
+- Judge: sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only, on the record worktree at origin/dev. Verdict **NONE 90%** ([judge](fleet-mission-evidence/iteration147/judge.md)), with a per-ticket table matching iteration 144's dispositions.
+- Strongest objection: rows 71–73 have met their resolve predicate since 139. The judge's reply: resolving attended-fixed tickets is exactly D-FLEET-46's open question, default B.
+- The controller annotated one miscount in the judge's cautions: it says "22/22 required"; there are 5 required contexts, and 21 of 22 checks are green.
+- Recorded this entry, the STATUS stamp (144 rotated to the status archive), the dashboard and the iteration147 evidence.
+
+**Ruled out**:
+- Resolving rows 71–73 (`ci:verify-gap-map-workflow-wiring`, `ci:agy-pin-test-home-isolation`, `ci:modelreg-qwen-slug-pricing-mismatch`) as bookkeeping, now that dev is green on all three. That extends D-FLEET-46 by analogy while it is OPEN; the judge agrees.
+- Treating dev-green as a trigger: no fleet PR is waiting on it.
+- Running the screen-by-step rule again as new work: iteration 144 ran it over the same OPEN rows and found no in-scope first step without a diff, and none of those rows has changed.
+
+**Retro lane**: one observation, no skill edit.
+- 144 and 147 were both NONE fires on the same ruling-gated set. 145 and 146 worked the one new ticket in between. Every ruling-gated ticket keeps the open count above 0, so the driver's idle exit (`ticket open --count` = 0) never fires. Gate 5's IDLE RECORD is scoped to product missions only, so clause 4 holds by its letter while each NONE fire still spends a controller session and a judge. It is not ticketed, so it is not this loop's work. It is a question for Mark, and it is the strongest argument for ruling D-FLEET-46.
+
+**Progress**: 19 open tickets (none resolved, none new).
+- Clause 1 UNMEASURED.
+- Clause 2 no change.
+- Clause 3 MET; clause 4 met by its letter; clause 5 preserved (nothing landed).
+- Last 3 landings: 141, 143, 146.
+
+**Validation**: darwin/arm64. `mission_decisions.sh --check` rc 0 (47 rows). STATUS rotation: ITERATION 144 moved to the archive (archive 1, charter 0; control 143 archive 1). Charter line count unchanged (+4 −4), and queue-row control `73. [PARKED` is present. The stamp passes the canonical-shape grep.
+
+**Landing**: record only, branch `fleet/i147-record`.
+
+**Next**: pick NONE unless a ruling lands (D-FLEET-44/45/46) or a new in-scope ticket arrives. D-FLEET-48 is moot; Mark may close it.
+
+**Routing evidence**: base=`2e583399dddee657bb936d01490e7da43a669124`@2026-11-28T00:15:31Z (Gate 1).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer `claude:claude-opus-5-5` (recipe): not spawned, because there was no pick and nothing to design. The rotation pointer is unchanged.
+- Planner `codex:gpt-6.2-sol` (recipe): not spawned, because there was no pick.
+- Executor `codex:gpt-6.2-sol` (recipe): not spawned, because there was no pick.
+- Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, read-only, 1 spawn (54,841 tok). Judge independence: sonnet is distinct from the controller (opus). There was no generator this fire; the judge reviewed the controller's idle verdict.
+- Operator request for this fire: spawn the roles as the routing table specifies, with the evaluator required. The evaluator ran. The designer, planner and executor had no work for a NONE pick and are recorded as not spawned, with reasons. No role was unspawnable and no fallback was used.
+- Driver routing note verbatim: (empty).
+- Cost: metered $0 (Anthropic subscription only).
