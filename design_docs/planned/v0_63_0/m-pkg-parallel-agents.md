@@ -1,6 +1,6 @@
 # M-PKG-PARALLEL-AGENTS: Packages as the unit of parallel agent work
 
-**Status**: Planned. Quorum round 2 (user-authorised, new pool): BLOCKED, 1 pass and 3 reject. All round-2 objections are folded in but not yet re-reviewed. Design freeze ratified 2026-11-25 (D1–D4, D7 as recommended); implementation starting with Phase 1.
+**Status**: In progress. Phase 1 shipped in v0.64.0 (Sprint 1). Phase 2, re-exports, merged in #2475 (Sprint 2). Phase 4, moves, is next (Sprint 4). It depends on Phase 2 only. Phase 3, checkpoints and leases, waits on the full Phase 0 run. Design freeze ratified 2026-11-25 (D1–D4, D7 as recommended), after quorum round 2 (1 pass, 3 reject, all objections folded in).
 **Target**: v0.63.0 (Phases 1–2), v0.64.0 (Phases 3–4)
 **Priority**: P1. This finishes the coordination half of [M-PKG](../../implemented/v0_9_5/m-pkg-package-system.md), which shipped its packaging half.
 **Estimated**: ~11–14 days across 4 phases, plus a 0.5-day Phase 0 spike
@@ -279,14 +279,14 @@ The content hash is kept as a recorded field, because it is what the lock's drif
   - **`ailang.lock`:** **unsafe.** 16 of ~9,700 runs failed with `failed to parse …/ailang.lock: unexpected end of JSON input`. `LockFile.Save` writes with a plain `os.WriteFile` (`internal/pkg/lockfile.go:87`), so a concurrent reader can see a truncated file. This is fixed in Phase 1.
 - [ ] Full run: 10 minutes, with the loops in **sibling** packages (the design's real shape), after the atomic-lock fix. Expect 0 hard failures.
 
-**Phase 1: Measured classes and boundary hygiene** (~3 days)
-- [ ] Atomic lock write: temp file in the same directory, then `os.Rename`. There is no shared helper in `internal/pkg`, and the four existing ones are all private to their own packages (V17), so add `pkg.writeFileAtomic` there and use it in `LockFile.Save` (TST-PKGPAR-14).
-- [ ] C4: thread signatures through the publish emitter; replace the module-count heuristic; fill `AffectedExports`.
-- [ ] C4: contract lines in `SignatureSet`, with the contract-aware classification rule (D7; TST-PKGPAR-19).
-- [ ] C4: PUB025 as a badge (D5).
-- [ ] C6: nested-manifest exclusion; IMP hint; `pkg docs` import lines; package-mode inline test discovery (TST-PKGPAR-23).
+**Phase 1: Measured classes and boundary hygiene** (~3 days; done, Sprint 1, v0.64.0)
+- [x] Atomic lock write: temp file in the same directory, then `os.Rename`. There is no shared helper in `internal/pkg`, and the four existing ones are all private to their own packages (V17), so add `pkg.writeFileAtomic` there and use it in `LockFile.Save` (TST-PKGPAR-14).
+- [x] C4: thread signatures through the publish emitter; replace the module-count heuristic; fill `AffectedExports`.
+- [x] C4: contract lines in `SignatureSet`, with the contract-aware classification rule (D7; TST-PKGPAR-19).
+- [x] C4: PUB025 as a badge (D5).
+- [x] C6: nested-manifest exclusion; `pkg docs` import lines. The IMP hint was dropped (V4 refuted). Package-mode inline test discovery (TST-PKGPAR-23) is not done: it is delegated to [m-package-test-discovery.md](../m-package-test-discovery.md) (#959).
 
-**Phase 2: Re-exports** (~4 days; done 2026-11-25, Sprint 2: identity is kept by a load-time rewrite of importers to the origin)
+**Phase 2: Re-exports** (~4 days; done, Sprint 2, merged in #2475: identity is kept by a load-time rewrite of importers to the origin)
 - [x] C1: parser (import header loop), elaborator/import resolution (identity-preserving aliasing), interface hash v2 inclusion, MOD016, MOD003 removal.
 - [x] C1: "moved" variant of `TC_DEPRECATED_001` (module-path replacement; applies to types and constructors) (V18).
 - [x] C1: facade effect ceiling covers re-exported functions (TST-PKGPAR-16).
@@ -298,7 +298,7 @@ The content hash is kept as a recorded field, because it is what the lock's drif
 - [ ] C3: claim/release/claims; nearest-`ailang.toml` ownership; hook template; `pkg commit` with nested-root excludes (if D4 is accepted).
 - [ ] C2: HEAD lock (TST-PKGPAR-25); publish rule for checkpoint deps (PUB026, TST-PKGPAR-24); lock schema v2 for checkpoint entries (V35: older binaries refuse it).
 
-**Phase 4: Moves** (~2–3 days)
+**Phase 4: Moves** (~2–3 days; next, Sprint 4. Needs Phase 2 only; the checkpoint branches of C5 follow Phase 3)
 - [ ] C5: `pkg move` (both manifests, target dependency, facade, `[[migrations]]`); PUB027 target-first gate; `import_rewrites` + `add_dependency` schema and validation; `classifyDispatchPath` deterministic-first for C-class migration-requests with rewrites (TST-PKGPAR-26, -27).
 
 ### Files to Modify/Create
