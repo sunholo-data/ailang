@@ -22,10 +22,10 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/list` | Functional list operations: `map`, `filter`, `foldl`, `take`, `drop`, `find`, `span`, `chunk`, `groupBy`, `partition`, `filterMap`, `enumerate`, `all`, plus effectful `*E` combinators | — |
+| `std/list` | Functional list operations: `map`, `filter`, `filterMap`, `partition`, `foldl`, `find`, `findIndex`, `any`, `all`, `enumerate`, `take`, `drop`, `takeWhile`, `dropWhile`, `span`, `chunk`, `groupBy`, `sortBy`, `flatMap`, `zipWith`, plus effectful `*E` combinators ([list_combinators.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/list_combinators.ail)) | — |
 | `std/array` | O(1) indexed arrays; `set`/`append` copy the array (O(n)), so build with `fromList`/`updateMany` ([bulk_build_cost_model.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/bulk_build_cost_model.ail)). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd`/`accumulate(arr, writes, combine)` batch many writes into one copy ([difference_array_accumulate.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/difference_array_accumulate.ail)); `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
-| `std/map` | O(1) key-value lookup backed by Go hashmaps: `empty`, `insert`, `lookup`, `getOrElse`, `member`, `remove`, `update`, `mapValues`, `filter`, `keys`, `values`, `fromList`, `toList`. Keys: int, string, bool, float, unit, and tuples/records/ADT constructors of those; `insert`/`remove`/`update` copy (O(n)). Example: [map_tuple_record_keys.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail) | — |
-| `std/set` | Immutable sets (`Set[a]`): `member` O(1), `insert`/`remove` O(n) copy today, `union`/`intersect`/`difference` in one bulk build. Elements take every Map key kind, e.g. a visited `Set[(int, int, Dir)]`. Name the type with `import std/set (Set)` (`S.Set[...]` does not parse). Examples: [visited_set_bfs.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/visited_set_bfs.ail), [cycle_detection_visited_set.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/cycle_detection_visited_set.ail) | — |
+| `std/map` | O(1) key-value lookup backed by Go hashmaps (`M.Map[k, v]`): `empty`, `insert`, `lookup`, `getOrElse`, `member`, `remove`, `update`, `mapValues`, `filter`, `keys`, `values`, `fromList`, `toList`. Keys: int, string, bool, float, unit, and tuples/records/ADT constructors of those; `insert`/`remove`/`update` copy (O(n)). Example: [map_tuple_record_keys.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail) | — |
+| `std/set` | Immutable sets (`Set[a]` or qualified `S.Set[a]`): `member` O(1), `insert`/`remove` O(n) copy today, `union`/`intersect`/`difference` in one bulk build. Elements take every Map key kind, e.g. a visited `S.Set[(int, int, Dir)]`. Examples: [visited_set_bfs.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/visited_set_bfs.ail), [cycle_detection_visited_set.ail](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/cycle_detection_visited_set.ail) | — |
 | `std/string` | Length, substring, trim, split, replace, case; `indexOf`, `stripPrefix`, `stripSuffix`, `padLeft`, `padRight`, `lines`, `unlines`; `formatFixed(x, decimals)` for bounded fixed-decimal reports | — |
 | `std/regex` | Linear-time (RE2) regex: match, find, replace, split ([example](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/regex_basics.ail)) | — |
 | `std/bytes` | UTF-8 encoding, base64, byte-level operations | — |
@@ -49,8 +49,8 @@ See [Option vs Result](./option-vs-result) for choosing between `Option` and `Re
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/option` | `Some(x)` / `None` for values that may not exist | — |
-| `std/result` | `Ok(x)` / `Err(e)` for operations that can fail; `getOrElse`, `toOption`, `fromOption`, `map`, `mapErr`, `flatMap` | — |
+| `std/option` | `Some(x)` / `None` for values that may not exist (`map`, `flatMap`, `getOrElse`, `isSome`, `isNone`) | — |
+| `std/result` | `Ok(x)` / `Err(e)` for operations that can fail: `map`, `mapErr`, `flatMap`, `getOrElse`, `toOption`, `fromOption`, `isOk`, `isErr` | — |
 
 ## Numerics & Randomness
 
