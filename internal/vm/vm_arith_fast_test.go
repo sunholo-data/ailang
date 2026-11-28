@@ -40,7 +40,9 @@ func TestBinopDispatchMatchesHelpers(t *testing.T) {
 				var wantErr error
 				switch op {
 				case bytecode.OpEq:
-					want = bytecode.NewBool(runtimeEq(a, b))
+					var r bool
+					r, wantErr = runtimeEqChecked(a, b)
+					want = bytecode.NewBool(r)
 				case bytecode.OpLt, bytecode.OpLe:
 					var r bool
 					r, wantErr = compare(op, a, b)

@@ -1,0 +1,64 @@
+MISSION-ROLE: executor
+
+You are the executor for fleet mission iteration 146. Work ONLY inside this worktree:
+/Users/voightkampff/.ailang-driver-pin/fleet-i146-wt
+
+Context: PR #2481 adds a nightly-rig read to the idle fingerprint helper
+tools/launchd/lib/idle-fingerprint.sh (the block starting at the comment
+"# The rig can post red on an older SHA."). Its test is
+tools/launchd/test_mission_idle_fingerprint.sh, which has a `--mutations` mode. An independent
+judge found three test gaps. The controller reproduced the first two: each mutant below makes the
+plain test pass (rc 0), so nothing kills it.
+
+TASK: TEST-ONLY change. Do NOT edit tools/launchd/lib/idle-fingerprint.sh or any other file except
+tools/launchd/test_mission_idle_fingerprint.sh. Fix all three:
+
+1. Mutant `nowhole`: replace the helper line
+     def whole: type=="number" and . == floor;
+   with
+     def whole: true;
+   Add test arms that the real helper refuses and this mutant accepts: a nightly issue whose
+   `.number` is non-integer (e.g. 392.5) and one whose `.comments` is negative (e.g. -1). Check
+   each case against the real helper's jq conditions before you rely on it (`.number` must also be
+   > 0 and `.comments` >= 0, so pick values where only `whole` decides the outcome. For example a
+   non-integer `.comments` like 1.5 is refused only by `whole`, while -1 is also refused by `>=0`).
+   Use the existing `bad` helper with BAD_READ_FAIL set to a distinct message, so the mutant's
+   first FAIL line is that message.
+
+2. Mutant `idonly`: replace the helper's
+     "nightly comment:\($issue):\(.id)"
+   with
+     "nightly comment:\($issue)"
+   Add an arm proving that comment ids, not just their count, are hashed: two fixtures with the
+   SAME issue, the SAME comment count and the SAME number of "The nightly " reports, but one
+   report replaced by a different report with a different id. The hash must differ. Fail with a
+   distinct message, e.g. 'nightly replaced report did not move hash'.
+
+3. Vacuous rc: the line `nightly_with_pr=$(hash); rc=$?` captures the exit status of `cut` (hash
+   is `fp | cut ...`), so the following `[ "$rc" -eq 0 ]` assertion can never fail. Make the
+   assertion real: capture the helper's own exit status (for example call `fp` into a variable,
+   take `rc=$?`, then cut the hash from that output) without changing what the arm checks.
+
+Then add `nowhole` and `idonly` to the `--mutations` list, with `case` entries in the same style
+as `widen`/`narrow`/`nouniq`: a sed that must change the helper, plus `expected_fail` set to the
+exact FAIL line your new arm prints. Keep every existing arm and mutant unchanged.
+
+RULES:
+- No git write operations at all (no add, commit, stash, checkout, reset). The controller commits.
+- Do not write anything outside this worktree. The tests already use temp directories; keep it
+  that way. Do not touch $HOME or ~/.ailang/state.
+- Run these gates and report each command with its exit code. The controller ran all three on
+  this exact base and all were rc 0 (mutations: 27 KILLED):
+    /bin/bash tools/launchd/test_mission_idle_fingerprint.sh
+    /bin/bash tools/launchd/test_mission_idle_fingerprint.sh --mutations
+    shellcheck tools/launchd/test_mission_idle_fingerprint.sh
+  Expected after your change: plain rc 0, mutations rc 0 with 29 KILLED lines (including
+  `MUTATION nowhole KILLED` and `MUTATION idonly KILLED`), shellcheck rc 0.
+- If a gate fails for a sandbox reason (permission denied, socket bind), label it
+  UNINFORMATIVE UNDER SANDBOX instead of pass or fail. If a gate is red for a reason unrelated
+  to your change, report it as a finding; do not work around it.
+- Do not wait on background work and do not end your turn announcing a wait. Run each gate in
+  the foreground to completion.
+
+FINAL MESSAGE: list the arms you added (with their FAIL messages), the mutation entries, the
+three gate commands with exit codes, and the count of KILLED lines.

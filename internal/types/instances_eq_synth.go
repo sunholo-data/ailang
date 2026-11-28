@@ -68,17 +68,31 @@ func eqParts(typ Type) ([]Type, bool) {
 	return nil, false
 }
 
+// HasDerivedEqRecord reports whether the nominal record (module, name) was
+// declared with `deriving (Eq)` (SOUND-1).
+//
+// When module != "", lookup is strictly module-qualified via NominalKey(module, name),
+// so an imported ADT/record `deriving (Eq)` never grants Eq to a same-named
+// record alias in another module. Bare-name fallback applies ONLY when
+// module == "" (legacy unit tests constructing TRecord literals without module context).
+func (env *InstanceEnv) HasDerivedEqRecord(module, name string) bool {
+	if name == "" {
+		return false
+	}
+	if module != "" {
+		return env.eqRecordNames[NominalKey(module, name)]
+	}
+	return env.eqRecordNames[name] || env.eqRecordBareNames[name]
+}
+
 // synthesizeEq tries to build Eq[typ] from its parts. handled is false when typ
 // is not a synthesizable shape, so the caller reports the ordinary missing instance.
 func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (inst *ClassInstance, handled bool, err error) {
 	// Nominal record: the value of a record alias (or a single-constructor ADT
-	// wrapping a record) carries the declared name. Its fields were checked when
-	// the declaration derived Eq, so only the declaration is consulted here.
+	// wrapping a record) carries the declared (TypeModule, TypeName). Its fields
+	// were checked when the declaration derived Eq, so only the declaration is consulted here.
 	if rec, ok := typ.(*TRecord); ok {
-		if rec.TypeName == "" {
-			return nil, false, nil
-		}
-		if !env.eqRecordNames[rec.TypeName] {
+		if !env.HasDerivedEqRecord(rec.TypeModule, rec.TypeName) {
 			return nil, false, nil
 		}
 		return structuralEqInstance(typ), true, nil
@@ -171,11 +185,12 @@ func (env *InstanceEnv) checkDerivedEqField(t Type, aliases map[string]Type, exp
 	switch tt := t.(type) {
 	case *TRecord:
 		if tt.TypeName != "" {
-			if expanding[tt.TypeName] {
+			recKey := NominalKey(tt.TypeModule, tt.TypeName)
+			if expanding[recKey] {
 				return nil
 			}
-			expanding[tt.TypeName] = true
-			defer delete(expanding, tt.TypeName)
+			expanding[recKey] = true
+			defer delete(expanding, recKey)
 		}
 		names := make([]string, 0, len(tt.Fields))
 		for name := range tt.Fields {
@@ -252,7 +267,7 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 		return nil, err
 	}
 	if rec, ok := typ.(*TRecord); ok && rec.TypeName != "" {
-		if env.eqRecordNames[rec.TypeName] {
+		if env.HasDerivedEqRecord(rec.TypeModule, rec.TypeName) {
 			return nil, nil
 		}
 	}

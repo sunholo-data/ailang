@@ -34,6 +34,9 @@ func (w *TakeAfterFlatMapWarning) String() string {
 // Code returns the stable diagnostic code.
 func (w *TakeAfterFlatMapWarning) Code() string { return "LIST_TAKE_AFTER_FLATMAP" }
 
+// WarningFile names the warning's own source file for multi-module/package checks.
+func (w *TakeAfterFlatMapWarning) WarningFile() string { return w.Location.File }
+
 // DetectTakeAfterFlatMap finds direct take(n, flatMap(f, xs)) calls on resolved
 // std/list globals. Calls with an intervening expression intentionally do not
 // match.
@@ -44,7 +47,14 @@ func DetectTakeAfterFlatMap(prog *core.Program) []elaborate.Warning {
 	var warnings []elaborate.Warning
 	WalkCore(prog, func(expr core.CoreExpr) {
 		if outer, ok := directTakeFlatMap(expr); ok {
-			warnings = append(warnings, &TakeAfterFlatMapWarning{Location: outer.OriginalSpan()})
+			loc := outer.OriginalSpan()
+			if loc.Line == 0 && outer.Func != nil {
+				loc = outer.Func.OriginalSpan()
+			}
+			if loc.Line == 0 {
+				loc = expr.OriginalSpan()
+			}
+			warnings = append(warnings, &TakeAfterFlatMapWarning{Location: loc})
 		}
 	})
 	return warnings

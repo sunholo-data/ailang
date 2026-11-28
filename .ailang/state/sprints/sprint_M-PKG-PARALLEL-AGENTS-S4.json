@@ -1,0 +1,158 @@
+{
+  "sprint_id": "M-PKG-PARALLEL-AGENTS-S4",
+  "status": "not_started",
+  "created": "2026-11-27T14:29:47Z",
+  "design_doc": "design_docs/planned/v0_63_0/m-pkg-parallel-agents.md",
+  "sprint_plan": "design_docs/planned/v0_63_0/sprint-plan-m-pkg-parallel-agents-s4.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    },
+    {
+      "milestone": "M2",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    },
+    {
+      "milestone": "M3",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    },
+    {
+      "milestone": "M4",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    },
+    {
+      "milestone": "M5",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    },
+    {
+      "milestone": "M6",
+      "package": "none",
+      "action": "none",
+      "reason": "Registry searches for module move, import rewrite and package publish found no packages. The milestone extends the Go toolchain or verifies that implementation."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_MOVE_METADATA",
+      "description": "Validate persistent migrations and preflight source, target, public interface and package graph.",
+      "estimated_loc": 190,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Valid migrations survive load and append across multiple moves; malformed entries are rejected.",
+        "Preflight rejects invalid target, missing source, destination collision and incompatible package dependencies without writes.",
+        "Nested target with a distinct module prefix maps to the correct file, declaration and canonical package import path."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_MOVE_AND_REWRITE",
+      "description": "Apply pkg move with a full C1 facade, both manifests, path dependency and syntax-aware import rewrites.",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_MOVE_METADATA"
+      ],
+      "acceptance_criteria": [
+        "Nested move updates the destination, both manifests, all eligible import sites and emits a complete facade and persistent migration entry.",
+        "Selective imports including constructors and renamed symbols, module aliases for functions and types, comments and string lookalikes behave as specified.",
+        "External old imports continue working, sequential moves preserve earlier entries and injected apply failure leaves the fixture consistent."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_MOVE_RELEASE",
+      "description": "Gate source publish on the exact registry target version with PUB027 and classify the staged compatible move B.",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M2_MOVE_AND_REWRITE"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-26 publish-order assertions: source-first or older target fails PUB027, exact target-first permits a minor; the local manifest survives refusal.",
+        "TST-PKGPAR-26 classification: verified new facade and equivalent signatures yield B across quality, inbox and Pub/Sub.",
+        "Later unchanged releases remain A, actual breaking changes remain C, and incomparable signatures remain U."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_MIGRATION_EVENT",
+      "description": "Validate import_rewrites and emit a C migration-request when the facade is removed.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1_MOVE_METADATA",
+        "M3_MOVE_RELEASE"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-11: empty from and to paths fail validation independently; valid rewrites round-trip and legacy requests without rewrites still decode.",
+        "Source major emits one logical C migration-request per dependent with the manifest-derived paths, symbols, target name and publish-bound constraint on both channels.",
+        "Live or previously removed facades and unrelated C changes do not generate rewrite entries."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DETERMINISTIC_MIGRATION",
+      "description": "Carry validated rewrite data to the job and run the dependency-add, rewrite, lock, check and test workflow with AI fallback.",
+      "estimated_loc": 310,
+      "dependencies": [
+        "M2_MOVE_AND_REWRITE",
+        "M4_MIGRATION_EVENT"
+      ],
+      "acceptance_criteria": [
+        "Publisher payload reaches the wrapper through Pub/Sub, task persistence and dispatch config; legacy routing and trusted ingress are preserved.",
+        "TST-PKGPAR-12: the actual deterministic sequence adds the target before rewriting imports, locks, checks and tests the dependent, with zero AI dispatches.",
+        "TST-PKGPAR-27: C migration requests with non-empty rewrites route deterministic-first, every other C routes to AI, and failed deterministic check rolls back edits and dispatches AI once."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_E2E_AND_GUIDE",
+      "description": "Verify the nested docparse split fixture over both releases and document the pkg move workflow.",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_MOVE_AND_REWRITE",
+        "M3_MOVE_RELEASE",
+        "M4_MIGRATION_EVENT",
+        "M5_DETERMINISTIC_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "TST-PKGPAR-26: registry-backed minor release gains the transitive target in the dependent lock and warns with the moved path while old imports and constructor identity work on the evaluator and strict VM.",
+        "Major release applies its real request to the same dependent and works on both engines; record a 46-module scratch replay against the docparse_core split shape.",
+        "The package-publishing guide shows pkg move and the two releases; changelog included. make test-changed, make lint, make check-file-sizes, make check-changelog, make verify-examples and make check-doc-samples pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 423,
+    "estimated_total_loc": 1270,
+    "estimated_days": 3
+  }
+}

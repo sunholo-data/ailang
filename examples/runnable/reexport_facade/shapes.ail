@@ -1,0 +1,27 @@
+-- examples/runnable/reexport_facade/shapes.ail
+--
+-- The module that defines Shape. reexport_facade/api re-exports it;
+-- reexport_facade/main imports it only through that facade
+-- (M-PKG-PARALLEL-AGENTS C1, `export import`).
+module examples/runnable/reexport_facade/shapes
+import std/io (println)
+
+export type Shape = Square(int) | Rect(int, int)
+
+export pure func area(s: Shape) -> int = match s {
+  Square(n) => n * n,
+  Rect(w, h) => w * h
+}
+
+-- The contract travels with the name: the facade's interface lists it too.
+export pure func double(n: int) -> int
+ensures { result == n + n }
+  tests [
+    (0, 0),
+    (3, 6),
+    (-4, -8)
+  ] {
+  n * 2
+}
+
+export func main() -> () ! {IO} = println(show(area(Square(double(2)))))

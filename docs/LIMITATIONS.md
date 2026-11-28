@@ -1,5 +1,5 @@
 ---
-reviewed: 2026-11-26
+reviewed: 2026-11-27
 reviewBy: 2027-05-26
 ---
 
@@ -7,7 +7,7 @@ reviewBy: 2027-05-26
 
 > **Canonical page:** [docs/docs/reference/limitations.md](docs/docs/reference/limitations.md) ([ailang.sunholo.com/docs/reference/limitations](https://ailang.sunholo.com/docs/reference/limitations)) carries full workaround snippets and diagnostic codes.
 
-**Live-verified at AILANG `v0.64.1` (`2026-11-26`).**
+**Live-verified at AILANG `v0.64.1` (`2026-11-26`); `rc.1` rows track `v0.64.2 / v1.0.0-rc.1` (`2026-11-27`).**
 
 ## Capability & Cliff Matrix
 
@@ -19,9 +19,13 @@ reviewBy: 2027-05-26
 | **Bounded Z3 verification** | Recursion unrolls to depth `2` (`--verify-recursive-depth`), HOF lambdas to depth `3` (no induction). Bitwise ops & fn args skipped; floats model as non-NaN `Real`; `--bytecode --verify-contracts` refused (`CTR004`). | Bound depth/lists in `requires`, check NaN with `std/math.isNaN`, run `--verify-contracts` on evaluator. |
 | **Explicit-flow IFC** | Taint labels (`T<label>`) track explicit data flow, not implicit branch channels; single `not` refinement per param. | Use `Declassify` at trust boundaries and shared parent labels for multi-exclusion. |
 | **`--bytecode` VM coverage** | `186 / 205` runnable examples run natively; remaining fallbacks warn on stderr (`BC001` under `--strict-bytecode`). `Map.insert`/`Set.insert`/`Array.set` copy `O(n)`. | Gate with `ailang check --strict-bytecode`; bulk-build via `fromList`/`updateMany`/`accumulate`. |
-| **`export import` pending `#2475`** | Re-export syntax fails with `PAR_EXPORT_REQUIRES_FUNC`. | Wrap re-exported symbols in `export func`. |
+| **Constructors through a module alias** | `import M as C` binds `C.f` and `C.T`, but `C.Red` is `IMP010` for every module. | Import constructors by name: `import M (Color, Red)`. |
 | **No ad-hoc user typeclasses** | Built-in `Num`/`Eq`/`Ord`/`Show`/`Fractional` + `deriving (Eq, Json)` only; no user `class`/`instance` or higher-kinded types. | Pass explicit record dictionaries or use ADTs. |
 | **Syntax & WASM budgets** | Multi-statement `else` requires `{ ... }`; `expr?` is `let`-spine only (`PAR_TRY_LET_ONLY`); RE2 regex has no backreferences; WASM has a `2 s` type-check wall-clock budget. | Wrap multi-statement branches in `{ ... }`; flatten nested matches; raise `ailangSetTypeCheckBudget` in WASM hosts. |
+| **WASM / REPL parity `#2410` (`rc.1`)** | `ModuleRegistry.LoadModule` used to skip effect, exhaustiveness (`TC_MATCH_002`) and contract checks; `v1.0.0-rc.1` matches the CLI. | Re-check older playground snippets with `ailang check`. |
+| **Z3 `requires` boundary `#2404`** | `verify` assumes each function's `requires` but does not prove an uncontracted caller meets a callee's. | Add contracts to callers or run `--verify-contracts`. |
+| **Nominal record `Eq` (`rc.1`)** | `==` on a record needs its own `deriving (Eq)`; imported same-named types no longer lend one. | Add `deriving (Eq)` when all fields support it. |
+| **Pipe `_` placeholder (`rc.1`)** | `xs \|> filter(p, _)` takes one `_` per stage (`TC_PIPE_001` for more); `5 \|> makeAdder(1)` still works. | Use a lambda for multi-use. |
 
 ```ailang
 module docs/root_limitations_check

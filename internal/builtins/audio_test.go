@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
-	"github.com/sunholo-data/ailang/third_party/goopus/oggopus"
+	"github.com/sunholo-data/ailang/internal/third_party/goopus/oggopus"
 )
 
 // synthSpeechPCM returns deterministic speech-like s16le PCM: a pitch-glided

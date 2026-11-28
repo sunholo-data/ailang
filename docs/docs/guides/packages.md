@@ -81,7 +81,7 @@ import pkg/sunholo/json/parser (parseJson)    -- External package (resolved via 
 ```
 
 :::note `export import` re-export facades
-`export import ...` is **not yet supported** and fails with `PAR_EXPORT_REQUIRES_FUNC` (tracked in `#2475`). Export wrapper functions or import directly from the defining module.
+`export import M (names)` re-exports names with the original's identity, so a module can move to another package and leave a facade at the old path. See [Moving a module without breaking dependents](/docs/guides/package-publishing#moving-a-module-without-breaking-dependents).
 :::
 
 ## Atomic & Portable Lockfile (`ailang.lock`)

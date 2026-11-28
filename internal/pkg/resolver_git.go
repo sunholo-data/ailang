@@ -70,13 +70,23 @@ func lockedGitDir(locked *LockedPackage) (string, error) {
 			dir = locked.Path
 		}
 	}
+	missing := dir == ""
+	if !missing {
+		_, err := os.Stat(dir)
+		missing = err != nil
+	}
+	if !missing {
+		return dir, nil
+	}
+	// Under confinement "run 'ailang lock'" is advice the agent cannot take:
+	// a confined lock refuses to fetch. Name the operator remedy instead.
+	if Confined() {
+		return "", fmt.Errorf("git package %s@%s is not provisioned (no clone at %s); fetching it is operator authority under AILANG_AGENT_POLICY — %s", locked.Name, locked.Version, dir, GitRemedy)
+	}
 	if dir == "" {
 		return "", fmt.Errorf("git package %s has no cached path; run 'ailang lock' to resolve", locked.Name)
 	}
-	if _, err := os.Stat(dir); err != nil {
-		return "", fmt.Errorf("git package %s cache not found at %s; run 'ailang lock' to re-fetch", locked.Name, dir)
-	}
-	return dir, nil
+	return "", fmt.Errorf("git package %s cache not found at %s; run 'ailang lock' to re-fetch", locked.Name, dir)
 }
 
 // gitNotProvisioned is the refusal when a git dependency cannot be carried

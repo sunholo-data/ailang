@@ -202,7 +202,11 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				frame.IP++
 				continue
 			}
-			frame.Regs[inst.A()] = bytecode.NewBool(runtimeEq(lhs, rhs))
+			eq, err := runtimeEqChecked(lhs, rhs)
+			if err != nil {
+				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
+			}
+			frame.Regs[inst.A()] = bytecode.NewBool(eq)
 			frame.IP++
 
 		case bytecode.OpLt, bytecode.OpLe:

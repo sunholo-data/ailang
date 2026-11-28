@@ -1,0 +1,23 @@
+open tickets: 19 (iteration 143 ended at 19 after resolving idle-fingerprint:record-eval-json-moves-head)
+newest first_seen: 2026-11-24T16:06:24.793781Z
+newest last_seen:  2026-11-24T16:06:24.793781Z
+filed or re-seen after iteration 143's fire (2026-11-26T18:00Z): []
+ 20 reporting:daneel-reports-not-declared-triage missions=triage blocking=none
+ 14 skill:idle-record-barred-on-degraded-no-pick-fire missions=world blocking=none
+  3 quorum:gpt6-1-sol-openai-api-credits-exhausted missions=stapledon,world blocking=none
+  2 messaging:pubsub-notify-wrong-project missions=world blocking=none
+  1 eval:motoko-connection-probe-orphaned missions=motoko blocking=none
+  1 pi:openrouter:uncapped-max-tokens-402 missions=stapledon blocking=none
+  1 crash:sprint-executor:sigbus-ram-tmp-full-make-test missions=attended blocking=item
+  1 executor:3h-timeout-from-queue-and-unsliced-sprints missions=attended blocking=none
+  1 executor:timeout-loses-work-and-may-never-start missions=attended blocking=none
+  1 coordinator:cloud-lane-capped-by-local-worktree-limit missions=attended blocking=none
+  1 executor:codex-credential-lease-collision-fails-concurrent-dispatch missions=attended blocking=none
+  1 coordinator:job-retry-success-dropped-after-failed-completion missions=attended blocking=none
+  1 executor:codex-credential-collision-drops-automatic-planner-handoffs missions=attended blocking=none
+  1 quorum:claude-p-ration-usage-429 missions=stapledon blocking=item
+  1 ci:distinct-build-test-failures missions=triage blocking=none
+  1 tool-hang:triage-judge:home-metadata-search missions=triage blocking=none
+  1 ci:verify-gap-map-workflow-wiring missions=triage blocking=none
+  1 ci:agy-pin-test-home-isolation missions=triage blocking=none
+  1 ci:modelreg-qwen-slug-pricing-mismatch missions=triage blocking=none

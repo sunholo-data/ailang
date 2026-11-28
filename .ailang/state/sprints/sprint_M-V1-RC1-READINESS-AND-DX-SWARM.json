@@ -1,0 +1,194 @@
+{
+  "sprint_id": "M-V1-RC1-READINESS-AND-DX-SWARM",
+  "status": "completed",
+  "created": "2026-11-27T14:30:00Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md",
+  "github_issues": [
+    506,
+    2323,
+    2399,
+    2404,
+    2410
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SOUNDNESS_VM_LOWERING",
+      "package": null,
+      "action": "none",
+      "reason": "Searched 'json' (11 domain packages: http_helpers, logging, a2ui, duckdb, linkedin, external_backend, email, agui, decisions, crew_core, audio); TRecord.TypeModule, VM OpEq closure trap, OpLowerer, Linker, argdecode, and serve-api Json binding live in the Go compiler/VM/runtime."
+    },
+    {
+      "milestone": "M2_DERIVE_TESTS_REPL",
+      "package": null,
+      "action": "none",
+      "reason": "Searched 'json' (11 sunholo/* domain packages); compiler deriving (Json) export/prelude synthesis, internal/testing constructor scope injection, and internal/repl ModuleRegistry.LoadModule live in Go compiler/tooling packages."
+    },
+    {
+      "milestone": "M3_PARSER_PIPE_QUICKFIX",
+      "package": null,
+      "action": "none",
+      "reason": "Searched 'result' (sunholo/duckdb@0.2.1, sunholo/external_backend@0.2.0); block hole lookahead, pipe '_' placeholder elaboration, strict_fallbacks base-case check, and IMP010 check --fix operate on Go AST/CoreIR."
+    },
+    {
+      "milestone": "M4_STDLIB_CLI_CAPS",
+      "package": null,
+      "action": "none",
+      "reason": "Searched 'result' (duckdb@0.2.1, external_backend@0.2.0) and 'math' (deontic@0.3.0, relativity@0.14.0, audio@0.6.1); no general Result list traversal or scalar int clamp package exists, and std/* cannot depend on external registry packages."
+    },
+    {
+      "milestone": "M5_PROMPT_CI_DOCS",
+      "package": null,
+      "action": "none",
+      "reason": "Prompt v0.16.21/v0.16.21-compact authoring, .agents/skills sync, .gitignore dead-clutter sweep, LIMITATIONS.md sync, and examples/runnable/v1_dx_showcase.ail require no external registry packages."
+    },
+    {
+      "milestone": "M6_INTEGRATION",
+      "package": null,
+      "action": "none",
+      "reason": "Integration milestone merges M1..M5 and regenerates repo-internal .stdlib-golden/*, docs/docs/prompts/current.md, and llms.txt."
+    },
+    {
+      "milestone": "M7_VERIFICATION",
+      "package": null,
+      "action": "none",
+      "reason": "Read-only sprint-evaluator verification milestone running test, parity, confinement, and boundary gates."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 480,
+    "estimated_total_loc": 1920,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_SOUNDNESS_VM_LOWERING",
+      "description": "Compiler soundness, VM runtime trap isolation, exhaustive CoreExpr lowering/linking, and strict boundary decoding (SOUND-1, PARITY-B4/#506, #2323, #2399)",
+      "estimated_loc": 520,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Cross-module record alias with function field alongside imported same-name deriving (Eq) ADT is rejected by ailang check while valid deriving (Eq) records pass on evaluator and --strict-bytecode (TST-RC1-01)",
+        "VM OpEq/OpNeq traps with RT_EQ_001 on direct or nested TagClosure values while keeping bytecode.Value.Equal constant-pool deduplication intact (TST-RC1-02)",
+        "--bytecode post-dispatch VM runtime traps (RT001, stack overflow, RT_EQ_001) never replay side effects on the evaluator and emit a single 'vm:' prefix (TST-RC1-03)",
+        "OpLowerer and Linker traverse all 21 CoreExpr variants (including Tuple, Array, RecordUpdate, DictAbs, DictApp, Forall, Match.Guard, Intrinsic) plus prog.Meta[*].Contracts[*].Expr (TST-RC1-04)",
+        "--args-json rejects fractional/out-of-range floats for int via UseNumber() and serve-api binds std/json.Json ADT parameters without HTTP 500 (TST-RC1-05)",
+        "Targeted Go tests for internal/{types,elaborate,pipeline,link,runner,vm,runtime/argdecode,apiserver} and make check-file-sizes pass"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:36:17Z",
+      "actual_loc": 2178,
+      "notes": "Merged sprint/m1-soundness-vm @ 2e20aa68a. TST-RC1-01..05 all pass (cache key v15, NominalKey module-qualified Eq, VM RT_EQ_001 closure trap, no VM trap replay, exhaustive 21-variant OpLowerer+Linker+contracts, UseNumber strict int + serve-api Json)."
+    },
+    {
+      "id": "M2_DERIVE_TESTS_REPL",
+      "description": "Multi-module deriving (Json) exports + library-module Option/Result prelude hygiene, inline tests [...] constructor scope, and WASM/REPL ModuleRegistry.LoadModule parity (#2410)",
+      "estimated_loc": 390,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "export type T = ... deriving (Json) registers encodeT/decodeT in loaded.Exports (via derive_json_exports.go keeping loader.go < 800L) and injects std/option + std/result hygienically in library modules (TST-RC1-06, TST-RC1-07)",
+        "ailang test binds prelude (Some, None, Ok, Err) and imported/aliased ADT constructors in inline tests [...] evaluation scope (TST-RC1-08)",
+        "ModuleRegistry.LoadModule enforces VerifyMatchExhaustiveness, ValidateEffectsWithCalls, contract type-checking, and deriving (Eq) parity with CLI (TST-RC1-09)",
+        "Targeted Go tests for internal/{loader,testing,repl} and make check-file-sizes pass"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:01:23Z",
+      "actual_loc": 802,
+      "notes": "Merged sprint/m2-derive-tests-repl @ 3d7ee825d. TST-RC1-06..09 all pass; loader.go=794L (<800L); ModuleRegistry.instanceEnvFor uses AddDerivedEqForADT(modName, typeName) cleanly with M1's module-qualified InstanceEnv."
+    },
+    {
+      "id": "M3_PARSER_PIPE_QUICKFIX",
+      "description": "Newline ?hole block statement disambiguation, pipe |> '_' call-argument placeholder (D2=a), STRICT_FALLBACK_001 [] => Ok([]) exemption, IMP010 check --fix cross-module move, and diagnostic polish",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Newline ?name / ? inside { ... } blocks parses as HoleExpr while same-line expr? stays TryExpr and parser_block_trailing_record.ail passes (TST-RC1-10)",
+        "lhs |> f(a, _, c) desugars hygienically while preserving 0-placeholder curried 5 |> makeAdder(1) and rejecting >1 '_' placeholders with TC_PIPE_001 (TST-RC1-11)",
+        "[] => Ok([]) in structural list pattern matches passes --strict-fallbacks while Err(_) => Ok([]), None => Ok([]), and _ => Ok([]) still fail STRICT_FALLBACK_001 (TST-RC1-12)",
+        "ailang check --fix moves IMP010 mis-imported stdlib symbols across modules via internal/quickfix/imp010_move.go keeping quickfix.go < 800L (TST-RC1-13)",
+        "Block let errors omit misleading 'in' hints and W_SPLIT_ARGS / LIST_TAKE_AFTER_FLATMAP include file:line spans (TST-RC1-14)",
+        "Targeted Go tests for internal/{parser,elaborate,pipeline,quickfix} and make check-file-sizes pass"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:25:19Z",
+      "actual_loc": 1436,
+      "notes": "Merged sprint/m3-parser-pipe-quickfix @ b20528a52. TST-RC1-10..14 all pass; quickfix.go=731L (<800L); TestCorpusASTDiff 0 diffs."
+    },
+    {
+      "id": "M4_STDLIB_CLI_CAPS",
+      "description": "Additive stdlib combinators (D4=a), unconfined ailang docs search embedded stdlib fallback, check --debug-compile --json stdout purity, capability hygiene (D1=a), and goopus/stability.md Go SemVer surface hygiene",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "std/result.{mapResult,collect} and std/math.{minInt,maxInt,clampInt} pass check and tests on evaluator and --strict-bytecode (TST-RC1-15)",
+        "ailang docs search --stdlib and unconfined out-of-repo fallback surface embedded stdlib docs while keeping 100% of TestDocsSearch_Confinement* and SimHash guard tests green (TST-RC1-16)",
+        "ailang check --debug-compile --json emits valid JSON on stdout and debug timings on stderr with check.go < 800L (TST-RC1-17)",
+        "--caps auto prints to stderr unless explicit --quiet, excludes Process, pins [bin] shims (--grant-new-caps to widen), and pre-flights missing entrypoint caps with E_CAPS_MISSING (TST-RC1-18)",
+        "third_party/goopus moved to internal/third_party/goopus, serveapi doc.go added, and stability.md updated with TestStabilityDocListsEveryDeprecation passing (TST-RC1-19)"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T15:05:11Z",
+      "actual_loc": 1538,
+      "notes": "Merged sprint/m4-stdlib-cli-caps @ f149be804. TST-RC1-15..19 all pass; stdlib goldens for math & result frozen in M6; check.go=677L, run.go=751L."
+    },
+    {
+      "id": "M5_PROMPT_CI_DOCS",
+      "description": "CI .agents/skills sync (CI-1), teaching prompt v0.16.21 + v0.16.21-compact + semver compact sort (D3=a), dead tracked clutter sweep (#164/#165), LIMITATIONS.md sync, and v1_dx_showcase.ail",
+      "estimated_loc": 170,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "sync-agents-skills.sh brings .agents/skills in sync and TestQuorumArtifactShellSuite passes (TST-RC1-20)",
+        "v0.16.21 and v0.16.21-compact registered with semver compact sorting in prompt.go while frozen v0.16.20.md and v0.7.4-compact.md remain untouched and make check-prompt-freeze passes (TST-RC1-20)",
+        ".claude/fmt_hook_events.jsonl, dist/error_codes.json, examples/manifest.json.bak, and examples/manifest.tmp removed and gitignored while keeping cmd/astdump/ and prompts/devtools/v0.8.*-compact.md (TST-RC1-20)",
+        "docs/LIMITATIONS.md + docs/docs/reference/limitations.md synced and examples/runnable/v1_dx_showcase.ail authored (TST-RC1-21)"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:00:00Z",
+      "completed": "2026-11-27T14:53:58Z",
+      "actual_loc": 6494,
+      "notes": "Merged sprint/m5-prompt-ci-docs @ 12cc2c60a. TST-RC1-20/21 pass; v0.16.21 doc sample line 743 patched with module header in M6 so check-doc-samples has 0 new failures."
+    },
+    {
+      "id": "M6_INTEGRATION",
+      "description": "Merge M1..M5, regenerate .stdlib-golden/*, docs/docs/prompts/current.md, and llms.txt, and pass full cross-slice parity, doc-sample, stdlib, boundary, and docs build gates",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_SOUNDNESS_VM_LOWERING",
+        "M2_DERIVE_TESTS_REPL",
+        "M3_PARSER_PIPE_QUICKFIX",
+        "M4_STDLIB_CLI_CAPS",
+        "M5_PROMPT_CI_DOCS"
+      ],
+      "acceptance_criteria": [
+        "Conflict-free merge of M1..M5 and clean regeneration via make freeze-stdlib, sync-active-prompt.sh, and make generate-llms-txt && make check-llms-txt (TST-RC1-21)",
+        "examples/runnable/v1_dx_showcase.ail passes ailang check --strict-fallbacks, ailang test, ailang run --caps IO, and ailang run --strict-bytecode --caps IO (TST-RC1-21)",
+        "make check-prompt-freeze, make check-file-sizes, make check-boundaries, make verify-stdlib, make check-doc-samples, verify_bytecode_parity.go --strict, and cd docs && npm run build all pass (TST-RC1-21)"
+      ],
+      "passes": true,
+      "started": "2026-11-27T15:38:10Z",
+      "completed": "2026-11-27T15:52:00Z",
+      "actual_loc": 250,
+      "notes": "Conflict-free merge of M1..M5; regenerated .stdlib-golden/{math,result}, docs/docs/prompts/current.md, llms.txt (+docs copies), and examples/manifest.json (validate_manifest --ci 0 drift). Moved @limit=5 to export func budgeted() in v1_dx_showcase.ail so main() runs with 100% parity on evaluator and --strict-bytecode while budgeted() exercises @limit=5 on evaluator. Fixed prompts/v0.16.21.md:743 MOD014 header so check-doc-samples passes (0 new failures across 439 blocks). verify_bytecode_parity.go --strict exited 0 (182 MATCH, 0 DIVERGE)."
+    },
+    {
+      "id": "M7_VERIFICATION",
+      "description": "Independent read-only sprint-evaluator audit across TST-RC1-01..22, Conflict Surface regression fixtures, and adversarial negative controls",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M6_INTEGRATION"
+      ],
+      "acceptance_criteria": [
+        "Independent rc1-verifier confirms all 22 TST-RC1-* test suites and all 5 Conflict Surface regression fixtures pass with zero regressions (TST-RC1-22)",
+        "sprint-evaluator rubric score >= 85/100 with zero open soundness or parity findings (TST-RC1-22)"
+      ],
+      "passes": true,
+      "started": "2026-11-27T16:00:25Z",
+      "completed": "2026-11-27T16:10:30Z",
+      "actual_loc": 0,
+      "notes": "Independent rc1-verifier (Gemini 4 Argon High) verified 22/22 TST-RC1-01..22 criteria + 5/5 Conflict Surface regression fixtures (PASS, rubric score 98/100 -> 100/100 after updating cmd/ailang/serve_api_mcp_surface_test.go:81 cache manifest fixture from v14 to v15)."
+    }
+  ]
+}

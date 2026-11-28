@@ -302,6 +302,7 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 	// Needs every unit at once: the deprecation lives in the defining module,
 	// the use in another.
 	st.result.Warnings = append(st.result.Warnings, DetectDeprecatedUses(st.compiledUnits)...)
+	st.result.Warnings = append(st.result.Warnings, DetectMovedImports(st.compiledUnits)...)
 	// Needs the imported modules' interfaces, restored on a cache hit too.
 	st.result.Warnings = append(st.result.Warnings, DetectTypeNameWarnings(st.compiledUnits, st.modLinker.GetIface)...)
 
@@ -436,10 +437,13 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	}
 
 	aliases := qualifiedAliasEnv(modID, imports, elaborator)
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, scope, aliases, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, scope, aliases, elaborator.GetDerivedEqTypes(), imports.IFC, mod.Reexports); err != nil {
 		return err
 	}
 	if err := validateDeprecationTargets(mod.File, unit.Iface, st.modLinker.GetIface); err != nil {
+		return err
+	}
+	if err := validateReexportCeiling(unit.Iface, modID); err != nil {
 		return err
 	}
 

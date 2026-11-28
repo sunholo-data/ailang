@@ -83,7 +83,7 @@ func coreTIVariantSamples() map[string]types.Type {
 		"TArray":      &types.TArray{Element: types.TString},
 		"TMap":        &types.TMap{Key: types.TString, Value: types.TInt},
 		"TTuple":      &types.TTuple{Elements: []types.Type{types.TInt, types.TBool}},
-		"TRecord":     &types.TRecord{Fields: map[string]types.Type{"x": types.TInt, "y": &types.TList{Element: types.TInt}}, Row: &types.TVar{Name: "r"}, TypeName: "Point"},
+		"TRecord":     &types.TRecord{Fields: map[string]types.Type{"x": types.TInt, "y": &types.TList{Element: types.TInt}}, Row: &types.TVar{Name: "r"}, TypeName: "Point", TypeModule: "pkg/acme/points"},
 		"TRecordOpen": &types.TRecordOpen{Fields: map[string]types.Type{"x": types.TInt}, Row: &types.TVar{Name: "r"}},
 		"TRecord2":    &types.TRecord2{Row: recRow},
 		"TApp":        &types.TApp{Constructor: &types.TCon{Name: "Option", Module: "std/option"}, Args: []types.Type{types.TInt}},
@@ -145,9 +145,9 @@ func TestCoreTIDAG_EveryVariantMatchesGob(t *testing.T) {
 func TestCoreTIDAG_FieldCountsPinned(t *testing.T) {
 	want := map[string]int{
 		"TCon": 2, "TVar": 1, "TVar2": 2, "RowVar": 2, "TList": 1, "TArray": 1, "TMap": 2, "TTuple": 1,
-		// TRecord's 4th field is groundMemo, a per-node cache (#1787) that is
+		// TRecord's 5th field is groundMemo, a per-node cache (#1787) that is
 		// deliberately not encoded: a decoded record recomputes it on demand.
-		"TRecord": 4, "TRecordOpen": 2, "TRecord2": 1, "TApp": 2, "TFunc2": 5, "TLabelled": 2, "Row": 7,
+		"TRecord": 5, "TRecordOpen": 2, "TRecord2": 1, "TApp": 2, "TFunc2": 5, "TLabelled": 2, "Row": 7,
 	}
 	for name, ty := range coreTIVariantSamples() {
 		if got := reflect.TypeOf(ty).Elem().NumField(); got != want[name] {
@@ -197,7 +197,7 @@ func cloneCoreTIType(t types.Type) types.Type {
 		for k, v := range t.Fields {
 			fields[k] = cloneCoreTIType(v)
 		}
-		return &types.TRecord{Fields: fields, Row: t.Row, TypeName: t.TypeName}
+		return &types.TRecord{Fields: fields, Row: t.Row, TypeName: t.TypeName, TypeModule: t.TypeModule}
 	case *types.TList:
 		return &types.TList{Element: cloneCoreTIType(t.Element)}
 	default:

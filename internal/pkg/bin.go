@@ -150,12 +150,59 @@ func shimPath(goos, binDir, name string) string {
 
 // Shim describes one installed bin, as parsed back from its file.
 type Shim struct {
-	Name    string // command name
-	Package string // vendor/name
-	Version string
-	Path    string // shim file
-	Ailang  string // interpreter the shim execs
-	PkgDir  string // package root the shim runs from
+	Name       string // command name
+	Package    string // vendor/name
+	Version    string
+	Path       string   // shim file
+	Ailang     string   // interpreter the shim execs
+	PkgDir     string   // package root the shim runs from
+	Caps       []string // pinned capability list from `# caps:` header
+	CapsPinned bool     // true when `# caps:` header line was present
+}
+
+// ParseCapsList splits a comma-separated capability string into a sorted,
+// deduplicated slice, treating "" and "none" as empty.
+func ParseCapsList(raw string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, tok := range strings.Split(raw, ",") {
+		c := strings.TrimSpace(tok)
+		if c == "" || c == "none" {
+			continue
+		}
+		if !seen[c] {
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// FormatCapsList formats a capability list for headers and messages ("none" when empty).
+func FormatCapsList(caps []string) string {
+	if len(caps) == 0 {
+		return "none"
+	}
+	cp := append([]string(nil), caps...)
+	sort.Strings(cp)
+	return strings.Join(cp, ",")
+}
+
+// AddedCaps returns capabilities present in next that were not in prev, sorted.
+func AddedCaps(prev, next []string) []string {
+	have := make(map[string]bool, len(prev))
+	for _, c := range prev {
+		have[c] = true
+	}
+	var added []string
+	for _, c := range next {
+		if !have[c] {
+			added = append(added, c)
+		}
+	}
+	sort.Strings(added)
+	return added
 }
 
 // WriteShim writes the shim for one [bin] entry and returns its path. The
@@ -166,6 +213,13 @@ type Shim struct {
 // A shim is a command on the operator's PATH, wherever binDir is, so writing
 // one is home-write authority under confinement (#1720 row 17).
 func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name string, spec BinSpec) (string, error) {
+	return WriteShimPinned(binDir, ailangBin, pkgDir, manifest, name, spec, spec.EffectiveCaps(), "", false)
+}
+
+// WriteShimPinned writes a shim with an explicit resolved capability grant,
+// records `# caps:` in its header, and refuses silent capability widening over
+// an existing shim unless grantNewCaps is true.
+func WriteShimPinned(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name string, spec BinSpec, resolvedCaps, capsNote string, grantNewCaps bool) (string, error) {
 	if err := Require(AuthHomeWrite, "installing package command shims", OperatorRemedy); err != nil {
 		return "", err
 	}
@@ -181,7 +235,16 @@ func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name
 		return "", fmt.Errorf("creating bin dir %s: %w", binDir, err)
 	}
 	path := ShimPath(binDir, name)
-	body := shimBody(runtime.GOOS, ailangBin, absPkgDir, file, manifest, name, spec)
+	if !grantNewCaps {
+		if prev, readErr := ReadShim(path); readErr == nil && prev != nil && prev.CapsPinned {
+			nextCaps := ParseCapsList(resolvedCaps)
+			if added := AddedCaps(prev.Caps, nextCaps); len(added) > 0 {
+				return "", fmt.Errorf("bin %q (%s@%s) widens capabilities: adds %s (previously %s); re-run with --grant-new-caps to accept",
+					name, manifest.Package.Name, manifest.Package.Version, strings.Join(added, ","), FormatCapsList(prev.Caps))
+			}
+		}
+	}
+	body := shimBody(runtime.GOOS, ailangBin, absPkgDir, file, manifest, name, spec, resolvedCaps, capsNote)
 	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 		return "", fmt.Errorf("writing shim %s: %w", path, err)
 	}
@@ -191,10 +254,15 @@ func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name
 // shimBody renders the shim for goos: POSIX sh, or a .cmd batch file on
 // Windows. Both carry the same header lines ("# k: v" / "rem k: v") so
 // ReadShim parses either.
-func shimBody(goos, ailangBin, absPkgDir, file string, manifest *PackageManifest, name string, spec BinSpec) string {
+func shimBody(goos, ailangBin, absPkgDir, file string, manifest *PackageManifest, name string, spec BinSpec, resolvedCaps, capsNote string) string {
 	header := fmt.Sprintf("%s%s@%s %s", ShimHeaderPrefix, manifest.Package.Name, manifest.Package.Version, name)
+	capsList := ParseCapsList(resolvedCaps)
+	capsHeaderVal := FormatCapsList(capsList) + capsNote
 	regen := fmt.Sprintf("# regenerate: ailang install %s@%s", manifest.Package.Name, manifest.Package.Version)
-	runArgs := []string{"run", "--quiet", "--package-dir", absPkgDir, "--entry", spec.EffectiveEntry(), "--caps", spec.EffectiveCaps()}
+	runArgs := []string{"run", "--quiet", "--package-dir", absPkgDir, "--entry", spec.EffectiveEntry()}
+	if resolvedCaps != "" && resolvedCaps != "none" {
+		runArgs = append(runArgs, "--caps", resolvedCaps)
+	}
 	runArgs = append(runArgs, spec.RunFlags...)
 	runArgs = append(runArgs, file, "--")
 
@@ -204,6 +272,7 @@ func shimBody(goos, ailangBin, absPkgDir, file string, manifest *PackageManifest
 		sb.WriteString("rem " + strings.TrimPrefix(header, "# ") + "\r\n")
 		sb.WriteString("rem ailang: " + ailangBin + "\r\n")
 		sb.WriteString("rem package-dir: " + absPkgDir + "\r\n")
+		sb.WriteString("rem caps: " + capsHeaderVal + "\r\n")
 		sb.WriteString("rem " + strings.TrimPrefix(regen, "# ") + "\r\n")
 		sb.WriteString(fmt.Sprintf("\"%s\"", ailangBin))
 		for _, a := range runArgs {
@@ -216,6 +285,7 @@ func shimBody(goos, ailangBin, absPkgDir, file string, manifest *PackageManifest
 	sb.WriteString(header + "\n")
 	sb.WriteString("# ailang: " + ailangBin + "\n")
 	sb.WriteString("# package-dir: " + absPkgDir + "\n")
+	sb.WriteString("# caps: " + capsHeaderVal + "\n")
 	sb.WriteString(regen + "\n")
 	sb.WriteString("exec " + shellQuote(ailangBin))
 	for _, a := range runArgs {
@@ -244,7 +314,7 @@ func ReadShim(path string) (*Shim, error) {
 	s := &Shim{Path: path}
 	sc := bufio.NewScanner(f)
 	// Header lines are "# key: value" (sh) or "rem key: value" (cmd).
-	for i := 0; sc.Scan() && i < 8; i++ {
+	for i := 0; sc.Scan() && i < 10; i++ {
 		line := strings.TrimSpace(sc.Text())
 		if strings.HasPrefix(line, "# ") {
 			line = strings.TrimPrefix(line, "# ")
@@ -272,6 +342,10 @@ func ReadShim(path string) (*Shim, error) {
 			s.Ailang = value
 		case "package-dir":
 			s.PkgDir = value
+		case "caps":
+			rawCaps, _, _ := strings.Cut(value, " (")
+			s.Caps = ParseCapsList(rawCaps)
+			s.CapsPinned = true
 		}
 	}
 	if err := sc.Err(); err != nil {

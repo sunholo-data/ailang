@@ -2,8 +2,11 @@ package repl
 
 import (
 	"fmt"
+	"sort"
+	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -13,6 +16,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/runtime"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types/exhaust"
 )
 
 // LoadModule compiles and registers a module from source code.
@@ -157,8 +161,10 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	typeEnv := types.NewTypeEnvWithBuiltins()
 	typeEnv = pipeline.InjectPrelude(typeEnv)
 
-	// Use NewCoreTypeChecker which sets up Num/Fractional defaults and loads builtin instances
-	typeChecker := types.NewCoreTypeChecker()
+	// Use NewCoreTypeChecker's instance set (Num/Fractional defaults, builtin
+	// instances) plus every `deriving (Eq)` instance in the registry (#2410).
+	instEnv := mr.instanceEnvFor(name, elaborator)
+	typeChecker := types.NewCoreTypeCheckerWithInstances(instEnv)
 
 	// CRITICAL: Populate globalTypes with builtin type schemes
 	// Without this, VarGlobal references to builtins (e.g., $builtin._str_len)
@@ -249,14 +255,17 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	typeChecker.SetConstructorModules(ctorModules)
 	typeChecker.SetAmbiguousConstructors(ambiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams)
+	typeChecker.SetMatchUniverse(mr.matchUniverse(name, elabCtors)) // #2410: TC_MATCH_002
 
 	// CRITICAL: Register type aliases for unification
 	// Without this, record type aliases like "type Invoice = {...}" fail with
 	// "cannot unify type constructor Invoice with *types.TRecordOpen"
 	// This mirrors the pattern in pipeline_module.go lines 558-563.
+	aliasBodies := make(map[string]types.Type) // the alias env deriving (Eq) fields are checked in
 	elabAliases := elaborator.GetTypeAliases()
 	for aliasName, target := range elabAliases {
 		typeChecker.RegisterTypeAlias(types.NominalKey(name, aliasName), target)
+		aliasBodies[types.NominalKey(name, aliasName)] = target
 	}
 	for aliasName := range elaborator.GetNewtypeADTs() {
 		typeChecker.RegisterNewtypeADT(types.NominalKey(name, aliasName))
@@ -275,12 +284,16 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		}
 		for aliasName, target := range mod.TypeAliases {
 			typeChecker.RegisterTypeAlias(types.NominalKey(modName, aliasName), target)
+			aliasBodies[types.NominalKey(modName, aliasName)] = target
 		}
 		for aliasName := range mod.Newtypes {
 			typeChecker.RegisterNewtypeADT(types.NominalKey(modName, aliasName))
 		}
 	}
 	mr.mu.RUnlock()
+	if err := checkDerivedEqFields(instEnv, elaborator, aliasBodies); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", name, err)
+	}
 
 	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Propagate parameter and return type
 	// annotations from the elaborator so declared signatures like
@@ -349,6 +362,11 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 				}
 			}
 		}
+	}
+	typeChecker.FinalizeSubstitutions()
+	// #2410: the CLI's post-inference checks (pipeline_module_compile.go).
+	if err := verifyRegistryModule(name, program.File, coreProg, typeChecker, typeEnv); err != nil {
+		return nil, err
 	}
 
 	// Step 4: Dictionary elaboration
@@ -515,6 +533,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		TypeNames:   elaborate.LocalTypeNames(program.File),
 		Newtypes:    newtypes,
 	}
+	registryDerivedEq.Store(derivedEqKey{mr, name}, elaborator.GetDerivedEqTypes())
 	// Cache constructors from this module for future import resolution
 	for ctorName, ctorInfo := range elabCtors {
 		mr.constructors[ctorKey(ctorInfo.Module, ctorName)] = &CachedConstructor{
@@ -535,4 +554,169 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		exportNames = append(exportNames, name)
 	}
 	return exportNames, nil
+}
+
+// derivedEqKey names one registry's module in registryDerivedEq.
+type derivedEqKey struct {
+	mr     *ModuleRegistry
+	module string
+}
+
+// registryDerivedEq records the `deriving (Eq)` types of every module a
+// registry has loaded, so a module compiled later can compare their values
+// (#2410; the CLI keeps them in the interface's DerivedEq list).
+var registryDerivedEq sync.Map // derivedEqKey -> []string
+
+// instanceEnvFor is NewCoreTypeChecker's instance environment plus the Eq
+// instance of every derived-Eq type: this module's and each loaded module's,
+// keyed by its defining module (M-V1-NOMINAL-TYPE-IDENTITY).
+func (mr *ModuleRegistry) instanceEnvFor(name string, elaborator *elaborate.Elaborator) *types.InstanceEnv {
+	env := types.NewInstanceEnv()
+	if !config.NoPrelude() {
+		env = types.LoadBuiltinInstances()
+	}
+	env.SetDefault("Num", &types.TCon{Name: "int"})
+	env.SetDefault("Fractional", &types.TCon{Name: "float"})
+	mr.mu.RLock()
+	for modName := range mr.modules {
+		if v, ok := registryDerivedEq.Load(derivedEqKey{mr, modName}); ok && modName != name {
+			for _, typeName := range v.([]string) {
+				_ = env.AddDerivedEqForADT(modName, typeName)
+			}
+		}
+	}
+	mr.mu.RUnlock()
+	for _, typeName := range elaborator.GetDerivedEqTypes() {
+		_ = env.AddDerivedEqForADT(name, typeName)
+	}
+	return env
+}
+
+// checkDerivedEqFields requires Eq of every field of a `deriving (Eq)` type,
+// as pipeline.registerDerivedEq does (M-EQ-DERIVE-CONTAINERS R-D5).
+func checkDerivedEqFields(env *types.InstanceEnv, elaborator *elaborate.Elaborator, aliases map[string]types.Type) error {
+	derived := elaborator.GetDerivedEqTypes()
+	sort.Strings(derived)
+	fields := elaborator.GetDerivedEqFields()
+	for _, typeName := range derived {
+		for _, f := range fields[typeName] {
+			if err := env.CheckDerivedEqField(f.Type, aliases); err != nil {
+				return fmt.Errorf("cannot derive Eq for %s: %s has type %s, which has no ==: %w", typeName, f.Where, f.Type, err)
+			}
+		}
+	}
+	return nil
+}
+
+// matchUniverse is every loaded ADT's full constructor list plus this
+// module's own (authoritative for its types), for TC_MATCH_002.
+func (mr *ModuleRegistry) matchUniverse(name string, local map[string]*elaborate.ConstructorInfo) types.MatchUniverse {
+	u := make(types.MatchUniverse)
+	mr.mu.RLock()
+	for _, c := range mr.constructors {
+		if c.Module != name {
+			key := types.NominalKey(c.Module, c.TypeName)
+			u[key] = append(u[key], exhaust.CtorSig{Name: c.CtorName, Arity: c.Arity})
+		}
+	}
+	mr.mu.RUnlock()
+	for ctorName, info := range local {
+		if info != nil && !info.IsImported {
+			key := types.NominalKey(name, info.TypeName)
+			u[key] = append(u[key], exhaust.CtorSig{Name: ctorName, Arity: info.Arity})
+		}
+	}
+	for _, sigs := range u {
+		sort.Slice(sigs, func(i, j int) bool { return sigs[i].Name < sigs[j].Name })
+	}
+	return u
+}
+
+// verifyRegistryModule runs the CLI's post-inference checks on a module
+// loaded here: match exhaustiveness (TC_MATCH_002), contract clauses as bool
+// predicates (TC_CONTRACT_001) and declared effects (pure func ⇒ no IO).
+func verifyRegistryModule(name string, file *ast.File, prog *core.Program, tc *types.CoreTypeChecker, env *types.TypeEnv) error {
+	if _, err := tc.VerifyMatchExhaustiveness(prog.Decls...); err != nil {
+		return err
+	}
+	for _, decl := range prog.Decls {
+		tc.FillOperatorMethods(decl)
+	}
+	contracts, err := checkRegistryContracts(name, prog, tc, env)
+	if err != nil {
+		return err
+	}
+	if _, err := tc.VerifyMatchExhaustiveness(contracts...); err != nil {
+		return err
+	}
+	if file == nil || file.Module == nil {
+		return nil
+	}
+	if err := pipeline.ValidateEffectsWithCalls(file, prog, tc.CoreTI, tc.ApplicationEffects, tc.DeclaredLambdaEffectRow, tc.EffectValueType); err != nil {
+		return fmt.Errorf("effect checking failed in %s: %w", name, err)
+	}
+	return nil
+}
+
+// checkRegistryContracts mirrors pipeline.typeCheckContracts: each clause is
+// inferred over its function's parameters (and `result`, in ensures).
+func checkRegistryContracts(name string, prog *core.Program, tc *types.CoreTypeChecker, env *types.TypeEnv) ([]core.CoreExpr, error) {
+	params := make(map[string][]string)
+	for _, decl := range prog.Decls {
+		switch d := decl.(type) {
+		case *core.Let:
+			if lam, ok := d.Value.(*core.Lambda); ok {
+				params[d.Name] = lam.Params
+			}
+		case *core.LetRec:
+			for _, b := range d.Bindings {
+				if lam, ok := b.Value.(*core.Lambda); ok {
+					params[b.Name] = lam.Params
+				}
+			}
+		}
+	}
+	var fns []string
+	for fn, meta := range prog.Meta {
+		if meta != nil && len(meta.Contracts) > 0 {
+			fns = append(fns, fn)
+		}
+	}
+	sort.Strings(fns)
+	var checked []core.CoreExpr
+	for _, fn := range fns {
+		sig := tc.RigidSignatureOf(fn)
+		var fnType types.Type
+		if binding, err := env.Lookup(fn); err == nil {
+			if scheme, ok := binding.(*types.Scheme); ok {
+				fnType = scheme.Type
+				if sig != nil {
+					fnType = sig.Instantiate(scheme)
+				}
+			}
+		}
+		for _, c := range prog.Meta[fn].Contracts {
+			if c.Expr == nil {
+				continue
+			}
+			cenv := env
+			if f, ok := fnType.(*types.TFunc2); ok {
+				for i, p := range params[fn] {
+					if i < len(f.Params) {
+						cenv = cenv.Extend(p, f.Params[i])
+					}
+				}
+				if c.Kind == core.EnsuresKind && f.Return != nil {
+					cenv = cenv.Extend("result", f.Return)
+				}
+			}
+			if _, err := tc.InferPredicateRigid(c.Expr, cenv, sig); err != nil {
+				return nil, fmt.Errorf("type error in %s: %s: %s clause of %s at %s does not type-check (a contract is a bool predicate over the parameters): %w",
+					name, pipeline.CodeContract, c.Kind, fn, c.Location, err)
+			}
+			tc.FillOperatorMethods(c.Expr)
+			checked = append(checked, c.Expr)
+		}
+	}
+	return checked, nil
 }

@@ -64,6 +64,10 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		DerivedEq    []string             `json:"derived_eq,omitempty"`
 		// Nominal: export/constructor name -> qualified nominal refs.
 		Nominal map[string][]string `json:"nominal,omitempty"`
+		// Reexports: "name=module.name@moved" per re-exported name, so a
+		// facade's digest changes with its re-export list. Absent otherwise,
+		// which keeps every other module's digest unchanged.
+		Reexports []string `json:"reexports,omitempty"`
 	}
 
 	// Convert to JSON-friendly format with sorted keys
@@ -74,6 +78,7 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		Constructors: make(map[string]ctorItem),
 		DerivedEq:    iface.DerivedEq,
 		Nominal:      make(map[string][]string),
+		Reexports:    iface.reexportDigestLines(),
 	}
 
 	// Sort export names for deterministic ordering

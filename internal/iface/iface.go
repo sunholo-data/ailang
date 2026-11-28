@@ -24,6 +24,9 @@ type Iface struct {
 	// manifest). Every exported type carries it; a function carries its own
 	// IfaceItem.Tier (M-V1-STDLIB-SURFACE-POLISH §6.1). Not hashed.
 	Tier string
+	// Reexported holds what `export import` lines re-export (reexports.go);
+	// nil for a module without them.
+	Reexported *Reexports
 }
 
 // TypeExport represents an exported type name

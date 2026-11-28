@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -98,8 +99,12 @@ func injectPreludeImports(file *ast.File, modID, source string, importPaths []st
 		return importPaths
 	}
 	entry := isEntryModuleFile(file)
+	// DERIVE-JSON: `deriving (Json)` synthesizes decode<T> bodies that name
+	// Option/Some/None and Result/Ok/Err even when the source text never does,
+	// so such a library module needs both prelude modules (shadowing still wins).
+	derivesJson := fileHasDerivingJson(file)
 	var used map[string]bool
-	if !entry {
+	if !entry && !derivesJson {
 		used = namesIn(source)
 	}
 
@@ -123,9 +128,16 @@ func injectPreludeImports(file *ast.File, modID, source string, importPaths []st
 			continue // user already imports it — leave their import untouched
 		}
 		if preludeModuleShadowed(modPath, localTypes, localCtors) {
+			// The local definition wins. A deriving (Json) module still needs
+			// the prelude ADTs for its synthesized codecs, so it gets them under
+			// hygienic `$` names no source can write (TST-RC1-07).
+			if derivesJson {
+				synthetic = append(synthetic, hygienicPreludeImport(modPath))
+				syntheticPaths = append(syntheticPaths, modPath)
+			}
 			continue // user defines a colliding type/constructor locally — shadow
 		}
-		if !entry && !usesAny(used, preludeModuleSymbols[modPath]) {
+		if !entry && !derivesJson && !usesAny(used, preludeModuleSymbols[modPath]) {
 			continue // a library module whose code never names Option/Some/None (resp. Result/Ok/Err)
 		}
 		// Selective import naming the type + constructors, exactly as a user
@@ -167,6 +179,31 @@ func namesIn(source string) map[string]bool {
 		}
 	}
 	return names
+}
+
+// hygienicPreludeImport imports modPath's prelude symbols under `$`-suffixed
+// aliases (std/option's Some as Some$option, …) — the names the derived Json
+// codecs reference (elaborate.djSome etc.) — so a deriving (Json) module that
+// shadows Option/Result locally keeps its own names and still type-checks.
+func hygienicPreludeImport(modPath string) *ast.ImportDecl {
+	suffix := "$" + strings.TrimPrefix(modPath, "std/")
+	aliases := make(map[string]string, len(preludeModuleSymbols[modPath]))
+	for _, sym := range preludeModuleSymbols[modPath] {
+		aliases[sym] = sym + suffix
+	}
+	return &ast.ImportDecl{Path: modPath, Symbols: preludeModuleSymbols[modPath], SymbolAliases: aliases, Implicit: true}
+}
+
+// fileHasDerivingJson reports whether any type declared in file derives Json.
+func fileHasDerivingJson(file *ast.File) bool {
+	for _, list := range [][]ast.Node{file.Decls, file.Statements} {
+		for _, node := range list {
+			if td, ok := node.(*ast.TypeDecl); ok && slices.Contains(td.Deriving, ast.DeriveJson) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func usesAny(used map[string]bool, names []string) bool {

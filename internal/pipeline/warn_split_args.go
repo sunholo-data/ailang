@@ -79,6 +79,9 @@ func (w *ArgOrderWarning) Position() (line, col int) {
 	return w.Location.Line, w.Location.Column
 }
 
+// WarningFile names the warning's own source file for multi-module/package checks.
+func (w *ArgOrderWarning) WarningFile() string { return w.Location.File }
+
 // String renders the warning in the design-doc format (hint + note).
 func (w *ArgOrderWarning) String() string {
 	return fmt.Sprintf(
@@ -115,8 +118,12 @@ func detectSplitReversed(app *core.App) *ArgOrderWarning {
 	if lit1, ok := app.Args[1].(*core.Lit); ok && lit1.Kind == core.StringLit {
 		return nil
 	}
+	loc := app.OriginalSpan()
+	if loc.Line == 0 && app.Func != nil {
+		loc = app.Func.OriginalSpan()
+	}
 	return &ArgOrderWarning{
-		Location:   app.OriginalSpan(),
+		Location:   loc,
 		FuncName:   "split",
 		Delimiter:  s,
 		Arg1String: app.Args[1].String(),

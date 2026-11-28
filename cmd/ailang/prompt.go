@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -147,8 +147,50 @@ func resolveCompactPromptVersion(requested string) (string, error) {
 	if len(compacts) == 0 {
 		return "", fmt.Errorf("no compact prompt version is available in prompts/versions.json")
 	}
-	sort.Strings(compacts)
-	return compacts[len(compacts)-1], nil
+	return latestCompactVersion(compacts), nil
+}
+
+// latestCompactVersion returns the highest "vMAJOR.MINOR.PATCH-compact" entry
+// by parsed semver. ASCII order is wrong here ("v0.7.4-compact" sorts above
+// "v0.16.21-compact" because '7' > '1'). Names that do not parse sort below
+// every parsed version and tie-break lexically, so the result is deterministic.
+func latestCompactVersion(compacts []string) string {
+	best, bestKey, bestOK := "", [3]int{}, false
+	for _, v := range compacts {
+		key, ok := parseCompactSemver(v)
+		better := best == ""
+		switch {
+		case better:
+		case ok != bestOK:
+			better = ok
+		case ok && key != bestKey:
+			better = key[0] > bestKey[0] ||
+				(key[0] == bestKey[0] && (key[1] > bestKey[1] || (key[1] == bestKey[1] && key[2] > bestKey[2])))
+		default:
+			better = v > best
+		}
+		if better {
+			best, bestKey, bestOK = v, key, ok
+		}
+	}
+	return best
+}
+
+// parseCompactSemver parses "v0.16.21-compact" into (0, 16, 21).
+func parseCompactSemver(v string) ([3]int, bool) {
+	var key [3]int
+	parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(v, "v"), "-compact"), ".")
+	if len(parts) != 3 {
+		return key, false
+	}
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return key, false
+		}
+		key[i] = n
+	}
+	return key, true
 }
 
 // shortSHA returns the first 7 chars of a hex sha (git-style).

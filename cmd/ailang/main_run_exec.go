@@ -103,6 +103,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		JSONOutput:          jsonOutput,
 		Compact:             compact,
 		Quiet:               quiet,
+		ExplicitQuiet:       runExplicitQuiet,
 		BinopShim:           binopShim,
 		FailOnShim:          failOnShim,
 		RequireLowering:     requireLowering,

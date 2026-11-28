@@ -27,10 +27,14 @@ package testing
 //     in the root module's scope and reference its functions by bare name.
 
 import (
+	"slices"
 	"sort"
+	"strings"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/runtime"
 )
@@ -228,4 +232,68 @@ func (e *Executor) injectModuleBindings(env *eval.Environment, builtins *runtime
 		reexports = pending
 	}
 	return own, valueLets
+}
+
+// bindPreludeAndImportedCtors binds, under their bare names in the shared env,
+// the constructors a test row's expected value may name besides the module's
+// own (INLINE-TESTS-SCOPE): the implicit prelude's Some/None and Ok/Err unless
+// the module declares a colliding type or constructor, then each constructor
+// the module imports, under its alias (`import m (Foo as MyFoo)`) when given.
+func (e *Executor) bindPreludeAndImportedCtors(env *eval.Environment) {
+	local := make(map[string]bool)
+	for _, decl := range e.sourceFile.Decls {
+		if td, ok := decl.(*ast.TypeDecl); ok {
+			local[td.Name] = true
+			if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+				for _, c := range adt.Constructors {
+					local[c.Name] = true
+				}
+			}
+		}
+	}
+	for _, modPath := range loader.PreludeModules() {
+		syms := loader.PreludeSymbols(modPath) // [Type, Ctor...]
+		if !slices.ContainsFunc(syms, func(s string) bool { return local[s] }) {
+			for _, ctor := range syms[1:] {
+				e.bindModuleCtor(env, modPath, ctor, ctor)
+			}
+		}
+	}
+	for _, imp := range e.sourceFile.Imports {
+		for _, sym := range imp.Symbols {
+			bindName := sym
+			if alias, ok := imp.SymbolAliases[sym]; ok && alias != "" {
+				bindName = alias
+			}
+			e.bindModuleCtor(env, imp.Path, sym, bindName)
+		}
+	}
+}
+
+// bindModuleCtor binds constructor ctor of the loaded module importPath as
+// bindName, if that module's interface exports such a constructor.
+func (e *Executor) bindModuleCtor(env *eval.Environment, importPath, ctor, bindName string) {
+	mod := e.modules[importPath]
+	if mod == nil {
+		// Relative (./m) or prefixed spellings: match the module's identity.
+		suffix := "/" + strings.TrimPrefix(importPath, "./")
+		for path, m := range e.modules {
+			if m != nil && m.Iface != nil && (m.Iface.Module == importPath || strings.HasSuffix(path, suffix)) {
+				mod = m
+				break
+			}
+		}
+	}
+	if mod == nil || mod.Iface == nil {
+		return
+	}
+	cs, ok := mod.Iface.Constructors[ctor]
+	if !ok || cs == nil {
+		return
+	}
+	if cs.Arity == 0 {
+		env.Set(bindName, &eval.TaggedValue{ModulePath: mod.Iface.Module, TypeName: cs.TypeName, CtorName: ctor, Fields: []eval.Value{}})
+		return
+	}
+	env.Set(bindName, &eval.ConstructorClosure{TypeName: cs.TypeName, CtorName: ctor, Arity: cs.Arity})
 }

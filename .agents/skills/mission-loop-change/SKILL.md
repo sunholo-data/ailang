@@ -192,7 +192,7 @@ reboot).
 
 ## Adding a whole new mission
 
-**Follow `docs/docs/guides/mission-bootstrap.md`** (Steps 3.6 and 4 were rewritten for the registry
+**Follow `docs/internal/runbooks/mission-bootstrap.md`** (Steps 3.6 and 4 were rewritten for the registry
 on 2026-09-26). The registry exists now: `missions/<name>.toml`, then `ailang mission install <name>`
 (renders for review) and `ailang mission apply <name>` (installs and loads), run from the MAIN
 checkout. Worked example: the fleet mission (M-HARNESS-MISSION-LOOP). The older manual path is

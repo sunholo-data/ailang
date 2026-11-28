@@ -1,14 +1,21 @@
-# Fleet mission dashboard — iteration 143
+# Fleet mission dashboard — iteration 148
 
-Updated 2026-11-26; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
+Updated 2026-11-28; scheduled unattended. [Bookkeeping #2445](https://github.com/sunholo-data/ailang/issues/2445).
 
-- **Outcome: LANDED + RESOLVED [HARNESS].** [#2473](https://github.com/sunholo-data/ailang/pull/2473) → `216d6562b` (`idle-fingerprint:record-eval-json-moves-head`, stapledon 118): the idle fingerprint's `head=` skips stapledon's record-only `eval_MISSION-ITER-*_record.json` verdicts, so an unchanged record-only fire can idle. Ordinary sprint verdicts still wake.
-  - This fire first hardened the test against the i142 judge's four surviving widening mutants (two negative controls, four mutants, a per-target no-op guard; 21/21). Codex `gpt-6.2-sol` planned and built it. Independent judge (sonnet): **PASS 91**, 0 blocking.
-  - Dev went green at `f43d12e3c` (Release v0.64.1) mid-fire: rebased (4/4 identical), merged with the judged patch, dev CI green on the merge, done-gate run, ticket resolved, stapledon replied.
-- **Dev: GREEN** at `216d6562b` (18 checks, 0 not-green). `9ed9f6d7d` fixed the `std/list.member` test red; v0.64.1 fixed the `docs-gate` MDX red.
-- **Open tickets:** 19 (20 → 19). None is routable without a ruling: D-FLEET-44/45/46 gate the top ones; the rest are outside fleet Authority.
-- **Routing:** controller opus. Planner and executor codex `gpt-6.2-sol` (59k / 63k tok). Judge sonnet on the Agent tool, own worktree (54k tok). No designer (no doc needed). Codex reads over its daily ration after this fire (probe rc 75).
+- **Outcome: pick NONE [ADMIN]**, the second NONE fire in a row on the same set.
+  - 19 open tickets, byte-identical to iteration 147's set.
+  - No directive, no ledger flip, and no new ticket since 11-24.
+  - Independent judge (sonnet): **NONE 88%**. It rejected resolving attended-fixed tickets while D-FLEET-46 is OPEN.
+- **Dev: required checks GREEN** at `1ac8bbf0a` (`test`, `lint`, `build`, `checks`; `docs-gate` is path-filtered off docs-record commits and was green on `2e583399d`). Only SonarCloud is red; it is not required and is V1-owned.
+- **Open tickets:** 19.
+  - 11 wait on D-FLEET-46 (attended fixes already merged).
+  - 1 waits on D-FLEET-45 and 1 on D-FLEET-44.
+  - The rest are outside fleet Authority or held by a queue row.
+- **Routing:** controller opus. Judge sonnet on the Agent tool, read-only. No designer, planner or executor was spawned, because there was no pick.
 - **Cost:** metered $0.
-- **Parked on Mark:** D-FLEET-44, D-FLEET-45, D-FLEET-46 unchanged. D-FLEET-48 is moot (its default ran at 141); close it when convenient.
-- **Next:** pick NONE unless a ruling lands or a new in-scope ticket arrives.
-- **Evidence:** [log](fleet-mission-log.md) and [iteration143/](fleet-mission-evidence/iteration143/).
+- **Parked on Mark:**
+  - D-FLEET-46 is the one ruling that would unblock most of the queue (A = resolve each as bookkeeping).
+  - D-FLEET-44 and D-FLEET-45 are unchanged (default B).
+  - D-FLEET-48 is moot (#2463 merged 11-25); close it when convenient.
+- **Next:** pick NONE unless a ruling lands or a new in-scope ticket arrives. Every NONE fire still costs a controller session and a judge, because ruling-gated tickets keep the open count above 0.
+- **Evidence:** [log](fleet-mission-log.md) and [iteration148/](fleet-mission-evidence/iteration148/).

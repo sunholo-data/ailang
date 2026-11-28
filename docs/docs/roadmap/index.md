@@ -63,6 +63,7 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 - [M-V1-MATCH-EXHAUSTIVENESS: Non-exhaustive `match` is a compile error, with a witness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-match-exhaustiveness.md)
 - [M-V1-NOMINAL-TYPE-IDENTITY: a type is its name *and* its module, and a name must resolve to exactly one thing](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-nominal-type-identity.md)
 - [M-V1-PUBLIC-SURFACE-HYGIENE: what a stranger sees, and what becomes a promise by accident](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-public-surface-hygiene.md)
+- [M-V1-RC1-READINESS-AND-DX-SWARM: v1.0.0-rc.1 Compiler Soundness, Engine Parity, AI Ergonomics & Public Surface Hygiene](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-rc1-readiness-and-dx-swarm.md)
 - [M-V1-RELEASE-GATES: Release gates, release candidates and the v1.0.0 runbook](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-release-gates.md)
 - [M-V1-SHOW-TOTAL: make `show` total and unambiguous before it is frozen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-show-total.md)
 - [M-V1-STDLIB-SURFACE-POLISH: the last cheap fixes to the Stable stdlib before it freezes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-stdlib-surface-polish.md)
@@ -71,9 +72,11 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 - [v1.0.0 roadmap — from the readiness review to a tag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/ROADMAP.md)
 - [Sprint Plan: M-DOCS-VISUAL-NAVIGATION-OVERHAUL (Website Docs Visual & Navigation Overhaul Swarm)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/sprint-plan-m-docs-visual-navigation-overhaul.md)
 - [Sprint Plan: M-V1-CLOSEOUT-SWARM (`v1.0.0` Pre-Soak Close-Out)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/sprint-plan-m-v1-closeout-swarm.md)
+- [Sprint Plan: M-V1-RC1-READINESS-AND-DX-SWARM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/sprint-plan-m-v1-rc1-readiness-and-dx-swarm.md)
 
 ## Planned for v0.64.2
 
+- [M-CHESS-ENGINE: a correct, deterministic chess engine in pure AILANG — perft-proven, replayable, honest about speed](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_64_2/m-chess-engine.md)
 - [MDX-invalid site content redlined dev — fix the class, not just the line](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_64_2/m-docs-mdx-autolink-fix.md)
 
 ## Planned for v0.64.0
@@ -481,4 +484,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 307 planned features across 49 upcoming versions.*
+*Generated at build time. 310 planned features across 49 upcoming versions.*

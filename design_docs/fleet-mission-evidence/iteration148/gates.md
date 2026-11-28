@@ -1,0 +1,12 @@
+# Iteration 148 — Gate 0–2 readings (controller, first-party)
+
+- Fire `fleet-1795849597-28806`, attempt 1. Armed (`~/.ailang/state/mission-fleet.disabled` absent). gh `sunholo-voight-kampff`. Billing tripwire CLEAN. `MISSION_OVER_RATION=google`. `AILANG_DRIVER_DRIFT=28`.
+- Base (Gate 1): `1ac8bbf0a8f911f35110ac1815c67bd578d9325b`@2026-11-28T07:09:57Z. Pin HEAD = origin/dev. Gate 4 re-read: steady (`mission-base.sh drift gate1` rc 0).
+- Skill drift: SKILL.md and 12 of 13 resources in the resolved symlink copy (main checkout) are byte-identical to origin/dev, per file. `resources/gate-5-retro.md` differs by one line (origin adds "open nightly-rig issues and their failure reports" to the idle-fingerprint input list, from `7b67c35b4`); the main checkout is 1 ahead, 28 behind. Same reading as iteration 147. This fire followed the origin vintage for that file.
+- Directives: `mission_directives.sh --issue 2445` → 0 allowlisted directives (21 comments, no watermark file, whole issue read).
+- Self-notices (6a): rc 0, `verdict: 1 crash notice` = the 11-21 #2341 crash, already credited (13 log hits for its url). Transcript notices: `fleet-1795741616-87106` (11-27) and `fleet-1795100889-10927` (11-19); both already in the log. Neither is new; key names stay in the private controlplane notice.
+- Tickets: 19 open ([tickets.json](tickets.json)), byte-identical to iteration 147's set on (signature, slots_lost, last_seen) ([ticket-diff.txt](ticket-diff.txt)). Newest last_seen 2026-11-24T16:06:24Z.
+- Ledger: `mission_decisions.sh --check` rc 0, 47 rows. OPEN: D-FLEET-44, 45, 46, 48. `git log 2e583399d..origin/dev -- design_docs/fleet-mission.md design_docs/fleet-rulings.md` → only the fleet's own i147 record `1ac8bbf0a`. No attended ruling. #2463 (D-FLEET-48's subject) is MERGED (2026-11-25).
+- Died-mid-flight: no i148 worktree, branch or `fleet/*` PR before this fire; `origin/fleet/i147-record` is the merged #2488's branch. The main checkout's dirty files are attended product/docs work, not fleet residue.
+- Dev CI at `1ac8bbf0a` ([dev-ci.txt](dev-ci.txt)): 18 check-runs, all success except `SonarCloud Code Analysis` (not required, V1-owned). Required `test`, `lint`, `build`, `checks` success; `docs-gate` does not report on this commit because `docusaurus-deploy.yml`'s push trigger is path-filtered (`docs/**`, `internal/**`, `cmd/**`, …) and the fleet records touch none of those paths. It was success on `2e583399d`, the last dev commit inside its paths.
+- Proposed pick: NONE (same dispositions as iterations 144 and 147).
