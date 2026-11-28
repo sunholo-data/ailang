@@ -1,0 +1,42 @@
+## commits/9830a353eaa50e2295e04678d9df2158cdcf518d/check-runs (read 2026-11-28T14:21:10Z)
+  Build macos-latest: completed/success
+  Build macos-latest: completed/success
+  Build ubuntu-latest: in_progress/-
+  Build windows-latest: in_progress/-
+  ailang-core-dev (ailang-multivac-deploy): completed/success
+  build: completed/success
+  changes: completed/success
+  checks: in_progress/-
+  dependency-submission: completed/success
+  docs: completed/success
+  float determinism (arm64): completed/success
+  govulncheck (vuln gate): completed/success
+  launchd drivers (bash 3.2): completed/success
+  lint: completed/success
+  test-windows: in_progress/-
+  test: in_progress/-
+checks=16
+## commits/58f045ba64ed8b588282c58c9449b67e4cb9781e/check-runs (read 2026-11-28T14:21:11Z)
+  Build macos-latest: in_progress/-
+  Build macos-latest: in_progress/-
+  Build ubuntu-latest: in_progress/-
+  Build windows-latest: in_progress/-
+  CI gate (required checks green on the tagged SHA): in_progress/-
+  ailang-core-dev (ailang-multivac-deploy): in_progress/-
+  ailang-core-release (ailang-multivac-deploy): in_progress/-
+  build: completed/success
+  changes: completed/success
+  checks: in_progress/-
+  dependency-submission: completed/success
+  docs-build: in_progress/-
+  docs-changes: completed/success
+  docs: completed/success
+  float determinism (arm64): completed/success
+  govulncheck (vuln gate): completed/success
+  launchd drivers (bash 3.2): in_progress/-
+  lint: in_progress/-
+  test-windows: in_progress/-
+  test: in_progress/-
+checks=20
+## required contexts (branch protection)
+test, lint, build, docs-gate, checks

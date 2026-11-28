@@ -1338,3 +1338,54 @@ The other 17 are unchanged: ruling-gated on D-FLEET-44/45/46, held by their queu
 - Operator request for this fire: spawn the roles as the routing table specifies, with the evaluator required. The evaluator ran. The designer, planner and executor had no work for a NONE pick and are recorded as not spawned, with reasons. No role was unspawnable and no fallback was used.
 - Driver routing note verbatim: (empty).
 - Cost: metered $0 (Anthropic subscription only).
+
+## 149 — 2026-11-28 — pick NONE: 19 open tickets, byte-identical to iteration 148's set (independent sonnet judge NONE 90%); no directive, no ledger flip, no new ticket since 11-24; third consecutive NONE fire (147, 148, 149); dev moved to `58f045ba6` (Release v1.0.0-rc.1) mid-fire [ADMIN]
+
+**Pick**: NONE. Iteration 148's **Next** was to pick NONE unless a ruling (D-FLEET-44/45/46/49) or a new in-scope ticket arrived. Neither trigger fired.
+- [Tickets](fleet-mission-evidence/iteration149/tickets.json): 19 open. The [diff](fleet-mission-evidence/iteration149/ticket-diff.txt) against iteration 148's set (signature, slots_lost, last_seen) is empty (diff rc 0, 19 = 19 rows). The newest last_seen is 2026-11-24T16:06:24Z, and the 14 unread `mission-fleet` inbox messages are the same filings.
+- Ledger: `mission_decisions.sh --check` rc 0, 48 rows. OPEN rows D-FLEET-44, 45, 46, 48, 49. The only charter, log or `fleet-rulings.md` commit since 148's base `1ac8bbf0a` is the fleet's own record `17fe14092` (#2489); there was no attended ruling.
+- Directives: 0 allowlisted on #2445 (22 comments, no watermark file, whole issue read).
+
+**Preflight / observe** ([gates](fleet-mission-evidence/iteration149/gates.md)):
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; `MISSION_OVER_RATION=google`.
+- Self-notices rc 0 with `verdict: 1 crash notice`: the 11-21 #2341 crash, already credited (13 log hits for its `url=`). Two transcript notices, `fleet-1795741616-87106` and `fleet-1795100889-10927`; neither is new. Key names are in the private controlplane notice only.
+- Skill drift: per file, the resolved symlink copy matches origin/dev on SKILL.md and 12 of 13 resources; `resources/gate-5-retro.md` differs by the one line `7b67c35b4` added. Same as 147 and 148; this fire followed the origin vintage for that file.
+- Pin: HEAD `3185145fe` was 10 commits behind origin/dev, all triage records touching only 6 `design_docs/triage-mission*` files, so charter, log and ledger were read from origin/dev and the record was written in a fresh worktree on origin/dev.
+- Died-mid-flight: no i149 worktree, branch or `fleet/*` PR before this fire.
+- Dev ([dev CI](fleet-mission-evidence/iteration149/dev-ci.txt)): Gate 1 base `9830a353e` (triage record merge #2450) had `build`, `lint` and `launchd drivers (bash 3.2)` green and `test`/`checks` still in progress at the Gate-1 read; the prior dev commit `3185145fe` had CI success. During the fire dev advanced to `58f045ba6`, **Release v1.0.0-rc.1**, whose CI and release gates were in progress at the Gate-4 read. Neither is a fleet trigger: no fleet PR waits on dev.
+
+**Did**:
+- Judge: sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground, read-only, on the record worktree at origin/dev. Verdict **NONE 90%** ([judge](fleet-mission-evidence/iteration149/judge.md)), with a 19-row per-ticket table. It re-ran `ailang mission ticket open --json` itself with a positive control (a bumped `slots_lost` was detected), so this fire's ticket reading is no longer the controller's alone.
+- Strongest objection: `eval:motoko-connection-probe-orphaned` (row 58) has no OPEN row of its own. The judge's reply: its surface `tools/eval/` is refused by the scope guard and its question is folded into the RESOLVED D-FLEET-18; that is not a fresh authorisation.
+- Controller annotation: the judge could not place `coordinator:cloud-lane-capped-by-local-worktree-limit`; the controller did (queue row 52: the `MaxWorktrees: 3` asks travel with row 56's coordinator ticket to V1/attended), matching 148's disposition.
+- Recorded this entry, the STATUS stamp (146 rotated to the status archive), the dashboard and the iteration149 evidence.
+
+**Ruled out**:
+- Resolving rows 71–73 or the D-FLEET-46 set as bookkeeping while 46 is OPEN (judge agrees, as at 144, 147, 148).
+- Building the fleet idle arm: it is D-FLEET-49's open question (default B), and `tools/launchd/lib/idle-fingerprint.sh` refuses `MISSION_NAME=fleet` by design.
+- Treating the v1.0.0-rc.1 release as a trigger: it changes no ticket and no ledger row.
+
+**Retro lane**: observation only, no skill edit, no new decision row.
+- Third consecutive recorded instance (147, 148, 149) of the ruling-gated queue keeping the fleet firing NONE at full cost; 149's judge cost 55,604 tok. D-FLEET-49 already carries the ask, so filing another row would only duplicate it. The count is surfaced in the report so Mark can see it is still accruing.
+
+**Progress**: 19 open tickets (none resolved, none new). Goal unmoved.
+- Clause 1 UNMEASURED.
+- Clause 2 no change.
+- Clause 3 MET; clause 4 met by its letter; clause 5 preserved (nothing landed).
+- Last 3 landings: 141, 143, 146.
+
+**Validation**: darwin/arm64. `mission_decisions.sh --check` rc 0 (48 rows). STATUS rotation scripted with assertions: ITERATION 146 moved to the archive (archive 1, charter 0; control 145 archive 1); charter 444 → 444 lines (+4 −4), archive +4; queue-row control `73. [PARKED` present; `^## STATUS 2026` count 3. The new stamp passes the canonical-shape grep. Log has 23 entries, below the ~40 rotation threshold.
+
+**Landing**: record only, branch `fleet/i149-record`.
+
+**Next**: pick NONE unless a ruling lands (D-FLEET-44/45/46/49) or a new in-scope ticket arrives. If D-FLEET-49 = A, the next fire designs the fleet idle arm. D-FLEET-48 is moot; Mark may close it.
+
+**Routing evidence**: base=`9830a353eaa50e2295e04678d9df2158cdcf518d`@2026-11-28T14:14:35Z (Gate 1; dev moved to `58f045ba6` before Gate 4).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer `claude:claude-opus-5-5` (recipe): not spawned, because there was no pick and nothing to design. The rotation pointer is unchanged.
+- Planner `codex:gpt-6.2-sol` (recipe): not spawned, because there was no pick.
+- Executor `codex:gpt-6.2-sol` (recipe): not spawned, because there was no pick.
+- Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, read-only, 1 spawn (55,604 tok). Judge independence: sonnet is distinct from the controller (opus). There was no generator this fire; the judge reviewed the controller's idle verdict.
+- Operator request for this fire: spawn the roles as the routing table specifies, with the evaluator required. The evaluator ran. The designer, planner and executor had no work for a NONE pick and are recorded as not spawned, with reasons. No role was unspawnable and no fallback was used.
+- Driver routing note verbatim: (empty).
+- Cost: metered $0 (Anthropic subscription only).

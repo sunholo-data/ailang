@@ -1,0 +1,3 @@
+# ticket diff i148 -> i149 on (signature, slots_lost, last_seen); empty below = identical
+# i148 rows:       19  i149 rows:       19
+# diff rc=0
