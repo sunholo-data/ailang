@@ -1,0 +1,3 @@
+position 7k/5K2/6Q1/8/8/8/8/8 b - - 0 1
+go 1
+perft 1

@@ -1,0 +1,321 @@
+module examples/chess/movegen
+import examples/chess/board (Position, bit, bitScan, pieces, withPieces, occupancy, colorOffset, pieceAt, sqToName, popcount)
+import examples/chess/fen (parseFen, formatFen)
+import std/array (fromList, get)
+import std/list (reverse, map, any, filter, length)
+import std/math (shiftRightLogical)
+import std/result (Ok, Err)
+import std/string (charAt)
+
+-- Codes follow board. A zero capture or promotion means absent.
+export type Move = Move(fromSq: int, toSq: int, piece: int, capture: int, promotion: int) deriving (Eq)
+
+export type Child = { move: Move, pos: Position }
+
+export func moveName(m: Move) -> string ! {} = match m {
+  Move(src, dst, _, _, promo) => "${sqToName(src)}${sqToName(dst)}${if promo == 0 then "" else charAt(".pnbrqkpnbrqk", promo)}"
+}
+
+export func movingPiece(m: Move) -> int ! {} = match m {
+  Move(_, _, piece, _, _) => piece
+}
+
+export func capturedPiece(m: Move) -> int ! {} = match m {
+  Move(_, _, _, capture, _) => capture
+}
+
+export func promotionPiece(m: Move) -> int ! {} = match m {
+  Move(_, _, _, _, promo) => promo
+}
+
+-- Directions are indexed clockwise from north. Mask the origin before shifting.
+func step(mask: int, direction: int) -> int ! {} = match direction {
+  0 => mask << 8,
+  1 => (mask & 9187201950435737471) << 9,
+  2 => (mask & 9187201950435737471) << 1,
+  3 => shiftRightLogical(mask & 9187201950435737471, 7),
+  4 => shiftRightLogical(mask, 8),
+  5 => shiftRightLogical(mask & 0xfefefefefefefefe, 9),
+  6 => shiftRightLogical(mask & 0xfefefefefefefefe, 1),
+  _ => (mask & 0xfefefefefefefefe) << 7
+}
+
+func kingMask(mask: int, direction: int) -> int ! {} =
+  if direction == 8 then 0 else step(mask, direction) ^ kingMask(mask, direction + 1)
+
+func knightMask(mask: int) -> int ! {} =
+  step(step(mask, 1), 0) ^ step(step(mask, 1), 2) ^ step(step(mask, 3), 2) ^ step(step(mask, 3), 4) ^ step(step(mask, 5), 4) ^ step(step(mask, 5), 6) ^ step(step(mask, 7), 6) ^ step(step(mask, 7), 0)
+
+func kingMasks(sq: int) -> [int] ! {} = if sq == 64 then [] else kingMask(bit(sq), 0) :: kingMasks(sq + 1)
+
+func knightMasks(sq: int) -> [int] ! {} = if sq == 64 then [] else knightMask(bit(sq)) :: knightMasks(sq + 1)
+
+func rayMask(mask: int, direction: int) -> int ! {} =
+  if mask == 0 then 0 else mask ^ rayMask(step(mask, direction), direction)
+
+func rayMasks(sq: int, direction: int) -> [int] ! {} = if sq == 64 then [] else {
+  let origin = bit(sq)
+  let mask = rayMask(step(origin, direction), direction) ^ rayMask(step(origin, direction + 2), direction + 2) ^ rayMask(step(origin, direction + 4), direction + 4) ^ rayMask(step(origin, direction + 6), direction + 6)
+  mask :: rayMasks(sq + 1, direction)
+}
+
+export type AttackTables = { kings: Array[int], knights: Array[int], straight: Array[int], diagonal: Array[int] }
+
+export func attackTables() -> AttackTables ! {} =
+  { kings: fromList(kingMasks(0)), knights: fromList(knightMasks(0)), straight: fromList(rayMasks(0, 0)), diagonal: fromList(rayMasks(0, 1)) }
+
+func pawnAttacks(mask: int, white: bool) -> int ! {} =
+  if white then step(mask, 1) ^ step(mask, 7) else step(mask, 3) ^ step(mask, 5)
+
+func rayHits(mask: int, direction: int, occupied: int, attackers: int) -> bool ! {} =
+  if mask == 0 then false else if (mask & occupied) != 0 then (mask & attackers) != 0 else rayHits(step(mask, direction), direction, occupied, attackers)
+
+func sliderAttacks(mask: int, direction: int, occupied: int, orthogonal: int, diagonal: int) -> bool ! {} =
+  if direction == 8 then false else {
+    let attackers = if direction % 2 == 0 then orthogonal else diagonal
+    attackers != 0 && rayHits(step(mask, direction), direction, occupied, attackers) || sliderAttacks(mask, direction + 1, occupied, orthogonal, diagonal)
+  }
+
+func attackedWith(tables: AttackTables, p: Position, sq: int, byWhite: bool, occupied: int) -> bool ! {} = {
+  let offset = colorOffset(byWhite)
+  let mask = bit(sq)
+  let queens = pieces(p, offset + 5)
+  let straight = (pieces(p, offset + 4) ^ queens) & get(tables.straight, sq)
+  let diagonal = (pieces(p, offset + 3) ^ queens) & get(tables.diagonal, sq);
+  (pawnAttacks(mask, !byWhite) & pieces(p, offset + 1)) != 0 || (get(tables.knights, sq) & pieces(p, offset + 2)) != 0 || (get(tables.kings, sq) & pieces(p, offset + 6)) != 0 || (straight != 0 || diagonal != 0) && sliderAttacks(mask, 0, occupied, straight, diagonal)
+}
+
+export func attacked(p: Position, sq: int, byWhite: bool) -> bool ! {} =
+  attackedWith(attackTables(), p, sq, byWhite, occupancy(p, true) ^ occupancy(p, false))
+
+export func inCheckWith(tables: AttackTables, p: Position, white: bool) -> bool ! {} =
+  attackedWith(tables, p, bitScan(pieces(p, colorOffset(white) + 6)), !white, occupancy(p, true) ^ occupancy(p, false))
+
+func clearRookRight(rights: int, sq: int, white: bool) -> int ! {} =
+  if white then if sq == 7 then rights & ~1 else if sq == 0 then rights & ~2 else rights else if sq == 63 then rights & ~4 else if sq == 56 then rights & ~8 else rights
+
+-- Apply a generated candidate. Carries no legality check of its own.
+export func applyMove(p: Position, m: Move) -> Position ! {} = match m {
+  Move(src, dst, piece, capture, promo) => {
+    let offset = colorOffset(p.white)
+    let pawn = piece == offset + 1
+    let king = piece == offset + 6
+    let rook = piece == offset + 4
+    let stride = if p.white then 8 else -8
+    let castle = king && (dst == src + 2 || dst == src - 2)
+    let newRights = if king then p.rights & (if p.white then 12 else 3) else if rook then clearRookRight(p.rights, src, p.white) else p.rights
+    let srcBit = bit(src)
+    let dstBit = bit(dst)
+    let moved = withPieces(p, piece, pieces(p, piece) ^ srcBit ^ (if promo == 0 then dstBit else 0))
+    let promoted = if promo == 0 then moved else withPieces(moved, promo, pieces(moved, promo) ^ dstBit)
+    let takenSquare = if pawn && dst == p.ep then dst - stride else dst
+    let taken = if capture == 0 then promoted else withPieces(promoted, capture, pieces(promoted, capture) ^ bit(takenSquare))
+    let finished = if !castle then taken else {
+      let short = dst > src
+      let rookSrc = if short then src + 3 else src - 4
+      let rookDst = if short then src + 1 else src - 1
+      withPieces(taken, offset + 4, pieces(taken, offset + 4) ^ bit(rookSrc) ^ bit(rookDst))
+    };
+    { finished | white: !p.white, rights: if capture == colorOffset(!p.white) + 4 then clearRookRight(newRights, dst, !p.white) else newRights, ep: if pawn && dst == src + 2 * stride then src + stride else -1, halfmove: if pawn || capture != 0 then 0 else p.halfmove + 1, fullmove: if p.white then p.fullmove else p.fullmove + 1 }
+  }
+}
+
+type Generation = { tables: AttackTables, pos: Position, occupied: int, enemy: int, targets: int, offset: int }
+
+func addMove(g: Generation, src: int, dst: int, piece: int, acc: [Move]) -> [Move] ! {} = {
+  let pawn = piece == g.offset + 1
+  let capture = if pawn && g.pos.ep == dst then colorOffset(!g.pos.white) + 1 else if (bit(dst) & g.enemy) != 0 then pieceAt(g.pos, dst) else 0
+  if pawn && (dst < 8 || dst >= 56) then Move(src, dst, piece, capture, g.offset + 2) :: Move(src, dst, piece, capture, g.offset + 3) :: Move(src, dst, piece, capture, g.offset + 4) :: Move(src, dst, piece, capture, g.offset + 5) :: acc else Move(src, dst, piece, capture, 0) :: acc
+}
+
+func addTargets(g: Generation, src: int, targets: int, piece: int, acc: [Move]) -> [Move] ! {} =
+  if targets == 0 then acc else {
+    let dst = bitScan(targets)
+    addTargets(g, src, targets ^ bit(dst), piece, addMove(g, src, dst, piece, acc))
+  }
+
+func addRay(g: Generation, src: int, mask: int, direction: int, piece: int, acc: [Move]) -> [Move] ! {} =
+  if (mask & g.targets) == 0 then acc else {
+    let next = addMove(g, src, bitScan(mask), piece, acc)
+    if (mask & g.occupied) != 0 then next else addRay(g, src, step(mask, direction), direction, piece, next)
+  }
+
+func addRays(g: Generation, src: int, direction: int, stride: int, piece: int, acc: [Move]) -> [Move] ! {} =
+  if direction >= 8 then acc else addRays(g, src, direction + stride, stride, piece, addRay(g, src, step(bit(src), direction), direction, piece, acc))
+
+func addPawn(g: Generation, src: int, piece: int, acc: [Move]) -> [Move] ! {} = {
+  let white = g.pos.white
+  let forward = if white then 0 else 4
+  let one = step(bit(src), forward) & ~g.occupied
+  let home = if white then src >= 8 && src < 16 else src >= 48 && src < 56
+  let two = if home then step(one, forward) & ~g.occupied else 0
+  let ep = if g.pos.ep < 0 then 0 else bit(g.pos.ep)
+  let captures = pawnAttacks(bit(src), white) & (g.enemy ^ ep)
+  addTargets(g, src, one ^ two ^ captures, piece, acc)
+}
+
+func generatePiece(g: Generation, bits: int, kind: int, acc: [Move]) -> [Move] ! {} = if bits == 0 then acc else {
+  let src = bitScan(bits)
+  let piece = g.offset + kind
+  let next = match kind {
+    1 => addPawn(g, src, piece, acc),
+    2 => addTargets(g, src, get(g.tables.knights, src) & g.targets, piece, acc),
+    3 => addRays(g, src, 1, 2, piece, acc),
+    4 => addRays(g, src, 0, 2, piece, acc),
+    5 => addRays(g, src, 0, 1, piece, acc),
+    _ => addTargets(g, src, get(g.tables.kings, src) & g.targets, piece, acc)
+  }
+  generatePiece(g, bits ^ bit(src), kind, next)
+}
+
+func generateKinds(g: Generation, kind: int, acc: [Move]) -> [Move] ! {} =
+  if kind > 6 then acc else generateKinds(g, kind + 1, generatePiece(g, pieces(g.pos, g.offset + kind), kind, acc))
+
+func addCastles(g: Generation, acc: [Move]) -> [Move] ! {} = {
+  let white = g.pos.white
+  let base = if white then 0 else 56
+  let rights = if white then g.pos.rights & 3 else shiftRightLogical(g.pos.rights, 2)
+  let kingSq = base + 4
+  let king = g.offset + 6
+  let rooks = pieces(g.pos, g.offset + 4)
+  if rights == 0 || pieces(g.pos, king) != bit(kingSq) || attackedWith(g.tables, g.pos, kingSq, !white, g.occupied) then acc else {
+    let evacuated = g.occupied ^ bit(kingSq)
+    let short = if (rights & 1) != 0 && (rooks & bit(base + 7)) != 0 && (g.occupied & 96 << base) == 0 && !attackedWith(g.tables, g.pos, base + 5, !white, evacuated) then Move(kingSq, base + 6, king, 0, 0) :: acc else acc
+    if (rights & 2) != 0 && (rooks & bit(base)) != 0 && (g.occupied & 14 << base) == 0 && !attackedWith(g.tables, g.pos, base + 3, !white, evacuated) then Move(kingSq, base + 2, king, 0, 0) :: short else short
+  }
+}
+
+func pseudoMovesWith(tables: AttackTables, p: Position) -> [Move] ! {} = {
+  let own = occupancy(p, p.white)
+  let other = occupancy(p, !p.white)
+  let enemyKing = pieces(p, colorOffset(!p.white) + 6)
+  let g = { tables: tables, pos: p, occupied: own ^ other, enemy: other ^ enemyKing, targets: ~(own ^ enemyKing), offset: colorOffset(p.white) }
+  reverse(addCastles(g, generateKinds(g, 1, [])))
+}
+
+type Safety = { tables: AttackTables, king: int, checked: bool, sliderLines: int }
+
+-- An unchecked king can become exposed only if it moves, a piece leaves one
+-- of its slider lines, or en passant vacates a second square.
+func needsSafetyCheck(p: Position, m: Move, safety: Safety) -> bool ! {} = match m {
+  Move(src, dst, piece, _, _) => safety.checked || piece == safety.king || (bit(src) & safety.sliderLines) != 0 || dst == p.ep && piece == colorOffset(p.white) + 1
+}
+
+func legalize(p: Position, moves: [Move], safety: Safety, acc: [Child]) -> [Child] ! {} = match moves {
+  [] => reverse(acc),
+  m :: rest => {
+    let next = applyMove(p, m)
+    if needsSafetyCheck(p, m, safety) && inCheckWith(safety.tables, next, p.white) then legalize(p, rest, safety, acc) else legalize(p, rest, safety, { move: m, pos: next } :: acc)
+  }
+}
+
+export func pseudoMoves(p: Position) -> [Move] ! {} = pseudoMovesWith(attackTables(), p)
+
+func kingSafety(tables: AttackTables, p: Position) -> Safety ! {} = {
+  let king = colorOffset(p.white) + 6
+  let square = bitScan(pieces(p, king))
+  let enemy = colorOffset(!p.white)
+  let queens = pieces(p, enemy + 5)
+  let straight = get(tables.straight, square)
+  let diagonal = get(tables.diagonal, square)
+  let lines = (if (straight & (pieces(p, enemy + 4) ^ queens)) == 0 then 0 else straight) ^ (if (diagonal & (pieces(p, enemy + 3) ^ queens)) == 0 then 0 else diagonal);
+  { tables: tables, king: king, checked: inCheckWith(tables, p, p.white), sliderLines: lines }
+}
+
+export func legalChildrenWith(tables: AttackTables, p: Position) -> [Child] ! {} =
+  legalize(p, pseudoMovesWith(tables, p), kingSafety(tables, p), [])
+
+func countLegal(p: Position, moves: [Move], safety: Safety, total: int) -> int ! {} = match moves {
+  [] => total,
+  m :: rest => if needsSafetyCheck(p, m, safety) && inCheckWith(safety.tables, applyMove(p, m), p.white) then countLegal(p, rest, safety, total) else countLegal(p, rest, safety, total + 1)
+}
+
+-- Perft can count the last ply directly. For moves that cannot expose the
+-- king, counting does not require allocating a child position.
+export func countLegalWith(tables: AttackTables, p: Position) -> int ! {} =
+  countLegal(p, pseudoMovesWith(tables, p), kingSafety(tables, p), 0)
+
+export func legalChildren(p: Position) -> [Child] ! {} = legalChildrenWith(attackTables(), p)
+
+export func legalMoves(p: Position) -> [Move] ! {} = map(\child. child.move, legalChildren(p))
+
+func attackFixture(fen: string, sq: int, white: bool) -> bool ! {}
+  tests [
+    (("4k3/8/8/8/3P4/8/8/4K3 w - - 0 1", 36, true), true),
+    (("4k3/8/8/8/P7/8/8/4K3 w - - 0 1", 31, true), false),
+    (("4k2n/8/8/8/8/8/8/4K3 w - - 0 1", 46, false), true),
+    (("4k3/8/8/8/8/8/8/4K3 w - - 0 1", 3, true), true),
+    (("4k2r/8/8/8/8/8/8/4K3 w - - 0 1", 7, false), true),
+    (("4k2r/8/8/7p/8/8/8/4K3 w - - 0 1", 7, false), false),
+    (("4k2b/8/8/8/8/8/8/K7 w - - 0 1", 0, false), true)
+  ] {
+  match parseFen(fen) {
+    Ok(p) => attacked(p, sq, white),
+    Err(_) => false
+  }
+}
+
+func hasMove(fen: string, name: string, legal: bool) -> bool ! {}
+  tests [
+    (("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1", "e2d2", false), true),
+    (("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1", "e2d2", true), false),
+    (("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1", "e2e8", true), true),
+    (("4k3/8/8/8/8/8/8/4KR2 w - - 0 1", "e1f1", false), false),
+    (("4k3/8/8/8/8/8/4R3/4K3 w - - 0 1", "e2e8", false), false),
+    (("k4r2/8/8/8/8/8/8/R3K2R w KQ - 0 1", "e1g1", true), false),
+    (("k5r1/8/8/8/8/8/8/R3K2R w KQ - 0 1", "e1g1", true), false),
+    (("k3r3/8/8/8/8/8/8/R3K2R w KQ - 0 1", "e1g1", true), false),
+    (("4k3/8/8/r4pPK/8/8/8/8 w - f6 0 1", "g5f6", false), true),
+    (("4k3/8/8/r4pPK/8/8/8/8 w - f6 0 1", "g5f6", true), false)
+  ] {
+  match parseFen(fen) {
+    Ok(p) => any(\m. moveName(m) == name, if legal then legalMoves(p) else pseudoMoves(p)),
+    Err(_) => false
+  }
+}
+
+func transitionFixture(fen: string, name: string) -> string ! {}
+  tests [
+    (("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 9 12", "a1a8"), "R3k2r/8/8/8/8/8/8/4K2R b Kk - 0 12"),
+    (("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 9 12", "e8c8"), "2kr3r/8/8/8/8/8/8/R3K2R w KQ - 10 13"),
+    (("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 9 12", "e1f1"), "r3k2r/8/8/8/8/8/8/R4K1R b kq - 10 12"),
+    (("4k3/8/8/5pP1/8/8/8/4K3 w - f6 0 1", "g5f6"), "4k3/8/5P2/8/8/8/8/4K3 b - - 0 1"),
+    (("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", "e2e4"), "4k3/8/8/8/4P3/8/8/4K3 b - e3 0 1")
+  ] {
+  match parseFen(fen) {
+    Err(msg) => msg,
+    Ok(p) => match filter(\c. moveName(c.move) == name, legalChildren(p)) {
+      [child] => if formatFen(p) == fen then formatFen(child.pos) else "parent changed",
+      _ => "expected one matching move"
+    }
+  }
+}
+
+func promotionFixture(fen: string) -> [string] ! {}
+  tests [
+    ("1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", ["a7a8q", "a7a8r", "a7a8b", "a7a8n", "a7b8q", "a7b8r", "a7b8b", "a7b8n"])
+  ] {
+  match parseFen(fen) {
+    Err(_) => [],
+    Ok(p) => map(\m. moveName(m), filter(\m. promotionPiece(m) != 0, legalMoves(p)))
+  }
+}
+
+func pieceCounts(fen: string) -> bool ! {}
+  tests [
+    ("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 9 12", true),
+    ("1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", true),
+    ("4k3/8/8/5pP1/8/8/8/4K3 w - f6 0 1", true)
+  ] {
+  match parseFen(fen) {
+    Err(_) => false,
+    Ok(p) => {
+      let own = popcount(occupancy(p, p.white))
+      let enemy = popcount(occupancy(p, !p.white))
+      let tables = attackTables()
+      let children = legalChildrenWith(tables, p)
+      let bad = any(\c. own != popcount(occupancy(c.pos, p.white)) || enemy != popcount(occupancy(c.pos, !p.white)) + (if capturedPiece(c.move) == 0 then 0 else 1), children)
+      bad == false && countLegalWith(tables, p) == length(children)
+    }
+  }
+}

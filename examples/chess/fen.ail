@@ -1,0 +1,120 @@
+module examples/chess/fen
+import examples/chess/board (Position, emptyPosition, pieces, withPieces, bit, pieceAt, pieceName, sqToName, nameToSq, rankOf, popcount)
+import std/result (Result, Ok, Err)
+import std/option (Some, None)
+import std/string (split, words, chars, charCode, find, intToStr, stringToInt, join)
+
+export func startFen() -> string ! {} = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+export func kiwipeteFen() -> string ! {} = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+
+func parseRank(xs: [string], p: Position, rank: int, file: int) -> Result[Position, string] ! {} = match xs {
+  [] => if file == 8 then Ok(p) else Err("each rank must contain eight squares"),
+  c :: rest => {
+    let count = charCode(c) - 48
+    let piece = find(".PNBRQKpnbrqk", c)
+    if file >= 8 then Err("rank exceeds eight squares") else if count >= 1 && count <= 8 then match rest {
+      [] => parseRank(rest, p, rank, file + count),
+      next :: _ => if charCode(next) >= 49 && charCode(next) <= 56 then Err("adjacent empty-square counts") else parseRank(rest, p, rank, file + count)
+    } else if piece < 1 then Err("invalid piece in rank: ${c}") else parseRank(rest, withPieces(p, piece, pieces(p, piece) ^ bit(8 * rank + file)), rank, file + 1)
+  }
+}
+
+func parseRanks(xs: [string], p: Position, rank: int) -> Result[Position, string] ! {} = match xs {
+  [] => if rank == -1 then Ok(p) else Err("expected eight ranks"),
+  row :: rest => if rank < 0 then Err("expected eight ranks") else match parseRank(chars(row), p, rank, 0) {
+    Err(msg) => Err(msg),
+    Ok(next) => parseRanks(rest, next, rank - 1)
+  }
+}
+
+func parseRights(xs: [string], rights: int) -> Result[int, string] ! {} = match xs {
+  [] => Ok(rights),
+  ch :: rest => {
+    let index = find("KQkq", ch)
+    if index < 0 then Err("invalid castling rights") else if (rights & bit(index)) != 0 then Err("duplicate castling right") else parseRights(rest, rights ^ bit(index))
+  }
+}
+
+func rightsFit(p: Position, rights: int) -> bool ! {} =
+  ((rights & 3) == 0 || p.wk == bit(4)) && ((rights & 12) == 0 || p.bk == bit(60)) && ((rights & 1) == 0 || (p.wr & bit(7)) != 0) && ((rights & 2) == 0 || (p.wr & bit(0)) != 0) && ((rights & 4) == 0 || (p.br & bit(63)) != 0) && ((rights & 8) == 0 || (p.br & bit(56)) != 0)
+
+func epFits(p: Position, ep: int, white: bool) -> bool ! {} = if ep < 0 then false else {
+  let pawnStep = if white then 8 else -8
+  rankOf(ep) == (if white then 5 else 2) && pieceAt(p, ep) == 0 && pieceAt(p, ep + pawnStep) == 0 && pieceAt(p, ep - pawnStep) == (if white then 7 else 1)
+}
+
+func digits(xs: [string]) -> bool ! {} = match xs {
+  [] => true,
+  c :: rest => charCode(c) >= 48 && charCode(c) <= 57 && digits(rest)
+}
+
+-- Bound imported counters to 32-bit values and leave headroom for 64-bit arithmetic.
+func finish(p: Position, turn: string, rights: int, target: string, half: string, full: string) -> Result[Position, string] ! {} =
+  if turn != "w" && turn != "b" then Err("side to move must be w or b") else if !rightsFit(p, rights) then Err("castling rights require the king and rook on their home squares") else if popcount(p.wk) != 1 || popcount(p.bk) != 1 then Err("expected one king per side") else if ((p.wp ^ p.bp) & 0xff000000000000ff) != 0 then Err("pawn on first or eighth rank") else {
+    let white = turn == "w"
+    let ep = if target == "-" then -1 else nameToSq(target)
+    if target != "-" && !epFits(p, ep, white) then Err("invalid en-passant target") else if !digits(chars(half)) || !digits(chars(full)) then Err("invalid FEN counters") else match (stringToInt(half), stringToInt(full)) {
+      (Some(h), Some(f)) => if h < 0 || f < 1 || h > 2147483647 || f > 2147483647 then Err("FEN counters out of range") else if ep >= 0 && h != 0 then Err("en-passant target requires a zero halfmove clock") else Ok({ p | white: white, rights: rights, ep: ep, halfmove: h, fullmove: f }),
+      _ => Err("invalid FEN counters")
+    }
+  }
+
+export func parseFen(fen: string) -> Result[Position, string] ! {} = match words(fen) {
+  [board, turn, castling, target, half, full] => match parseRanks(split(board, "/"), emptyPosition(), 7) {
+    Err(msg) => Err(msg),
+    Ok(p) => match parseRights(if castling == "-" then [] else chars(castling), 0) {
+      Err(msg) => Err(msg),
+      Ok(rights) => finish(p, turn, rights, target, half, full)
+    }
+  },
+  _ => Err("FEN requires six fields")
+}
+
+func emptyRun(n: int) -> string ! {} = if n == 0 then "" else intToStr(n)
+
+func formatRank(p: Position, rank: int, file: int, empties: int) -> string ! {} =
+  if file == 8 then emptyRun(empties) else {
+    let piece = pieceAt(p, rank * 8 + file)
+    if piece == 0 then formatRank(p, rank, file + 1, empties + 1) else "${emptyRun(empties)}${pieceName(piece)}${formatRank(p, rank, file + 1, 0)}"
+  }
+
+func formatRanks(p: Position, rank: int) -> [string] ! {} =
+  if rank < 0 then [] else formatRank(p, rank, 0, 0) :: formatRanks(p, rank - 1)
+
+func formatRights(rights: int, xs: [string], index: int) -> string ! {} = match xs {
+  [] => "",
+  ch :: rest => "${if (rights & bit(index)) != 0 then ch else ""}${formatRights(rights, rest, index + 1)}"
+}
+
+export func formatFen(p: Position) -> string ! {} =
+  join(" ", [join("/", formatRanks(p, 7)), if p.white then "w" else "b", if p.rights == 0 then "-" else formatRights(p.rights, ["K", "Q", "k", "q"], 0), if p.ep < 0 then "-" else sqToName(p.ep), intToStr(p.halfmove), intToStr(p.fullmove)])
+
+func roundTrip(fen: string) -> bool ! {}
+  tests [
+    ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", true),
+    ("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", true),
+    ("4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 23", true),
+    ("4k3/8/8/8/8/8/8/4K3 w - - 28 42", true)
+  ] {
+  match parseFen(fen) {
+    Ok(p) => formatFen(p) == fen,
+    Err(_) => false
+  }
+}
+
+func invalid(fen: string) -> bool ! {}
+  tests [
+    ("4k3/8/8/8/8/8/8/5K3 w - - 0 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 x - - 0 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 w K - 0 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 w - x9 0 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 w - e 0 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 w - - -1 1", true),
+    ("4k3/8/8/8/8/8/8/4K3 w - - 0 0", true)
+  ] {
+  match parseFen(fen) {
+    Ok(_) => false,
+    Err(msg) => msg != ""
+  }
+}
