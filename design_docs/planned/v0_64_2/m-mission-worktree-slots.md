@@ -1,6 +1,6 @@
 # M-MISSION-WORKTREE-SLOTS — reusable worktree slots for mission loops
 
-**Status**: Planned
+**Status**: Planned — r3, awaiting human ratification (quorum r1 + r2 blocked; every objection addressed, see Quorum)
 **Target**: v0.64.2
 **Priority**: P1 (rig disk + I/O; recurring, compounding)
 **Estimated**: 2–3 days
@@ -20,7 +20,7 @@ infrastructure, so most axioms are untouched; it is scored for the gates anyway.
 | A1: Determinism | +1 | Every mission tree is at the same path with a proven-clean state at an exact SHA; no CWD-shaped test variance between iterations |
 | A2: Replayability | 0 | Iteration provenance (`base=<sha>`) unchanged |
 | A3: Effect Legibility | +1 | Salvage-then-reset logs every destructive step with what was saved; today trees pile up silently |
-| A4: Explicit Authority | 0 | No new authority; the sweep's protection becomes *narrower* (exact pins, not a prefix) |
+| A4: Explicit Authority | 0 | No new authority; sweep protection is unchanged for pins and only *adds* the slot root |
 | A5: Bounded Verification | 0 | n/a |
 | A6: Safe Concurrency | +1 | Per-slot locks owned by the fire's driver (PID + birth), released only by the driver's EXIT trap, replace "unique path = no collision by luck" (TST-SLOT-04/05/12) |
 | A7: Machines First | 0 | Unattended loops are the beneficiary; no human-convenience trade |
@@ -113,8 +113,8 @@ incremental, Go cache keys stay stable, and mission worktree disk use has a fixe
   daily churn.
 - Preparing a slot for a SHA one day newer takes seconds, not about 2 minutes, and rewrites about
   as many files as `git diff --name-only` reports.
-- No stray worktree can hide under a protected prefix: the sweep protects exact pins and slot
-  roots, not whole directories.
+- No mission tree can be created under a protected prefix again (`acquire` refuses it), so the
+  pin prefix holds only pins, and every listed clone, `ailang-world` included, is swept.
 
 ## High-Impact Decisions
 
@@ -123,7 +123,7 @@ incremental, Go cache keys stay stable, and mission worktree disk use has a fixe
 | D1: what happens to a **dirty slot** at acquire time (leftover from a killed run): *salvage-then-reset* vs *park* | Salvage keeps loops moving but resets a tree; park is today's "never repair" stance and would wedge the slot | human | design | med |
 | D2: slot root location (`~/.ailang-slots/<repo>/<mission>/<role>-<n>`) | Must be outside `/tmp` (gate-3 L696), outside every protected pin, and stable | human | design | med |
 | D3: mission-only `GOCACHE` (`~/.cache/ailang-mission-go`) with a size alarm, vs keep the shared user cache | Keeps mission growth from pushing out attended builds; costs one cold start | human | design | low |
-| D4: sweep protects **pin registry + slot root**, not the `~/.ailang-driver-pin/` prefix | Changes shared machinery that attended sessions also run | human | design | low |
+| D4 (revised r2): sweep keeps the `~/.ailang-driver-pin/` prefix, adds the slot root, sweeps a fixed list of clones; `acquire` refuses a slot root under a protected prefix | Shared machinery attended sessions run; round 1's narrowing to a registry was withdrawn as a pin-deletion hazard | human | design | low |
 | D5: `-trimpath` for mission builds | Would make the cache path-independent, but 15 test files use `runtime.Caller` | agent (deferred; see below) | compile | low |
 | D6: slots per role (proposal: exec×2, plan×1, record×1, judge×2) | Too few causes parking under concurrency; too many wastes disk | agent | runtime | low |
 
@@ -132,7 +132,7 @@ incremental, Go cache keys stay stable, and mission worktree disk use has a fixe
 - [ ] D1 — salvage-then-reset (recommended) or park
 - [ ] D2 — slot root path
 - [ ] D3 — mission-only GOCACHE: yes/no; if yes, alarm threshold (proposal 40 GB)
-- [ ] D4 — narrow sweep protection to the pin registry + slot root
+- [ ] D4 — keep pin-prefix protection, add slot root, sweep `ailang`/`ailang-world`/`ailang-docs`/`ailang-motoko`
 
 ## Solution Design
 
@@ -169,15 +169,32 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
         `lsof` rule) is busy. That is a second guard against orphans like a stray `go test`, not
         the ownership test.
      2. Take the lock: atomic `mkdir <slot>.lock`, then write `owner` (`fire_id`, driver PID,
-        birth, role) via tmp + `mv`, as `register()` does.
-     3. If the slot does not exist: one-time `worktree add` through the existing bounded writer
-        (unchanged path, including the half-built-tree protections).
-     4. If it exists: **dirty-check first** (D1). On dirt, salvage `git diff --binary HEAD`, a
-        tar of untracked files, `HEAD` and the branch name to
-        `~/.ailang/state/slots/<slot>/salvage-<ts>/`, and log one line. Then
-        `git checkout --detach --force <SHA>` → `git clean -ffdx` → if a BRANCH was given,
-        `git switch -c <BRANCH>`. A name that already exists is a refusal, never `-C`: an
-        existing branch can hold unpushed commits.
+        birth, role) via tmp + `mv`, as `register()` does. **Stealing a dead lock (r2):**
+        `<slot>.lock` already exists, so `mkdir` alone cannot arbitrate between two acquirers
+        that both saw a dead owner. The steal is `mv <slot>.lock <slot>.lock.dead.<own-pid>`.
+        `rename(2)` of one source succeeds for exactly one mover; the loser's `mv` fails and
+        it moves on to the next slot. The winner re-reads the moved `owner` and checks it is
+        still the dead identity it judged; if not, it moves it back and goes on. Then it does the
+        normal `mkdir`. Two acquirers that both find no lock are already arbitrated by `mkdir`.
+     3. **All tree work runs in the existing bounded background writer (r2).** First creation
+        (`worktree add`, about 2 minutes) and the reset of an old slot can both outlive one
+        foreground Bash tool call. So `acquire` takes the lock, launches the `_writer` (detached,
+        `MISSION_WORKTREE_TIMEOUT`) and prints `pending <path>`. The recipe then polls
+        `mission-worktree.sh wait <path> 45` until `ready` / `failed:*`, exactly as for `add`
+        today. One protocol for both cases; no new timeout surface.
+     4. If the slot exists, the writer **dirty-checks first** (D1). On dirt it salvages to
+        `~/.ailang/state/slots/<slot>/salvage-<ts>/`:
+        - `HEAD`, the branch name;
+        - **staged** changes `git diff --binary --cached`;
+        - **unstaged** changes `git diff --binary` (index → worktree; the two diffs are kept
+          separate so "stage B, then restore A in the file" loses nothing, which the round-2
+          reviewer showed `git diff HEAD` alone would);
+        - a byte copy of the worktree's `index` file;
+        - a tar of untracked files.
+
+        It logs one line. Then `git checkout --detach --force <SHA>` → `git clean -ffdx` → if a
+        BRANCH was given, `git switch -c <BRANCH>`. A name that already exists is a refusal,
+        never `-C`: an existing branch can hold unpushed commits.
      5. **Prove it.** `git rev-parse HEAD` must equal SHA and `git status --porcelain` must be
         empty. Otherwise `failed:not_clean_after_reset`, the slot is deleted (the next acquire
         recreates it), and the caller parks, exactly as with `add` today.
@@ -191,21 +208,34 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 
 2. **Gate wiring.** `gate-3-route.md` (sprint, planner, judge, evaluator), `gate-4-record.md`
    (record) and `ref-drift.md` replace `WT="$(cd .. && pwd)/.wt-…"` + `mission-worktree.sh add`
-   with `WT=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH")`. The recipe writes
+   with `acquire` followed by the existing `wait` loop (Component 1 step 3). The recipe writes
    `WT` into the iteration's state file so later tool calls and sub-agents re-read the path
    instead of re-acquiring. **No `trap` in any recipe**: release is the driver's job
    (Component 1). The "measure `origin/dev` immediately before, use the full SHA" rule
    (gate-3 L653–694) is unchanged: `acquire` takes that SHA.
 
-3. **Pin registry + sweep.** `pin-root.sh` writes `~/.ailang/state/driver-pins/<mission>`
-   containing the pin path. It must not go inside the tree: an untracked file would make the pin
-   dirty. `worktree_sweep.sh` and `git_health.sh` protect **exactly** the registered pin paths and
-   the slot root, replacing the `~/.ailang-driver-pin/` prefix. The sweep also gains a
-   `--repo <path>` repeat flag, and `git_health.sh` sweeps every clone that owns pins or slots
-   (from the registry), so `ailang-world` is covered.
+3. **Sweep: keep the pin prefix, add the slot root (revised r2).** Round 1 narrowed protection
+   to a registry of exact pin paths. Round 2 showed that opens a window where a live pin is
+   sweep-visible: a pin created before its registry write, or one of the seven existing pins
+   whose mission has not fired since the change. **Dropped.** Slots move every per-iteration
+   tree *out* of `~/.ailang-driver-pin/`, so that prefix again holds only pins and can stay
+   protected as it is. Changes:
+   - add the slot root to `PROTECT` in `worktree_sweep.sh:53` and `git_health.sh:71` (slots are
+     lifecycle-managed by `acquire`);
+   - `acquire` **refuses** a slot root inside any protected prefix (`failed:slot_root_protected`),
+     so trees cannot hide there again;
+   - the leftover per-iteration trees under the pin prefix are a one-time attended migration
+     (69 + 48 already done 2026-11-28; the remaining 35 are November work);
+   - the sweep gains a `--repo <path>` repeat flag, and `git_health.sh` sweeps each clone named
+     in a fixed list in the hook (`ailang`, `ailang-world`, `ailang-docs`, `ailang-motoko`), so
+     `ailang-world` is covered.
+
+   No pin is ever more exposed than it is today.
 
 4. **Mission GOCACHE (D3).** `mission-control.sh` exports `GOCACHE=$HOME/.cache/ailang-mission-go`
-   before re-exec. At fire start it records `du -sk` of that cache in the iteration record, and
+   next to `MISSION_FIRE_ID` (L2431). That is after the pin re-exec (`pin-root.sh` is sourced at
+   L1248 and `exec`s the pinned driver at its L362, same PID), so the export, the fire id and the
+   `EXIT` trap are all set in the pinned process (V14). At fire start it records `du -sk` of that cache in the iteration record, and
    posts one notice if it is over the threshold. **No automatic `go clean -cache`**: a concurrent
    mission's `go test` would lose its cache mid-build (seen live 2026-11-28: a world-mission
    `go test ./host/verifygate/` was running during the clean-up). Go's 5-day trim plus stable
@@ -217,7 +247,7 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 - [ ] `acquire` / `release` in `tools/launchd/mission-worktree.sh` reusing `identity()`,
       `register()` and the bounded writer
 - [ ] Salvage-then-reset (D1), the cleanliness proof, `busy` / `failed:*` outputs
-- [ ] Tests TST-SLOT-01..05, 07, 08, 12, 13 in `tools/launchd/test_mission_worktree.sh` (bash 3.2, rig
+- [ ] Tests TST-SLOT-01..05, 07, 08, 12, 13, 14 in `tools/launchd/test_mission_worktree.sh` (bash 3.2, rig
       `find` is bfs, BSD tools)
 
 **Phase 2: gate wiring + GOCACHE** (~0.5–1 day)
@@ -227,9 +257,9 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 - [ ] `mission-control.sh`: mission `GOCACHE` export and size alarm (if D3 = yes)
 - [ ] TST-SLOT-06 measured on the rig
 
-**Phase 3: sweep + registry + migration** (~0.5 day)
-- [ ] `pin-root.sh` writes the pin registry; `worktree_sweep.sh` / `git_health.sh` protect exact
-      pins + slot root; `--repo` for each registered clone (TST-SLOT-09, 10)
+**Phase 3: sweep + migration** (~0.5 day)
+- [ ] `worktree_sweep.sh` / `git_health.sh`: add the slot root to `PROTECT` (pin prefix unchanged); `--repo` for the fixed clone list;
+      `acquire` refuses a slot root under a protected prefix (TST-SLOT-09, 10)
 - [ ] One attended migration run: sweep `ailang` + `ailang-world` with the new rules (dry run
       first, log kept), and list the remaining KEEP rows for a human
 
@@ -238,11 +268,11 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 **Modified files:**
 - `tools/launchd/mission-worktree.sh` - `acquire` / `release`, salvage, cleanliness proof (~+120 LOC; the file is ~200 now)
 - `tools/launchd/test_mission_worktree.sh` - TST-SLOT-01..08 (~+150 LOC)
-- `tools/launchd/lib/pin-root.sh` - write the pin registry entry (~+10 LOC)
+- `tools/launchd/lib/pin-root.sh` - **no change** (r2: registry withdrawn)
 - `tools/launchd/mission-control.sh` - mission `GOCACHE` export + size line in the record, `release-fire` EXIT trap (~+25 LOC)
-- `scripts/worktree_sweep.sh` - exact-pin + slot-root protection, `--repo` (~+30 LOC)
-- `scripts/test_worktree_sweep.sh` - TST-SLOT-09/10 (~+40 LOC)
-- `scripts/hooks/git_health.sh` - drop the prefix override, sweep every registered clone (~+15 LOC)
+- `scripts/worktree_sweep.sh` - slot root added to `PROTECT`, `--repo` (~+25 LOC)
+- `scripts/test_worktree_sweep.sh` - TST-SLOT-10 + `--repo` case (~+40 LOC)
+- `scripts/hooks/git_health.sh` - add slot root to the protect list, sweep the fixed clone list (~+15 LOC)
 - `.claude/skills/mission-control/resources/gate-3-route.md` - recipes → `acquire` / `release` (~±40 lines)
 - `.claude/skills/mission-control/resources/gate-4-record.md` - record worktree → `acquire` (~±10 lines)
 - `.claude/skills/mission-control/resources/ref-drift.md` - same (~±5 lines)
@@ -255,8 +285,8 @@ Not a parser or typechecker change, but D4 and Component 1 change machinery othe
 | Shared thing | Who else relies on it | Decision | What must still work |
 |---|---|---|---|
 | `mission-worktree.sh add` / `wait` | every mission's gate-3 recipe; world/stapledon via `MISSION_DRIVER_ROOT` | **reuse**: add verbs; `add` / `wait` unchanged | existing `test_mission_worktree.sh` cases pass unmodified (TST-SLOT-11) |
-| sweep protection rule | attended SessionStart (`git_health.sh`), `test_worktree_sweep.sh` | **override**: prefix → exact registry | "protected mission pin → kept" test (L66) still passes; a tree *beside* a pin is now judged (TST-SLOT-09) |
-| driver pin refresh in `pin-root.sh` | every launchd mission | **reuse**: same checkout; only adds a registry write | `tools/launchd/test_pin_root.sh` passes unchanged |
+| sweep protection rule | attended SessionStart (`git_health.sh`), `test_worktree_sweep.sh` | **reuse**: pin prefix kept; slot root *added* | "protected mission pin → kept" test (L66) passes unchanged; no pin is more exposed than today |
+| driver pin refresh in `pin-root.sh` | every launchd mission | **reuse**, untouched (r2) | `tools/launchd/test_pin_root.sh` passes unchanged |
 | per-path Claude Code project state (`~/.claude/projects/<path>`) | mission roles whose cwd is a worktree | **changes**: one path per slot instead of per iteration | a role's auto-memory from a previous iteration in the same slot becomes visible to the next one. Accepted: mission roles are unattended and read the charter, not memory. Noted as a risk |
 | "worktree must be a sibling of `$REPO`" (gate-3 L235) | the planner recipe | **override** for slots: the root is fixed by D2 | the stated reason (derive, don't hardcode, never `/tmp`) still holds |
 
@@ -274,7 +304,10 @@ until out=$(bash "$MW" wait "$WT" 45); [ "$out" != pending ]; do :; done
 **After:**
 ```bash
 # one Bash tool call; owner = this fire's driver (MISSION_FIRE_ID), not this shell
-WT=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH") || { echo "PARK slot: $WT"; exit 1; }
+out=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH")   # returns at once: "pending <path>" | busy | failed:*
+case "$out" in "pending "*) WT=${out#pending };; *) echo "PARK slot: $out"; exit 1;; esac
+until r=$(bash "$MW" wait "$WT" 45); [ "$r" != pending ]; do :; done   # same loop as add today
+[ "$r" = ready ] || { echo "PARK slot_incomplete: $r"; exit 1; }
 echo "exec_wt=$WT" >> "$ITER_STATE"      # later calls and sub-agents read the path from here
 # same path every iteration → ~1% of files rewritten, Go cache hits for unchanged packages
 ```
@@ -293,7 +326,8 @@ trap 'bash "$MC_DRIVER_ROOT/tools/launchd/mission-worktree.sh" release-fire "$MI
 - [ ] An existing branch name is refused, never force-moved (TST-SLOT-07)
 - [ ] A reset that does not prove clean deletes the slot and reports `failed:not_clean_after_reset` (TST-SLOT-08)
 - [ ] Second build on an unchanged SHA in the same slot writes ≈0 cache bytes (TST-SLOT-06, rig measurement)
-- [ ] Sweep removes a landed tree *beside* a pin and keeps registered pins and slots (TST-SLOT-09, 10)
+- [ ] A slot root under a protected prefix is refused; slots under the slot root are kept by the sweep; the sweep covers every listed clone (TST-SLOT-09, 10)
+- [ ] Two acquirers racing to steal the same dead lock: exactly one wins, the other gets the next slot or `busy` (TST-SLOT-14)
 - [ ] Existing `add` / `wait` behaviour unchanged (TST-SLOT-11)
 - [ ] After two weeks live: ailang + ailang-world worktree counts ≤ pins + slots; mission GOCACHE under its threshold (manual, recorded in the mission log)
 
@@ -303,15 +337,16 @@ trap 'bash "$MC_DRIVER_ROOT/tools/launchd/mission-worktree.sh" release-fire "$MI
 |----|-------|---------------------|
 | TST-SLOT-01 | integration | Given no slot, when `acquire m exec SHA` runs, then a worktree is created at `<root>/<repo>/m/exec-1` with HEAD=SHA and empty porcelain |
 | TST-SLOT-02 | integration | Given slot exec-1 at SHA1 and SHA2 differing in K files, when `acquire … SHA2` runs, then HEAD=SHA2, porcelain is empty, and only ≈K files' mtimes changed |
-| TST-SLOT-03 | integration | Given exec-1 with a modified tracked file + an untracked file, when acquired, then `salvage-<ts>/` holds a patch + tar that restore both byte-identically, and the slot is clean at SHA |
+| TST-SLOT-03 | integration | Given exec-1 with (a) a modified tracked file, (b) an untracked file, and (c) a change B **staged** while the working file was restored to HEAD's A, when acquired, then `salvage-<ts>/` holds the cached diff, the worktree diff, the `index` copy and the untracked tar, and applying them to a fresh tree at the old HEAD reproduces (a)–(c) byte-identically, including B in the index; the slot is clean at SHA |
 | TST-SLOT-04 | integration | *(real topology)* Given a stand-in driver D (a long-lived process whose PID is in `MISSION_FIRE_ID`) and exec-1 acquired by a **separate shell A that has exited**, with **no process cwd inside exec-1**, when a shell B in another process group runs acquire, then B gets exec-2 (or `busy`) and exec-1 is untouched (sha of a tracked file + an untracked marker unchanged) |
 | TST-SLOT-05 | integration | Given the TST-SLOT-04 setup, when D is killed (no trap runs), then the next acquire reclaims exec-1 with salvage; when D's PID is reused by a process with a different birth, reclaimed; when birth cannot be read, held |
 | TST-SLOT-12 | integration | Given D holding exec-1 and record-1, when D exits normally through its `EXIT` trap, then `release-fire` drops both locks, the trees stay, and a lock owned by another fire is untouched |
 | TST-SLOT-13 | integration | Given `MISSION_FIRE_ID` unset, when acquire runs, then it fails `failed:no_fire_owner` and creates no lock or tree |
+| TST-SLOT-14 | integration | Given exec-1 locked by a dead driver, when two acquirers in separate process groups start together (barrier), then exactly one `mv` of `exec-1.lock` succeeds, exactly one acquirer owns exec-1, the other gets exec-2 or `busy`, and exec-1 was reset at most once (salvage dir count = 1) |
 | TST-SLOT-06 | e2e (rig) | Given exec-1 built once at SHA, when `release` + `acquire … SHA` + `go build ./...` run again, then the cache gains ≈0 bytes (`du -sk` before/after; control: a fresh path gains ≥1 GB) |
 | TST-SLOT-07 | integration | Given branch B exists, when `acquire … SHA B` runs, then it fails `failed:branch_exists` and B's ref is unchanged |
 | TST-SLOT-08 | integration | Given a reset that leaves porcelain non-empty (injected), when acquire finishes, then the slot dir is gone and the output is `failed:not_clean_after_reset` |
-| TST-SLOT-09 | integration | Given a registered pin P and a landed clean idle tree beside it under the same parent, when the sweep runs `--apply`, then the beside-tree is removed and P is kept |
+| TST-SLOT-09 | integration | Given a slot root configured under `~/.ailang-driver-pin/` (or any `PROTECT` prefix), when acquire runs, then it fails `failed:slot_root_protected` and creates no lock or tree |
 | TST-SLOT-10 | integration | Given an idle, clean slot under the slot root, when the sweep runs `--apply`, then it is kept (lifecycle-managed) |
 | TST-SLOT-11 | integration | *(regression surface)* Given the existing `test_mission_worktree.sh` cases, when run unmodified, then all pass |
 
@@ -357,7 +392,12 @@ would have reset a live role's tree. **Fixed:** the owner is the fire's driver (
 `release-fire` from the driver's own `EXIT` trap, recipes never release, and TST-SLOT-04/05/12/13
 model the real acquire-in-shell-A / use-in-session-B topology. Artifact:
 `.ailang/state/mission-quorum/m-mission-worktree-slots-2026-11-28T14-41-18Z.json`.
-Round 2 pending.
+**Round 2 (2026-11-28): BLOCKED 3/3** on new objections, all addressed in r3 below. Per the re-quorum-ONCE guardrail no round 3 was run; **the doc goes to the human for ratification** with these resolutions:
+- `oc-kimi-k3`: the registry narrowing could expose a live pin to the sweep → **registry withdrawn**; pin-prefix protection kept as is; slots live outside it and `acquire` refuses to put them inside (Component 3, TST-SLOT-09).
+- `codex:gpt-6.2-astra`: `git diff HEAD` loses "stage B, restore A" → salvage keeps the cached and worktree diffs separately plus a copy of `index` (step 4, TST-SLOT-03).
+- `gemini-4-carbon`: (1) GOCACHE "before re-exec" contradicted V11 → corrected; exports and trap sit after the pin re-exec (V14), and the three trap-setting libs are executed, not sourced (V13). (2) steal race on an existing `.lock` → `rename(2)`-arbitrated steal (step 2, TST-SLOT-14). (3) first creation exceeds the foreground tool limit → `acquire` always returns `pending` and the existing `wait` loop polls (step 3).
+
+Artifact: `.ailang/state/mission-quorum/m-mission-worktree-slots-2026-11-28T14-47-23Z.json`.
 
 ## Related Documents
 
@@ -387,6 +427,8 @@ No related doc scored ≥ 0.45; there is no duplicate.
 | V11 | The driver outlives the controller and every role, and keeps its PID across retries | `mission-control.sh` L2431 (`MISSION_FIRE_ID=…-$$`, exported), L2672–2689 (controller backgrounded with `&`), L2725 (`wait "$CONTROLLER_PID"`) | confirmed; `exec` happens only inside the `( … ) &` child subshell |
 | V12 | Recipes run as separate, ephemeral Bash tool calls | quorum round 1 (all three reviewers); gate-3 L733 already requires `run_in_background` + polling because one call cannot span the work | confirmed: a recipe-level `trap … EXIT` would release immediately |
 | V13 | `mission-control.sh` has no existing `trap` the new `EXIT` trap would replace | `grep -c -E "trap " tools/launchd/mission-control.sh` | 0 (the only hit for `trap\b` is a prose comment at L776); a sourced lib that sets one later must chain, not replace |
+| V14 | `MISSION_FIRE_ID`, the GOCACHE export and the new trap are set in the pinned driver | `mission-control.sh` L1247–1248 source `pin-root.sh`, which `exec /bin/bash "$wt/tools/launchd/$script"` (pin-root L362, same PID); `MISSION_FIRE_ID` is assigned later at L2431 | confirmed: after re-exec |
+| V15 | No sourced lib sets a trap | `grep -l -E '\btrap ' tools/launchd/lib/*.sh` → `idle-fingerprint.sh`, `run-suites.sh`, `triage-fingerprint.sh`; mission-control.sh runs these via `/bin/bash …` (L1740, L1787, L2451), never `.`; the sourced set (L944–950, 1248, 2102, 2660–2664) has none | confirmed |
 
 ---
 
