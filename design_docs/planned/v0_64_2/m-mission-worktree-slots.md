@@ -1,6 +1,6 @@
 # M-MISSION-WORKTREE-SLOTS — reusable worktree slots for mission loops
 
-**Status**: Planned — r3, awaiting human ratification (quorum r1 + r2 blocked; every objection addressed, see Quorum)
+**Status**: Planned, ratified 2026-11-28. The human (attended) accepted the recommendations for D1–D4 after quorum r1 + r2 (every objection addressed, see Quorum). Ready for sprint-planner
 **Target**: v0.64.2
 **Priority**: P1 (rig disk + I/O; recurring, compounding)
 **Estimated**: 2–3 days
@@ -129,10 +129,10 @@ incremental, Go cache keys stay stable, and mission worktree disk use has a fixe
 
 ### Design Freeze
 
-- [ ] D1 — salvage-then-reset (recommended) or park
-- [ ] D2 — slot root path
-- [ ] D3 — mission-only GOCACHE: yes/no; if yes, alarm threshold (proposal 40 GB)
-- [ ] D4 — keep pin-prefix protection, add slot root, sweep `ailang`/`ailang-world`/`ailang-docs`/`ailang-motoko`
+- [x] D1: **salvage-then-reset** (ratified 2026-11-28)
+- [x] D2: slot root **`~/.ailang-slots/<repo>/<mission>/<role>-<n>`** (ratified). It must stay outside `~/dev/sunholo-data`; see "Existing clean-up jobs"
+- [x] D3: **mission-only `GOCACHE=~/.cache/ailang-mission-go`**, notice threshold **40 GB**, never auto-cleaned (ratified)
+- [x] D4: keep pin-prefix protection, add the slot root, sweep `ailang` / `ailang-world` / `ailang-docs` / `ailang-motoko` (ratified)
 
 ## Solution Design
 
@@ -290,6 +290,29 @@ Not a parser or typechecker change, but D4 and Component 1 change machinery othe
 | per-path Claude Code project state (`~/.claude/projects/<path>`) | mission roles whose cwd is a worktree | **changes**: one path per slot instead of per iteration | a role's auto-memory from a previous iteration in the same slot becomes visible to the next one. Accepted: mission roles are unattended and read the charter, not memory. Noted as a risk |
 | "worktree must be a sibling of `$REPO`" (gate-3 L235) | the planner recipe | **override** for slots: the root is fixed by D2 | the stated reason (derive, don't hardcode, never `/tmp`) still holds |
 
+### Existing clean-up jobs (audited 2026-11-28)
+
+Every job on the rig that removes worktrees, prunes them or touches the Go cache, checked for
+interaction with slots.
+
+| Job | What it does | Interaction | Constraint it puts on this design |
+|---|---|---|---|
+| `scripts/worktree_sweep.sh` via `git_health.sh` (attended SessionStart, ≤6-hourly) | removes landed, clean, idle trees | Slots are added to `PROTECT` (D4), so it never removes a slot | none beyond D4 |
+| **`dev.sunholo.checkout-audit`** (launchd, Sundays 13:00: `checkout_audit.ail -- ~/dev/sunholo-data 7 --delete`) | deletes checkouts and worktrees **directly under `~/dev/sunholo-data`** or inside `*-worktrees` / `*-wt` / `*-worktree` folders there, when idle ≥ 7 days and provably safe (83 DELETE rows on 2026-11-22) | A slot idle ≥ 7 days (a paused mission) under that root **would be deleted** behind `acquire`'s back | **The slot root must never be under `~/dev/sunholo-data`** or in a folder ending `-worktrees` / `-wt` / `-worktree` anywhere it scans. `~/.ailang-slots` satisfies this. `acquire` should refuse a root inside the audit's scan set (same check as `failed:slot_root_protected`) |
+| `internal/coordinator/worktree.go` `CleanupOrphaned` | `git worktree prune` + forgets tracked task trees missing on disk | `prune` removes only registrations whose directory is gone; it never touches an existing slot. If a slot directory is deleted externally, its registration goes and `acquire` recreates it on the next fire | none |
+| `tools/launchd/nightly-eval.sh` L116 | `git worktree prune` | same as above | none |
+| `tools/launchd/mission-lane-check.sh` L81–92 | creates and removes its own `/tmp/lanecheck.*` probe trees | separate paths | none |
+| Go's own cache trim | deletes entries unused 5 days, per cache dir, at most daily | works per `GOCACHE`; the mission cache trims itself | none |
+| `gate-3-route.md` L174–177 codex lanes | `GOCACHE=$(go env GOCACHE)` → `--add-dir "$GOCACHE"` | reads the **exported** value, so the sandbox write grant follows D3's mission cache automatically | the export must happen before any lane launches (it does: L2431, V14) |
+| `internal/executor/envpolicy.go` L67 / `cmd/ailang/run_policy_supervise.go` L47 | pass `GOCACHE` / `GOFLAGS` through to executors | the mission cache propagates to executors as intended | none |
+| `internal/executor/agy/route.go` L239–285 | the agy lane sets its own `GOCACHE` (config, else `<UserCacheDir>/go-build`) | that lane keeps using the user cache. Not a conflict, just outside D3's isolation | optional: point it at the mission cache later |
+| `com.voightkampff.ccd-orphan-sweep`, `dev.ailang.rig-watchdog` | kill superseded `ccd-cli --resume` processes / re-bootstrap launchd jobs | process-level, no filesystem clean-up | none |
+| crontab `one-test-log-sweep.sh` (aitana platform), `cron-kicker.sh` | log triage / job kicking | unrelated | none |
+
+**One-off salvage from 2026-11-28** (`~/.ailang/state/worktree-salvage/2026-11-28{,-world}/`,
+693 MB, plus `refs/salvage/*` in both repos): nothing sweeps it. Keep it until the slot salvage
+retention rule (Deferred Decisions) lands, then let that rule cover it.
+
 ## Examples
 
 **Before (gate-3 sprint worktree):**
@@ -346,7 +369,7 @@ trap 'bash "$MC_DRIVER_ROOT/tools/launchd/mission-worktree.sh" release-fire "$MI
 | TST-SLOT-06 | e2e (rig) | Given exec-1 built once at SHA, when `release` + `acquire … SHA` + `go build ./...` run again, then the cache gains ≈0 bytes (`du -sk` before/after; control: a fresh path gains ≥1 GB) |
 | TST-SLOT-07 | integration | Given branch B exists, when `acquire … SHA B` runs, then it fails `failed:branch_exists` and B's ref is unchanged |
 | TST-SLOT-08 | integration | Given a reset that leaves porcelain non-empty (injected), when acquire finishes, then the slot dir is gone and the output is `failed:not_clean_after_reset` |
-| TST-SLOT-09 | integration | Given a slot root configured under `~/.ailang-driver-pin/` (or any `PROTECT` prefix), when acquire runs, then it fails `failed:slot_root_protected` and creates no lock or tree |
+| TST-SLOT-09 | integration | Given a slot root configured under `~/.ailang-driver-pin/` (or any `PROTECT` prefix), or under the checkout-audit scan set (`~/dev/sunholo-data/<x>` directly, or any `*-worktrees`/`*-wt`/`*-worktree` folder there), when acquire runs, then it fails `failed:slot_root_protected` and creates no lock or tree |
 | TST-SLOT-10 | integration | Given an idle, clean slot under the slot root, when the sweep runs `--apply`, then it is kept (lifecycle-managed) |
 | TST-SLOT-11 | integration | *(regression surface)* Given the existing `test_mission_worktree.sh` cases, when run unmodified, then all pass |
 
