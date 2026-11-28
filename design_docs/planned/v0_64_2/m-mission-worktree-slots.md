@@ -208,9 +208,10 @@ exists, `git checkout --quiet --detach --force <target>`; otherwise `worktree ad
 
 2. **Gate wiring.** `gate-3-route.md` (sprint, planner, judge, evaluator), `gate-4-record.md`
    (record) and `ref-drift.md` replace `WT="$(cd .. && pwd)/.wt-…"` + `mission-worktree.sh add`
-   with `acquire` followed by the existing `wait` loop (Component 1 step 3). The recipe writes
-   `WT` into the iteration's state file so later tool calls and sub-agents re-read the path
-   instead of re-acquiring. **No `trap` in any recipe**: release is the driver's job
+   with `acquire` followed by the existing `wait` loop (Component 1 step 3). Later tool calls and sub-agents
+   get the path back with `mission-worktree.sh held "$MISSION_FIRE_ID" <role>`, which reads it
+   from the lock owner records (fire id + role are already stored there). There is no separate
+   state file: the driver has no per-iteration one (V16). **No `trap` in any recipe**: release is the driver's job
    (Component 1). The "measure `origin/dev` immediately before, use the full SHA" rule
    (gate-3 L653–694) is unchanged: `acquire` takes that SHA.
 
@@ -331,7 +332,7 @@ out=$(bash "$MW" acquire "$MISSION_NAME" exec "$newsha" "$BRANCH")   # returns a
 case "$out" in "pending "*) WT=${out#pending };; *) echo "PARK slot: $out"; exit 1;; esac
 until r=$(bash "$MW" wait "$WT" 45); [ "$r" != pending ]; do :; done   # same loop as add today
 [ "$r" = ready ] || { echo "PARK slot_incomplete: $r"; exit 1; }
-echo "exec_wt=$WT" >> "$ITER_STATE"      # later calls and sub-agents read the path from here
+# a later tool call or sub-agent: WT=$(bash "$MW" held "$MISSION_FIRE_ID" exec)
 # same path every iteration → ~1% of files rewritten, Go cache hits for unchanged packages
 ```
 
@@ -452,6 +453,7 @@ No related doc scored ≥ 0.45; there is no duplicate.
 | V13 | `mission-control.sh` has no existing `trap` the new `EXIT` trap would replace | `grep -c -E "trap " tools/launchd/mission-control.sh` | 0 (the only hit for `trap\b` is a prose comment at L776); a sourced lib that sets one later must chain, not replace |
 | V14 | `MISSION_FIRE_ID`, the GOCACHE export and the new trap are set in the pinned driver | `mission-control.sh` L1247–1248 source `pin-root.sh`, which `exec /bin/bash "$wt/tools/launchd/$script"` (pin-root L362, same PID); `MISSION_FIRE_ID` is assigned later at L2431 | confirmed: after re-exec |
 | V15 | No sourced lib sets a trap | `grep -l -E '\btrap ' tools/launchd/lib/*.sh` → `idle-fingerprint.sh`, `run-suites.sh`, `triage-fingerprint.sh`; mission-control.sh runs these via `/bin/bash …` (L1740, L1787, L2451), never `.`; the sourced set (L944–950, 1248, 2102, 2660–2664) has none | confirmed |
+| V16 | The driver has no per-iteration state file a recipe could write the slot path to | `grep -n -E "ITER_STATE|iter_state" tools/launchd/mission-control.sh` → none; the skill only uses fixed `~/.ailang/state/mission-*` files | confirmed: path lookup is `held FIRE_ID ROLE` from the lock records |
 
 ---
 

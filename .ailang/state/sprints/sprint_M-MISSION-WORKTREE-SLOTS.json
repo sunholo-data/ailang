@@ -1,0 +1,118 @@
+{
+  "sprint_id": "M-MISSION-WORKTREE-SLOTS",
+  "status": "not_started",
+  "created": "2026-11-28T15:37:47Z",
+  "design_doc": "design_docs/planned/v0_64_2/m-mission-worktree-slots.md",
+  "sprint_plan": "design_docs/planned/v0_64_2/sprint-plan-m-mission-worktree-slots.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SLOT_OWNERSHIP",
+      "package": null,
+      "action": "none",
+      "reason": "searched ailang pkg: worktree, git checkout, lock, slot, cache — no relevant package (only lock matched unrelated physics/audio/social packages); rig-local bash launchd tooling"
+    },
+    {
+      "milestone": "M2_RESET_SALVAGE",
+      "package": null,
+      "action": "none",
+      "reason": "searched ailang pkg: worktree, git checkout, lock, slot, cache — no relevant package (only lock matched unrelated physics/audio/social packages); rig-local bash launchd tooling"
+    },
+    {
+      "milestone": "M3_DRIVER_SWEEP",
+      "package": null,
+      "action": "none",
+      "reason": "edits to existing driver/sweep shell scripts; searched ailang pkg: worktree, git checkout, lock, slot, cache — no relevant package (only lock matched unrelated physics/audio/social packages); rig-local bash launchd tooling"
+    },
+    {
+      "milestone": "M4_GATE_WIRING_ROLLOUT",
+      "package": null,
+      "action": "none",
+      "reason": "skill-text wiring + changelog; searched ailang pkg: worktree, git checkout, lock, slot, cache — no relevant package (only lock matched unrelated physics/audio/social packages); rig-local bash launchd tooling"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 805,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_SLOT_OWNERSHIP",
+      "description": "Slot ownership: `acquire` / `held` / `release-fire`",
+      "estimated_loc": 320,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TST-SLOT-01, TST-SLOT-04, TST-SLOT-05, TST-SLOT-09, TST-SLOT-12, TST-SLOT-13, TST-SLOT-14 pass in `tools/launchd/test_mission_slots.sh` (each test carries its ID in a comment, so `check_acceptance_criteria.sh` can find it)",
+        "TST-SLOT-04 uses the real topology: acquire in shell A, which exits; driver stand-in D alive; **no cwd inside**; shell B in another process group (`set -m`) acquires",
+        "TST-SLOT-11: `tools/launchd/test_mission_worktree.sh` passes **unmodified** (`git diff --exit-code` on it)",
+        "`/bin/bash -n` clean; runs under `/bin/bash` 3.2 (no `declare -A`, `${v,,}`, GNU `timeout`, relative `find -newermt`)",
+        "`make test-launchd-drivers` green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_RESET_SALVAGE",
+      "description": "Reset + salvage + cleanliness proof",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_SLOT_OWNERSHIP"
+      ],
+      "acceptance_criteria": [
+        "TST-SLOT-02, TST-SLOT-03, TST-SLOT-07, TST-SLOT-08 pass",
+        "TST-SLOT-03 includes the \"stage B, restore A in the working file\" case and restores the index byte-identically from the salvage",
+        "TST-SLOT-02 asserts only ≈K files' mtimes changed for a K-file SHA delta (use `perl stat`, not GNU `stat`)",
+        "M1 tests still pass; `make test-launchd-drivers` green",
+        "Mutation check (memory: mutate your own tests): replace `--cached` salvage with `git diff HEAD` → TST-SLOT-03 fails; skip the porcelain proof → TST-SLOT-08 fails. Do it via a scratchpad copy, never `git checkout <file>`"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DRIVER_SWEEP",
+      "description": "Driver trap + mission GOCACHE + sweep coverage",
+      "estimated_loc": 145,
+      "dependencies": [
+        "M1_SLOT_OWNERSHIP"
+      ],
+      "acceptance_criteria": [
+        "TST-SLOT-10 passes (idle clean slot under the slot root is KEPT by `--apply`)",
+        "New sweep case: `--repo A --repo B` judges both clones and logs each with its own `[repo]` tag",
+        "`git_health.sh` test: the sweep is spawned once per present clone and never for an absent one; still exits 0 and still skips when `AILANG_MISSION_STAGE` / `AILANG_TASK_ID` are set",
+        "Driver: a test (or `tools/launchd/test_pin_root.sh`-style harness) shows the `EXIT` trap fires `release-fire` with the fire's id after the pin re-exec, and the exported `GOCACHE` reaches a child (`/bin/bash -c 'go env GOCACHE'` equals the mission path)",
+        "Existing `scripts/test_worktree_sweep.sh` case \"protected mission pin → kept\" (L66) passes unchanged",
+        "`make test-launchd-drivers` green; `/bin/bash -n tools/launchd/mission-control.sh`"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_GATE_WIRING_ROLLOUT",
+      "description": "Gate wiring + rollout + measurement",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_SLOT_OWNERSHIP",
+        "M2_RESET_SALVAGE",
+        "M3_DRIVER_SWEEP"
+      ],
+      "acceptance_criteria": [
+        "`grep -n 'mission-worktree.sh\" add\\|worktree add' .claude/skills/mission-control/resources/*.md` shows no remaining per-iteration creation outside \"first creation\" wording",
+        "TST-SLOT-06 measured on the rig and recorded in the design doc: second build on an unchanged SHA in the same slot gains ≈0 bytes in `~/.cache/ailang-mission-go`; control: a fresh path gains ≥1 GB",
+        "One real fire per migrated mission (fleet first, then triage, v1, world) observed: slot path used, `release-fire` logged, worktree count unchanged after the fire",
+        "`make check-changelog`, `make check-skills`, `make check-referenced-paths` green",
+        "Main checkout updated (skills load from the main worktree; memory `project_mission_skills_load_from_main_worktree`)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
